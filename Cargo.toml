@@ -14,5 +14,7 @@ members = [
   "sources/terrahistoricus",
   "sources/zerobyw",
   "sources/dm5",
+  "sources/dongmanmanhua",
+  "sources/manhuashe",
   "tools/koma-source-dev",
 ]

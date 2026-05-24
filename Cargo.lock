@@ -1126,6 +1126,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_dongmanmanhua_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
 name = "koma_happymh_source"
 version = "0.1.0"
 dependencies = [
@@ -1162,6 +1169,13 @@ dependencies = [
 
 [[package]]
 name = "koma_manhuaren_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_manhuashe_source"
 version = "0.1.0"
 dependencies = [
  "koma_source_sdk",
