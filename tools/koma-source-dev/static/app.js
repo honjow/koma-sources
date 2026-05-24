@@ -6,14 +6,23 @@ let sourceInfo = null;
 // --- API ---
 async function api(endpoint, opts = {}) {
   const resp = await fetch(API + endpoint, opts);
+  if (!resp.ok) {
+    const text = await resp.text();
+    console.error(`[API ${resp.status}] ${endpoint}:`, text);
+    return { ok: false, error: text };
+  }
   return resp.json();
 }
 async function apiRun(op, request = {}) {
+  console.log(`[apiRun] ${op}`, request);
   const data = await api('/api/run', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ op, request })
   });
+  if (!data.ok) {
+    console.error(`[apiRun] ${op} failed:`, data.error || data.warnings || data);
+  }
   showJson(data);
   return data;
 }
@@ -24,35 +33,36 @@ function proxyUrl(url) {
 // --- Init ---
 async function init() {
   await loadSources();
+  await refreshSourceInfo();
+  navigate('home');
+}
+
+async function refreshSourceInfo() {
   sourceInfo = await api('/api/info');
   const info = sourceInfo?.data?.sourceInfo;
   if (info) {
     document.getElementById('source-name').textContent = `${info.name} v${info.version} (${info.language})`;
   }
-  navigate('home');
 }
 
 // --- Source Switcher ---
 async function loadSources() {
   const sources = await api('/api/sources');
   const select = document.getElementById('source-select');
-  select.innerHTML = sources.map(s =>
+  select.innerHTML = (sources || []).map(s =>
     `<option value="${esc(s.file)}" ${s.active ? 'selected' : ''}>${esc(s.name)}</option>`
   ).join('');
 }
 async function switchSource() {
   const select = document.getElementById('source-select');
   const file = select.value;
+  console.log('[switchSource]', file);
   await api('/api/switch', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: file })
   });
-  sourceInfo = await api('/api/info');
-  const info = sourceInfo?.data?.sourceInfo;
-  if (info) {
-    document.getElementById('source-name').textContent = `${info.name} v${info.version} (${info.language})`;
-  }
+  await refreshSourceInfo();
   navigate(currentPage);
 }
 
@@ -82,7 +92,7 @@ async function renderHome(el) {
     return;
   }
   el.innerHTML = sections.map(section => `
-    <div class="mb-8">
+    <div class="mb-6">
       <h2 class="text-lg font-semibold mb-3">${esc(section.title)}</h2>
       <div class="section-scroll">
         ${(section.items || []).map(item => mangaCardSmall(item)).join('')}
@@ -95,13 +105,13 @@ async function renderHome(el) {
 async function renderSearch(el, params = {}) {
   const query = params.query || '';
   el.innerHTML = `
-    <div class="mb-6 flex gap-2">
+    <div class="mb-4 flex gap-2">
       <input id="search-input" type="text" value="${esc(query)}" placeholder="Search manga..."
         class="flex-1 px-4 py-2 bg-gray-800 border border-gray-600 rounded text-sm focus:outline-none focus:border-blue-500"
         onkeydown="if(event.key==='Enter')doSearch()">
       <button onclick="doSearch()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm">Search</button>
     </div>
-    <div id="search-results" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"></div>
+    <div id="search-results" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 overflow-y-auto" style="max-height: calc(100vh - 11rem);"></div>
   `;
   if (query) doSearch(query);
 }
@@ -121,11 +131,15 @@ async function doSearch(q) {
 
 // --- Browse (manga_list) ---
 async function renderBrowse(el) {
-  el.innerHTML = '<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4" id="browse-grid"></div>';
+  el.innerHTML = `<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 overflow-y-auto" id="browse-grid" style="max-height: calc(100vh - 9rem);"></div>`;
   const grid = document.getElementById('browse-grid');
   grid.innerHTML = '<div class="col-span-full text-center text-gray-500">Loading...</div>';
   const data = await apiRun('get_manga_list', { page: "1" });
   const items = data?.data?.items || [];
+  if (items.length === 0) {
+    grid.innerHTML = '<div class="col-span-full text-center text-gray-500">No items</div>';
+    return;
+  }
   grid.innerHTML = items.map(item => mangaCard(item)).join('');
 }
 
@@ -134,7 +148,11 @@ async function renderManga(el, params) {
   el.innerHTML = '<div class="text-center text-gray-500 py-8">Loading...</div>';
   const data = await apiRun('get_manga', { mangaId: params.id });
   const manga = data?.data?.manga || data?.data;
-  if (!manga || !manga.title) { el.innerHTML = '<div class="text-red-400">Failed to load</div>'; return; }
+  if (!manga || !manga.title) {
+    console.error('[renderManga] Failed to load manga:', params.id, data);
+    el.innerHTML = `<div class="text-red-400">Failed to load manga<br><span class="text-xs text-gray-500">${esc(data?.error || JSON.stringify(data?.warnings || ''))}</span></div>`;
+    return;
+  }
 
   const chapData = await apiRun('get_chapters', { mangaId: params.id });
   const chapters = chapData?.data?.items || [];
@@ -159,7 +177,7 @@ async function renderManga(el, params) {
     <div class="space-y-1 max-h-96 overflow-y-auto">
       ${chapters.map(ch => `
         <div class="flex items-center justify-between px-3 py-2 bg-gray-800 rounded hover:bg-gray-700 cursor-pointer"
-             onclick="navigate('reader', {mangaId:'${esc(params.id)}', chapterId:'${esc(ch.id)}'})">
+             onclick="navigate('reader', {mangaId:${JSON.stringify(params.id)}, chapterId:${JSON.stringify(ch.id)}})">
           <span class="text-sm">${ch.chapterNumber ? 'Ch. ' + esc(ch.chapterNumber) : ''} ${ch.title ? esc(ch.title) : ''}</span>
           <span class="text-xs text-gray-500">${ch.pageCount || '?'} pages</span>
         </div>
@@ -180,6 +198,7 @@ async function renderReader(el, params) {
   readerPages = data?.data?.pages || [];
   readerCurrentPage = 0;
   if (readerPages.length === 0) {
+    console.error('[renderReader] No pages:', params.chapterId, data);
     el.innerHTML = '<div class="text-red-400">No pages found</div>';
     return;
   }
@@ -194,14 +213,14 @@ function renderReaderPage(el) {
   const current = readerCurrentPage + 1;
 
   el.innerHTML = `
-    <div class="flex flex-col items-center h-[calc(100vh-8rem)]">
+    <div class="flex flex-col items-center" style="height: calc(100vh - 8rem);">
       <!-- Top bar -->
       <div class="flex items-center justify-between w-full max-w-3xl mb-2">
-        <button onclick="navigate('manga', {id:'${esc(readerParams.mangaId)}'})" class="text-sm text-blue-400 hover:text-blue-300">← Back</button>
+        <button onclick="navigate('manga', {id:${JSON.stringify(readerParams.mangaId)}})" class="text-sm text-blue-400 hover:text-blue-300">← Back</button>
         <span class="text-sm text-gray-400">${current} / ${total}</span>
       </div>
       <!-- Image container -->
-      <div class="flex-1 flex items-center justify-center w-full max-w-3xl relative select-none" id="reader-container">
+      <div class="flex-1 flex items-center justify-center w-full max-w-3xl relative select-none overflow-hidden" id="reader-container">
         <!-- Left click zone -->
         <div class="absolute left-0 top-0 w-1/3 h-full cursor-pointer z-10" onclick="readerPrev()"></div>
         <!-- Right click zone -->
@@ -209,7 +228,7 @@ function renderReaderPage(el) {
         ${url ? `<img src="${url}" class="max-h-full max-w-full object-contain rounded shadow-lg">` : '<div class="text-gray-500">No image</div>'}
       </div>
       <!-- Bottom controls -->
-      <div class="flex items-center gap-4 mt-3">
+      <div class="flex items-center gap-4 mt-2 pb-2">
         <button onclick="readerPrev()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm disabled:opacity-30" ${current <= 1 ? 'disabled' : ''}>← Prev</button>
         <span class="text-sm text-gray-400 w-20 text-center">${current} / ${total}</span>
         <button onclick="readerNext()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm disabled:opacity-30" ${current >= total ? 'disabled' : ''}>Next →</button>
@@ -241,8 +260,9 @@ document.addEventListener('keydown', (e) => {
 // --- Components ---
 function mangaCard(item) {
   const cover = item.cover?.url ? proxyUrl(item.cover.url) : '';
+  const id = JSON.stringify(item.id);
   return `
-    <div class="manga-card" onclick="navigate('manga', {id:'${esc(item.id)}'})">
+    <div class="manga-card" onclick='navigate("manga", {id:${id}})'>
       <div class="bg-gray-800 rounded-lg overflow-hidden">
         ${cover ? `<img src="${cover}" alt="" class="w-full" style="aspect-ratio:3/4;object-fit:cover">` : '<div class="w-full bg-gray-700" style="aspect-ratio:3/4"></div>'}
         <div class="p-2">
@@ -254,8 +274,9 @@ function mangaCard(item) {
 }
 function mangaCardSmall(item) {
   const cover = item.cover?.url ? proxyUrl(item.cover.url) : '';
+  const id = JSON.stringify(item.id);
   return `
-    <div class="manga-card w-28" onclick="navigate('manga', {id:'${esc(item.id)}'})">
+    <div class="manga-card w-28" onclick='navigate("manga", {id:${id}})'>
       ${cover ? `<img src="${cover}" alt="" class="w-28 rounded" style="aspect-ratio:3/4;object-fit:cover">` : '<div class="w-28 bg-gray-700 rounded" style="aspect-ratio:3/4"></div>'}
       <div class="text-xs mt-1 line-clamp-2">${esc(item.title || '')}</div>
     </div>

@@ -128,9 +128,17 @@ async fn api_run(
 ) -> impl IntoResponse {
     let wasm = state.current_wasm.read().unwrap().clone();
     let request_str = serde_json::to_string(&body.request).unwrap_or_default();
+    eprintln!("[api_run] op={} request={}", body.op, request_str);
     match host::run_operation(&wasm, &body.op, &request_str) {
         Ok(v) => Json(v).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => {
+            eprintln!("[api_run] ERROR op={}: {}", body.op, e);
+            Json(serde_json::json!({
+                "ok": false,
+                "error": e.to_string(),
+                "operation": body.op
+            })).into_response()
+        }
     }
 }
 

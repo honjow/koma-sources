@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,10 +7,10 @@
 <link rel="stylesheet" href="/style.css">
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen">
-<div id="app">
+<body class="bg-gray-900 text-gray-100 h-full overflow-hidden">
+<div id="app" class="h-full flex flex-col">
   <!-- Header -->
-  <header class="bg-gray-800 border-b border-gray-700 px-6 py-3 flex items-center justify-between">
+  <header class="bg-gray-800 border-b border-gray-700 px-6 py-3 flex items-center justify-between flex-shrink-0">
     <div class="flex items-center gap-3">
       <h1 class="text-lg font-semibold">Koma Source Preview</h1>
       <select id="source-select" onchange="switchSource()"
@@ -25,14 +25,14 @@
   </header>
 
   <!-- Navigation -->
-  <nav class="bg-gray-800 border-b border-gray-700 px-6 py-2 flex gap-4 text-sm">
+  <nav class="bg-gray-800 border-b border-gray-700 px-6 py-2 flex gap-4 text-sm flex-shrink-0">
     <a href="#" onclick="navigate('home')" class="nav-link hover:text-white" data-page="home">Home</a>
     <a href="#" onclick="navigate('search')" class="nav-link hover:text-white" data-page="search">Search</a>
     <a href="#" onclick="navigate('browse')" class="nav-link hover:text-white" data-page="browse">Browse</a>
   </nav>
 
   <!-- Main Content -->
-  <main id="content" class="p-6">
+  <main id="content" class="flex-1 p-4 overflow-y-auto min-h-0">
   </main>
 
   <!-- JSON Panel (collapsible) -->
