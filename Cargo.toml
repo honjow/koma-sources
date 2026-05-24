@@ -7,8 +7,10 @@ members = [
   "sources/mangabz",
   "sources/manhuagui",
   "sources/manhuaren",
+  "sources/noyacg",
   "sources/zaimanhua",
   "sources/happymh",
+  "sources/komiic",
   "sources/terrahistoricus",
   "tools/koma-source-dev",
 ]
