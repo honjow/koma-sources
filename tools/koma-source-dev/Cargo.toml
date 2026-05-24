@@ -12,3 +12,6 @@ ureq = { version = "2", features = ["json"] }
 scraper = "0.19"
 clap = { version = "4", features = ["derive"] }
 anyhow = "1"
+axum = "0.8"
+tokio = { version = "1", features = ["full"] }
+tower-http = { version = "0.6", features = ["cors"] }

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Koma Source Preview</title>
+<link rel="stylesheet" href="/style.css">
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+<div id="app">
+  <!-- Header -->
+  <header class="bg-gray-800 border-b border-gray-700 px-6 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <h1 class="text-lg font-semibold">Koma Source Preview</h1>
+      <span id="source-name" class="text-sm text-gray-400"></span>
+    </div>
+    <div class="flex items-center gap-2">
+      <span id="build-status" class="w-2 h-2 rounded-full bg-green-500"></span>
+      <button onclick="runTestAll()" class="px-3 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded">test-all</button>
+    </div>
+  </header>
+
+  <!-- Navigation -->
+  <nav class="bg-gray-800 border-b border-gray-700 px-6 py-2 flex gap-4 text-sm">
+    <a href="#" onclick="navigate('home')" class="nav-link hover:text-white" data-page="home">Home</a>
+    <a href="#" onclick="navigate('search')" class="nav-link hover:text-white" data-page="search">Search</a>
+    <a href="#" onclick="navigate('browse')" class="nav-link hover:text-white" data-page="browse">Browse</a>
+  </nav>
+
+  <!-- Main Content -->
+  <main id="content" class="p-6">
+    <!-- Content rendered by JS -->
+  </main>
+
+  <!-- JSON Panel (collapsible) -->
+  <div id="json-panel" class="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 transition-transform translate-y-full" style="max-height: 40vh; overflow-y: auto;">
+    <div class="flex items-center justify-between px-4 py-2 cursor-pointer" onclick="toggleJsonPanel()">
+      <span class="text-xs text-gray-400">Raw JSON</span>
+      <span id="json-toggle" class="text-xs">▲</span>
+    </div>
+    <pre id="json-content" class="px-4 pb-4 text-xs text-green-400 overflow-x-auto"></pre>
+  </div>
+</div>
+<script src="/app.js"></script>
+</body>
+</html>

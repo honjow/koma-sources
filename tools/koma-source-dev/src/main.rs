@@ -1,4 +1,5 @@
 mod host;
+mod serve;
 mod types;
 
 use anyhow::Result;
@@ -39,9 +40,18 @@ enum Commands {
         /// Path to the compiled .wasm source
         wasm: PathBuf,
     },
+    /// Start web preview server
+    Serve {
+        /// Path to the compiled .wasm source
+        wasm: PathBuf,
+        /// Port to listen on
+        #[arg(long, default_value = "3000")]
+        port: u16,
+    },
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
@@ -58,6 +68,9 @@ fn main() -> Result<()> {
         }
         Commands::TestAll { wasm } => {
             run_test_all(&wasm)?;
+        }
+        Commands::Serve { wasm, port } => {
+            serve::start_server(wasm, port).await?;
         }
     }
 
