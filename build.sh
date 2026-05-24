@@ -127,13 +127,13 @@ build_source() {
     cp "$pkg_dir/icon.png" "$OUTPUT_DIR/sources/$name/icon.png"
   fi
   
-  # Determine pkg download URL
+  # Determine pkg download URL/path
   local pkg_filename="${name}-${src_version}.koma"
   local pkg_url
   if [[ -n "$VERSION_TAG" ]]; then
     pkg_url="${REPO_URL}/releases/download/${VERSION_TAG}/${pkg_filename}"
   else
-    pkg_url="${pkg_filename}"
+    pkg_url="sources/${name}/${pkg_filename}"
   fi
 
   # Output index entry JSON to stdout (only line on stdout)
@@ -150,6 +150,40 @@ build_source() {
     --arg icon "$icon_path" \
     --arg minAppVersion "0.1.0" \
     '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, pkg: $pkg, icon: $icon, minAppVersion: $minAppVersion}'
+}
+
+validate_index_packages() {
+  local index_file="$OUTPUT_DIR/index.json"
+  local failures=0
+
+  while IFS= read -r pkg_path; do
+    if [[ -z "$pkg_path" || "$pkg_path" == "null" ]]; then
+      log "ERROR: index entry has empty pkg"
+      failures=$((failures + 1))
+      continue
+    fi
+
+    if [[ "$pkg_path" == /* || "$pkg_path" =~ ^[A-Za-z][A-Za-z0-9+.-]*: ]]; then
+      continue
+    fi
+
+    if [[ "$pkg_path" == ../* || "$pkg_path" == */../* ]]; then
+      log "ERROR: pkg path escapes dist: $pkg_path"
+      failures=$((failures + 1))
+      continue
+    fi
+
+    if [[ ! -f "$OUTPUT_DIR/$pkg_path" ]]; then
+      log "ERROR: pkg path does not exist under dist: $pkg_path"
+      failures=$((failures + 1))
+    fi
+  done < <(jq -r '.[].pkg' "$index_file")
+
+  if [[ "$failures" -gt 0 ]]; then
+    return 1
+  fi
+
+  log "  ✓ package paths resolve under dist"
 }
 
 # Main
@@ -186,6 +220,8 @@ log "  ✓ index.json ($count sources)"
 
 # Clean up pkg staging
 rm -rf "$OUTPUT_DIR/pkg"
+
+validate_index_packages
 
 log ""
 log "Done. Output in $OUTPUT_DIR/"
