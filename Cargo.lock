@@ -1140,6 +1140,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_manhuagui_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
 name = "koma_manhuaren_source"
 version = "0.1.0"
 dependencies = [
@@ -1149,6 +1156,13 @@ dependencies = [
 [[package]]
 name = "koma_source_sdk"
 version = "0.2.0"
+
+[[package]]
+name = "koma_terrahistoricus_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
 
 [[package]]
 name = "koma_zaimanhua_source"

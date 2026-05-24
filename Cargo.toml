@@ -5,8 +5,10 @@ members = [
   "sources/baozimh",
   "sources/mangadex",
   "sources/mangabz",
+  "sources/manhuagui",
   "sources/manhuaren",
   "sources/zaimanhua",
   "sources/happymh",
+  "sources/terrahistoricus",
   "tools/koma-source-dev",
 ]
