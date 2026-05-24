@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Koma Source Manifest",
+  "type": "object",
+  "required": ["id", "name", "version", "lang"],
+  "properties": {
+    "id": { "type": "string", "description": "Unique source identifier (e.g. baozimh, mangadex)" },
+    "name": { "type": "string", "description": "Human-readable display name" },
+    "version": { "type": "string", "description": "Semver version string" },
+    "lang": { "type": "string", "description": "Language code: zh, en, ja, multi, etc." },
+    "nsfw": { "type": "boolean", "default": false },
+    "minAppVersion": { "type": "string", "description": "Minimum Koma app version required" },
+    "description": { "type": "string" },
+    "author": { "type": "string" },
+    "homepage": { "type": "string" }
+  }
+}
