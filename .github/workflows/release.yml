@@ -1,0 +1,40 @@
+name: Build and Release Sources
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Build koma-source-dev runner
+        run: |
+          git clone --depth 1 https://github.com/honjow/Koma.git /tmp/koma
+          cd /tmp/koma/tools/koma-source-dev
+          cargo build --release
+          echo "DEV_RUNNER=/tmp/koma/tools/koma-source-dev/target/release/koma-source-dev" >> "$GITHUB_ENV"
+
+      - name: Build sources
+        run: |
+          export KOMA_SOURCES_SRC="/tmp/koma/tools/sources"
+          ./build.sh --tag "${{ github.ref_name }}"
+
+      - name: Upload Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/index.json
+            dist/sources/**/*.koma
+          generate_release_notes: true

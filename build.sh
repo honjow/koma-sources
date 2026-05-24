@@ -21,10 +21,17 @@ declare -A NSFW_MAP=(
   ["mangadex"]="true"
 )
 
+REPO_URL="${KOMA_REPO_URL:-https://github.com/honjow/koma-sources}"
+
 ONLY_SOURCE=""
-if [[ "${1:-}" == "--source" ]]; then
-  ONLY_SOURCE="${2:-}"
-fi
+VERSION_TAG=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --source) ONLY_SOURCE="$2"; shift 2 ;;
+    --tag) VERSION_TAG="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
 
 log() { echo "$@" >&2; }
 
@@ -109,6 +116,15 @@ build_source() {
     cp "$pkg_dir/icon.png" "$OUTPUT_DIR/sources/$name/icon.png"
   fi
   
+  # Determine pkg download URL
+  local pkg_filename="${name}-${src_version}.koma"
+  local pkg_url
+  if [[ -n "$VERSION_TAG" ]]; then
+    pkg_url="${REPO_URL}/releases/download/${VERSION_TAG}/${pkg_filename}"
+  else
+    pkg_url="${pkg_filename}"
+  fi
+
   # Output index entry JSON to stdout (only line on stdout)
   jq -n \
     --arg id "$src_id" \
@@ -119,7 +135,7 @@ build_source() {
     --arg author "$src_author" \
     --arg description "$src_desc" \
     --arg contentRating "$src_content_rating" \
-    --arg pkg "sources/$name/${name}-${src_version}.koma" \
+    --arg pkg "$pkg_url" \
     --arg icon "$icon_path" \
     --arg minAppVersion "0.1.0" \
     '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, pkg: $pkg, icon: $icon, minAppVersion: $minAppVersion}'
