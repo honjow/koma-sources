@@ -1202,6 +1202,7 @@ fn write_chapters_from_array(
         let name = extract_json_string(obj, b"sectionName").unwrap_or(b"");
         let title = extract_json_string(obj, b"sectionTitle").unwrap_or(b"");
         let sort = extract_json_number(obj, b"sectionSort").unwrap_or(b"0");
+        let release_time = extract_json_string(obj, b"releaseTime").unwrap_or(b"");
         let locked = extract_json_number(obj, b"isMustPay")
             .map(parse_usize)
             .unwrap_or(0)
@@ -1209,7 +1210,7 @@ fn write_chapters_from_array(
         if *written > 0 && !write_bytes(payload, c, b",") {
             return false;
         }
-        if !(write_bytes(payload, c, br#"{"id":"mhrch:"#)
+        if !(write_bytes(payload, c, br#"{"id":""#)
             && append_json_escaped(payload, c, ch_id)
             && write_bytes(payload, c, br#"","mangaId":"mhr:"#)
             && append_json_escaped(payload, c, manga_id)
@@ -1229,7 +1230,15 @@ fn write_chapters_from_array(
             }
             && write_bytes(payload, c, br#"","chapterNumber":""#)
             && append_json_escaped(payload, c, sort)
-            && write_bytes(payload, c, br#"","volumeNumber":null,"language":"zh","publishedAt":null,"updatedAt":null,"pageCount":null}"#))
+            && write_bytes(payload, c, br#"","volumeNumber":null,"language":"zh","publishedAt":"#)
+            && if release_time.is_empty() {
+                write_bytes(payload, c, b"null")
+            } else {
+                write_bytes(payload, c, b"\"")
+                    && append_json_unescaped_then_escaped(payload, c, release_time)
+                    && write_bytes(payload, c, b"\"")
+            }
+            && write_bytes(payload, c, br#","updatedAt":null,"pageCount":null}"#))
         {
             return false;
         }
@@ -1326,11 +1335,17 @@ fn run_get_pages(req: &[u8]) -> u32 {
         Some(v) => v,
         None => return write_error("get_pages", "invalid_request", "missing chapterId"),
     };
-    let prefix = b"mhrch:";
-    if chapter_id.len() <= prefix.len() || &chapter_id[..prefix.len()] != prefix {
+    if chapter_id.is_empty() {
         return write_error("get_pages", "invalid_request", "bad chapterId");
     }
-    let id = &chapter_id[prefix.len()..];
+    let legacy_prefix = b"mhrch:";
+    let id = if chapter_id.len() > legacy_prefix.len()
+        && &chapter_id[..legacy_prefix.len()] == legacy_prefix
+    {
+        &chapter_id[legacy_prefix.len()..]
+    } else {
+        chapter_id
+    };
     let params = [
         Param {
             key: b"mangaSectionId",
@@ -1382,7 +1397,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
     };
     let payload = payload_buf();
     let mut c = 0usize;
-    if !(write_bytes(payload, &mut c, br#"{"chapterId":"mhrch:"#)
+    if !(write_bytes(payload, &mut c, br#"{"chapterId":""#)
         && append_json_escaped(payload, &mut c, id)
         && write_bytes(payload, &mut c, br#"","pages":["#))
     {
