@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # build.sh — Build all sources into .koma packages and generate index.json
-# Usage: ./build.sh [--source <name>]
+# Usage: ./build.sh [--source <name>] [--scaffold <name>]
 # Requires: cargo (with wasm32-unknown-unknown), zip, jq, koma-source-dev (in PATH or $DEV_RUNNER)
 set -euo pipefail
 
@@ -31,6 +31,8 @@ declare -A SOURCE_MAP=(
   ["noyacg"]="noyacg"
   ["komiic"]="komiic"
   ["vomic"]="vomic"
+  ["dm5"]="dm5"
+  ["zerobyw"]="zerobyw"
 )
 
 # Optional: nsfw flags not in source_info
@@ -46,21 +48,30 @@ declare -A NSFW_MAP=(
   ["noyacg"]="true"
   ["komiic"]="true"
   ["vomic"]="false"
+  ["dm5"]="true"
+  ["zerobyw"]="true"
 )
 
 REPO_URL="${KOMA_REPO_URL:-https://github.com/honjow/koma-sources}"
 
 ONLY_SOURCE=""
 VERSION_TAG=""
+SCAFFOLD_NAME=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --source) ONLY_SOURCE="$2"; shift 2 ;;
     --tag) VERSION_TAG="$2"; shift 2 ;;
+    --scaffold) SCAFFOLD_NAME="$2"; shift 2 ;;
     *) shift ;;
   esac
 done
 
 log() { echo "$@" >&2; }
+
+if [[ -n "$SCAFFOLD_NAME" ]]; then
+  "$SCRIPT_DIR/scripts/scaffold-source.sh" "$SCAFFOLD_NAME"
+  exit 0
+fi
 
 build_source() {
   local name="$1"

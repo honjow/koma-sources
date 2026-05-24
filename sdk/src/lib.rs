@@ -1051,6 +1051,22 @@ pub mod result {
     const ERROR_SUFFIX: &[u8] = br#""},"hostHints":{"network":false},"warnings":[]}"#;
     const SUCCESS_SUFFIX: &[u8] = br#","hostHints":{"abi":"koma-host-v0.1","maxMemoryPages":2,"maxPayloadBytes":1048576,"network":false},"warnings":[],"elapsedMs":0}"#;
 
+    pub const fn empty_listings() -> &'static [u8] {
+        br#"{"listings":[]}"#
+    }
+
+    pub const fn empty_manga_list() -> &'static [u8] {
+        br#"{"items":[],"page":{"nextCursor":null,"hasMore":false}}"#
+    }
+
+    pub const fn empty_home() -> &'static [u8] {
+        br#"{"sections":[]}"#
+    }
+
+    pub const fn empty_filters() -> &'static [u8] {
+        br#"{"filters":[]}"#
+    }
+
     pub struct ResultBuffer<const N: usize> {
         last_response: u32,
         bytes: [u8; N],
