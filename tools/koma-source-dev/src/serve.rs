@@ -191,21 +191,16 @@ async fn api_proxy(Query(q): Query<ProxyQuery>) -> impl IntoResponse {
 }
 
 async fn index_html() -> impl IntoResponse {
-    Html(include_str!("../static/index.html"))
+    (
+        [(
+            "Cache-Control",
+            "no-cache, no-store, must-revalidate",
+        )],
+        Html(include_str!("../static/index.html")),
+    )
 }
 
 async fn static_files(axum::extract::Path(path): axum::extract::Path<String>) -> impl IntoResponse {
-    match path.as_str() {
-        "app.js" => (
-            StatusCode::OK,
-            [("Content-Type", "application/javascript"), ("Cache-Control", "no-cache, no-store, must-revalidate")],
-            include_str!("../static/app.js"),
-        ).into_response(),
-        "style.css" => (
-            StatusCode::OK,
-            [("Content-Type", "text/css"), ("Cache-Control", "no-cache, no-store, must-revalidate")],
-            include_str!("../static/style.css"),
-        ).into_response(),
-        _ => StatusCode::NOT_FOUND.into_response(),
-    }
+    // All-in-one index.html now, no separate static files needed
+    StatusCode::NOT_FOUND.into_response()
 }
