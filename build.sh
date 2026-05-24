@@ -4,6 +4,15 @@
 # Requires: cargo (with wasm32-unknown-unknown), zip, jq, koma-source-dev (in PATH or $DEV_RUNNER)
 set -euo pipefail
 
+# Prefer rustup toolchain (system cargo may lack wasm32-unknown-unknown target)
+_real_home="${REAL_HOME:-$(getent passwd "$(id -un)" | cut -d: -f6)}"
+if [[ -d "$_real_home/.rustup" && -d "$_real_home/.cargo/bin" ]]; then
+  export RUSTUP_HOME="$_real_home/.rustup"
+  export CARGO_HOME="$_real_home/.cargo"
+  export PATH="$_real_home/.cargo/bin:$PATH"
+fi
+unset _real_home
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SOURCES_DIR="$SCRIPT_DIR/sources"
 OUTPUT_DIR="$SCRIPT_DIR/dist"
