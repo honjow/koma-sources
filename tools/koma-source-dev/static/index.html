@@ -13,6 +13,9 @@
   <header class="bg-gray-800 border-b border-gray-700 px-6 py-3 flex items-center justify-between">
     <div class="flex items-center gap-3">
       <h1 class="text-lg font-semibold">Koma Source Preview</h1>
+      <select id="source-select" onchange="switchSource()"
+        class="bg-gray-700 text-sm px-2 py-1 rounded border border-gray-600 focus:outline-none focus:border-blue-500">
+      </select>
       <span id="source-name" class="text-sm text-gray-400"></span>
     </div>
     <div class="flex items-center gap-2">
@@ -30,7 +33,6 @@
 
   <!-- Main Content -->
   <main id="content" class="p-6">
-    <!-- Content rendered by JS -->
   </main>
 
   <!-- JSON Panel (collapsible) -->

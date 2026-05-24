@@ -23,12 +23,37 @@ function proxyUrl(url) {
 
 // --- Init ---
 async function init() {
+  await loadSources();
   sourceInfo = await api('/api/info');
   const info = sourceInfo?.data?.sourceInfo;
   if (info) {
     document.getElementById('source-name').textContent = `${info.name} v${info.version} (${info.language})`;
   }
   navigate('home');
+}
+
+// --- Source Switcher ---
+async function loadSources() {
+  const sources = await api('/api/sources');
+  const select = document.getElementById('source-select');
+  select.innerHTML = sources.map(s =>
+    `<option value="${esc(s.file)}" ${s.active ? 'selected' : ''}>${esc(s.name)}</option>`
+  ).join('');
+}
+async function switchSource() {
+  const select = document.getElementById('source-select');
+  const file = select.value;
+  await api('/api/switch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: file })
+  });
+  sourceInfo = await api('/api/info');
+  const info = sourceInfo?.data?.sourceInfo;
+  if (info) {
+    document.getElementById('source-name').textContent = `${info.name} v${info.version} (${info.language})`;
+  }
+  navigate(currentPage);
 }
 
 // --- Navigation ---
@@ -111,7 +136,6 @@ async function renderManga(el, params) {
   const manga = data?.data;
   if (!manga) { el.innerHTML = '<div class="text-red-400">Failed to load</div>'; return; }
 
-  // Chapters
   const chapData = await apiRun('get_chapters', { mangaId: params.id });
   const chapters = chapData?.data?.items || [];
 
@@ -128,7 +152,6 @@ async function renderManga(el, params) {
           ${(manga.tags || []).map(t => `<span class="px-2 py-0.5 bg-gray-700 rounded text-xs">${esc(t)}</span>`).join('')}
         </div>
         <div class="text-sm text-gray-400 mb-1">Status: ${esc(manga.status || 'unknown')}</div>
-        <div class="text-sm text-gray-400 mb-1">Content: ${esc(manga.contentRating || 'unknown')}</div>
         <p class="text-sm text-gray-300 mt-3 max-h-32 overflow-y-auto">${esc(manga.description || '')}</p>
       </div>
     </div>
@@ -137,7 +160,7 @@ async function renderManga(el, params) {
       ${chapters.map(ch => `
         <div class="flex items-center justify-between px-3 py-2 bg-gray-800 rounded hover:bg-gray-700 cursor-pointer"
              onclick="navigate('reader', {mangaId:'${esc(params.id)}', chapterId:'${esc(ch.id)}'})">
-          <span class="text-sm">Ch. ${esc(ch.chapterNumber || '?')} ${ch.title ? '— ' + esc(ch.title) : ''}</span>
+          <span class="text-sm">${ch.chapterNumber ? 'Ch. ' + esc(ch.chapterNumber) : ''} ${ch.title ? esc(ch.title) : ''}</span>
           <span class="text-xs text-gray-500">${ch.pageCount || '?'} pages</span>
         </div>
       `).join('')}
@@ -145,28 +168,75 @@ async function renderManga(el, params) {
   `;
 }
 
-// --- Reader ---
+// --- Reader (single page, left/right navigation) ---
+let readerPages = [];
+let readerCurrentPage = 0;
+let readerParams = {};
+
 async function renderReader(el, params) {
+  readerParams = params;
   el.innerHTML = '<div class="text-center text-gray-500 py-8">Loading pages...</div>';
   const data = await apiRun('get_pages', { chapterId: params.chapterId });
-  const pages = data?.data?.pages || [];
-  if (pages.length === 0) {
+  readerPages = data?.data?.pages || [];
+  readerCurrentPage = 0;
+  if (readerPages.length === 0) {
     el.innerHTML = '<div class="text-red-400">No pages found</div>';
     return;
   }
+  renderReaderPage(el);
+}
+
+function renderReaderPage(el) {
+  if (!el) el = document.getElementById('content');
+  const page = readerPages[readerCurrentPage];
+  const url = page?.image?.url ? proxyUrl(page.image.url) : '';
+  const total = readerPages.length;
+  const current = readerCurrentPage + 1;
+
   el.innerHTML = `
-    <div class="flex items-center justify-between mb-4">
-      <button onclick="navigate('manga', {id:'${esc(params.mangaId)}'})" class="text-sm text-blue-400 hover:text-blue-300">← Back</button>
-      <span class="text-sm text-gray-400">${pages.length} pages</span>
-    </div>
-    <div class="max-w-3xl mx-auto space-y-1">
-      ${pages.map((p, i) => {
-        const url = p.image?.url ? proxyUrl(p.image.url) : '';
-        return `<div class="reader-page"><img src="${url}" alt="Page ${i + 1}" loading="lazy"></div>`;
-      }).join('')}
+    <div class="flex flex-col items-center h-[calc(100vh-8rem)]">
+      <!-- Top bar -->
+      <div class="flex items-center justify-between w-full max-w-3xl mb-2">
+        <button onclick="navigate('manga', {id:'${esc(readerParams.mangaId)}'})" class="text-sm text-blue-400 hover:text-blue-300">← Back</button>
+        <span class="text-sm text-gray-400">${current} / ${total}</span>
+      </div>
+      <!-- Image container -->
+      <div class="flex-1 flex items-center justify-center w-full max-w-3xl relative select-none" id="reader-container">
+        <!-- Left click zone -->
+        <div class="absolute left-0 top-0 w-1/3 h-full cursor-pointer z-10" onclick="readerPrev()"></div>
+        <!-- Right click zone -->
+        <div class="absolute right-0 top-0 w-1/3 h-full cursor-pointer z-10" onclick="readerNext()"></div>
+        ${url ? `<img src="${url}" class="max-h-full max-w-full object-contain rounded shadow-lg">` : '<div class="text-gray-500">No image</div>'}
+      </div>
+      <!-- Bottom controls -->
+      <div class="flex items-center gap-4 mt-3">
+        <button onclick="readerPrev()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm disabled:opacity-30" ${current <= 1 ? 'disabled' : ''}>← Prev</button>
+        <span class="text-sm text-gray-400 w-20 text-center">${current} / ${total}</span>
+        <button onclick="readerNext()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm disabled:opacity-30" ${current >= total ? 'disabled' : ''}>Next →</button>
+      </div>
     </div>
   `;
 }
+
+function readerPrev() {
+  if (readerCurrentPage > 0) {
+    readerCurrentPage--;
+    renderReaderPage();
+  }
+}
+function readerNext() {
+  if (readerCurrentPage < readerPages.length - 1) {
+    readerCurrentPage++;
+    renderReaderPage();
+  }
+}
+
+// Keyboard navigation
+document.addEventListener('keydown', (e) => {
+  if (currentPage !== 'reader') return;
+  if (e.key === 'ArrowLeft' || e.key === 'a') readerPrev();
+  if (e.key === 'ArrowRight' || e.key === 'd') readerNext();
+});
 
 // --- Components ---
 function mangaCard(item) {

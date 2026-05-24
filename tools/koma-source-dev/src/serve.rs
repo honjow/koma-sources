@@ -8,13 +8,14 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::io::Read;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use tower_http::cors::CorsLayer;
 
 use crate::host;
 
 pub struct AppState {
-    pub wasm_path: PathBuf,
+    pub wasm_dir: PathBuf,
+    pub current_wasm: RwLock<PathBuf>,
 }
 
 #[derive(Deserialize)]
@@ -28,10 +29,33 @@ pub struct ProxyQuery {
     pub url: String,
 }
 
-pub async fn start_server(wasm_path: PathBuf, port: u16) -> anyhow::Result<()> {
-    let state = Arc::new(AppState { wasm_path });
+#[derive(Deserialize)]
+pub struct SwitchRequest {
+    pub name: String,
+}
+
+#[derive(Serialize)]
+pub struct SourceEntry {
+    pub name: String,
+    pub file: String,
+    pub active: bool,
+}
+
+pub async fn start_server(wasm_dir: PathBuf, port: u16) -> anyhow::Result<()> {
+    // Find first .wasm file as default
+    let first_wasm = find_wasm_files(&wasm_dir)
+        .into_iter()
+        .next()
+        .unwrap_or_default();
+
+    let state = Arc::new(AppState {
+        wasm_dir: wasm_dir.clone(),
+        current_wasm: RwLock::new(first_wasm),
+    });
 
     let app = Router::new()
+        .route("/api/sources", get(api_sources))
+        .route("/api/switch", post(api_switch))
         .route("/api/info", get(api_info))
         .route("/api/run", post(api_run))
         .route("/api/test-all", get(api_test_all))
@@ -43,13 +67,56 @@ pub async fn start_server(wasm_path: PathBuf, port: u16) -> anyhow::Result<()> {
 
     let addr = format!("0.0.0.0:{}", port);
     eprintln!("🚀 koma-source-dev serve → http://localhost:{}", port);
+    eprintln!("   wasm dir: {}", wasm_dir.display());
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     axum::serve(listener, app).await?;
     Ok(())
 }
 
+fn find_wasm_files(dir: &PathBuf) -> Vec<PathBuf> {
+    let mut results = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().map(|e| e == "wasm").unwrap_or(false) {
+                results.push(path);
+            }
+        }
+    }
+    results.sort();
+    results
+}
+
+async fn api_sources(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let current = state.current_wasm.read().unwrap().clone();
+    let sources: Vec<SourceEntry> = find_wasm_files(&state.wasm_dir)
+        .into_iter()
+        .map(|p| {
+            let file = p.file_name().unwrap_or_default().to_string_lossy().to_string();
+            let name = file.trim_end_matches(".wasm").replace('_', " ");
+            let active = p == current;
+            SourceEntry { name, file, active }
+        })
+        .collect();
+    Json(sources)
+}
+
+async fn api_switch(
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<SwitchRequest>,
+) -> impl IntoResponse {
+    let target = state.wasm_dir.join(&body.name);
+    if target.exists() {
+        *state.current_wasm.write().unwrap() = target;
+        (StatusCode::OK, "switched").into_response()
+    } else {
+        (StatusCode::NOT_FOUND, "wasm not found").into_response()
+    }
+}
+
 async fn api_info(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    match host::run_source_info(&state.wasm_path) {
+    let wasm = state.current_wasm.read().unwrap().clone();
+    match host::run_source_info(&wasm) {
         Ok(v) => Json(v).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
@@ -59,15 +126,16 @@ async fn api_run(
     State(state): State<Arc<AppState>>,
     Json(body): Json<RunRequest>,
 ) -> impl IntoResponse {
+    let wasm = state.current_wasm.read().unwrap().clone();
     let request_str = serde_json::to_string(&body.request).unwrap_or_default();
-    match host::run_operation(&state.wasm_path, &body.op, &request_str) {
+    match host::run_operation(&wasm, &body.op, &request_str) {
         Ok(v) => Json(v).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }
 
 async fn api_test_all(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    // Run test-all and capture results as JSON
+    let wasm = state.current_wasm.read().unwrap().clone();
     let ops = vec![
         ("search", r#"{"query":"test"}"#),
         ("get_listings", "{}"),
@@ -79,7 +147,7 @@ async fn api_test_all(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     ];
     let mut results = Vec::new();
     for (op, req) in ops {
-        let status = match host::run_operation(&state.wasm_path, op, req) {
+        let status = match host::run_operation(&wasm, op, req) {
             Ok(v) => {
                 let ok = v.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
                 if ok { "pass".to_string() } else { "fail".to_string() }
@@ -92,7 +160,6 @@ async fn api_test_all(State(state): State<Arc<AppState>>) -> impl IntoResponse {
 }
 
 async fn api_proxy(Query(q): Query<ProxyQuery>) -> impl IntoResponse {
-    // Fetch the image URL and proxy it back
     match ureq::get(&q.url)
         .set("Referer", &q.url)
         .call()
@@ -120,7 +187,6 @@ async fn index_html() -> impl IntoResponse {
 }
 
 async fn static_files(axum::extract::Path(path): axum::extract::Path<String>) -> impl IntoResponse {
-    // Serve embedded static files
     match path.as_str() {
         "app.js" => (
             StatusCode::OK,

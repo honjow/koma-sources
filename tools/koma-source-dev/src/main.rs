@@ -42,10 +42,11 @@ enum Commands {
     },
     /// Start web preview server
     Serve {
-        /// Path to the compiled .wasm source
-        wasm: PathBuf,
+        /// Directory containing .wasm source files
+        #[arg(default_value = "target/wasm32-unknown-unknown/release")]
+        dir: PathBuf,
         /// Port to listen on
-        #[arg(long, default_value = "3000")]
+        #[arg(long, default_value = "3001")]
         port: u16,
     },
 }
@@ -69,8 +70,8 @@ async fn main() -> Result<()> {
         Commands::TestAll { wasm } => {
             run_test_all(&wasm)?;
         }
-        Commands::Serve { wasm, port } => {
-            serve::start_server(wasm, port).await?;
+        Commands::Serve { dir, port } => {
+            serve::start_server(dir, port).await?;
         }
     }
 
