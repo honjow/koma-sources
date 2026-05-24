@@ -12,5 +12,6 @@ members = [
   "sources/happymh",
   "sources/komiic",
   "sources/terrahistoricus",
+  "sources/vomic",
   "tools/koma-source-dev",
 ]

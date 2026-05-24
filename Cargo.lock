@@ -1179,6 +1179,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_vomic_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
 name = "koma_zaimanhua_source"
 version = "0.1.0"
 dependencies = [

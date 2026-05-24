@@ -30,6 +30,7 @@ declare -A SOURCE_MAP=(
   ["terrahistoricus"]="terrahistoricus"
   ["noyacg"]="noyacg"
   ["komiic"]="komiic"
+  ["vomic"]="vomic"
 )
 
 # Optional: nsfw flags not in source_info
@@ -44,6 +45,7 @@ declare -A NSFW_MAP=(
   ["terrahistoricus"]="false"
   ["noyacg"]="true"
   ["komiic"]="true"
+  ["vomic"]="false"
 )
 
 REPO_URL="${KOMA_REPO_URL:-https://github.com/honjow/koma-sources}"

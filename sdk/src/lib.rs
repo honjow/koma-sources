@@ -23,8 +23,11 @@ pub mod host {
         fn koma_host_html_parse(html_ptr: *const u8, html_len: u32) -> i32;
 
         #[link_name = "html_select"]
-        fn koma_host_html_select(descriptor: i32, selector_ptr: *const u8, selector_len: u32)
-            -> i32;
+        fn koma_host_html_select(
+            descriptor: i32,
+            selector_ptr: *const u8,
+            selector_len: u32,
+        ) -> i32;
 
         #[link_name = "html_attr"]
         fn koma_host_html_attr(
@@ -152,8 +155,9 @@ pub mod host {
         descriptor: HtmlDescriptor,
         output: &mut [u8],
     ) -> core::result::Result<usize, i32> {
-        let written =
-            unsafe { koma_host_html_text(descriptor.raw, output.as_mut_ptr(), output.len() as u32) };
+        let written = unsafe {
+            koma_host_html_text(descriptor.raw, output.as_mut_ptr(), output.len() as u32)
+        };
         if written < 0 || written as usize > output.len() {
             Err(written)
         } else {
@@ -1639,6 +1643,467 @@ pub mod json_utils {
             None
         }
     }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum FetchError {
+    Network,
+    NotFound,
+    RateLimit,
+    ClientError,
+    ServerError,
+}
+
+pub fn fetch_error_code(e: FetchError) -> (&'static str, &'static str) {
+    match e {
+        FetchError::Network => ("network_error", "connection or timeout failure"),
+        FetchError::NotFound => ("not_found", "resource not found"),
+        FetchError::RateLimit => ("rate_limited", "rate limited by server"),
+        FetchError::ClientError => ("client_error", "client error (4xx)"),
+        FetchError::ServerError => ("server_error", "server error (5xx)"),
+    }
+}
+
+pub fn build_get_request(
+    dst: &mut [u8],
+    url: &[u8],
+    referer: Option<&[u8]>,
+    extra_headers: &[(&[u8], &[u8])],
+) -> Option<usize> {
+    let mut cursor = 0usize;
+    json_utils::write_bytes(dst, &mut cursor, br#"{"version":1,"method":"GET","url":""#)
+        .then_some(())?;
+    json_utils::append_json_escaped(dst, &mut cursor, url).then_some(())?;
+    json_utils::write_bytes(
+        dst,
+        &mut cursor,
+        br#"","headers":{"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0""#,
+    )
+    .then_some(())?;
+    if let Some(r) = referer {
+        write_json_header(dst, &mut cursor, b"Referer", r).then_some(())?;
+    }
+    write_extra_headers(dst, &mut cursor, extra_headers).then_some(())?;
+    json_utils::write_bytes(
+        dst,
+        &mut cursor,
+        br#"},"timeoutMs":15000,"responseKind":"bodyText"}"#,
+    )
+    .then_some(())?;
+    Some(cursor)
+}
+
+pub fn build_post_request(
+    dst: &mut [u8],
+    url: &[u8],
+    body: &[u8],
+    content_type: &[u8],
+    referer: Option<&[u8]>,
+) -> Option<usize> {
+    let mut cursor = 0usize;
+    json_utils::write_bytes(dst, &mut cursor, br#"{"version":1,"method":"POST","url":""#)
+        .then_some(())?;
+    json_utils::append_json_escaped(dst, &mut cursor, url).then_some(())?;
+    json_utils::write_bytes(
+        dst,
+        &mut cursor,
+        br#"","headers":{"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0""#,
+    )
+    .then_some(())?;
+    if !content_type.is_empty() {
+        write_json_header(dst, &mut cursor, b"Content-Type", content_type).then_some(())?;
+    }
+    if let Some(r) = referer {
+        write_json_header(dst, &mut cursor, b"Referer", r).then_some(())?;
+    }
+    json_utils::write_bytes(dst, &mut cursor, br#"},"bodyBase64":""#).then_some(())?;
+    json_utils::append_json_escaped(dst, &mut cursor, body).then_some(())?;
+    json_utils::write_bytes(
+        dst,
+        &mut cursor,
+        br#"","timeoutMs":15000,"responseKind":"bodyText"}"#,
+    )
+    .then_some(())?;
+    Some(cursor)
+}
+
+pub fn parse_status_code(bytes: &[u8]) -> u16 {
+    let mut n = 0u16;
+    for &b in bytes {
+        if b >= b'0' && b <= b'9' {
+            n = n.saturating_mul(10).saturating_add((b - b'0') as u16);
+        }
+    }
+    n
+}
+
+pub fn decode_json_body(resp: &[u8]) -> core::result::Result<usize, FetchError> {
+    decode_json_body_into(resp, common_body_buf())
+}
+
+pub fn fetch_get(url: &[u8], referer: Option<&[u8]>) -> core::result::Result<usize, FetchError> {
+    let req_len =
+        build_get_request(common_http_req_buf(), url, referer, &[]).ok_or(FetchError::Network)?;
+    let resp_len = host::http_request(&common_http_req_buf()[..req_len], common_http_out())
+        .map_err(|_| FetchError::Network)?;
+    decode_json_body(&common_http_out()[..resp_len])
+}
+
+pub fn common_body_buf() -> &'static mut [u8] {
+    const COMMON_BODY_CAP: usize = 2 * 1024 * 1024;
+    static mut COMMON_BODY_BUF: [u8; COMMON_BODY_CAP] = [0; COMMON_BODY_CAP];
+    unsafe { &mut *core::ptr::addr_of_mut!(COMMON_BODY_BUF) }
+}
+
+pub fn decode_json_body_into(
+    resp: &[u8],
+    dst: &mut [u8],
+) -> core::result::Result<usize, FetchError> {
+    if !json_utils::contains_bytes(resp, br#""ok":true"#) {
+        let err = if let Some(code_bytes) = json_utils::extract_json_number(resp, b"statusCode") {
+            match parse_status_code(code_bytes) {
+                404 => FetchError::NotFound,
+                429 => FetchError::RateLimit,
+                400..=499 => FetchError::ClientError,
+                500..=599 => FetchError::ServerError,
+                _ => FetchError::Network,
+            }
+        } else {
+            FetchError::Network
+        };
+        return Err(err);
+    }
+
+    let marker = b"\"bodyText\":\"";
+    let mut i = json_utils::find_subslice(resp, marker).ok_or(FetchError::Network)? + marker.len();
+    let mut out = 0usize;
+    while i < resp.len() {
+        let b = resp[i];
+        if b == b'\\' && i + 1 < resp.len() {
+            let next = resp[i + 1];
+            match next {
+                b'"' | b'\\' | b'/' => {
+                    if out >= dst.len() {
+                        return Err(FetchError::Network);
+                    }
+                    dst[out] = if next == b'/' { b'/' } else { next };
+                    out += 1;
+                    i += 2;
+                }
+                b'n' | b'r' | b't' => {
+                    if out >= dst.len() {
+                        return Err(FetchError::Network);
+                    }
+                    dst[out] = if next == b'n' {
+                        b'\n'
+                    } else if next == b'r' {
+                        b'\r'
+                    } else {
+                        b'\t'
+                    };
+                    out += 1;
+                    i += 2;
+                }
+                b'u' => {
+                    if i + 5 >= resp.len() {
+                        return Err(FetchError::Network);
+                    }
+                    let mut code = 0u32;
+                    let mut k = 0usize;
+                    while k < 4 {
+                        let h = resp[i + 2 + k];
+                        let v = match h {
+                            b'0'..=b'9' => (h - b'0') as u32,
+                            b'a'..=b'f' => (h - b'a' + 10) as u32,
+                            b'A'..=b'F' => (h - b'A' + 10) as u32,
+                            _ => return Err(FetchError::Network),
+                        };
+                        code = (code << 4) | v;
+                        k += 1;
+                    }
+                    let mut encoded = [0u8; 4];
+                    let len = json_utils::encode_utf8(code, &mut encoded);
+                    if out + len > dst.len() {
+                        return Err(FetchError::Network);
+                    }
+                    dst[out..out + len].copy_from_slice(&encoded[..len]);
+                    out += len;
+                    i += 6;
+                }
+                _ => {
+                    if out >= dst.len() {
+                        return Err(FetchError::Network);
+                    }
+                    dst[out] = next;
+                    out += 1;
+                    i += 2;
+                }
+            }
+            continue;
+        }
+        if b == b'"' {
+            return Ok(out);
+        }
+        if out >= dst.len() {
+            return Err(FetchError::Network);
+        }
+        dst[out] = b;
+        out += 1;
+        i += 1;
+    }
+    Err(FetchError::Network)
+}
+
+fn common_http_req_buf() -> &'static mut [u8] {
+    const COMMON_HTTP_REQ_CAP: usize = 2048;
+    static mut COMMON_HTTP_REQ_BUF: [u8; COMMON_HTTP_REQ_CAP] = [0; COMMON_HTTP_REQ_CAP];
+    unsafe { &mut *core::ptr::addr_of_mut!(COMMON_HTTP_REQ_BUF) }
+}
+
+fn common_http_out() -> &'static mut [u8] {
+    const COMMON_HTTP_OUT_CAP: usize = 2 * 1024 * 1024;
+    static mut COMMON_HTTP_OUT: [u8; COMMON_HTTP_OUT_CAP] = [0; COMMON_HTTP_OUT_CAP];
+    unsafe { &mut *core::ptr::addr_of_mut!(COMMON_HTTP_OUT) }
+}
+
+fn write_json_header(dst: &mut [u8], cursor: &mut usize, key: &[u8], value: &[u8]) -> bool {
+    json_utils::write_bytes(dst, cursor, br#",""#)
+        && json_utils::append_json_escaped(dst, cursor, key)
+        && json_utils::write_bytes(dst, cursor, br#"":""#)
+        && json_utils::append_json_escaped(dst, cursor, value)
+        && json_utils::write_bytes(dst, cursor, b"\"")
+}
+
+fn write_extra_headers(dst: &mut [u8], cursor: &mut usize, headers: &[(&[u8], &[u8])]) -> bool {
+    for &(key, value) in headers {
+        if !write_json_header(dst, cursor, key, value) {
+            return false;
+        }
+    }
+    true
+}
+
+#[macro_export]
+macro_rules! koma_source_buffers {
+    (
+        payload: $payload:expr,
+        http_out: $http_out:expr,
+        body: $body:expr,
+        http_req: $http_req:expr,
+        scratch: $scratch:expr $(,)?
+    ) => {
+        const PAYLOAD_CAP: usize = $payload;
+        const HTTP_OUT_CAP: usize = $http_out;
+        const BODY_CAP: usize = $body;
+        const HTTP_REQ_CAP: usize = $http_req;
+        const SCRATCH_CAP: usize = $scratch;
+
+        static mut RESPONSE: $crate::result::ResultBuffer<{ PAYLOAD_CAP + 256 }> =
+            $crate::result::ResultBuffer::new();
+        static mut PAYLOAD_BUF: [u8; PAYLOAD_CAP] = [0; PAYLOAD_CAP];
+        static mut HTTP_OUT: [u8; HTTP_OUT_CAP] = [0; HTTP_OUT_CAP];
+        static mut BODY_BUF: [u8; BODY_CAP] = [0; BODY_CAP];
+        static mut HTTP_REQ_BUF: [u8; HTTP_REQ_CAP] = [0; HTTP_REQ_CAP];
+        static mut SCRATCH_A: [u8; SCRATCH_CAP] = [0; SCRATCH_CAP];
+        static mut SCRATCH_B: [u8; SCRATCH_CAP] = [0; SCRATCH_CAP];
+
+        fn response_buffer() -> &'static mut $crate::result::ResultBuffer<{ PAYLOAD_CAP + 256 }> {
+            unsafe { &mut *core::ptr::addr_of_mut!(RESPONSE) }
+        }
+        fn payload_buf() -> &'static mut [u8] {
+            unsafe { &mut *core::ptr::addr_of_mut!(PAYLOAD_BUF) }
+        }
+        fn http_out() -> &'static mut [u8] {
+            unsafe { &mut *core::ptr::addr_of_mut!(HTTP_OUT) }
+        }
+        fn body_buf() -> &'static mut [u8] {
+            unsafe { &mut *core::ptr::addr_of_mut!(BODY_BUF) }
+        }
+        fn http_req_buf() -> &'static mut [u8] {
+            unsafe { &mut *core::ptr::addr_of_mut!(HTTP_REQ_BUF) }
+        }
+        fn scratch_a() -> &'static mut [u8] {
+            unsafe { &mut *core::ptr::addr_of_mut!(SCRATCH_A) }
+        }
+        fn scratch_b() -> &'static mut [u8] {
+            unsafe { &mut *core::ptr::addr_of_mut!(SCRATCH_B) }
+        }
+        fn payload_slice(len: usize) -> &'static [u8] {
+            unsafe {
+                core::slice::from_raw_parts(core::ptr::addr_of!(PAYLOAD_BUF) as *const u8, len)
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! koma_source_helpers {
+    () => {
+        fn write_error(operation: &str, code: &str, message: &str) -> u32 {
+            response_buffer().write_error(operation, code, message)
+        }
+        fn write_success_payload(operation: &str, len: usize) -> u32 {
+            response_buffer().write_success(operation, payload_slice(len))
+        }
+        fn read_request<'a>(req_ptr: u32, req_len: u32) -> Option<&'a [u8]> {
+            if req_ptr == 0 || req_len == 0 {
+                return None;
+            }
+            Some(unsafe { core::slice::from_raw_parts(req_ptr as *const u8, req_len as usize) })
+        }
+        fn trim_ascii(bytes: &[u8]) -> &[u8] {
+            let mut start = 0usize;
+            let mut end = bytes.len();
+            while start < end && matches!(bytes[start], b' ' | b'\t' | b'\n' | b'\r') {
+                start += 1;
+            }
+            while end > start && matches!(bytes[end - 1], b' ' | b'\t' | b'\n' | b'\r') {
+                end -= 1;
+            }
+            &bytes[start..end]
+        }
+        fn decode_json_body(resp: &[u8]) -> core::result::Result<usize, $crate::FetchError> {
+            $crate::decode_json_body_into(resp, body_buf())
+        }
+        fn fetch_get(
+            url: &[u8],
+            referer: Option<&[u8]>,
+        ) -> core::result::Result<usize, $crate::FetchError> {
+            let req_len = $crate::build_get_request(http_req_buf(), url, referer, &[])
+                .ok_or($crate::FetchError::Network)?;
+            let resp_len = $crate::host::http_request(&http_req_buf()[..req_len], http_out())
+                .map_err(|_| $crate::FetchError::Network)?;
+            $crate::decode_json_body_into(&http_out()[..resp_len], body_buf())
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! koma_source_exports {
+    ($source_name:literal) => {
+        #[no_mangle]
+        pub extern "C" fn koma_source_init(_manifest_ptr: u32, manifest_len: u32) -> i32 {
+            $crate::host::log_info(concat!($source_name, " source init").as_bytes());
+            if $crate::host::check_cancel() {
+                return -2;
+            }
+            if manifest_len > 0 {
+                0
+            } else {
+                -1
+            }
+        }
+
+        #[no_mangle]
+        pub extern "C" fn koma_source_info() -> u32 {
+            response_buffer().write_source_metadata(&SOURCE_INFO, &SOURCE_CAPS)
+        }
+
+        #[no_mangle]
+        pub extern "C" fn koma_source_search(req_ptr: u32, req_len: u32) -> u32 {
+            let req = match read_request(req_ptr, req_len) {
+                Some(r) => r,
+                None => return write_error("search", "invalid_request", "empty request"),
+            };
+            $crate::host::log_info(concat!($source_name, " search").as_bytes());
+            run_search(req)
+        }
+
+        #[no_mangle]
+        pub extern "C" fn koma_source_get_manga(req_ptr: u32, req_len: u32) -> u32 {
+            let req = match read_request(req_ptr, req_len) {
+                Some(r) => r,
+                None => return write_error("get_manga", "invalid_request", "empty request"),
+            };
+            $crate::host::log_info(concat!($source_name, " get_manga").as_bytes());
+            run_get_manga(req)
+        }
+
+        #[no_mangle]
+        pub extern "C" fn koma_source_get_chapters(req_ptr: u32, req_len: u32) -> u32 {
+            let req = match read_request(req_ptr, req_len) {
+                Some(r) => r,
+                None => return write_error("get_chapters", "invalid_request", "empty request"),
+            };
+            $crate::host::log_info(concat!($source_name, " get_chapters").as_bytes());
+            run_get_chapters(req)
+        }
+
+        #[no_mangle]
+        pub extern "C" fn koma_source_get_pages(req_ptr: u32, req_len: u32) -> u32 {
+            let req = match read_request(req_ptr, req_len) {
+                Some(r) => r,
+                None => return write_error("get_pages", "invalid_request", "empty request"),
+            };
+            $crate::host::log_info(concat!($source_name, " get_pages").as_bytes());
+            run_get_pages(req)
+        }
+
+        #[no_mangle]
+        pub extern "C" fn koma_source_get_listings(req_ptr: u32, req_len: u32) -> u32 {
+            let req = match read_request(req_ptr, req_len) {
+                Some(r) => r,
+                None => return write_error("get_listings", "invalid_request", "empty request"),
+            };
+            $crate::host::log_info(concat!($source_name, " get_listings").as_bytes());
+            run_get_listings(req)
+        }
+
+        #[no_mangle]
+        pub extern "C" fn koma_source_get_manga_list(req_ptr: u32, req_len: u32) -> u32 {
+            let req = match read_request(req_ptr, req_len) {
+                Some(r) => r,
+                None => return write_error("get_manga_list", "invalid_request", "empty request"),
+            };
+            $crate::host::log_info(concat!($source_name, " get_manga_list").as_bytes());
+            run_get_manga_list(req)
+        }
+
+        #[no_mangle]
+        pub extern "C" fn koma_source_get_home(req_ptr: u32, req_len: u32) -> u32 {
+            let req = match read_request(req_ptr, req_len) {
+                Some(r) => r,
+                None => return write_error("get_home", "invalid_request", "empty request"),
+            };
+            $crate::host::log_info(concat!($source_name, " get_home").as_bytes());
+            run_get_home(req)
+        }
+
+        #[no_mangle]
+        pub extern "C" fn koma_source_get_filters(req_ptr: u32, req_len: u32) -> u32 {
+            let req = match read_request(req_ptr, req_len) {
+                Some(r) => r,
+                None => return write_error("get_filters", "invalid_request", "empty request"),
+            };
+            $crate::host::log_info(concat!($source_name, " get_filters").as_bytes());
+            run_get_filters(req)
+        }
+
+        #[no_mangle]
+        pub extern "C" fn koma_source_get_settings(req_ptr: u32, req_len: u32) -> u32 {
+            let req = match read_request(req_ptr, req_len) {
+                Some(r) => r,
+                None => return write_error("get_settings", "invalid_request", "empty request"),
+            };
+            $crate::host::log_info(concat!($source_name, " get_settings").as_bytes());
+            run_get_settings(req)
+        }
+
+        #[no_mangle]
+        pub extern "C" fn koma_source_get_image_request(req_ptr: u32, req_len: u32) -> u32 {
+            let req = match read_request(req_ptr, req_len) {
+                Some(r) => r,
+                None => return write_error("get_image_request", "invalid_request", "empty request"),
+            };
+            $crate::host::log_info(concat!($source_name, " get_image_request").as_bytes());
+            run_get_image_request(req)
+        }
+
+        #[no_mangle]
+        pub extern "C" fn koma_source_free(result_ptr: u32) {
+            response_buffer().free(result_ptr)
+        }
+    };
 }
 
 #[cfg(test)]
