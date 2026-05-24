@@ -12,7 +12,6 @@ members = [
   "sources/happymh",
   "sources/komiic",
   "sources/terrahistoricus",
-  "sources/vomic",
   "sources/zerobyw",
   "sources/dm5",
   "tools/koma-source-dev",

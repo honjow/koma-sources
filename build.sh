@@ -30,7 +30,6 @@ declare -A SOURCE_MAP=(
   ["terrahistoricus"]="terrahistoricus"
   ["noyacg"]="noyacg"
   ["komiic"]="komiic"
-  ["vomic"]="vomic"
   ["dm5"]="dm5"
   ["zerobyw"]="zerobyw"
 )
@@ -47,7 +46,6 @@ declare -A NSFW_MAP=(
   ["terrahistoricus"]="false"
   ["noyacg"]="true"
   ["komiic"]="true"
-  ["vomic"]="false"
   ["dm5"]="true"
   ["zerobyw"]="true"
 )
