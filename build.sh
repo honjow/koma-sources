@@ -22,12 +22,20 @@ DEV_RUNNER="${DEV_RUNNER:-$SCRIPT_DIR/target/release/koma-source-dev}"
 declare -A SOURCE_MAP=(
   ["baozimh"]="baozimh"
   ["mangadex"]="mangadex"
+  ["mangabz"]="mangabz"
+  ["manhuaren"]="manhuaren"
+  ["zaimanhua"]="zaimanhua"
+  ["happymh"]="happymh"
 )
 
 # Optional: nsfw flags not in source_info
 declare -A NSFW_MAP=(
   ["baozimh"]="false"
   ["mangadex"]="true"
+  ["mangabz"]="false"
+  ["manhuaren"]="false"
+  ["zaimanhua"]="false"
+  ["happymh"]="false"
 )
 
 REPO_URL="${KOMA_REPO_URL:-https://github.com/honjow/koma-sources}"
@@ -191,6 +199,7 @@ log "▸ Building dev runner..."
 cargo build --release -p koma-source-dev 2>&1 | tail -1 >&2
 
 log "▸ Building all WASM sources..."
+CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS="${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS:+$CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS }-C target-feature=-reference-types -C link-arg=--strip-all" \
 cargo build --release --target wasm32-unknown-unknown \
   $(for name in "${!SOURCE_MAP[@]}"; do
     dir="${SOURCE_MAP[$name]}"

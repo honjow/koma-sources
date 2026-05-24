@@ -4,5 +4,9 @@ members = [
   "sdk",
   "sources/baozimh",
   "sources/mangadex",
+  "sources/mangabz",
+  "sources/manhuaren",
+  "sources/zaimanhua",
+  "sources/happymh",
   "tools/koma-source-dev",
 ]
