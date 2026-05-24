@@ -5,6 +5,10 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v0.2.0)'
+        required: true
 
 jobs:
   build:
@@ -19,21 +23,34 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
-      - name: Build koma-source-dev runner
-        run: |
-          git clone --depth 1 https://github.com/honjow/Koma.git /tmp/koma
-          cd /tmp/koma/tools/koma-source-dev
-          cargo build --release
-          echo "DEV_RUNNER=/tmp/koma/tools/koma-source-dev/target/release/koma-source-dev" >> "$GITHUB_ENV"
+      - name: Install tools
+        run: sudo apt-get install -y jq zip
 
-      - name: Build sources
+      - name: Determine tag
+        id: tag
         run: |
-          export KOMA_SOURCES_SRC="/tmp/koma/tools/sources"
-          ./build.sh --tag "${{ github.ref_name }}"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Upload Release
+      - name: Build and package
+        run: ./build.sh --tag "${{ steps.tag.outputs.tag }}"
+
+      - name: Test sources
+        run: |
+          DEV=target/release/koma-source-dev
+          for wasm in target/wasm32-unknown-unknown/release/koma_*.wasm; do
+            [[ -f "$wasm" ]] || continue
+            echo "Testing $(basename $wasm)..."
+            $DEV info "$wasm" | jq -r '.data.sourceInfo | "\(.name) v\(.version)"'
+          done
+
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.tag.outputs.tag }}
           files: |
             dist/index.json
             dist/sources/**/*.koma

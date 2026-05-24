@@ -5,13 +5,13 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SOURCES_DIR="${KOMA_SOURCES_SRC:-$(dirname "$SCRIPT_DIR")/Koma/tools/sources}"
+SOURCES_DIR="$SCRIPT_DIR/sources"
 OUTPUT_DIR="$SCRIPT_DIR/dist"
-DEV_RUNNER="${DEV_RUNNER:-$(dirname "$SCRIPT_DIR")/Koma/tools/koma-source-dev/target/release/koma-source-dev}"
+DEV_RUNNER="${DEV_RUNNER:-$SCRIPT_DIR/target/release/koma-source-dev}"
 
-# Source registry: directory name → wasm crate name
+# Source registry: directory name → crate directory name
 declare -A SOURCE_MAP=(
-  ["baozimh"]="first-real-source"
+  ["baozimh"]="baozimh"
   ["mangadex"]="mangadex"
 )
 
@@ -45,16 +45,18 @@ build_source() {
     return 1
   fi
 
-  log "▸ Building $name ($src_path)..."
+  log "▸ Packaging $name..."
   
-  # Compile to wasm
-  (cd "$src_path" && cargo build --release --target wasm32-unknown-unknown 2>&1 | tail -1) >&2
-  
-  # Find the wasm file
-  local wasm_file
-  wasm_file=$(find "$src_path/target/wasm32-unknown-unknown/release" -name "*.wasm" -not -name "*.d" | head -1)
-  if [[ -z "$wasm_file" ]]; then
-    log "ERROR: no wasm output found for $name"
+  # Find the wasm file (workspace builds output to root target/)
+  local crate_name
+  crate_name=$(grep '^name' "$src_path/Cargo.toml" | head -1 | sed 's/.*= *"\(.*\)"/\1/')
+  local wasm_file="$SCRIPT_DIR/target/wasm32-unknown-unknown/release/${crate_name}.wasm"
+  if [[ ! -f "$wasm_file" ]]; then
+    # fallback: try crate-local target
+    wasm_file="$src_path/target/wasm32-unknown-unknown/release/${crate_name}.wasm"
+  fi
+  if [[ ! -f "$wasm_file" ]]; then
+    log "ERROR: no wasm output found for $name (expected $wasm_file)"
     return 1
   fi
 
@@ -142,6 +144,17 @@ build_source() {
 }
 
 # Main
+log "▸ Building dev runner..."
+cargo build --release -p koma-source-dev 2>&1 | tail -1 >&2
+
+log "▸ Building all WASM sources..."
+cargo build --release --target wasm32-unknown-unknown \
+  $(for name in "${!SOURCE_MAP[@]}"; do
+    dir="${SOURCE_MAP[$name]}"
+    crate=$(grep '^name' "$SOURCES_DIR/$dir/Cargo.toml" | head -1 | sed 's/.*= *"\(.*\)"/\1/')
+    echo "-p $crate"
+  done) 2>&1 | tail -1 >&2
+
 rm -rf "$OUTPUT_DIR"
 mkdir -p "$OUTPUT_DIR/sources"
 
