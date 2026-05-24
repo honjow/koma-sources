@@ -11,32 +11,65 @@ use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 // Configuration — edit these for your source
 // ═══════════════════════════════════════════════════════════════════
 
-const SOURCE_ID: &[u8] = b"com.example.koma";
-const SOURCE_NAME: &[u8] = b"Example Source";
-const SOURCE_LANG: &[u8] = b"en";
-const SOURCE_DESC: &[u8] = b"An example source template.";
-const SOURCE_AUTHOR: &[u8] = b"Your Name";
-const SOURCE_VERSION: &[u8] = b"0.1.0";
-const BASE_URL: &[u8] = b"https://example.com";
+const SOURCE_INFO: SourceInfo = SourceInfo {
+    id: "com.example.koma",
+    name: "Example Source",
+    language: "en",
+    version: "0.1.0",
+    api_version: "0.2",
+    description: "An example source template.",
+    author: "Your Name",
+    content_rating: "unknown",
+};
+
+const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
+    search: true,
+    manga_detail: true,
+    chapters: true,
+    pages: true,
+    listings: false,
+    manga_list: false,
+    filters: false,
+    settings: false,
+    home: false,
+    image_request: true,
+};
 
 // ═══════════════════════════════════════════════════════════════════
-// Buffers
+// Buffers — adjust sizes based on your source's needs
 // ═══════════════════════════════════════════════════════════════════
 
-static mut RESPONSE_BUF: [u8; 4096] = [0u8; 4096];
-static mut PAYLOAD_BUF: [u8; 262144] = [0u8; 262144];
+const PAYLOAD_CAP: usize = 128 * 1024;
+const HTTP_OUT_CAP: usize = 512 * 1024;
 
-fn response_buffer() -> &'static mut ResultBuffer {
-    unsafe { &mut *(RESPONSE_BUF.as_mut_ptr() as *mut ResultBuffer) }
-}
+static mut RESPONSE: ResultBuffer<{ PAYLOAD_CAP + 256 }> = ResultBuffer::new();
+static mut PAYLOAD_BUF: [u8; PAYLOAD_CAP] = [0; PAYLOAD_CAP];
+static mut HTTP_OUT: [u8; HTTP_OUT_CAP] = [0; HTTP_OUT_CAP];
 
-fn payload_buf() -> &'static mut [u8] {
-    unsafe { &mut PAYLOAD_BUF }
+// ═══════════════════════════════════════════════════════════════════
+// Panic handler (required for no_std)
+// ═══════════════════════════════════════════════════════════════════
+
+#[panic_handler]
+fn panic(_: &core::panic::PanicInfo<'_>) -> ! {
+    loop {}
 }
 
 // ═══════════════════════════════════════════════════════════════════
 // Helpers
 // ═══════════════════════════════════════════════════════════════════
+
+fn response_buffer() -> &'static mut ResultBuffer<{ PAYLOAD_CAP + 256 }> {
+    unsafe { &mut *core::ptr::addr_of_mut!(RESPONSE) }
+}
+
+fn payload_buf() -> &'static mut [u8] {
+    unsafe { &mut *core::ptr::addr_of_mut!(PAYLOAD_BUF) }
+}
+
+fn http_out() -> &'static mut [u8] {
+    unsafe { &mut *core::ptr::addr_of_mut!(HTTP_OUT) }
+}
 
 fn read_request<'a>(req_ptr: u32, req_len: u32) -> Option<&'a [u8]> {
     if req_ptr == 0 || req_len == 0 {
@@ -60,29 +93,7 @@ fn write_error(operation: &str, code: &str, message: &str) -> u32 {
 
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
-    let info = SourceInfo {
-        id: SOURCE_ID,
-        name: SOURCE_NAME,
-        language: SOURCE_LANG,
-        version: SOURCE_VERSION,
-        api_version: b"0.2",
-        description: SOURCE_DESC,
-        author: SOURCE_AUTHOR,
-        content_rating: b"unknown",
-    };
-    let caps = SourceCapabilities {
-        search: true,
-        manga_detail: true,
-        chapters: true,
-        pages: true,
-        listings: false,
-        manga_list: false,
-        filters: false,
-        settings: false,
-        home: false,
-        image_request: true,
-    };
-    response_buffer().write_source_info(&info, &caps)
+    response_buffer().write_source_metadata(&SOURCE_INFO, &SOURCE_CAPS)
 }
 
 #[no_mangle]
@@ -101,9 +112,10 @@ pub extern "C" fn koma_source_search(req_ptr: u32, req_len: u32) -> u32 {
         Some(r) => r,
         None => return write_error("search", "invalid_request", "empty"),
     };
-    // TODO: Parse query from request, fetch from your source, build response
+    // TODO: Parse query, fetch from source, build items array
     // let query = extract_json_string(req, b"query").unwrap_or(b"");
-    write_error("search", "not_implemented", "TODO: implement search")
+    // let body = http_request(url, http_out());
+    write_error("search", "not_implemented", "TODO")
 }
 
 #[no_mangle]
@@ -112,8 +124,7 @@ pub extern "C" fn koma_source_get_manga(req_ptr: u32, req_len: u32) -> u32 {
         Some(r) => r,
         None => return write_error("get_manga", "invalid_request", "empty"),
     };
-    // TODO: Extract mangaId, fetch details, build response
-    write_error("get_manga", "not_implemented", "TODO: implement get_manga")
+    write_error("get_manga", "not_implemented", "TODO")
 }
 
 #[no_mangle]
@@ -122,8 +133,7 @@ pub extern "C" fn koma_source_get_chapters(req_ptr: u32, req_len: u32) -> u32 {
         Some(r) => r,
         None => return write_error("get_chapters", "invalid_request", "empty"),
     };
-    // TODO: Extract mangaId, fetch chapter list, build response
-    write_error("get_chapters", "not_implemented", "TODO: implement get_chapters")
+    write_error("get_chapters", "not_implemented", "TODO")
 }
 
 #[no_mangle]
@@ -132,8 +142,7 @@ pub extern "C" fn koma_source_get_pages(req_ptr: u32, req_len: u32) -> u32 {
         Some(r) => r,
         None => return write_error("get_pages", "invalid_request", "empty"),
     };
-    // TODO: Extract chapterId, fetch page URLs, build response
-    write_error("get_pages", "not_implemented", "TODO: implement get_pages")
+    write_error("get_pages", "not_implemented", "TODO")
 }
 
 #[no_mangle]
@@ -161,11 +170,6 @@ pub extern "C" fn koma_source_get_image_request(req_ptr: u32, req_len: u32) -> u
 // ═══════════════════════════════════════════════════════════════════
 // Memory management
 // ═══════════════════════════════════════════════════════════════════
-
-#[no_mangle]
-pub extern "C" fn koma_source_alloc(size: u32) -> u32 {
-    response_buffer().alloc(size)
-}
 
 #[no_mangle]
 pub extern "C" fn koma_source_free(result_ptr: u32) {

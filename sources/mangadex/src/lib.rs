@@ -832,12 +832,9 @@ fn run_image_request(req: &[u8]) -> u32 {
 // --- get_home: multi-section home page ---
 
 fn run_get_home(_req: &[u8]) -> u32 {
-    // Section 1: Popular New Titles (by followedCount)
-    let url_popular = b"https://api.mangadex.org/manga?order%5BfollowedCount%5D=desc&limit=10&includes%5B%5D=cover_art&contentRating%5B%5D=safe&contentRating%5B%5D=suggestive";
-    // Section 2: Latest Updates (by latestUploadedChapter)
-    let url_latest = b"https://api.mangadex.org/manga?order%5BlatestUploadedChapter%5D=desc&limit=10&includes%5B%5D=cover_art&contentRating%5B%5D=safe&contentRating%5B%5D=suggestive";
-    // Section 3: Recently Added (by createdAt)
-    let url_recent = b"https://api.mangadex.org/manga?order%5BcreatedAt%5D=desc&limit=10&includes%5B%5D=cover_art&contentRating%5B%5D=safe&contentRating%5B%5D=suggestive";
+    let url_popular = b"https://api.mangadex.org/manga?limit=10&includes%5B%5D=cover_art&order%5BfollowedCount%5D=desc&hasAvailableChapters=true&contentRating%5B%5D=safe&contentRating%5B%5D=suggestive";
+    let url_latest = b"https://api.mangadex.org/manga?limit=10&includes%5B%5D=cover_art&order%5BlatestUploadedChapter%5D=desc&hasAvailableChapters=true&contentRating%5B%5D=safe&contentRating%5B%5D=suggestive";
+    let url_top_rated = b"https://api.mangadex.org/manga?limit=10&includes%5B%5D=cover_art&order%5Brating%5D=desc&hasAvailableChapters=true&contentRating%5B%5D=safe&contentRating%5B%5D=suggestive";
 
     let payload = payload_buf();
     let mut c = 0usize;
@@ -847,9 +844,9 @@ fn run_get_home(_req: &[u8]) -> u32 {
 
     // Fetch and emit each section
     let sections: [(&[u8], &[u8]); 3] = [
-        (b"Popular" as &[u8], url_popular as &[u8]),
-        (b"Latest Updates" as &[u8], url_latest as &[u8]),
-        (b"Recently Added" as &[u8], url_recent as &[u8]),
+        (b"Popular New Titles" as &[u8], url_popular as &[u8]),
+        (b"Recently Updated" as &[u8], url_latest as &[u8]),
+        (b"Top Rated" as &[u8], url_top_rated as &[u8]),
     ];
 
     let mut section_idx = 0usize;

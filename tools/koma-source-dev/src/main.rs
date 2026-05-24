@@ -8,6 +8,10 @@ use std::path::PathBuf;
 #[derive(Parser)]
 #[command(name = "koma-source-dev", about = "Dev host runner for Koma WASM sources")]
 struct Cli {
+    /// Show detailed HTTP requests and host logs
+    #[arg(long, short, global = true)]
+    verbose: bool,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -46,6 +50,9 @@ fn main() -> Result<()> {
             println!("{}", serde_json::to_string_pretty(&result)?);
         }
         Commands::Run { wasm, op, request } => {
+            if cli.verbose {
+                eprintln!("[verbose] op={} request={}", op, request);
+            }
             let result = host::run_operation(&wasm, &op, &request)?;
             println!("{}", serde_json::to_string_pretty(&result)?);
         }
