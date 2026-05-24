@@ -177,7 +177,7 @@ async function renderManga(el, params) {
     <div class="space-y-1 max-h-96 overflow-y-auto">
       ${chapters.map(ch => `
         <div class="flex items-center justify-between px-3 py-2 bg-gray-800 rounded hover:bg-gray-700 cursor-pointer"
-             onclick="navigate('reader', {mangaId:${JSON.stringify(params.id)}, chapterId:${JSON.stringify(ch.id)}})">
+             data-action="reader" data-manga-id="${esc(params.id)}" data-chapter-id="${esc(ch.id)}">
           <span class="text-sm">${ch.chapterNumber ? 'Ch. ' + esc(ch.chapterNumber) : ''} ${ch.title ? esc(ch.title) : ''}</span>
           <span class="text-xs text-gray-500">${ch.pageCount || '?'} pages</span>
         </div>
@@ -216,7 +216,7 @@ function renderReaderPage(el) {
     <div class="flex flex-col items-center" style="height: calc(100vh - 8rem);">
       <!-- Top bar -->
       <div class="flex items-center justify-between w-full max-w-3xl mb-2">
-        <button onclick="navigate('manga', {id:${JSON.stringify(readerParams.mangaId)}})" class="text-sm text-blue-400 hover:text-blue-300">← Back</button>
+        <button onclick="navigateBack()" class="text-sm text-blue-400 hover:text-blue-300">← Back</button>
         <span class="text-sm text-gray-400">${current} / ${total}</span>
       </div>
       <!-- Image container -->
@@ -256,6 +256,22 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowLeft' || e.key === 'a') readerPrev();
   if (e.key === 'ArrowRight' || e.key === 'd') readerNext();
 });
+
+// Event delegation for chapter clicks
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-action="reader"]');
+  if (el) {
+    const mangaId = el.dataset.mangaId;
+    const chapterId = el.dataset.chapterId;
+    navigate('reader', { mangaId, chapterId });
+  }
+});
+
+function navigateBack() {
+  if (readerParams.mangaId) {
+    navigate('manga', { id: readerParams.mangaId });
+  }
+}
 
 // --- Components ---
 function mangaCard(item) {

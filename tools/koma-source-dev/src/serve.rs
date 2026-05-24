@@ -198,12 +198,12 @@ async fn static_files(axum::extract::Path(path): axum::extract::Path<String>) ->
     match path.as_str() {
         "app.js" => (
             StatusCode::OK,
-            [("Content-Type", "application/javascript")],
+            [("Content-Type", "application/javascript"), ("Cache-Control", "no-cache, no-store, must-revalidate")],
             include_str!("../static/app.js"),
         ).into_response(),
         "style.css" => (
             StatusCode::OK,
-            [("Content-Type", "text/css")],
+            [("Content-Type", "text/css"), ("Cache-Control", "no-cache, no-store, must-revalidate")],
             include_str!("../static/style.css"),
         ).into_response(),
         _ => StatusCode::NOT_FOUND.into_response(),
