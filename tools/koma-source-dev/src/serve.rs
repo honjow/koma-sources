@@ -191,16 +191,30 @@ async fn api_proxy(Query(q): Query<ProxyQuery>) -> impl IntoResponse {
 }
 
 async fn index_html() -> impl IntoResponse {
+    let html = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("static/index.html"),
+    )
+    .unwrap_or_else(|_| "<html><body>index.html not found</body></html>".to_string());
     (
-        [(
-            "Cache-Control",
-            "no-cache, no-store, must-revalidate",
-        )],
-        Html(include_str!("../static/index.html")),
+        [("Cache-Control", "no-cache, no-store, must-revalidate")],
+        Html(html),
     )
 }
 
 async fn static_files(axum::extract::Path(path): axum::extract::Path<String>) -> impl IntoResponse {
-    // All-in-one index.html now, no separate static files needed
-    StatusCode::NOT_FOUND.into_response()
+    let file_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("static")
+        .join(&path);
+    match std::fs::read_to_string(&file_path) {
+        Ok(content) => {
+            let mime = mime_guess::from_path(&path).first_or_octet_stream();
+            Response::builder()
+                .header("Content-Type", mime.as_ref())
+                .header("Cache-Control", "no-cache, no-store, must-revalidate")
+                .body(axum::body::Body::from(content))
+                .unwrap()
+                .into_response()
+        }
+        Err(_) => StatusCode::NOT_FOUND.into_response(),
+    }
 }

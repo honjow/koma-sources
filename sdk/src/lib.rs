@@ -40,6 +40,14 @@ pub mod host {
 
         #[link_name = "html_close"]
         fn koma_host_html_close(descriptor: i32) -> i32;
+
+        #[link_name = "get_setting"]
+        fn koma_host_get_setting(
+            key_ptr: *const u8,
+            key_len: u32,
+            out_ptr: *mut u8,
+            out_cap: u32,
+        ) -> i32;
     }
 
     pub fn log_info(message: &[u8]) {
@@ -65,6 +73,23 @@ pub mod host {
             Err(written)
         } else {
             Ok(written as usize)
+        }
+    }
+
+    /// Read a setting value from the host. Returns empty slice if not found.
+    pub fn get_setting<'a>(key: &[u8], output: &'a mut [u8]) -> Option<&'a [u8]> {
+        let written = unsafe {
+            koma_host_get_setting(
+                key.as_ptr(),
+                key.len() as u32,
+                output.as_mut_ptr(),
+                output.len() as u32,
+            )
+        };
+        if written <= 0 || written as usize > output.len() {
+            None
+        } else {
+            Some(&output[..written as usize])
         }
     }
 
@@ -348,6 +373,7 @@ pub mod source {
         pub home: bool,
         pub filters: bool,
         pub settings: bool,
+        pub credentials: bool,
         pub image_request: bool,
     }
 
@@ -362,6 +388,7 @@ pub mod source {
             home: false,
             filters: false,
             settings: false,
+            credentials: false,
             image_request: false,
         };
 
@@ -375,6 +402,7 @@ pub mod source {
             home: true,
             filters: true,
             settings: true,
+            credentials: false,
             image_request: true,
         };
     }

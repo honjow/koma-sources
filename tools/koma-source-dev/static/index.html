@@ -10,8 +10,9 @@ tailwind.config = {
   theme: {
     extend: {
       colors: {
-        surface: { DEFAULT: '#0f0f0f', 1: '#181818', 2: '#222222', 3: '#2a2a2a', 4: '#333333' },
-        accent: { DEFAULT: '#6366f1', hover: '#818cf8', dim: '#4f46e5' },
+        bg:   { DEFAULT:'#0a0a0b', card:'#121214', hover:'#18181b', border:'#27272a', muted:'#3f3f46' },
+        fg:   { DEFAULT:'#fafafa', dim:'#a1a1aa', mute:'#71717a' },
+        accent:{ DEFAULT:'#a78bfa', hover:'#c4b5fd', dim:'#7c3aed' },
       }
     }
   }
@@ -19,393 +20,42 @@ tailwind.config = {
 </script>
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 <style>
-[v-cloak] { display: none; }
-* { scrollbar-width: thin; scrollbar-color: #333 #181818; }
-.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.fade-enter-active, .fade-leave-active { transition: opacity .15s; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
-.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 1rem; }
-@media (min-width: 768px) { .card-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); } }
-.manga-card { transition: transform .15s, box-shadow .15s; border-radius: 0.5rem; overflow: hidden; }
-.manga-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.4); }
-.scroll-row { display: flex; gap: 0.75rem; overflow-x: auto; padding-bottom: 0.5rem; scroll-snap-type: x mandatory; }
-.scroll-row::-webkit-scrollbar { height: 4px; }
-.scroll-row::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
-.scroll-row > * { scroll-snap-align: start; flex-shrink: 0; }
+  [v-cloak] { display: none; }
+  * { scrollbar-width: thin; scrollbar-color: #27272a transparent; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: 1rem; }
+  @media(min-width:640px){ .card-grid { grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); } }
+  .manga-card { border-radius: .625rem; overflow: hidden; transition: transform .15s, box-shadow .15s; cursor: pointer; }
+  .manga-card:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(0,0,0,.5); }
+  .manga-card img { aspect-ratio: 3/4; object-fit: cover; width: 100%; display: block; background: #18181b; }
+  .scroll-row { display: flex; gap: .75rem; overflow-x: auto; padding-bottom: .5rem; scroll-snap-type: x mandatory; }
+  .scroll-row::-webkit-scrollbar { height: 4px; }
+  .scroll-row::-webkit-scrollbar-thumb { background: #27272a; border-radius: 2px; }
+  .scroll-row > * { scroll-snap-align: start; flex-shrink: 0; }
+  .skeleton { background: linear-gradient(90deg, #18181b 25%, #27272a 50%, #18181b 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: .5rem; }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  input[type="range"] { -webkit-appearance: none; appearance: none; height: 4px; background: #27272a; border-radius: 2px; outline: none; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: #a78bfa; border-radius: 50%; cursor: pointer; }
+  .page-enter-active, .page-leave-active { transition: opacity .12s, transform .12s; }
+  .page-enter-from { opacity: 0; transform: translateY(6px); }
+  .page-leave-to { opacity: 0; transform: translateY(-6px); }
 </style>
 </head>
-<body class="bg-surface text-gray-200 h-full overflow-hidden">
-<div id="app" v-cloak class="h-full flex flex-col">
+<body class="bg-bg text-fg h-full overflow-hidden">
+<div id="app" v-cloak class="h-full"></div>
 
-  <!-- Header -->
-  <header class="bg-surface-1 border-b border-surface-3 px-5 py-2.5 flex items-center justify-between flex-shrink-0">
-    <div class="flex items-center gap-3">
-      <svg class="w-5 h-5 text-accent" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-      <select v-model="currentSource" @change="onSwitchSource"
-        class="bg-surface-2 text-sm px-3 py-1.5 rounded-lg border border-surface-4 focus:border-accent focus:outline-none transition-colors">
-        <option v-for="s in sources" :key="s.file" :value="s.file">{{ s.name }}</option>
-      </select>
-      <span class="text-xs text-gray-500 hidden sm:inline" v-if="sourceInfo">v{{ sourceInfo.version }} · {{ sourceInfo.language }}</span>
-    </div>
-    <div class="flex items-center gap-2">
-      <button @click="runTestAll" class="px-3 py-1.5 text-xs bg-surface-3 hover:bg-surface-4 rounded-lg transition-colors">Test All</button>
-    </div>
-  </header>
-
-  <!-- Nav -->
-  <nav class="bg-surface-1 px-5 py-0 flex gap-1 flex-shrink-0 border-b border-surface-2">
-    <button v-for="tab in ['home','search','browse']" :key="tab"
-      @click="go(tab)"
-      :class="[
-        'px-4 py-2.5 text-sm font-medium transition-colors relative',
-        page === tab ? 'text-white' : 'text-gray-500 hover:text-gray-300'
-      ]">
-      {{ tab.charAt(0).toUpperCase() + tab.slice(1) }}
-      <span v-if="page===tab" class="absolute bottom-0 left-2 right-2 h-0.5 bg-accent rounded-full"></span>
-    </button>
-  </nav>
-
-  <!-- Main -->
-  <main class="flex-1 overflow-y-auto min-h-0">
-    <div class="max-w-6xl mx-auto px-4 py-5">
-
-      <!-- Home -->
-      <template v-if="page==='home'">
-        <div v-if="loading" class="text-center text-gray-500 py-12">Loading...</div>
-        <div v-else-if="homeSections.length === 0" class="text-center text-gray-600 py-12">No home sections</div>
-        <div v-else v-for="section in homeSections" :key="section.title" class="mb-8">
-          <h2 class="text-sm font-semibold text-gray-300 uppercase tracking-wide mb-3">{{ section.title }}</h2>
-          <div class="scroll-row">
-            <div v-for="item in section.items" :key="item.id" @click="openManga(item.id)"
-              class="manga-card w-[120px] cursor-pointer bg-surface-2">
-              <img v-if="item.cover?.url" :src="proxy(item.cover.url)" class="w-full object-cover" style="aspect-ratio:3/4" loading="lazy">
-              <div v-else class="w-full bg-surface-3" style="aspect-ratio:3/4"></div>
-              <div class="px-2 py-1.5">
-                <div class="text-xs line-clamp-2 text-gray-300">{{ item.title }}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </template>
-
-      <!-- Search -->
-      <template v-if="page==='search'">
-        <div class="mb-5 flex gap-2">
-          <div class="flex-1 relative">
-            <input v-model="searchQuery" @keydown.enter="doSearch" placeholder="Search manga..."
-              class="w-full px-4 py-2.5 bg-surface-2 border border-surface-3 rounded-lg text-sm focus:outline-none focus:border-accent transition-colors pl-10">
-            <svg class="w-4 h-4 text-gray-500 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-          </div>
-          <button @click="doSearch" class="px-5 py-2.5 bg-accent hover:bg-accent-hover rounded-lg text-sm font-medium transition-colors">Search</button>
-        </div>
-        <div v-if="loading" class="text-center text-gray-500 py-12">Searching...</div>
-        <div v-else-if="searchResults.length" class="card-grid">
-          <div v-for="item in searchResults" :key="item.id" @click="openManga(item.id)"
-            class="manga-card cursor-pointer bg-surface-2">
-            <img v-if="item.cover?.url" :src="proxy(item.cover.url)" class="w-full object-cover" style="aspect-ratio:3/4" loading="lazy">
-            <div v-else class="w-full bg-surface-3" style="aspect-ratio:3/4"></div>
-            <div class="px-2 py-1.5">
-              <div class="text-xs line-clamp-2 text-gray-300">{{ item.title }}</div>
-            </div>
-          </div>
-        </div>
-        <div v-else-if="searchDone" class="text-center text-gray-600 py-12">No results</div>
-      </template>
-
-      <!-- Browse -->
-      <template v-if="page==='browse'">
-        <div v-if="loading" class="text-center text-gray-500 py-12">Loading...</div>
-        <div v-else class="card-grid">
-          <div v-for="item in browseItems" :key="item.id" @click="openManga(item.id)"
-            class="manga-card cursor-pointer bg-surface-2">
-            <img v-if="item.cover?.url" :src="proxy(item.cover.url)" class="w-full object-cover" style="aspect-ratio:3/4" loading="lazy">
-            <div v-else class="w-full bg-surface-3" style="aspect-ratio:3/4"></div>
-            <div class="px-2 py-1.5">
-              <div class="text-xs line-clamp-2 text-gray-300">{{ item.title }}</div>
-            </div>
-          </div>
-        </div>
-      </template>
-
-      <!-- Manga Detail -->
-      <template v-if="page==='manga'">
-        <div v-if="loading" class="text-center text-gray-500 py-12">Loading...</div>
-        <div v-else-if="mangaError" class="text-center py-12">
-          <div class="inline-block bg-red-500/10 border border-red-500/20 rounded-lg px-6 py-4">
-            <p class="text-red-400 text-sm">Failed to load</p>
-            <p class="text-xs text-gray-500 mt-1">{{ mangaError }}</p>
-          </div>
-        </div>
-        <div v-else-if="manga">
-          <!-- Back -->
-          <button @click="goBack" class="text-sm text-gray-500 hover:text-gray-300 mb-4 transition-colors">← Back</button>
-          <div class="flex gap-5 mb-6">
-            <img v-if="manga.cover?.url" :src="proxy(manga.cover.url)" class="w-32 md:w-40 rounded-lg shadow-lg flex-shrink-0" style="aspect-ratio:3/4;object-fit:cover">
-            <div class="flex-1 min-w-0">
-              <h1 class="text-lg font-bold mb-1.5">{{ manga.title }}</h1>
-              <div class="text-sm text-gray-400 mb-1" v-if="manga.authors?.length">{{ manga.authors.join(', ') }}</div>
-              <span class="inline-block px-2 py-0.5 bg-surface-3 rounded text-xs text-gray-400 mb-2">{{ manga.status || 'unknown' }}</span>
-              <div class="flex flex-wrap gap-1 mb-3" v-if="manga.tags?.length">
-                <span v-for="t in manga.tags.slice(0, 8)" :key="t" class="px-2 py-0.5 bg-surface-2 border border-surface-4 rounded-full text-xs text-gray-400">{{ t }}</span>
-              </div>
-              <p class="text-xs text-gray-400 leading-relaxed max-h-20 overflow-y-auto">{{ manga.description }}</p>
-            </div>
-          </div>
-          <div class="bg-surface-1 rounded-lg border border-surface-3">
-            <div class="px-4 py-2.5 border-b border-surface-3 flex items-center justify-between">
-              <h2 class="text-sm font-semibold">Chapters</h2>
-              <span class="text-xs text-gray-500">{{ chapters.length }} chapters</span>
-            </div>
-            <div class="max-h-[50vh] overflow-y-auto divide-y divide-surface-2">
-              <div v-for="ch in chapters" :key="ch.id"
-                @click="openReader(ch.id)"
-                class="px-4 py-2.5 hover:bg-surface-2 cursor-pointer transition-colors flex items-center justify-between">
-                <span class="text-sm text-gray-300">{{ ch.chapterNumber ? 'Ch. ' + ch.chapterNumber + ' ' : '' }}{{ ch.title || '' }}</span>
-                <span class="text-xs text-gray-600">{{ ch.pageCount || '?' }}p</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </template>
-
-      <!-- Reader -->
-      <template v-if="page==='reader'">
-        <div class="flex flex-col items-center" style="height: calc(100vh - 7rem);">
-          <div class="flex items-center justify-between w-full max-w-4xl mb-2">
-            <button @click="page='manga'" class="text-sm text-gray-500 hover:text-gray-300 transition-colors">← Back</button>
-            <span class="text-sm text-gray-500 font-mono">{{ readerPage + 1 }}<span class="text-gray-600">/</span>{{ readerPages.length }}</span>
-          </div>
-          <div class="flex-1 flex items-center justify-center w-full max-w-4xl relative select-none overflow-hidden min-h-0 rounded-lg bg-black/30">
-            <div class="absolute left-0 top-0 w-1/3 h-full cursor-w-resize z-10" @click="readerPrev"></div>
-            <div class="absolute right-0 top-0 w-1/3 h-full cursor-e-resize z-10" @click="readerNext"></div>
-            <img v-if="readerCurrentUrl" :src="readerCurrentUrl" class="max-h-full max-w-full object-contain" :key="readerPage">
-            <div v-else class="text-gray-600">No image</div>
-          </div>
-          <div class="flex items-center gap-3 mt-2 flex-shrink-0">
-            <button @click="readerPrev" :disabled="readerPage<=0"
-              class="px-3 py-1.5 bg-surface-2 hover:bg-surface-3 rounded-lg text-xs transition-colors disabled:opacity-20">←</button>
-            <div class="flex items-center gap-1">
-              <input type="range" :min="0" :max="readerPages.length-1" v-model.number="readerPage"
-                class="w-32 h-1 accent-accent">
-            </div>
-            <button @click="readerNext" :disabled="readerPage>=readerPages.length-1"
-              class="px-3 py-1.5 bg-surface-2 hover:bg-surface-3 rounded-lg text-xs transition-colors disabled:opacity-20">→</button>
-          </div>
-        </div>
-      </template>
-
-    </div>
-  </main>
-
-  <!-- JSON Drawer -->
-  <div class="flex-shrink-0 border-t border-surface-3 bg-surface-1">
-    <div class="flex items-center justify-between px-4 py-1.5 cursor-pointer select-none" @click="showJson=!showJson">
-      <span class="text-xs text-gray-600 font-mono">Response</span>
-      <span class="text-xs text-gray-600">{{ showJson ? '▼' : '▲' }}</span>
-    </div>
-    <pre v-if="showJson" class="px-4 pb-3 text-xs text-emerald-400/80 font-mono overflow-auto max-h-52 leading-relaxed">{{ lastJson }}</pre>
-  </div>
-
-  <!-- Test Modal -->
-  <teleport to="body">
-    <div v-if="testResults" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 backdrop-blur-sm" @click.self="testResults=null">
-      <div class="bg-surface-1 border border-surface-3 rounded-xl p-5 max-w-sm w-full mx-4 shadow-2xl">
-        <h3 class="font-semibold text-sm mb-3">Test Results</h3>
-        <div class="space-y-1.5">
-          <div v-for="r in testResults" :key="r.op" class="flex items-center gap-2 text-sm">
-            <span class="w-5 text-center" :class="r.status==='pass' ? 'text-emerald-400' : 'text-red-400'">{{ r.status==='pass' ? '✓' : '✗' }}</span>
-            <span class="text-gray-300 text-xs">{{ r.op }}</span>
-            <span v-if="r.status!=='pass'" class="text-xs text-red-400/60 ml-auto truncate max-w-[120px]">{{ r.status }}</span>
-          </div>
-        </div>
-        <button @click="testResults=null" class="mt-4 w-full py-2 bg-surface-3 hover:bg-surface-4 rounded-lg text-xs transition-colors">Close</button>
-      </div>
-    </div>
-  </teleport>
-</div>
-
-<script>
-const { createApp, ref, computed, onMounted, onUnmounted } = Vue;
-
-createApp({
-  setup() {
-    const sources = ref([]);
-    const currentSource = ref('');
-    const sourceInfo = ref(null);
-    const page = ref('home');
-    const loading = ref(false);
-    const lastJson = ref('');
-    const showJson = ref(false);
-    const testResults = ref(null);
-    const prevPage = ref('browse');
-
-    const homeSections = ref([]);
-    const searchQuery = ref('');
-    const searchResults = ref([]);
-    const searchDone = ref(false);
-    const browseItems = ref([]);
-    const manga = ref(null);
-    const mangaError = ref('');
-    const chapters = ref([]);
-    const currentMangaId = ref('');
-    const readerPages = ref([]);
-    const readerPage = ref(0);
-
-    const readerCurrentUrl = computed(() => {
-      const p = readerPages.value[readerPage.value];
-      return p?.image?.url ? proxy(p.image.url) : '';
-    });
-
-    function proxy(url) { return '/api/proxy?url=' + encodeURIComponent(url); }
-
-    async function api(endpoint, opts = {}) {
-      try {
-        const resp = await fetch(endpoint, opts);
-        return await resp.json();
-      } catch (e) {
-        console.error(`[API] ${endpoint}:`, e);
-        return { ok: false, error: e.message };
-      }
-    }
-
-    async function apiRun(op, request = {}) {
-      console.log(`[run] ${op}`, request);
-      const data = await api('/api/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ op, request })
-      });
-      lastJson.value = JSON.stringify(data, null, 2);
-      if (!data.ok) console.error(`[run] ${op} failed:`, data);
-      return data;
-    }
-
-    async function loadSources() {
-      sources.value = await api('/api/sources') || [];
-      const active = sources.value.find(s => s.active);
-      if (active) currentSource.value = active.file;
-    }
-
-    async function refreshInfo() {
-      const data = await api('/api/info');
-      sourceInfo.value = data?.data?.sourceInfo || null;
-    }
-
-    async function onSwitchSource() {
-      await api('/api/switch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: currentSource.value })
-      });
-      await refreshInfo();
-      go(page.value === 'manga' || page.value === 'reader' ? 'home' : page.value);
-    }
-
-    function go(p) {
-      if (page.value !== 'manga' && page.value !== 'reader') prevPage.value = page.value;
-      page.value = p;
-      if (p === 'home') loadHome();
-      else if (p === 'browse') loadBrowse();
-    }
-
-    function goBack() {
-      page.value = prevPage.value || 'home';
-      go(page.value);
-    }
-
-    async function loadHome() {
-      loading.value = true;
-      const data = await apiRun('get_home', {});
-      homeSections.value = data?.data?.sections || [];
-      loading.value = false;
-    }
-
-    async function doSearch() {
-      if (!searchQuery.value.trim()) return;
-      loading.value = true;
-      searchDone.value = false;
-      const data = await apiRun('search', { query: searchQuery.value });
-      searchResults.value = data?.data?.items || [];
-      searchDone.value = true;
-      loading.value = false;
-    }
-
-    async function loadBrowse() {
-      loading.value = true;
-      const data = await apiRun('get_manga_list', { page: "1" });
-      browseItems.value = data?.data?.items || [];
-      loading.value = false;
-    }
-
-    function openManga(id) {
-      currentMangaId.value = id;
-      page.value = 'manga';
-      loadManga(id);
-    }
-
-    async function loadManga(id) {
-      loading.value = true;
-      manga.value = null;
-      mangaError.value = '';
-      chapters.value = [];
-
-      const data = await apiRun('get_manga', { mangaId: id });
-      if (!data.ok || (!data.data?.manga && !data.data?.title)) {
-        mangaError.value = data.error?.message || data.error || 'Unknown error';
-        loading.value = false;
-        return;
-      }
-      manga.value = data.data.manga || data.data;
-
-      const chapData = await apiRun('get_chapters', { mangaId: id });
-      chapters.value = chapData?.data?.items || [];
-      loading.value = false;
-    }
-
-    function openReader(chapterId) {
-      page.value = 'reader';
-      loadReader(chapterId);
-    }
-
-    async function loadReader(chapterId) {
-      readerPage.value = 0;
-      readerPages.value = [];
-      const data = await apiRun('get_pages', { chapterId });
-      readerPages.value = data?.data?.pages || [];
-    }
-
-    function readerPrev() { if (readerPage.value > 0) readerPage.value--; }
-    function readerNext() { if (readerPage.value < readerPages.value.length - 1) readerPage.value++; }
-
-    function onKey(e) {
-      if (page.value !== 'reader') return;
-      if (e.key === 'ArrowLeft' || e.key === 'a') readerPrev();
-      if (e.key === 'ArrowRight' || e.key === 'd') readerNext();
-    }
-
-    async function runTestAll() {
-      const data = await api('/api/test-all');
-      testResults.value = data?.results || [];
-    }
-
-    onMounted(async () => {
-      document.addEventListener('keydown', onKey);
-      await loadSources();
-      await refreshInfo();
-      loadHome();
-    });
-    onUnmounted(() => document.removeEventListener('keydown', onKey));
-
-    return {
-      sources, currentSource, sourceInfo, page, loading, lastJson, showJson, testResults,
-      homeSections, searchQuery, searchResults, searchDone, browseItems,
-      manga, mangaError, chapters, currentMangaId,
-      readerPages, readerPage, readerCurrentUrl,
-      proxy, go, goBack, onSwitchSource, doSearch, openManga, openReader,
-      readerPrev, readerNext, runTestAll, prevPage,
-    };
-  }
-}).mount('#app');
-</script>
+<script src="/js/store.js"></script>
+<script src="/js/router.js"></script>
+<script src="/js/components/sidebar.js"></script>
+<script src="/js/components/mobile-nav.js"></script>
+<script src="/js/components/home-page.js"></script>
+<script src="/js/components/search-page.js"></script>
+<script src="/js/components/browse-page.js"></script>
+<script src="/js/components/manga-detail.js"></script>
+<script src="/js/components/reader-page.js"></script>
+<script src="/js/components/ui.js"></script>
+<script src="/js/app.js"></script>
+<script>Vue.createApp(App).mount('#app');</script>
 </body>
 </html>

@@ -1,7 +1,20 @@
 use crate::types::{HttpErrorEnvelope, HttpRequest, HttpResponse};
 use anyhow::{anyhow, Context, Result};
+use std::collections::HashMap;
 use std::path::Path;
+use std::sync::Mutex;
 use wasmtime::*;
+
+/// Per-source settings store (key → value). Shared across WASM invocations.
+static SETTINGS: std::sync::LazyLock<Mutex<HashMap<String, String>>> =
+    std::sync::LazyLock::new(|| Mutex::new(HashMap::new()));
+
+/// Set a source setting value.
+pub fn set_setting(key: &str, value: &str) {
+    if let Ok(mut s) = SETTINGS.lock() {
+        s.insert(key.to_string(), value.to_string());
+    }
+}
 
 /// State stored inside the wasmtime Store
 pub struct HostState {
@@ -530,6 +543,44 @@ fn register_host_imports(linker: &mut Linker<HostState>) -> Result<()> {
         }
         0
     })?;
+
+    // koma_host.get_setting
+    linker.func_wrap(
+        "koma_host",
+        "get_setting",
+        |mut caller: Caller<'_, HostState>,
+         key_ptr: i32,
+         key_len: i32,
+         out_ptr: i32,
+         out_cap: i32|
+         -> i32 {
+            let memory = match caller.get_export("memory").and_then(|e| e.into_memory()) {
+                Some(m) => m,
+                None => return -1,
+            };
+            let data = memory.data(&caller);
+            let k_start = key_ptr as usize;
+            let k_end = k_start + key_len as usize;
+            if k_end > data.len() { return -1; }
+            let key = String::from_utf8_lossy(&data[k_start..k_end]).to_string();
+
+            let value = SETTINGS
+                .lock()
+                .ok()
+                .and_then(|s| s.get(&key).cloned())
+                .unwrap_or_default();
+
+            let val_bytes = value.as_bytes();
+            if val_bytes.len() > out_cap as usize { return -3; }
+
+            let out_start = out_ptr as usize;
+            let out_end = out_start + val_bytes.len();
+            let mem = memory.data_mut(&mut caller);
+            if out_end > mem.len() { return -1; }
+            mem[out_start..out_end].copy_from_slice(val_bytes);
+            val_bytes.len() as i32
+        },
+    )?;
 
     Ok(())
 }

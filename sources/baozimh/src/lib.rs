@@ -39,13 +39,13 @@ fn html_select_all(descriptor: i32, selector: &[u8], out: &mut [u8]) -> i32 {
     }
 }
 
-/// Buffer to hold descriptors returned by html_select_all (up to 50 results)
-static mut SELECT_ALL_BUF: [u8; 2000] = [0; 2000]; // 500 * 4 bytes
+/// Buffer to hold descriptors returned by html_select_all (up to 4000 results)
+static mut SELECT_ALL_BUF: [u8; 16000] = [0; 16000]; // 4000 * 4 bytes
 
 
 const SITE_BASE: &[u8] = b"https://www.baozimh.com";
 const READER_BASE: &[u8] = b"https://www.twmanga.com";
-const PAYLOAD_CAP: usize = 128 * 1024;
+const PAYLOAD_CAP: usize = 1024 * 1024;
 const HTTP_OUT_CAP: usize = 2 * 1024 * 1024;
 const HTML_BUF_CAP: usize = 2 * 1024 * 1024;
 const HTTP_REQ_CAP: usize = 1024;
@@ -81,8 +81,10 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     filters: true,
     settings: true,
     image_request: true,
+    credentials: false,
 };
 
+#[cfg(not(test))]
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo<'_>) -> ! {
     loop {}
@@ -164,8 +166,20 @@ fn fetch_error_code(e: FetchError) -> (&'static str, &'static str) {
 
 fn fetch_html(url_bytes: &[u8]) -> Result<usize, FetchError> {
     let req_len = build_get_request(http_req_buf(), url_bytes).ok_or(FetchError::Network)?;
-    let req_slice = &http_req_buf()[..req_len];
-    let resp_len = http_request(req_slice, http_out()).map_err(|_| FetchError::Network)?;
+    // Retry transport-level failures (DNS/connect/TLS/timeout) up to 3 times.
+    // HTTP 4xx/5xx come back as Ok and are classified below.
+    let mut resp_len = 0usize;
+    let mut transport_failed = true;
+    for attempt in 0..3u8 {
+        let req_slice = &http_req_buf()[..req_len];
+        match http_request(req_slice, http_out()) {
+            Ok(n) => { resp_len = n; transport_failed = false; break; }
+            Err(_) => {
+                if attempt < 2 { log_info(b"baozimh: http transport error, retrying"); }
+            }
+        }
+    }
+    if transport_failed { return Err(FetchError::Network); }
     let resp = &http_out()[..resp_len];
     if !contains_bytes(resp, br#""ok":true"#) {
         log_info(b"baozimh: http response not ok");
@@ -585,7 +599,13 @@ fn run_get_manga(req: &[u8]) -> u32 {
         tag_written += 1;
     }
 
-    if !write_bytes(payload, &mut c, br#"],"links":[]}}"#) {
+    if !write_bytes(payload, &mut c, br#"],"links":[{"kind":"source","url":"https://www.baozimh.com/comic/"#) {
+        return write_error("get_manga", "internal_error", "payload overflow");
+    }
+    if !append_json_escaped(payload, &mut c, slug) {
+        return write_error("get_manga", "internal_error", "payload overflow");
+    }
+    if !write_bytes(payload, &mut c, br#""}]}}"#) {
         return write_error("get_manga", "internal_error", "payload overflow");
     }
 
@@ -625,12 +645,23 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     };
 
     let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
-    // Use #chapters_other_list to select only the catalog section (skip "最新章節" which is a reversed subset)
-    let mut count = html_select_all(document.0.raw(), b"#chapters_other_list a.comics-chapters__item", select_buf);
-    // Fallback: if no catalog section found (small manga), use all chapter items
-    if count <= 0 {
-        count = html_select_all(document.0.raw(), b"a.comics-chapters__item", select_buf);
-    }
+    // Baozimh page has 3 groups of a.comics-chapters__item in DOM order:
+    //   1) Unsectioned latest N items (reverse order) — skip these
+    //   2) #chapter-items: first 24 chapters (slot 0-23, sequential)
+    //   3) #chapters_other_list: remaining chapters (slot 24+, sequential)
+    // Select from #chapter-items first, then #chapters_other_list, to get complete sequential list.
+    let count1 = html_select_all(document.0.raw(), b"#chapter-items a.comics-chapters__item", select_buf);
+    let n1 = if count1 > 0 { count1 as usize } else { 0 };
+
+    // Select #chapters_other_list into the buffer after the first batch
+    let remaining_buf = &mut select_buf[n1 * 4..];
+    let count2 = if remaining_buf.len() >= 4 {
+        html_select_all(document.0.raw(), b"#chapters_other_list a.comics-chapters__item", remaining_buf)
+    } else {
+        0
+    };
+    let n2 = if count2 > 0 { count2 as usize } else { 0 };
+    let total_items = n1 + n2;
 
     let payload = payload_buf();
     let mut c = 0usize;
@@ -638,11 +669,9 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         return write_error("get_chapters", "internal_error", "payload overflow");
     }
 
-    let max_items = if count > 0 { count as usize } else { 0 };
-    let max_items = if max_items > 500 { 500 } else { max_items };
     let mut written = 0usize;
 
-    for i in 0..max_items {
+    for i in 0..total_items {
         let offset = i * 4;
         if offset + 4 > select_buf.len() { break; }
         let desc = i32::from_le_bytes([

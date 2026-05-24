@@ -48,8 +48,10 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     filters: true,
     settings: true,
     image_request: true,
+    credentials: false,
 };
 
+#[cfg(not(test))]
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo<'_>) -> ! {
     loop {}
@@ -133,10 +135,92 @@ fn fetch_error_code(e: FetchError) -> (&'static str, &'static str) {
     }
 }
 
+fn parse_hex4_into_codepoint(hex: &[u8]) -> u16 {
+    let mut n = 0u16;
+    for &b in hex.iter().take(4) {
+        n = n << 4
+            | match b {
+                b'0'..=b'9' => (b - b'0') as u16,
+                b'a'..=b'f' => (b - b'a' + 10) as u16,
+                b'A'..=b'F' => (b - b'A' + 10) as u16,
+                _ => 0,
+            };
+    }
+    n
+}
+
+fn encode_codepoint_utf8(cp: u16, dst: &mut [u8]) -> usize {
+    if cp < 0x80 {
+        dst[0] = cp as u8;
+        1
+    } else if cp < 0x800 {
+        dst[0] = 0xC0 | (cp >> 6) as u8;
+        dst[1] = 0x80 | (cp & 0x3F) as u8;
+        2
+    } else {
+        dst[0] = 0xE0 | (cp >> 12) as u8;
+        dst[1] = 0x80 | ((cp >> 6) & 0x3F) as u8;
+        dst[2] = 0x80 | (cp & 0x3F) as u8;
+        3
+    }
+}
+
+/// Decode \uXXXX escapes in JSON strings in-place. Returns new length.
+fn decode_unicode_in_place(buf: &mut [u8], len: usize) -> usize {
+    let mut src = 0usize;
+    let mut dst = 0usize;
+    while src < len {
+        if buf[src] == b'\\' && src + 5 < len && buf[src + 1] == b'u' {
+            let cp = parse_hex4_into_codepoint(&buf[src + 2..src + 6]);
+            src += 6;
+            dst += encode_codepoint_utf8(cp, &mut buf[dst..]);
+        } else {
+            buf[dst] = buf[src];
+            dst += 1;
+            src += 1;
+        }
+    }
+    dst
+}
+
+fn chapter_num_dedup_seen(seen_buf: &mut [u8], seen_cursor: &mut usize, value: &[u8]) -> bool {
+    let mut pos = 0usize;
+    while pos < *seen_cursor {
+        let len = seen_buf[pos] as usize;
+        pos += 1;
+        if *seen_cursor < pos + len {
+            break;
+        }
+        if &seen_buf[pos..pos + len] == value {
+            return true;
+        }
+        pos += len;
+    }
+    let vlen = value.len();
+    if *seen_cursor + 1 + vlen <= seen_buf.len() {
+        seen_buf[*seen_cursor] = vlen as u8;
+        *seen_cursor += 1;
+        seen_buf[*seen_cursor..*seen_cursor + vlen].copy_from_slice(value);
+        *seen_cursor += vlen;
+    }
+    false
+}
+
 fn fetch_json(url_bytes: &[u8]) -> Result<&'static [u8], FetchError> {
-    let req_len = build_get_request(http_req_buf(), url_bytes).ok_or(FetchError::Network)?;
-    let req_slice = &http_req_buf()[..req_len];
-    let resp_len = http_request(req_slice, http_out()).map_err(|_| FetchError::Network)?;
+    let req_len = build_get_request(http_req_buf(), url_bytes).ok_or(FetchError::Network)?;    let req_len = build_get_request(http_req_buf(), url_bytes).ok_or(FetchError::Network)?;
+    // Retry transport-level failures up to 3 times.
+    let mut resp_len = 0usize;
+    let mut transport_failed = true;
+    for attempt in 0..3u8 {
+        let req_slice = &http_req_buf()[..req_len];
+        match http_request(req_slice, http_out()) {
+            Ok(n) => { resp_len = n; transport_failed = false; break; }
+            Err(_) => {
+                if attempt < 2 { log_info(b"mangadex: http transport error, retrying"); }
+            }
+        }
+    }
+    if transport_failed { return Err(FetchError::Network); }
     let resp = &http_out()[..resp_len];
     if !contains_bytes(resp, br#""ok":true"#) {
         log_info(b"mangadex: http response not ok");
@@ -399,7 +483,13 @@ fn run_get_manga(req: &[u8]) -> u32 {
             }
         }
     }
-    if !write_bytes(payload, &mut c, br#"],"links":[]}}"#) {
+    if !write_bytes(payload, &mut c, br#"],"links":[{"kind":"source","url":"https://mangadex.org/title/"#) {
+        return write_error("get_manga", "internal_error", "overflow");
+    }
+    if !append_json_escaped(payload, &mut c, uuid) {
+        return write_error("get_manga", "internal_error", "overflow");
+    }
+    if !write_bytes(payload, &mut c, br#""}]}}"#) {
         return write_error("get_manga", "internal_error", "overflow");
     }
 
@@ -437,7 +527,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     let ok = write_bytes(url_buf, &mut url_cursor, API_BASE)
         && write_bytes(url_buf, &mut url_cursor, b"/manga/")
         && write_bytes(url_buf, &mut url_cursor, uuid)
-        && write_bytes(url_buf, &mut url_cursor, b"/feed?limit=100&translatedLanguage%5B%5D=en&order%5Bchapter%5D=desc");
+        && write_bytes(url_buf, &mut url_cursor, b"/feed?limit=100&order%5Bchapter%5D=desc");
     if !ok { return write_error("get_chapters", "internal_error", "url overflow"); }
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
 
@@ -451,6 +541,10 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     if !write_bytes(payload, &mut c, br#"{"items":["#) {
         return write_error("get_chapters", "internal_error", "overflow");
     }
+
+    // Dedup: track seen chapter-number strings so each chapter# appears once.
+    let seen_buf = scratch_a();
+    let mut seen_cursor = 0usize;
 
     let mut iter = match JsonArrayIter::new(api_json, b"data") {
         Some(it) => it,
@@ -467,7 +561,39 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         let chapter_num = extract_json_string(obj, b"chapter").unwrap_or(b"0");
         let title = extract_json_string(obj, b"title").unwrap_or(b"");
         let lang = extract_json_string(obj, b"translatedLanguage").unwrap_or(b"en");
+
+        // Decode \uXXXX escapes from title/language.
+        let mut title_buf = [0u8; 256];
+        let mut lang_buf = [0u8; 16];
+        let title_len = {
+            let tlen = title.len().min(255);
+            title_buf[..tlen].copy_from_slice(&title[..tlen]);
+            decode_unicode_in_place(&mut title_buf, tlen)
+        };
+        let lang_len = {
+            let llen = lang.len().min(15);
+            lang_buf[..llen].copy_from_slice(&lang[..llen]);
+            decode_unicode_in_place(&mut lang_buf, llen)
+        };
+        let title_decoded = &title_buf[..title_len];
+        let lang_decoded = &lang_buf[..lang_len];
+
         let pages = extract_json_number(obj, b"pages");
+
+        // Skip chapters that MangaDex doesn't host (externalUrl, e.g. MangaPlus)
+        let has_external = extract_json_string(obj, b"externalUrl").is_some();
+        let pages_zero = match pages {
+            Some(p) => p == b"0",
+            None => false,
+        };
+        if has_external || pages_zero {
+            continue;
+        }
+
+        // Dedup by chapter number: skip if already seen (multi-language dupes)
+        if chapter_num_dedup_seen(seen_buf, &mut seen_cursor, chapter_num) {
+            continue;
+        }
 
         if written > 0 {
             if !write_bytes(payload, &mut c, b",") { break; }
@@ -477,12 +603,10 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             && write_bytes(payload, &mut c, br#"","mangaId":"mdx:"#)
             && append_json_escaped(payload, &mut c, uuid)
             && write_bytes(payload, &mut c, br#"","title":""#)
-            && append_json_escaped(payload, &mut c, title)
-            && write_bytes(payload, &mut c, br#"","chapterNumber":""#)
+            && append_json_escaped(payload, &mut c, title_decoded)          && write_bytes(payload, &mut c, br#"","chapterNumber":""#)
             && append_json_escaped(payload, &mut c, chapter_num)
             && write_bytes(payload, &mut c, br#"","volumeNumber":null,"language":""#)
-            && append_json_escaped(payload, &mut c, lang)
-            && write_bytes(payload, &mut c, br#"","publishedAt":null,"updatedAt":null,"pageCount":"#);
+            && append_json_escaped(payload, &mut c, lang_decoded)            && write_bytes(payload, &mut c, br#"","publishedAt":null,"updatedAt":null,"pageCount":"#);
         if !ok { break; }
         if let Some(p) = pages {
             if !write_bytes(payload, &mut c, p) { break; }
