@@ -46,8 +46,8 @@ static mut SELECT_ALL_BUF: [u8; 2000] = [0; 2000]; // 500 * 4 bytes
 const SITE_BASE: &[u8] = b"https://www.baozimh.com";
 const READER_BASE: &[u8] = b"https://www.twmanga.com";
 const PAYLOAD_CAP: usize = 128 * 1024;
-const HTTP_OUT_CAP: usize = 512 * 1024;
-const HTML_BUF_CAP: usize = 512 * 1024;
+const HTTP_OUT_CAP: usize = 2 * 1024 * 1024;
+const HTML_BUF_CAP: usize = 2 * 1024 * 1024;
 const HTTP_REQ_CAP: usize = 1024;
 const SCRATCH_CAP: usize = 1024;
 

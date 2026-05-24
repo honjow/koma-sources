@@ -105,14 +105,17 @@ fn do_http_request(req: &HttpRequest) -> HttpResponse {
                 final_url: Some(req.url.clone()), network_performed: true, error: None,
             }
         }
-        Err(e) => HttpResponse {
-            ok: false, status: None, headers: None, body_text: None, body_json: None,
-            final_url: None, network_performed: true,
-            error: Some(HttpErrorEnvelope {
-                code: "network_error".into(),
-                message: format!("{}", e),
-                phase: "transport".into(), retryable: true,
-            }),
+        Err(e) => {
+            eprintln!("[dev-runner] HTTP error: {:?}", e);
+            HttpResponse {
+                ok: false, status: None, headers: None, body_text: None, body_json: None,
+                final_url: None, network_performed: true,
+                error: Some(HttpErrorEnvelope {
+                    code: "network_error".into(),
+                    message: format!("{}", e),
+                    phase: "transport".into(), retryable: true,
+                }),
+            }
         },
     }
 }
