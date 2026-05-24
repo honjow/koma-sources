@@ -645,23 +645,11 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     };
 
     let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
-    // Baozimh page has 3 groups of a.comics-chapters__item in DOM order:
-    //   1) Unsectioned latest N items (reverse order) — skip these
-    //   2) #chapter-items: first 24 chapters (slot 0-23, sequential)
-    //   3) #chapters_other_list: remaining chapters (slot 24+, sequential)
-    // Select from #chapter-items first, then #chapters_other_list, to get complete sequential list.
-    let count1 = html_select_all(document.0.raw(), b"#chapter-items a.comics-chapters__item", select_buf);
-    let n1 = if count1 > 0 { count1 as usize } else { 0 };
-
-    // Select #chapters_other_list into the buffer after the first batch
-    let remaining_buf = &mut select_buf[n1 * 4..];
-    let count2 = if remaining_buf.len() >= 4 {
-        html_select_all(document.0.raw(), b"#chapters_other_list a.comics-chapters__item", remaining_buf)
-    } else {
-        0
-    };
-    let n2 = if count2 > 0 { count2 as usize } else { 0 };
-    let total_items = n1 + n2;
+    // Baozimh site layout changed: chapters are now bare a.comics-chapters__item
+    // elements inside .l-box divs, no longer wrapped in #chapter-items or
+    // #chapters_other_list containers.
+    let count1 = html_select_all(document.0.raw(), b"a.comics-chapters__item", select_buf);
+    let total_items = if count1 > 0 { count1 as usize } else { 0 };
 
     let payload = payload_buf();
     let mut c = 0usize;
