@@ -54,4 +54,5 @@ jobs:
           files: |
             dist/index.json
             dist/sources/**/*.koma
+            target/release/koma-source-dev
           generate_release_notes: true

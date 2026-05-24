@@ -1040,6 +1040,29 @@ pub extern "C" fn koma_source_get_settings(req_ptr: u32, req_len: u32) -> u32 {
 }
 
 #[no_mangle]
+pub extern "C" fn koma_source_get_image_request(req_ptr: u32, req_len: u32) -> u32 {
+    let req = match read_request(req_ptr, req_len) {
+        Some(r) => r,
+        None => return write_error("get_image_request", "invalid_request", "empty"),
+    };
+    log_info(b"mangadex get_image_request");
+    // MangaDex images are direct URLs, no modification needed
+    let url = match extract_json_string(req, b"url") {
+        Some(u) => u,
+        None => return write_error("get_image_request", "invalid_request", "missing url"),
+    };
+    let payload = payload_buf();
+    let mut c = 0usize;
+    let ok = write_bytes(payload, &mut c, br#"{"url":""#)
+        && append_json_escaped(payload, &mut c, url)
+        && write_bytes(payload, &mut c, br#"","headers":{}}"#);
+    if !ok {
+        return write_error("get_image_request", "internal_error", "payload overflow");
+    }
+    write_success_payload("get_image_request", c)
+}
+
+#[no_mangle]
 pub extern "C" fn koma_source_free(result_ptr: u32) {
     response_buffer().free(result_ptr)
 }
