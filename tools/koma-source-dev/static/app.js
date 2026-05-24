@@ -133,8 +133,8 @@ async function renderBrowse(el) {
 async function renderManga(el, params) {
   el.innerHTML = '<div class="text-center text-gray-500 py-8">Loading...</div>';
   const data = await apiRun('get_manga', { mangaId: params.id });
-  const manga = data?.data;
-  if (!manga) { el.innerHTML = '<div class="text-red-400">Failed to load</div>'; return; }
+  const manga = data?.data?.manga || data?.data;
+  if (!manga || !manga.title) { el.innerHTML = '<div class="text-red-400">Failed to load</div>'; return; }
 
   const chapData = await apiRun('get_chapters', { mangaId: params.id });
   const chapters = chapData?.data?.items || [];
@@ -244,9 +244,9 @@ function mangaCard(item) {
   return `
     <div class="manga-card" onclick="navigate('manga', {id:'${esc(item.id)}'})">
       <div class="bg-gray-800 rounded-lg overflow-hidden">
-        ${cover ? `<img src="${cover}" alt="" class="w-full">` : '<div class="w-full bg-gray-700" style="aspect-ratio:3/4"></div>'}
+        ${cover ? `<img src="${cover}" alt="" class="w-full" style="aspect-ratio:3/4;object-fit:cover">` : '<div class="w-full bg-gray-700" style="aspect-ratio:3/4"></div>'}
         <div class="p-2">
-          <div class="text-xs font-medium truncate">${esc(item.title || '')}</div>
+          <div class="text-xs font-medium line-clamp-2">${esc(item.title || '')}</div>
         </div>
       </div>
     </div>
@@ -256,8 +256,8 @@ function mangaCardSmall(item) {
   const cover = item.cover?.url ? proxyUrl(item.cover.url) : '';
   return `
     <div class="manga-card w-28" onclick="navigate('manga', {id:'${esc(item.id)}'})">
-      ${cover ? `<img src="${cover}" alt="" class="w-28 rounded">` : '<div class="w-28 bg-gray-700 rounded" style="aspect-ratio:3/4"></div>'}
-      <div class="text-xs mt-1 truncate">${esc(item.title || '')}</div>
+      ${cover ? `<img src="${cover}" alt="" class="w-28 rounded" style="aspect-ratio:3/4;object-fit:cover">` : '<div class="w-28 bg-gray-700 rounded" style="aspect-ratio:3/4"></div>'}
+      <div class="text-xs mt-1 line-clamp-2">${esc(item.title || '')}</div>
     </div>
   `;
 }
