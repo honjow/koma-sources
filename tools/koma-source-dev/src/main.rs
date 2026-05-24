@@ -205,7 +205,7 @@ fn run_test_all(wasm: &PathBuf) -> Result<()> {
     });
 
     run_independent!("get_home", r#"{}"#, |v: &serde_json::Value| {
-        format!("{} items", item_count(v, "items"))
+        format!("{} sections", item_count(v, "sections"))
     });
 
     run_independent!("get_image_request", r#"{"url":"https://example.com/img.jpg"}"#, |v: &serde_json::Value| {
