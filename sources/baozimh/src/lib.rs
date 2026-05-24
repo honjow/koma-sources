@@ -625,7 +625,12 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     };
 
     let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
-    let count = html_select_all(document.0.raw(), b"a.comics-chapters__item", select_buf);
+    // Use #chapters_other_list to select only the catalog section (skip "最新章節" which is a reversed subset)
+    let mut count = html_select_all(document.0.raw(), b"#chapters_other_list a.comics-chapters__item", select_buf);
+    // Fallback: if no catalog section found (small manga), use all chapter items
+    if count <= 0 {
+        count = html_select_all(document.0.raw(), b"a.comics-chapters__item", select_buf);
+    }
 
     let payload = payload_buf();
     let mut c = 0usize;
