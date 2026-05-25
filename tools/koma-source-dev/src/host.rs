@@ -262,7 +262,12 @@ fn read_result_buffer(memory: &Memory, store: &impl AsContext<Data = HostState>,
     let json_bytes = &data[json_start..json_end];
     let value: serde_json::Value = serde_json::from_slice(json_bytes)
         .with_context(|| {
-            let preview_len = json_bytes.len().min(2000);
+            // Save raw JSON to file for debugging
+            if let Ok(dir) = std::env::var("KOMA_DEBUG_DIR") {
+                let _ = std::fs::create_dir_all(&dir);
+                let _ = std::fs::write(format!("{}/last_result.json", dir), json_bytes);
+            }
+            let preview_len = json_bytes.len().min(4000);
             let preview = String::from_utf8_lossy(&json_bytes[..preview_len]);
             let hex_tail: String = json_bytes[json_bytes.len().saturating_sub(50)..]
                 .iter()

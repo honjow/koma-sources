@@ -18,5 +18,6 @@ members = [
   "sources/manhuashe",
   "sources/manhuawu",
   "sources/iqiyi",
+  "sources/hanman18",
   "tools/koma-source-dev",
 ]
