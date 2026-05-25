@@ -1182,6 +1182,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_manhuawu_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
 name = "koma_noyacg_source"
 version = "0.1.0"
 dependencies = [
