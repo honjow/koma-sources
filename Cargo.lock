@@ -1140,6 +1140,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_iqiyi_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
 name = "koma_komiic_source"
 version = "0.1.0"
 dependencies = [

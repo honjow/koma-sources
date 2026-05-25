@@ -262,8 +262,14 @@ fn read_result_buffer(memory: &Memory, store: &impl AsContext<Data = HostState>,
     let json_bytes = &data[json_start..json_end];
     let value: serde_json::Value = serde_json::from_slice(json_bytes)
         .with_context(|| {
-            let preview = String::from_utf8_lossy(&json_bytes[..json_bytes.len().min(300)]);
-            format!("Failed to parse result JSON (len={}): {}", payload_len, preview)
+            let preview_len = json_bytes.len().min(2000);
+            let preview = String::from_utf8_lossy(&json_bytes[..preview_len]);
+            let hex_tail: String = json_bytes[json_bytes.len().saturating_sub(50)..]
+                .iter()
+                .map(|b| format!("{:02x}", b))
+                .collect::<Vec<_>>()
+                .join(" ");
+            format!("Failed to parse result JSON (len={}): {}\nHEX tail: {}", payload_len, preview, hex_tail)
         })?;
     Ok(value)
 }
