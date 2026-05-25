@@ -37,6 +37,8 @@ declare -A SOURCE_MAP=(
   ["manhuawu"]="manhuawu"
   ["iqiyi"]="iqiyi"
   ["jiuermanhua"]="jiuermanhua"
+  ["zazhimi"]="zazhimi"
+  ["mh1234"]="mh1234"
   ["hanman18"]="hanman18"
 )
 
@@ -59,6 +61,8 @@ declare -A NSFW_MAP=(
   ["manhuawu"]="false"
   ["iqiyi"]="false"
   ["jiuermanhua"]="false"
+  ["zazhimi"]="false"
+  ["mh1234"]="false"
   ["hanman18"]="true"
 )
 
