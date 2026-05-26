@@ -20,9 +20,11 @@ members = [
   "sources/manhuawu",
   "sources/iqiyi",
   "sources/jiuermanhua",
+  "sources/manhuadui",
   "sources/zazhimi",
   "sources/mh1234",
   "sources/hanman18",
+  "sources/tongli",
   "sources/example-demo",
   "tools/koma-source-dev",
 ]

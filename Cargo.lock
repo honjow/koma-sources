@@ -1196,6 +1196,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_manhuadui_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
 name = "koma_manhuagui_source"
 version = "0.1.0"
 dependencies = [
@@ -1243,6 +1250,13 @@ version = "0.2.0"
 
 [[package]]
 name = "koma_terrahistoricus_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_tongli_source"
 version = "0.1.0"
 dependencies = [
  "koma_source_sdk",
