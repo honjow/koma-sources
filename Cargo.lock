@@ -1133,6 +1133,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_example_demo_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
 name = "koma_hanman18_source"
 version = "0.1.0"
 dependencies = [

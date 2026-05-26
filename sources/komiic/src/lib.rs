@@ -12,18 +12,19 @@ use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 
 const API_URL: &[u8] = b"https://komiic.com/api/query";
 const IMAGE_BASE: &[u8] = b"https://komiic.com/api/image/";
-const PAYLOAD_CAP: usize = 1024 * 1024;
-const HTTP_OUT_CAP: usize = 2 * 1024 * 1024;
+koma_source_sdk::koma_source_buffers! {
+    payload: 1024 * 1024,
+    http_out: 2 * 1024 * 1024,
+    body: 2 * 1024 * 1024,
+    http_req: 64 * 1024,
+    scratch: 8192,
+}
+koma_source_sdk::koma_source_helpers!();
 const JSON_BUF_CAP: usize = 2 * 1024 * 1024;
-const HTTP_REQ_CAP: usize = 64 * 1024;
 const GQL_BODY_CAP: usize = 32 * 1024;
 const PAGE_SIZE: usize = 30;
 
-static mut RESPONSE: ResultBuffer<{ PAYLOAD_CAP + 256 }> = ResultBuffer::new();
-static mut PAYLOAD_BUF: [u8; PAYLOAD_CAP] = [0; PAYLOAD_CAP];
-static mut HTTP_OUT: [u8; HTTP_OUT_CAP] = [0; HTTP_OUT_CAP];
 static mut JSON_BUF: [u8; JSON_BUF_CAP] = [0; JSON_BUF_CAP];
-static mut HTTP_REQ_BUF: [u8; HTTP_REQ_CAP] = [0; HTTP_REQ_CAP];
 static mut GQL_BODY_BUF: [u8; GQL_BODY_CAP] = [0; GQL_BODY_CAP];
 
 const SOURCE_INFO: SourceInfo = SourceInfo {
@@ -57,37 +58,8 @@ const QUERY_DETAIL: &[u8] = b"query chapterByComicId($comicId: ID!) { comicById(
 const QUERY_PAGES: &[u8] = b"query imagesByChapterId($chapterId: ID!) { imagesByChapterId(chapterId: $chapterId) { kid } }";
 
 #[cfg(not(test))]
-#[panic_handler]
-fn panic(_: &core::panic::PanicInfo<'_>) -> ! {
-    loop {}
-}
 
-fn response_buffer() -> &'static mut ResultBuffer<{ PAYLOAD_CAP + 256 }> {
     unsafe { &mut *core::ptr::addr_of_mut!(RESPONSE) }
-}
-
-fn payload_buf() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(PAYLOAD_BUF) }
-}
-
-fn http_out() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(HTTP_OUT) }
-}
-
-fn json_buf() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(JSON_BUF) }
-}
-
-fn http_req_buf() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(HTTP_REQ_BUF) }
-}
-
-fn gql_body_buf() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(GQL_BODY_BUF) }
-}
-
-fn payload_slice(len: usize) -> &'static [u8] {
-    unsafe { core::slice::from_raw_parts(core::ptr::addr_of!(PAYLOAD_BUF) as *const u8, len) }
 }
 
 fn json_slice(len: usize) -> &'static [u8] {
@@ -99,14 +71,6 @@ fn read_request<'a>(req_ptr: u32, req_len: u32) -> Option<&'a [u8]> {
         return None;
     }
     Some(unsafe { core::slice::from_raw_parts(req_ptr as *const u8, req_len as usize) })
-}
-
-fn write_error(operation: &str, code: &str, message: &str) -> u32 {
-    response_buffer().write_error(operation, code, message)
-}
-
-fn write_success_payload(operation: &str, len: usize) -> u32 {
-    response_buffer().write_success(operation, payload_slice(len))
 }
 
 fn parse_usize(bytes: &[u8]) -> usize {
@@ -134,16 +98,6 @@ fn strip_prefix<'a>(value: &'a [u8], prefix: &[u8]) -> Option<&'a [u8]> {
     } else {
         Some(&value[prefix.len()..])
     }
-}
-
-fn build_post_request(dst: &mut [u8], body: &[u8]) -> Option<usize> {
-    let mut c = 0usize;
-    write_bytes(dst, &mut c, br#"{"version":1,"method":"POST","url":""#).then_some(())?;
-    write_bytes(dst, &mut c, API_URL).then_some(())?;
-    write_bytes(dst, &mut c, br#"","headers":{"Content-Type":"application/json","Accept":"application/json","Origin":"https://komiic.com","Referer":"https://komiic.com/","User-Agent":"Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36"},"bodyBase64":""#).then_some(())?;
-    append_json_escaped(dst, &mut c, body).then_some(())?;
-    write_bytes(dst, &mut c, br#"","timeoutMs":20000,"responseKind":"bodyText"}"#).then_some(())?;
-    Some(c)
 }
 
 fn decode_body_text(resp: &[u8]) -> Option<usize> {
@@ -195,27 +149,6 @@ enum FetchError {
     ClientError,
     ServerError,
     Graphql,
-}
-
-fn parse_status_code(bytes: &[u8]) -> u16 {
-    let mut n = 0u16;
-    for &b in bytes {
-        if b >= b'0' && b <= b'9' {
-            n = n * 10 + (b - b'0') as u16;
-        }
-    }
-    n
-}
-
-fn fetch_error_code(e: FetchError) -> (&'static str, &'static str) {
-    match e {
-        FetchError::Network => ("network_error", "connection or timeout failure"),
-        FetchError::NotFound => ("not_found", "resource not found"),
-        FetchError::RateLimit => ("rate_limited", "rate limited by server"),
-        FetchError::ClientError => ("client_error", "client error (4xx)"),
-        FetchError::ServerError => ("server_error", "server error (5xx)"),
-        FetchError::Graphql => ("source_error", "graphql error"),
-    }
 }
 
 fn post_graphql(body: &[u8]) -> Result<&'static [u8], FetchError> {

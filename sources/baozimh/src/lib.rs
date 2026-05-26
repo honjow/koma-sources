@@ -42,22 +42,16 @@ fn html_select_all(descriptor: i32, selector: &[u8], out: &mut [u8]) -> i32 {
 /// Buffer to hold descriptors returned by html_select_all (up to 4000 results)
 static mut SELECT_ALL_BUF: [u8; 16000] = [0; 16000]; // 4000 * 4 bytes
 
-
 const SITE_BASE: &[u8] = b"https://www.baozimh.com";
 const READER_BASE: &[u8] = b"https://www.twmanga.com";
-const PAYLOAD_CAP: usize = 1024 * 1024;
-const HTTP_OUT_CAP: usize = 2 * 1024 * 1024;
-const HTML_BUF_CAP: usize = 2 * 1024 * 1024;
-const HTTP_REQ_CAP: usize = 1024;
-const SCRATCH_CAP: usize = 1024;
-
-static mut RESPONSE: ResultBuffer<{ PAYLOAD_CAP + 256 }> = ResultBuffer::new();
-static mut PAYLOAD_BUF: [u8; PAYLOAD_CAP] = [0; PAYLOAD_CAP];
-static mut HTTP_OUT: [u8; HTTP_OUT_CAP] = [0; HTTP_OUT_CAP];
-static mut HTML_BUF: [u8; HTML_BUF_CAP] = [0; HTML_BUF_CAP];
-static mut HTTP_REQ_BUF: [u8; HTTP_REQ_CAP] = [0; HTTP_REQ_CAP];
-static mut SCRATCH_A: [u8; SCRATCH_CAP] = [0; SCRATCH_CAP];
-static mut SCRATCH_B: [u8; SCRATCH_CAP] = [0; SCRATCH_CAP];
+koma_source_sdk::koma_source_buffers! {
+    payload: 1024 * 1024,
+    http_out: 2 * 1024 * 1024,
+    body: 2 * 1024 * 1024,
+    http_req: 1024,
+    scratch: 1024,
+}
+koma_source_sdk::koma_source_helpers!();
 
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "online.baozimh.koma",
@@ -85,37 +79,8 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
 };
 
 #[cfg(not(test))]
-#[panic_handler]
-fn panic(_: &core::panic::PanicInfo<'_>) -> ! {
-    loop {}
-}
 
-fn response_buffer() -> &'static mut ResultBuffer<{ PAYLOAD_CAP + 256 }> {
     unsafe { &mut *core::ptr::addr_of_mut!(RESPONSE) }
-}
-
-fn payload_buf() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(PAYLOAD_BUF) }
-}
-
-fn http_out() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(HTTP_OUT) }
-}
-
-fn html_buf() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(HTML_BUF) }
-}
-
-fn http_req_buf() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(HTTP_REQ_BUF) }
-}
-
-fn scratch_a() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(SCRATCH_A) }
-}
-
-fn scratch_b() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(SCRATCH_B) }
 }
 
 fn read_request<'a>(req_ptr: u32, req_len: u32) -> Option<&'a [u8]> {
@@ -125,16 +90,6 @@ fn read_request<'a>(req_ptr: u32, req_len: u32) -> Option<&'a [u8]> {
     Some(unsafe { core::slice::from_raw_parts(req_ptr as *const u8, req_len as usize) })
 }
 
-fn build_get_request(dst: &mut [u8], url: &[u8]) -> Option<usize> {
-    let mut cursor = 0usize;
-    let prefix = br#"{"version":1,"method":"GET","url":""#;
-    let suffix = br#"","headers":{},"timeoutMs":15000,"responseKind":"bodyText"}"#;
-    write_bytes(dst, &mut cursor, prefix).then_some(())?;
-    append_json_escaped(dst, &mut cursor, url).then_some(())?;
-    write_bytes(dst, &mut cursor, suffix).then_some(())?;
-    Some(cursor)
-}
-
 #[derive(Copy, Clone)]
 enum FetchError {
     Network,
@@ -142,26 +97,6 @@ enum FetchError {
     RateLimit,
     ClientError,
     ServerError,
-}
-
-fn parse_status_code(bytes: &[u8]) -> u16 {
-    let mut n = 0u16;
-    for &b in bytes {
-        if b >= b'0' && b <= b'9' {
-            n = n * 10 + (b - b'0') as u16;
-        }
-    }
-    n
-}
-
-fn fetch_error_code(e: FetchError) -> (&'static str, &'static str) {
-    match e {
-        FetchError::Network => ("network_error", "connection or timeout failure"),
-        FetchError::NotFound => ("not_found", "resource not found"),
-        FetchError::RateLimit => ("rate_limited", "rate limited by server"),
-        FetchError::ClientError => ("client_error", "client error (4xx)"),
-        FetchError::ServerError => ("server_error", "server error (5xx)"),
-    }
 }
 
 fn fetch_html(url_bytes: &[u8]) -> Result<usize, FetchError> {
@@ -321,18 +256,6 @@ fn slug_from_comic_path(path: &[u8], out: &mut [u8]) -> Option<usize> {
     if len == 0 { None } else { Some(len) }
 }
 
-fn payload_slice(len: usize) -> &'static [u8] {
-    unsafe { core::slice::from_raw_parts(PAYLOAD_BUF.as_ptr(), len) }
-}
-
-fn write_error(operation: &str, code: &str, message: &str) -> u32 {
-    response_buffer().write_error(operation, code, message)
-}
-
-fn write_success_payload(operation: &str, len: usize) -> u32 {
-    response_buffer().write_success(operation, payload_slice(len))
-}
-
 fn run_search(req: &[u8]) -> u32 {
     let query = match extract_json_string(req, b"query") {
         Some(q) => q,
@@ -365,7 +288,6 @@ fn run_search(req: &[u8]) -> u32 {
     // Use html_select_all to get all comics-card poster links
     let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
     let count = html_select_all(document.0.raw(), b"a.comics-card__poster", select_buf);
-
 
     let payload = payload_buf();
     let mut c = 0usize;
@@ -1168,24 +1090,6 @@ fn extract_query_param<'a>(url: &[u8], key: &[u8], out: &'a mut [u8]) -> Option<
         i += 1;
     }
     Some(&out[..len])
-}
-
-fn trim_ascii(bytes: &[u8]) -> &[u8] {
-    let mut start = 0usize;
-    let mut end = bytes.len();
-    while start < end {
-        match bytes[start] {
-            b' ' | b'\t' | b'\n' | b'\r' => start += 1,
-            _ => break,
-        }
-    }
-    while end > start {
-        match bytes[end - 1] {
-            b' ' | b'\t' | b'\n' | b'\r' => end -= 1,
-            _ => break,
-        }
-    }
-    &bytes[start..end]
 }
 
 #[no_mangle]

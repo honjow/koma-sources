@@ -13,18 +13,17 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, fetch_error_code
 
 const API_BASE: &[u8] = b"https://android2026.zazhimi.net/api";
 const SITE_BASE: &[u8] = b"https://www.zazhimi.net";
-const PAYLOAD_CAP: usize = 1024 * 1024;
-const HTTP_OUT_CAP: usize = 2 * 1024 * 1024;
-const BODY_CAP: usize = 2 * 1024 * 1024;
-const HTTP_REQ_CAP: usize = 4096;
+koma_source_sdk::koma_source_buffers! {
+    payload: 1024 * 1024,
+    http_out: 2 * 1024 * 1024,
+    body: 2 * 1024 * 1024,
+    http_req: 4096,
+    scratch: 8192,
+}
+koma_source_sdk::koma_source_helpers!();
 const URL_CAP: usize = 2048;
 const DEFAULT_LIMIT: usize = 20;
 
-static mut RESPONSE: ResultBuffer<{ PAYLOAD_CAP + 256 }> = ResultBuffer::new();
-static mut PAYLOAD_BUF: [u8; PAYLOAD_CAP] = [0; PAYLOAD_CAP];
-static mut HTTP_OUT: [u8; HTTP_OUT_CAP] = [0; HTTP_OUT_CAP];
-static mut BODY_BUF: [u8; BODY_CAP] = [0; BODY_CAP];
-static mut HTTP_REQ_BUF: [u8; HTTP_REQ_CAP] = [0; HTTP_REQ_CAP];
 static mut URL_BUF: [u8; URL_CAP] = [0; URL_CAP];
 
 const SOURCE_INFO: SourceInfo = SourceInfo {
@@ -53,31 +52,8 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
 };
 
 #[cfg(not(test))]
-#[panic_handler]
-fn panic(_: &core::panic::PanicInfo<'_>) -> ! {
-    loop {}
-}
 
-fn response_buffer() -> &'static mut ResultBuffer<{ PAYLOAD_CAP + 256 }> {
     unsafe { &mut *core::ptr::addr_of_mut!(RESPONSE) }
-}
-fn payload_buf() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(PAYLOAD_BUF) }
-}
-fn http_out() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(HTTP_OUT) }
-}
-fn body_buf() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(BODY_BUF) }
-}
-fn http_req_buf() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(HTTP_REQ_BUF) }
-}
-fn url_buf() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(URL_BUF) }
-}
-fn payload_slice(len: usize) -> &'static [u8] {
-    unsafe { core::slice::from_raw_parts(core::ptr::addr_of!(PAYLOAD_BUF) as *const u8, len) }
 }
 fn body_slice(len: usize) -> &'static [u8] {
     unsafe { core::slice::from_raw_parts(core::ptr::addr_of!(BODY_BUF) as *const u8, len) }
@@ -88,12 +64,6 @@ fn read_request<'a>(req_ptr: u32, req_len: u32) -> Option<&'a [u8]> {
         return None;
     }
     Some(unsafe { core::slice::from_raw_parts(req_ptr as *const u8, req_len as usize) })
-}
-fn write_error(operation: &str, code: &str, message: &str) -> u32 {
-    response_buffer().write_error(operation, code, message)
-}
-fn write_success_payload(operation: &str, len: usize) -> u32 {
-    response_buffer().write_success(operation, payload_slice(len))
 }
 
 fn parse_usize(bytes: &[u8]) -> usize {

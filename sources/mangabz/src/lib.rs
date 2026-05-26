@@ -11,19 +11,14 @@ use koma_source_sdk::result::ResultBuffer;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 
 const BASE_URL: &[u8] = b"https://www.mangabz.com";
-const PAYLOAD_CAP: usize = 1024 * 1024;
-const HTTP_OUT_CAP: usize = 2 * 1024 * 1024;
-const BODY_CAP: usize = 2 * 1024 * 1024;
-const HTTP_REQ_CAP: usize = 2048;
-const SCRATCH_CAP: usize = 8192;
-
-static mut RESPONSE: ResultBuffer<{ PAYLOAD_CAP + 256 }> = ResultBuffer::new();
-static mut PAYLOAD_BUF: [u8; PAYLOAD_CAP] = [0; PAYLOAD_CAP];
-static mut HTTP_OUT: [u8; HTTP_OUT_CAP] = [0; HTTP_OUT_CAP];
-static mut BODY_BUF: [u8; BODY_CAP] = [0; BODY_CAP];
-static mut HTTP_REQ_BUF: [u8; HTTP_REQ_CAP] = [0; HTTP_REQ_CAP];
-static mut SCRATCH_A: [u8; SCRATCH_CAP] = [0; SCRATCH_CAP];
-static mut SCRATCH_B: [u8; SCRATCH_CAP] = [0; SCRATCH_CAP];
+koma_source_sdk::koma_source_buffers! {
+    payload: 1024 * 1024,
+    http_out: 2 * 1024 * 1024,
+    body: 2 * 1024 * 1024,
+    http_req: 2048,
+    scratch: 8192,
+}
+koma_source_sdk::koma_source_helpers!();
 
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mangabz.koma",
@@ -51,78 +46,15 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
 };
 
 #[cfg(not(test))]
-#[panic_handler]
-fn panic(_: &core::panic::PanicInfo<'_>) -> ! {
-    loop {}
-}
 
-fn response_buffer() -> &'static mut ResultBuffer<{ PAYLOAD_CAP + 256 }> {
     unsafe { &mut *core::ptr::addr_of_mut!(RESPONSE) }
 }
-fn payload_buf() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(PAYLOAD_BUF) }
-}
-fn http_out() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(HTTP_OUT) }
-}
-fn body_buf() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(BODY_BUF) }
-}
-fn http_req_buf() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(HTTP_REQ_BUF) }
-}
-fn scratch_a() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(SCRATCH_A) }
-}
-fn scratch_b() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(SCRATCH_B) }
-}
-fn payload_slice(len: usize) -> &'static [u8] {
-    unsafe { core::slice::from_raw_parts(PAYLOAD_BUF.as_ptr(), len) }
-}
 
-fn write_error(operation: &str, code: &str, message: &str) -> u32 {
-    response_buffer().write_error(operation, code, message)
-}
-fn write_success_payload(operation: &str, len: usize) -> u32 {
-    response_buffer().write_success(operation, payload_slice(len))
-}
 fn read_request<'a>(req_ptr: u32, req_len: u32) -> Option<&'a [u8]> {
     if req_ptr == 0 || req_len == 0 {
         return None;
     }
     Some(unsafe { core::slice::from_raw_parts(req_ptr as *const u8, req_len as usize) })
-}
-
-fn trim_ascii(bytes: &[u8]) -> &[u8] {
-    let mut start = 0usize;
-    let mut end = bytes.len();
-    while start < end && matches!(bytes[start], b' ' | b'\t' | b'\n' | b'\r') {
-        start += 1;
-    }
-    while end > start && matches!(bytes[end - 1], b' ' | b'\t' | b'\n' | b'\r') {
-        end -= 1;
-    }
-    &bytes[start..end]
-}
-
-fn build_get_request(dst: &mut [u8], url: &[u8], referer: Option<&[u8]>) -> Option<usize> {
-    let mut cursor = 0usize;
-    write_bytes(dst, &mut cursor, br#"{"version":1,"method":"GET","url":""#).then_some(())?;
-    append_json_escaped(dst, &mut cursor, url).then_some(())?;
-    write_bytes(dst, &mut cursor, br#"","headers":{"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0","Cookie":"mangabz_lang=2""#).then_some(())?;
-    if let Some(r) = referer {
-        write_bytes(dst, &mut cursor, br#","Referer":""#).then_some(())?;
-        append_json_escaped(dst, &mut cursor, r).then_some(())?;
-        write_bytes(dst, &mut cursor, b"\"").then_some(())?;
-    }
-    write_bytes(
-        dst,
-        &mut cursor,
-        br#"},"timeoutMs":15000,"responseKind":"bodyText"}"#,
-    )
-    .then_some(())?;
-    Some(cursor)
 }
 
 #[derive(Copy, Clone)]
@@ -132,144 +64,6 @@ enum FetchError {
     RateLimit,
     ClientError,
     ServerError,
-}
-
-fn parse_status_code(bytes: &[u8]) -> u16 {
-    let mut n = 0u16;
-    for &b in bytes {
-        if b >= b'0' && b <= b'9' {
-            n = n * 10 + (b - b'0') as u16;
-        }
-    }
-    n
-}
-
-fn fetch_error_code(e: FetchError) -> (&'static str, &'static str) {
-    match e {
-        FetchError::Network => ("network_error", "connection or timeout failure"),
-        FetchError::NotFound => ("not_found", "resource not found"),
-        FetchError::RateLimit => ("rate_limited", "rate limited by server"),
-        FetchError::ClientError => ("client_error", "client error (4xx)"),
-        FetchError::ServerError => ("server_error", "server error (5xx)"),
-    }
-}
-
-fn decode_json_body(resp: &[u8]) -> Result<usize, FetchError> {
-    if !contains_bytes(resp, br#""ok":true"#) {
-        let err = if let Some(code_bytes) = extract_json_number(resp, b"statusCode") {
-            match parse_status_code(code_bytes) {
-                404 => FetchError::NotFound,
-                429 => FetchError::RateLimit,
-                400..=499 => FetchError::ClientError,
-                500..=599 => FetchError::ServerError,
-                _ => FetchError::Network,
-            }
-        } else {
-            FetchError::Network
-        };
-        return Err(err);
-    }
-    let marker = b"\"bodyText\":\"";
-    let mut i = find_subslice(resp, marker).ok_or(FetchError::Network)? + marker.len();
-    let dst = body_buf();
-    let mut out = 0usize;
-    while i < resp.len() {
-        let b = resp[i];
-        if b == b'\\' && i + 1 < resp.len() {
-            let next = resp[i + 1];
-            match next {
-                b'"' => {
-                    if out >= dst.len() {
-                        return Err(FetchError::Network);
-                    }
-                    dst[out] = b'"';
-                    out += 1;
-                    i += 2;
-                }
-                b'\\' => {
-                    if out >= dst.len() {
-                        return Err(FetchError::Network);
-                    }
-                    dst[out] = b'\\';
-                    out += 1;
-                    i += 2;
-                }
-                b'/' => {
-                    if out >= dst.len() {
-                        return Err(FetchError::Network);
-                    }
-                    dst[out] = b'/';
-                    out += 1;
-                    i += 2;
-                }
-                b'n' | b'r' | b't' => {
-                    if out >= dst.len() {
-                        return Err(FetchError::Network);
-                    }
-                    dst[out] = if next == b'n' {
-                        b'\n'
-                    } else if next == b'r' {
-                        b'\r'
-                    } else {
-                        b'\t'
-                    };
-                    out += 1;
-                    i += 2;
-                }
-                b'u' => {
-                    if i + 5 >= resp.len() || out + 3 > dst.len() {
-                        return Err(FetchError::Network);
-                    }
-                    let mut code = 0u32;
-                    let mut k = 0usize;
-                    while k < 4 {
-                        let h = resp[i + 2 + k];
-                        let v = match h {
-                            b'0'..=b'9' => (h - b'0') as u32,
-                            b'a'..=b'f' => (h - b'a' + 10) as u32,
-                            b'A'..=b'F' => (h - b'A' + 10) as u32,
-                            _ => return Err(FetchError::Network),
-                        };
-                        code = (code << 4) | v;
-                        k += 1;
-                    }
-                    if code < 0x80 {
-                        dst[out] = code as u8;
-                        out += 1;
-                    } else if code < 0x800 {
-                        dst[out] = 0xC0 | (code >> 6) as u8;
-                        dst[out + 1] = 0x80 | (code & 0x3F) as u8;
-                        out += 2;
-                    } else {
-                        dst[out] = 0xE0 | (code >> 12) as u8;
-                        dst[out + 1] = 0x80 | ((code >> 6) & 0x3F) as u8;
-                        dst[out + 2] = 0x80 | (code & 0x3F) as u8;
-                        out += 3;
-                    }
-                    i += 6;
-                }
-                _ => {
-                    if out >= dst.len() {
-                        return Err(FetchError::Network);
-                    }
-                    dst[out] = next;
-                    out += 1;
-                    i += 2;
-                }
-            }
-            continue;
-        }
-        if b == b'"' {
-            return Ok(out);
-        }
-        if out >= dst.len() {
-            return Err(FetchError::Network);
-        }
-        dst[out] = b;
-        out += 1;
-        i += 1;
-    }
-    Err(FetchError::Network)
 }
 
 fn fetch_body(url: &[u8], referer: Option<&[u8]>) -> Result<usize, FetchError> {

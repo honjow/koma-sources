@@ -40,6 +40,7 @@ declare -A SOURCE_MAP=(
   ["zazhimi"]="zazhimi"
   ["mh1234"]="mh1234"
   ["hanman18"]="hanman18"
+  ["example-demo"]="example-demo"
 )
 
 # Optional: nsfw flags not in source_info
@@ -64,6 +65,7 @@ declare -A NSFW_MAP=(
   ["zazhimi"]="false"
   ["mh1234"]="false"
   ["hanman18"]="true"
+  ["example-demo"]="false"
 )
 
 REPO_URL="${KOMA_REPO_URL:-https://github.com/honjow/koma-sources}"

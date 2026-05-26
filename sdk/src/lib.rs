@@ -1991,6 +1991,10 @@ macro_rules! koma_source_helpers {
                 .map_err(|_| $crate::FetchError::Network)?;
             $crate::decode_json_body_into(&http_out()[..resp_len], body_buf())
         }
+        #[panic_handler]
+        fn __koma_panic(_: &core::panic::PanicInfo<'_>) -> ! {
+            loop {}
+        }
     };
 }
 

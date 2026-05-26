@@ -22,5 +22,6 @@ members = [
   "sources/zazhimi",
   "sources/mh1234",
   "sources/hanman18",
+  "sources/example-demo",
   "tools/koma-source-dev",
 ]

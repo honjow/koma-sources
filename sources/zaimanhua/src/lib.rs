@@ -14,19 +14,17 @@ const API_URL: &[u8] = b"https://v4api.zaimanhua.com/app/v1";
 const MOBILE_BASE: &[u8] = b"https://m.zaimanhua.com";
 const DEFAULT_PAGE_SIZE: usize = 20;
 
-const PAYLOAD_CAP: usize = 128 * 1024;
-const HTTP_OUT_CAP: usize = 512 * 1024;
+koma_source_sdk::koma_source_buffers! {
+    payload: 128 * 1024,
+    http_out: 512 * 1024,
+    body: 2 * 1024 * 1024,
+    http_req: 2048,
+    scratch: 4096,
+}
+koma_source_sdk::koma_source_helpers!();
 const JSON_BUF_CAP: usize = 256 * 1024;
-const HTTP_REQ_CAP: usize = 2048;
-const SCRATCH_CAP: usize = 4096;
 
-static mut RESPONSE: ResultBuffer<{ PAYLOAD_CAP + 256 }> = ResultBuffer::new();
-static mut PAYLOAD_BUF: [u8; PAYLOAD_CAP] = [0; PAYLOAD_CAP];
-static mut HTTP_OUT: [u8; HTTP_OUT_CAP] = [0; HTTP_OUT_CAP];
 static mut JSON_BUF: [u8; JSON_BUF_CAP] = [0; JSON_BUF_CAP];
-static mut HTTP_REQ_BUF: [u8; HTTP_REQ_CAP] = [0; HTTP_REQ_CAP];
-static mut SCRATCH_A: [u8; SCRATCH_CAP] = [0; SCRATCH_CAP];
-static mut SCRATCH_B: [u8; SCRATCH_CAP] = [0; SCRATCH_CAP];
 
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.zaimanhua.koma",
@@ -54,43 +52,8 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
 };
 
 #[cfg(not(test))]
-#[panic_handler]
-fn panic(_: &core::panic::PanicInfo<'_>) -> ! {
-    loop {}
-}
 
-fn response_buffer() -> &'static mut ResultBuffer<{ PAYLOAD_CAP + 256 }> {
     unsafe { &mut *core::ptr::addr_of_mut!(RESPONSE) }
-}
-fn payload_buf() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(PAYLOAD_BUF) }
-}
-fn http_out() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(HTTP_OUT) }
-}
-fn http_req_buf() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(HTTP_REQ_BUF) }
-}
-fn scratch_a() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(SCRATCH_A) }
-}
-fn scratch_b() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(SCRATCH_B) }
-}
-fn json_buf() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(JSON_BUF) }
-}
-
-fn payload_slice(len: usize) -> &'static [u8] {
-    unsafe { core::slice::from_raw_parts(PAYLOAD_BUF.as_ptr(), len) }
-}
-
-fn write_error(operation: &str, code: &str, message: &str) -> u32 {
-    response_buffer().write_error(operation, code, message)
-}
-
-fn write_success_payload(operation: &str, len: usize) -> u32 {
-    response_buffer().write_success(operation, payload_slice(len))
 }
 
 fn write_u64_value(dst: &mut [u8], cursor: &mut usize, mut value: u64) -> bool {
@@ -145,15 +108,6 @@ enum FetchError {
     NotFound,
     ParseError,
     ServerError,
-}
-
-fn fetch_error_code(e: FetchError) -> (&'static str, &'static str) {
-    match e {
-        FetchError::Network => ("network_error", "connection or timeout failure"),
-        FetchError::NotFound => ("not_found", "resource not found"),
-        FetchError::ParseError => ("parse_error", "failed to parse response"),
-        FetchError::ServerError => ("server_error", "server error"),
-    }
 }
 
 fn fetch_json_with_platform(

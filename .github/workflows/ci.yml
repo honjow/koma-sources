@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Build dev runner
+        run: cargo build --release -p koma-source-dev
+
+      - name: Build all sources
+        run: |
+          for dir in sources/*/; do
+            name=$(basename "$dir")
+            [ -f "$dir/Cargo.toml" ] || continue
+            crate="koma_${name}_source"
+            echo "::group::Build $crate"
+            cargo build --release --target wasm32-unknown-unknown -p "$crate" 2>&1
+            echo "::endgroup::"
+          done
+
+      - name: Test example-demo (full chain)
+        run: |
+          DEV=target/release/koma-source-dev
+          WASM=target/wasm32-unknown-unknown/release/koma_example_demo_source.wasm
+          echo "=== Source Info ==="
+          $DEV info "$WASM" 2>/dev/null | head -5
+          echo "=== Full Chain Test ==="
+          $DEV test-all "$WASM"
+
+      - name: Package all sources
+        run: bash build.sh

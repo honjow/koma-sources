@@ -51,19 +51,14 @@ static mut DETAIL_COVER_BUF: [u8; 1024] = [0; 1024];
 static mut CHAPTER_NAME_BUF: [u8; 512] = [0; 512];
 
 const SITE_BASE: &[u8] = b"https://www.dongmanmanhua.cn";
-const PAYLOAD_CAP: usize = 1024 * 1024;
-const HTTP_OUT_CAP: usize = 2 * 1024 * 1024;
-const BODY_CAP: usize = 2 * 1024 * 1024;
-const HTTP_REQ_CAP: usize = 2048;
-const SCRATCH_CAP: usize = 4096;
-
-static mut RESPONSE: ResultBuffer<{ PAYLOAD_CAP + 256 }> = ResultBuffer::new();
-static mut PAYLOAD_BUF: [u8; PAYLOAD_CAP] = [0; PAYLOAD_CAP];
-static mut HTTP_OUT: [u8; HTTP_OUT_CAP] = [0; HTTP_OUT_CAP];
-static mut BODY_BUF: [u8; BODY_CAP] = [0; BODY_CAP];
-static mut HTTP_REQ_BUF: [u8; HTTP_REQ_CAP] = [0; HTTP_REQ_CAP];
-static mut SCRATCH_A: [u8; SCRATCH_CAP] = [0; SCRATCH_CAP];
-static mut SCRATCH_B: [u8; SCRATCH_CAP] = [0; SCRATCH_CAP];
+koma_source_sdk::koma_source_buffers! {
+    payload: 1024 * 1024,
+    http_out: 2 * 1024 * 1024,
+    body: 2 * 1024 * 1024,
+    http_req: 2048,
+    scratch: 4096,
+}
+koma_source_sdk::koma_source_helpers!();
 
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "cn.dongmanmanhua.koma",
@@ -91,34 +86,8 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
 };
 
 #[cfg(not(test))]
-#[panic_handler]
-fn panic(_: &core::panic::PanicInfo<'_>) -> ! {
-    loop {}
-}
 
-fn response_buffer() -> &'static mut ResultBuffer<{ PAYLOAD_CAP + 256 }> {
     unsafe { &mut *core::ptr::addr_of_mut!(RESPONSE) }
-}
-fn payload_buf() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(PAYLOAD_BUF) }
-}
-fn http_out() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(HTTP_OUT) }
-}
-fn body_buf() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(BODY_BUF) }
-}
-fn http_req_buf() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(HTTP_REQ_BUF) }
-}
-fn scratch_a() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(SCRATCH_A) }
-}
-fn scratch_b() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(SCRATCH_B) }
-}
-fn payload_slice(len: usize) -> &'static [u8] {
-    unsafe { core::slice::from_raw_parts(PAYLOAD_BUF.as_ptr(), len) }
 }
 fn detail_title_buf() -> &'static mut [u8] {
     unsafe { &mut *core::ptr::addr_of_mut!(DETAIL_TITLE_BUF) }
@@ -134,28 +103,6 @@ fn detail_status_buf() -> &'static mut [u8] {
 }
 fn detail_cover_buf() -> &'static mut [u8] {
     unsafe { &mut *core::ptr::addr_of_mut!(DETAIL_COVER_BUF) }
-}
-fn chapter_name_buf() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(CHAPTER_NAME_BUF) }
-}
-
-fn write_error(operation: &str, code: &str, message: &str) -> u32 {
-    response_buffer().write_error(operation, code, message)
-}
-fn write_success_payload(operation: &str, len: usize) -> u32 {
-    response_buffer().write_success(operation, payload_slice(len))
-}
-
-fn trim_ascii(bytes: &[u8]) -> &[u8] {
-    let mut start = 0usize;
-    let mut end = bytes.len();
-    while start < end && matches!(bytes[start], b' ' | b'\t' | b'\n' | b'\r') {
-        start += 1;
-    }
-    while end > start && matches!(bytes[end - 1], b' ' | b'\t' | b'\n' | b'\r') {
-        end -= 1;
-    }
-    &bytes[start..end]
 }
 
 struct OwnedDescriptor(HtmlDescriptor);
