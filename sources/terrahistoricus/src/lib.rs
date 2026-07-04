@@ -7,8 +7,8 @@ use koma_source_sdk::json_utils::{
     append_json_escaped, contains_bytes, extract_json_number, extract_json_string, find_subslice,
     write_bytes, write_url_encoded, write_usize,
 };
-use koma_source_sdk::result::ResultBuffer;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
+use koma_source_sdk::{FetchError, build_get_request, fetch_error_code, parse_status_code};
 
 const BASE_URL: &[u8] = b"https://comic.hypergryph.com";
 const TOPIC_TERRA: &[u8] = b"terra-historicus";
@@ -48,24 +48,12 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
 };
 
 
-fn read_request<'a>(req_ptr: u32, req_len: u32) -> Option<&'a [u8]> {
-    if req_ptr == 0 || req_len == 0 {
-        return None;
-    }
-    Some(unsafe { core::slice::from_raw_parts(req_ptr as *const u8, req_len as usize) })
-}
-
-#[derive(Copy, Clone)]
-enum FetchError {
-    Network,
-    NotFound,
-    RateLimit,
-    ClientError,
-    ServerError,
+fn body_slice(len: usize) -> &'static [u8] {
+    unsafe { core::slice::from_raw_parts(core::ptr::addr_of!(BODY_BUF) as *const u8, len) }
 }
 
 fn fetch_json(url: &[u8]) -> Result<&'static [u8], FetchError> {
-    let req_len = build_get_request(http_req_buf(), url).ok_or(FetchError::Network)?;
+    let req_len = build_get_request(http_req_buf(), url, None, &[]).ok_or(FetchError::Network)?;
     let mut resp_len = 0usize;
     let mut failed = true;
     for attempt in 0..3u8 {

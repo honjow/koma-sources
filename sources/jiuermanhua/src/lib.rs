@@ -9,7 +9,6 @@ use koma_source_sdk::json_utils::{
     append_json_escaped, append_json_unescaped_then_escaped, extract_json_number,
     extract_json_string, find_subslice, write_bytes, write_url_encoded, write_usize,
 };
-use koma_source_sdk::result::ResultBuffer;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{build_get_request, decode_json_body_into, fetch_error_code, FetchError};
 
@@ -74,13 +73,6 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     credentials: false,
 };
 
-
-fn read_request<'a>(req_ptr: u32, req_len: u32) -> Option<&'a [u8]> {
-    if req_ptr == 0 || req_len == 0 {
-        return None;
-    }
-    Some(unsafe { core::slice::from_raw_parts(req_ptr as *const u8, req_len as usize) })
-}
 
 fn strip_prefix_ascii<'a>(bytes: &'a [u8], prefix: &[u8]) -> &'a [u8] {
     if bytes.len() >= prefix.len() && &bytes[..prefix.len()] == prefix {

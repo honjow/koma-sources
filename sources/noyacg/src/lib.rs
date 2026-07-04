@@ -7,8 +7,8 @@ use koma_source_sdk::json_utils::{
     append_json_escaped, append_json_unescaped_then_escaped, contains_bytes, extract_json_number,
     extract_json_string, find_subslice, write_bytes, write_url_encoded, write_usize,
 };
-use koma_source_sdk::result::ResultBuffer;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
+use koma_source_sdk::{FetchError, fetch_error_code};
 
 const BASE_URL: &[u8] = b"https://beta.noyteam.online";
 const IMG_BASE: &[u8] = b"https://img.noymanga.com/";
@@ -52,21 +52,8 @@ fn body_slice(len: usize) -> &'static [u8] {
 fn scratch_a_slice(len: usize) -> &'static [u8] {
     unsafe { core::slice::from_raw_parts(core::ptr::addr_of!(SCRATCH_A).cast::<u8>(), len) }
 }
-
-fn read_request<'a>(req_ptr: u32, req_len: u32) -> Option<&'a [u8]> {
-    if req_ptr == 0 || req_len == 0 {
-        return None;
-    }
-    Some(unsafe { core::slice::from_raw_parts(req_ptr as *const u8, req_len as usize) })
-}
-
-#[derive(Copy, Clone)]
-enum FetchError {
-    Network,
-    NotFound,
-    RateLimit,
-    ClientError,
-    ServerError,
+fn scratch_b_slice(len: usize) -> &'static [u8] {
+    unsafe { core::slice::from_raw_parts(core::ptr::addr_of!(SCRATCH_B).cast::<u8>(), len) }
 }
 
 fn build_headers(dst: &mut [u8], c: &mut usize, form: bool) -> bool {
@@ -540,7 +527,7 @@ fn fetch_detail(id: &[u8]) -> Result<usize, FetchError> {
     {
         return Err(FetchError::Network);
     }
-    fetch_get(scratch_a_slice(c))
+    fetch_get(scratch_a_slice(c), None)
 }
 
 fn run_get_manga(req: &[u8]) -> u32 {
@@ -699,7 +686,7 @@ fn fetch_chapter(chapter_id: &[u8]) -> Result<usize, FetchError> {
     {
         return Err(FetchError::Network);
     }
-    fetch_get(scratch_a_slice(c))
+    fetch_get(scratch_a_slice(c), None)
 }
 
 fn looks_like_image_url(url: &[u8]) -> bool {

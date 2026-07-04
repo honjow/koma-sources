@@ -8,8 +8,8 @@ use koma_source_sdk::json_utils::{
     extract_json_number, extract_json_string, find_subslice, write_bytes, write_url_encoded,
     write_usize,
 };
-use koma_source_sdk::result::ResultBuffer;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
+use koma_source_sdk::{FetchError, build_get_request, fetch_error_code, parse_status_code};
 
 const API_BASE: &[u8] = b"https://api.mangadex.org";
 const COVERS_BASE: &[u8] = b"https://uploads.mangadex.org/covers/";
@@ -51,25 +51,11 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
 };
 
 
-fn read_request<'a>(req_ptr: u32, req_len: u32) -> Option<&'a [u8]> {
-    if req_ptr == 0 || req_len == 0 { return None; }
-    Some(unsafe { core::slice::from_raw_parts(req_ptr as *const u8, req_len as usize) })
-}
-
 fn json_buf() -> &'static mut [u8] {
     unsafe { &mut *core::ptr::addr_of_mut!(JSON_BUF) }
 }
 
 // --- HTTP helper ---
-
-#[derive(Copy, Clone)]
-enum FetchError {
-    Network,
-    NotFound,
-    RateLimit,
-    ClientError,
-    ServerError,
-}
 
 fn parse_hex4_into_codepoint(hex: &[u8]) -> u16 {
     let mut n = 0u16;
@@ -143,7 +129,8 @@ fn chapter_num_dedup_seen(seen_buf: &mut [u8], seen_cursor: &mut usize, value: &
 }
 
 fn fetch_json(url_bytes: &[u8]) -> Result<&'static [u8], FetchError> {
-    let req_len = build_get_request(http_req_buf(), url_bytes).ok_or(FetchError::Network)?;    let req_len = build_get_request(http_req_buf(), url_bytes).ok_or(FetchError::Network)?;
+    let req_len =
+        build_get_request(http_req_buf(), url_bytes, None, &[]).ok_or(FetchError::Network)?;
     // Retry transport-level failures up to 3 times.
     let mut resp_len = 0usize;
     let mut transport_failed = true;

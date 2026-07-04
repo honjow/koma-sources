@@ -7,8 +7,8 @@ use koma_source_sdk::json_utils::{
     append_json_escaped, append_json_unescaped_then_escaped, contains_bytes, extract_json_number,
     extract_json_string, find_subslice, write_bytes, write_url_encoded, write_usize,
 };
-use koma_source_sdk::result::ResultBuffer;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
+use koma_source_sdk::build_get_request;
 
 const SITE_BASE: &[u8] = b"https://www.mhua5.com";
 const PAGE_SIZE: usize = 18;
@@ -46,13 +46,6 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     credentials: false,
 };
 
-
-fn read_request<'a>(req_ptr: u32, req_len: u32) -> Option<&'a [u8]> {
-    if req_ptr == 0 || req_len == 0 {
-        return None;
-    }
-    Some(unsafe { core::slice::from_raw_parts(req_ptr as *const u8, req_len as usize) })
-}
 
 // --- Raw JSON array iterator (for arrays that are not keyed in an object) ---
 
@@ -117,7 +110,7 @@ impl<'a> RawArrayIter<'a> {
 // --- HTTP helpers ---
 
 fn fetch_json(url_bytes: &[u8]) -> Result<usize, ()> {
-    let req_len = build_get_request(http_req_buf(), url_bytes).ok_or(())?;
+    let req_len = build_get_request(http_req_buf(), url_bytes, None, &[]).ok_or(())?;
     let mut resp_len = 0usize;
     let mut transport_failed = true;
     for attempt in 0..3u8 {

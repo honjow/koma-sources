@@ -7,8 +7,8 @@ use koma_source_sdk::json_utils::{
     append_json_escaped, contains_bytes, extract_json_number, extract_json_string, find_subslice,
     write_bytes, write_url_encoded, write_usize,
 };
-use koma_source_sdk::result::ResultBuffer;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
+use koma_source_sdk::{FetchError, build_get_request, fetch_error_code};
 
 const BASE_URL: &[u8] = b"https://www.dm5.cn";
 koma_source_sdk::koma_source_buffers! {
@@ -46,24 +46,9 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
 };
 
 
-fn read_request<'a>(req_ptr: u32, req_len: u32) -> Option<&'a [u8]> {
-    if req_ptr == 0 || req_len == 0 {
-        return None;
-    }
-    Some(unsafe { core::slice::from_raw_parts(req_ptr as *const u8, req_len as usize) })
-}
-
-#[derive(Copy, Clone)]
-enum FetchError {
-    Network,
-    NotFound,
-    RateLimit,
-    ClientError,
-    ServerError,
-}
-
 fn fetch_body(url: &[u8], referer: Option<&[u8]>) -> Result<usize, FetchError> {
-    let req_len = build_get_request(http_req_buf(), url, referer).ok_or(FetchError::Network)?;
+    let req_len =
+        build_get_request(http_req_buf(), url, referer, &[]).ok_or(FetchError::Network)?;
     let mut resp_len = 0usize;
     let mut transport_failed = true;
     for attempt in 0..3u8 {

@@ -7,8 +7,8 @@ use koma_source_sdk::json_utils::{
     append_json_escaped, append_json_unescaped_then_escaped, contains_bytes, extract_json_number,
     extract_json_string, find_subslice, write_bytes, write_usize, JsonArrayIter,
 };
-use koma_source_sdk::result::ResultBuffer;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
+use koma_source_sdk::{build_post_request, parse_status_code};
 
 const API_URL: &[u8] = b"https://komiic.com/api/query";
 const IMAGE_BASE: &[u8] = b"https://komiic.com/api/image/";
@@ -62,11 +62,12 @@ fn json_slice(len: usize) -> &'static [u8] {
     unsafe { core::slice::from_raw_parts(core::ptr::addr_of!(JSON_BUF) as *const u8, len) }
 }
 
-fn read_request<'a>(req_ptr: u32, req_len: u32) -> Option<&'a [u8]> {
-    if req_ptr == 0 || req_len == 0 {
-        return None;
-    }
-    Some(unsafe { core::slice::from_raw_parts(req_ptr as *const u8, req_len as usize) })
+fn json_buf() -> &'static mut [u8] {
+    unsafe { &mut *core::ptr::addr_of_mut!(JSON_BUF) }
+}
+
+fn gql_body_buf() -> &'static mut [u8] {
+    unsafe { &mut *core::ptr::addr_of_mut!(GQL_BODY_BUF) }
 }
 
 fn parse_usize(bytes: &[u8]) -> usize {
@@ -147,8 +148,20 @@ enum FetchError {
     Graphql,
 }
 
+fn fetch_error_code(e: FetchError) -> (&'static str, &'static str) {
+    match e {
+        FetchError::Network => ("network_error", "connection or timeout failure"),
+        FetchError::NotFound => ("not_found", "resource not found"),
+        FetchError::RateLimit => ("rate_limited", "rate limited by server"),
+        FetchError::ClientError => ("client_error", "client error (4xx)"),
+        FetchError::ServerError => ("server_error", "server error (5xx)"),
+        FetchError::Graphql => ("graphql_error", "graphql error response"),
+    }
+}
+
 fn post_graphql(body: &[u8]) -> Result<&'static [u8], FetchError> {
-    let req_len = build_post_request(http_req_buf(), body).ok_or(FetchError::Network)?;
+    let req_len = build_post_request(http_req_buf(), API_URL, body, b"application/json", None)
+        .ok_or(FetchError::Network)?;
     let mut resp_len = 0usize;
     let mut failed = true;
     let mut attempt = 0u8;

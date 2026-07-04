@@ -7,7 +7,6 @@ use koma_source_sdk::json_utils::{
     append_json_escaped, append_json_unescaped_then_escaped, contains_bytes, extract_json_number,
     extract_json_string, write_bytes, write_url_encoded, write_usize, JsonArrayIter,
 };
-use koma_source_sdk::result::ResultBuffer;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{build_get_request, decode_json_body_into, fetch_error_code, FetchError};
 
@@ -55,11 +54,8 @@ fn body_slice(len: usize) -> &'static [u8] {
     unsafe { core::slice::from_raw_parts(core::ptr::addr_of!(BODY_BUF) as *const u8, len) }
 }
 
-fn read_request<'a>(req_ptr: u32, req_len: u32) -> Option<&'a [u8]> {
-    if req_ptr == 0 || req_len == 0 {
-        return None;
-    }
-    Some(unsafe { core::slice::from_raw_parts(req_ptr as *const u8, req_len as usize) })
+fn url_buf() -> &'static mut [u8] {
+    unsafe { &mut *core::ptr::addr_of_mut!(URL_BUF) }
 }
 
 fn parse_usize(bytes: &[u8]) -> usize {

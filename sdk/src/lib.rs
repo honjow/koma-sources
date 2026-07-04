@@ -102,6 +102,10 @@ pub mod host {
     }
 
     impl HtmlDescriptor {
+        pub fn from_raw(raw: i32) -> Self {
+            Self { raw }
+        }
+
         pub fn raw(&self) -> i32 {
             self.raw
         }

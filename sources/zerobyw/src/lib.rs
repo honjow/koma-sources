@@ -10,8 +10,8 @@ use koma_source_sdk::json_utils::{
     append_json_escaped, contains_bytes, extract_json_number, extract_json_string, find_subslice,
     write_bytes, write_url_encoded, write_usize,
 };
-use koma_source_sdk::result::ResultBuffer;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
+use koma_source_sdk::{FetchError, build_get_request, fetch_error_code, parse_status_code};
 
 #[link(wasm_import_module = "koma_host")]
 unsafe extern "C" {
@@ -76,13 +76,6 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
 };
 
 
-fn read_request<'a>(req_ptr: u32, req_len: u32) -> Option<&'a [u8]> {
-    if req_ptr == 0 || req_len == 0 {
-        return None;
-    }
-    Some(unsafe { core::slice::from_raw_parts(req_ptr as *const u8, req_len as usize) })
-}
-
 struct OwnedDescriptor(HtmlDescriptor);
 
 impl Drop for OwnedDescriptor {
@@ -130,17 +123,17 @@ fn text_into<'a>(desc: HtmlDescriptor, out: &'a mut [u8]) -> Option<&'a [u8]> {
     Some(trim_ascii(&out[..len]))
 }
 
-#[derive(Copy, Clone)]
-enum FetchError {
-    Network,
-    NotFound,
-    RateLimit,
-    ClientError,
-    ServerError,
+fn select_buf() -> &'static mut [u8] {
+    unsafe { &mut *core::ptr::addr_of_mut!(SELECT_BUF) }
+}
+
+fn desc_from_i32(raw: i32) -> HtmlDescriptor {
+    HtmlDescriptor::from_raw(raw)
 }
 
 fn fetch_html(url: &[u8], referer: Option<&[u8]>) -> Result<usize, FetchError> {
-    let req_len = build_get_request(http_req_buf(), url, referer).ok_or(FetchError::Network)?;
+    let req_len =
+        build_get_request(http_req_buf(), url, referer, &[]).ok_or(FetchError::Network)?;
     let req = unsafe {
         core::slice::from_raw_parts(core::ptr::addr_of!(HTTP_REQ_BUF) as *const u8, req_len)
     };

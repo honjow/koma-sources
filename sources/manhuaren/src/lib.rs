@@ -7,8 +7,8 @@ use koma_source_sdk::json_utils::{
     append_json_escaped, append_json_unescaped_then_escaped, contains_bytes, find_subslice,
     write_bytes, write_url_encoded, write_usize,
 };
-use koma_source_sdk::result::ResultBuffer;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
+use koma_source_sdk::{FetchError, build_get_request, build_post_request, fetch_error_code};
 
 const API_BASE: &[u8] = b"http://mangaapi.manhuaren.com";
 const WEB_BASE: &[u8] = b"https://www.manhuaren.com";
@@ -81,11 +81,16 @@ fn json_slice(len: usize) -> &'static [u8] {
     unsafe { core::slice::from_raw_parts(core::ptr::addr_of!(JSON_BUF) as *const u8, len) }
 }
 
-fn read_request<'a>(req_ptr: u32, req_len: u32) -> Option<&'a [u8]> {
-    if req_ptr == 0 || req_len == 0 {
-        return None;
-    }
-    Some(unsafe { core::slice::from_raw_parts(req_ptr as *const u8, req_len as usize) })
+fn json_buf() -> &'static mut [u8] {
+    unsafe { &mut *core::ptr::addr_of_mut!(JSON_BUF) }
+}
+
+fn url_buf() -> &'static mut [u8] {
+    unsafe { &mut *core::ptr::addr_of_mut!(URL_BUF) }
+}
+
+fn url_slice(len: usize) -> &'static [u8] {
+    unsafe { core::slice::from_raw_parts(core::ptr::addr_of!(URL_BUF) as *const u8, len) }
 }
 
 #[derive(Copy, Clone)]
@@ -405,17 +410,8 @@ fn build_authed_get_request(dst: &mut [u8], url: &[u8], auth: &[u8]) -> Option<u
     Some(c)
 }
 
-#[derive(Copy, Clone)]
-enum FetchError {
-    Network,
-    NotFound,
-    RateLimit,
-    ClientError,
-    ServerError,
-}
-
 fn fetch_json(url: &[u8]) -> Result<&'static [u8], FetchError> {
-    let req_len = build_get_request(http_req_buf(), url).ok_or(FetchError::Network)?;
+    let req_len = build_get_request(http_req_buf(), url, None, &[]).ok_or(FetchError::Network)?;
     let mut resp_len = 0usize;
     let mut transport_failed = true;
     for attempt in 0..3u8 {
@@ -487,7 +483,8 @@ fn fetch_anony_user() -> Result<(), FetchError> {
     )
     .ok_or(FetchError::Network)?;
     let url = url_slice(len);
-    let req_len = build_post_request(http_req_buf(), url, ANONY_BODY).ok_or(FetchError::Network)?;
+    let req_len = build_post_request(http_req_buf(), url, ANONY_BODY, b"application/json", None)
+        .ok_or(FetchError::Network)?;
     let resp_len =
         http_request(&http_req_buf()[..req_len], http_out()).map_err(|_| FetchError::Network)?;
     let resp = &http_out()[..resp_len];

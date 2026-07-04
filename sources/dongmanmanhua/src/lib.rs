@@ -10,7 +10,6 @@ use koma_source_sdk::json_utils::{
     append_json_escaped, contains_bytes, extract_json_string, find_subslice, write_bytes,
     write_url_encoded, write_usize,
 };
-use koma_source_sdk::result::ResultBuffer;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{build_get_request, decode_json_body_into, fetch_error_code, FetchError};
 
@@ -99,6 +98,9 @@ fn detail_status_buf() -> &'static mut [u8] {
 }
 fn detail_cover_buf() -> &'static mut [u8] {
     unsafe { &mut *core::ptr::addr_of_mut!(DETAIL_COVER_BUF) }
+}
+fn chapter_name_buf() -> &'static mut [u8] {
+    unsafe { &mut *core::ptr::addr_of_mut!(CHAPTER_NAME_BUF) }
 }
 
 struct OwnedDescriptor(HtmlDescriptor);
@@ -867,11 +869,4 @@ pub extern "C" fn koma_source_get_image_request(_req_ptr: u32, _req_len: u32) ->
 #[no_mangle]
 pub extern "C" fn koma_source_free(result_ptr: u32) {
     response_buffer().free(result_ptr)
-}
-
-fn read_request<'a>(req_ptr: u32, req_len: u32) -> Option<&'a [u8]> {
-    if req_ptr == 0 || req_len == 0 {
-        return None;
-    }
-    Some(unsafe { core::slice::from_raw_parts(req_ptr as *const u8, req_len as usize) })
 }

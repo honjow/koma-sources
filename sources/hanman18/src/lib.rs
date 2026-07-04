@@ -8,7 +8,6 @@ use koma_source_sdk::json_utils::{
     append_json_escaped, contains_bytes, extract_json_number, extract_json_string, find_subslice,
     write_bytes, write_url_encoded, write_usize,
 };
-use koma_source_sdk::result::ResultBuffer;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{FetchError, build_get_request, decode_json_body_into, fetch_error_code};
 
@@ -61,9 +60,9 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     listings: false, manga_list: true, home: false, filters: false,
     settings: false, image_request: false, credentials: false,
 };
-fn read_request<'a>(req_ptr: u32, req_len: u32) -> Option<&'a [u8]> {
-    if req_ptr == 0 || req_len == 0 { return None; }
-    Some(unsafe { core::slice::from_raw_parts(req_ptr as *const u8, req_len as usize) })
+
+fn b64_buf() -> &'static mut [u8] {
+    unsafe { &mut *core::ptr::addr_of_mut!(B64_BUF) }
 }
 
 fn fetch_body(url: &[u8]) -> Result<usize, FetchError> {
