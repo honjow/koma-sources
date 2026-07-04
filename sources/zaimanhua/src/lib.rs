@@ -51,10 +51,6 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     credentials: false,
 };
 
-#[cfg(not(test))]
-
-    unsafe { &mut *core::ptr::addr_of_mut!(RESPONSE) }
-}
 
 fn write_u64_value(dst: &mut [u8], cursor: &mut usize, mut value: u64) -> bool {
     let mut buf = [0u8; 20];

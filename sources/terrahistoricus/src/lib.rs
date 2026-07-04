@@ -47,10 +47,6 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     image_request: true,
 };
 
-#[cfg(not(test))]
-
-    unsafe { &mut *core::ptr::addr_of_mut!(RESPONSE) }
-}
 
 fn read_request<'a>(req_ptr: u32, req_len: u32) -> Option<&'a [u8]> {
     if req_ptr == 0 || req_len == 0 {

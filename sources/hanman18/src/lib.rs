@@ -61,10 +61,6 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     listings: false, manga_list: true, home: false, filters: false,
     settings: false, image_request: false, credentials: false,
 };
-
-    unsafe { &mut *core::ptr::addr_of_mut!(RESPONSE) }
-}
-
 fn read_request<'a>(req_ptr: u32, req_len: u32) -> Option<&'a [u8]> {
     if req_ptr == 0 || req_len == 0 { return None; }
     Some(unsafe { core::slice::from_raw_parts(req_ptr as *const u8, req_len as usize) })

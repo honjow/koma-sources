@@ -51,10 +51,6 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     credentials: false,
 };
 
-#[cfg(not(test))]
-
-    unsafe { &mut *core::ptr::addr_of_mut!(RESPONSE) }
-}
 fn body_slice(len: usize) -> &'static [u8] {
     unsafe { core::slice::from_raw_parts(core::ptr::addr_of!(BODY_BUF) as *const u8, len) }
 }

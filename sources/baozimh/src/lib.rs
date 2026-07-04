@@ -10,8 +10,8 @@ use koma_source_sdk::json_utils::{
     append_json_escaped, contains_bytes, extract_json_number, extract_json_string, find_subslice,
     write_bytes, write_url_encoded, write_usize,
 };
-use koma_source_sdk::result::ResultBuffer;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
+use koma_source_sdk::{FetchError, build_get_request, fetch_error_code, parse_status_code};
 
 // Additional host import not yet in SDK
 #[link(wasm_import_module = "koma_host")]
@@ -78,29 +78,9 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     credentials: false,
 };
 
-#[cfg(not(test))]
-
-    unsafe { &mut *core::ptr::addr_of_mut!(RESPONSE) }
-}
-
-fn read_request<'a>(req_ptr: u32, req_len: u32) -> Option<&'a [u8]> {
-    if req_ptr == 0 || req_len == 0 {
-        return None;
-    }
-    Some(unsafe { core::slice::from_raw_parts(req_ptr as *const u8, req_len as usize) })
-}
-
-#[derive(Copy, Clone)]
-enum FetchError {
-    Network,
-    NotFound,
-    RateLimit,
-    ClientError,
-    ServerError,
-}
 
 fn fetch_html(url_bytes: &[u8]) -> Result<usize, FetchError> {
-    let req_len = build_get_request(http_req_buf(), url_bytes).ok_or(FetchError::Network)?;
+    let req_len = build_get_request(http_req_buf(), url_bytes, None, &[]).ok_or(FetchError::Network)?;
     // Retry transport-level failures (DNS/connect/TLS/timeout) up to 3 times.
     // HTTP 4xx/5xx come back as Ok and are classified below.
     let mut resp_len = 0usize;
@@ -133,7 +113,7 @@ fn fetch_html(url_bytes: &[u8]) -> Result<usize, FetchError> {
     }
     let body_marker = b"\"bodyText\":\"";
     let body_start_idx = find_subslice(resp, body_marker).ok_or(FetchError::Network)? + body_marker.len();
-    let html_dst = html_buf();
+    let html_dst = body_buf();
     let mut out_cursor = 0usize;
     let mut i = body_start_idx;
     while i < resp.len() {
@@ -278,7 +258,7 @@ fn run_search(req: &[u8]) -> u32 {
         Ok(len) => len,
         Err(e) => { let (c, m) = fetch_error_code(e); return write_error("search", c, m); }
     };
-    let html_bytes = unsafe { core::slice::from_raw_parts(HTML_BUF.as_ptr(), html_len) };
+    let html_bytes = &body_buf()[..html_len];
 
     let document = match html_parse(html_bytes) {
         Ok(d) => OwnedDescriptor(d),
@@ -376,7 +356,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
         Ok(n) => n,
         Err(e) => { let (c, m) = fetch_error_code(e); return write_error("get_manga", c, m); }
     };
-    let html_bytes = unsafe { core::slice::from_raw_parts(HTML_BUF.as_ptr(), html_len) };
+    let html_bytes = &body_buf()[..html_len];
 
     let document = match html_parse(html_bytes) {
         Ok(d) => OwnedDescriptor(d),
@@ -559,7 +539,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         Ok(n) => n,
         Err(e) => { let (c, m) = fetch_error_code(e); return write_error("get_chapters", c, m); }
     };
-    let html_bytes = unsafe { core::slice::from_raw_parts(HTML_BUF.as_ptr(), html_len) };
+    let html_bytes = &body_buf()[..html_len];
 
     let document = match html_parse(html_bytes) {
         Ok(d) => OwnedDescriptor(d),
@@ -662,7 +642,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
         Ok(n) => n,
         Err(e) => { let (c, m) = fetch_error_code(e); return write_error("get_pages", c, m); }
     };
-    let html_bytes = unsafe { core::slice::from_raw_parts(HTML_BUF.as_ptr(), html_len) };
+    let html_bytes = &body_buf()[..html_len];
 
     let document = match html_parse(html_bytes) {
         Ok(d) => OwnedDescriptor(d),
@@ -739,7 +719,7 @@ fn run_get_listings(req: &[u8]) -> u32 {
         Ok(len) => len,
         Err(e) => { let (c, m) = fetch_error_code(e); return write_error("get_listings", c, m); }
     };
-    let html_bytes = unsafe { core::slice::from_raw_parts(HTML_BUF.as_ptr(), html_len) };
+    let html_bytes = &body_buf()[..html_len];
 
     let document = match html_parse(html_bytes) {
         Ok(d) => OwnedDescriptor(d),
@@ -854,7 +834,7 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
         Ok(len) => len,
         Err(e) => { let (c, m) = fetch_error_code(e); return write_error("get_manga_list", c, m); }
     };
-    let html_bytes = unsafe { core::slice::from_raw_parts(HTML_BUF.as_ptr(), html_len) };
+    let html_bytes = &body_buf()[..html_len];
 
     let document = match html_parse(html_bytes) {
         Ok(d) => OwnedDescriptor(d),
@@ -954,7 +934,7 @@ fn parse_cards_into_section(payload: &mut [u8], c: &mut usize, section_title: &[
     let mut item_count = 0usize;
 
     if let Ok(html_len) = fetch_html(url) {
-        let html_bytes = unsafe { core::slice::from_raw_parts(HTML_BUF.as_ptr(), html_len) };
+        let html_bytes = &body_buf()[..html_len];
         if let Ok(doc_desc) = html_parse(html_bytes) {
             let doc = OwnedDescriptor(doc_desc);
             let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };

@@ -58,10 +58,6 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     credentials: false,
 };
 
-#[cfg(not(test))]
-
-    unsafe { &mut *core::ptr::addr_of_mut!(RESPONSE) }
-}
 fn auth_user_id_buf() -> &'static mut [u8] {
     unsafe { &mut *core::ptr::addr_of_mut!(AUTH_USER_ID) }
 }

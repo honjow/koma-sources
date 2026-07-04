@@ -16,6 +16,9 @@ if [[ -n "$_real_home" && -d "$_real_home/.rustup" && -d "$_real_home/.cargo/bin
   export PATH="$_real_home/.cargo/bin:$PATH"
 fi
 unset _real_home
+if ! command -v cargo >/dev/null 2>&1 && [[ -d /opt/homebrew/opt/rustup/bin ]]; then
+  export PATH="/opt/homebrew/opt/rustup/bin:$PATH"
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SOURCES_DIR="$SCRIPT_DIR/sources"
@@ -72,6 +75,14 @@ source_nsfw() {
       return 0
     fi
   done
+}
+
+selected_source_names() {
+  if [[ -n "$ONLY_SOURCE" ]]; then
+    printf '%s\n' "$ONLY_SOURCE"
+  else
+    source_names
+  fi
 }
 
 REPO_URL="${KOMA_REPO_URL:-https://github.com/honjow/koma-sources}"
@@ -247,7 +258,7 @@ cargo build --release -p koma-source-dev 2>&1 | tail -1 >&2
 log "▸ Building all WASM sources..."
 CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS="${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS:+$CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS }-C target-feature=-reference-types -C link-arg=--strip-all" \
 cargo build --release --target wasm32-unknown-unknown \
-  $(for name in $(source_names); do
+  $(for name in $(selected_source_names); do
     dir="$(source_crate_dir "$name")"
     crate=$(grep '^name' "$SOURCES_DIR/$dir/Cargo.toml" | head -1 | sed 's/.*= *"\(.*\)"/\1/')
     echo "-p $crate"

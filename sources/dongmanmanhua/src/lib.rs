@@ -85,10 +85,6 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     credentials: false,
 };
 
-#[cfg(not(test))]
-
-    unsafe { &mut *core::ptr::addr_of_mut!(RESPONSE) }
-}
 fn detail_title_buf() -> &'static mut [u8] {
     unsafe { &mut *core::ptr::addr_of_mut!(DETAIL_TITLE_BUF) }
 }

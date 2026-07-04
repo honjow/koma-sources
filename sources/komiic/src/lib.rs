@@ -57,10 +57,6 @@ const QUERY_SEARCH: &[u8] = b"query searchComicAndAuthorQuery($keyword: String!)
 const QUERY_DETAIL: &[u8] = b"query chapterByComicId($comicId: ID!) { comicById(comicId: $comicId) { id title description status imageUrl authors { id name } categories { id name } } chaptersByComicId(comicId: $comicId) { id serial type size dateCreated } }";
 const QUERY_PAGES: &[u8] = b"query imagesByChapterId($chapterId: ID!) { imagesByChapterId(chapterId: $chapterId) { kid } }";
 
-#[cfg(not(test))]
-
-    unsafe { &mut *core::ptr::addr_of_mut!(RESPONSE) }
-}
 
 fn json_slice(len: usize) -> &'static [u8] {
     unsafe { core::slice::from_raw_parts(core::ptr::addr_of!(JSON_BUF) as *const u8, len) }
