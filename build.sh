@@ -4,9 +4,13 @@
 # Requires: cargo (with wasm32-unknown-unknown), zip, jq, koma-source-dev (in PATH or $DEV_RUNNER)
 set -euo pipefail
 
-# Prefer rustup toolchain (system cargo may lack wasm32-unknown-unknown target)
-_real_home="${REAL_HOME:-$(getent passwd "$(id -un)" | cut -d: -f6)}"
-if [[ -d "$_real_home/.rustup" && -d "$_real_home/.cargo/bin" ]]; then
+# Prefer rustup toolchain (system cargo may lack wasm32-unknown-unknown target).
+# macOS does not provide getent, so fall back to HOME there.
+_real_home="${REAL_HOME:-${HOME:-}}"
+if [[ -z "$_real_home" ]] && command -v getent >/dev/null 2>&1; then
+  _real_home="$(getent passwd "$(id -un)" | cut -d: -f6)"
+fi
+if [[ -n "$_real_home" && -d "$_real_home/.rustup" && -d "$_real_home/.cargo/bin" ]]; then
   export RUSTUP_HOME="$_real_home/.rustup"
   export CARGO_HOME="$_real_home/.cargo"
   export PATH="$_real_home/.cargo/bin:$PATH"
@@ -18,55 +22,57 @@ SOURCES_DIR="$SCRIPT_DIR/sources"
 OUTPUT_DIR="$SCRIPT_DIR/dist"
 DEV_RUNNER="${DEV_RUNNER:-$SCRIPT_DIR/target/release/koma-source-dev}"
 
-# Source registry: directory name → crate directory name
-declare -A SOURCE_MAP=(
-  ["baozimh"]="baozimh"
-  ["mangadex"]="mangadex"
-  ["mangabz"]="mangabz"
-  ["manhuaren"]="manhuaren"
-  ["zaimanhua"]="zaimanhua"
-  ["happymh"]="happymh"
-  ["manhuagui"]="manhuagui"
-  ["terrahistoricus"]="terrahistoricus"
-  ["noyacg"]="noyacg"
-  ["komiic"]="komiic"
-  ["dm5"]="dm5"
-  ["zerobyw"]="zerobyw"
-  ["manhuashe"]="manhuashe"
-  ["dongmanmanhua"]="dongmanmanhua"
-  ["manhuawu"]="manhuawu"
-  ["iqiyi"]="iqiyi"
-  ["jiuermanhua"]="jiuermanhua"
-  ["zazhimi"]="zazhimi"
-  ["mh1234"]="mh1234"
-  ["hanman18"]="hanman18"
-  ["example-demo"]="example-demo"
-)
+# Source registry: source name | crate directory | nsfw.
+# Keep this Bash 3 compatible for macOS /bin/bash.
+SOURCE_ENTRIES='
+baozimh|baozimh|false
+mangadex|mangadex|true
+mangabz|mangabz|false
+manhuaren|manhuaren|false
+zaimanhua|zaimanhua|false
+happymh|happymh|false
+manhuagui|manhuagui|true
+terrahistoricus|terrahistoricus|false
+noyacg|noyacg|true
+komiic|komiic|true
+dm5|dm5|true
+zerobyw|zerobyw|true
+manhuashe|manhuashe|false
+dongmanmanhua|dongmanmanhua|false
+manhuawu|manhuawu|false
+iqiyi|iqiyi|false
+jiuermanhua|jiuermanhua|false
+zazhimi|zazhimi|false
+mh1234|mh1234|false
+hanman18|hanman18|true
+example-demo|example-demo|false
+'
 
-# Optional: nsfw flags not in source_info
-declare -A NSFW_MAP=(
-  ["baozimh"]="false"
-  ["mangadex"]="true"
-  ["mangabz"]="false"
-  ["manhuaren"]="false"
-  ["zaimanhua"]="false"
-  ["happymh"]="false"
-  ["manhuagui"]="true"
-  ["terrahistoricus"]="false"
-  ["noyacg"]="true"
-  ["komiic"]="true"
-  ["dm5"]="true"
-  ["zerobyw"]="true"
-  ["manhuashe"]="false"
-  ["dongmanmanhua"]="false"
-  ["manhuawu"]="false"
-  ["iqiyi"]="false"
-  ["jiuermanhua"]="false"
-  ["zazhimi"]="false"
-  ["mh1234"]="false"
-  ["hanman18"]="true"
-  ["example-demo"]="false"
-)
+source_names() {
+  printf '%s\n' "$SOURCE_ENTRIES" | while IFS='|' read -r name _dir _nsfw; do
+    [[ -n "$name" ]] && printf '%s\n' "$name"
+  done
+}
+
+source_crate_dir() {
+  local target="$1"
+  printf '%s\n' "$SOURCE_ENTRIES" | while IFS='|' read -r name dir _nsfw; do
+    if [[ "$name" == "$target" ]]; then
+      printf '%s\n' "$dir"
+      return 0
+    fi
+  done
+}
+
+source_nsfw() {
+  local target="$1"
+  printf '%s\n' "$SOURCE_ENTRIES" | while IFS='|' read -r name _dir nsfw; do
+    if [[ "$name" == "$target" ]]; then
+      printf '%s\n' "$nsfw"
+      return 0
+    fi
+  done
+}
 
 REPO_URL="${KOMA_REPO_URL:-https://github.com/honjow/koma-sources}"
 
@@ -91,7 +97,8 @@ fi
 
 build_source() {
   local name="$1"
-  local crate_dir="${SOURCE_MAP[$name]}"
+  local crate_dir
+  crate_dir="$(source_crate_dir "$name")"
   local src_path="$SOURCES_DIR/$crate_dir"
   
   if [[ ! -d "$src_path" ]]; then
@@ -127,7 +134,9 @@ build_source() {
   src_desc=$(echo "$info" | jq -r '.data.sourceInfo.description')
   src_content_rating=$(echo "$info" | jq -r '.data.sourceInfo.contentRating')
   
-  local nsfw="${NSFW_MAP[$name]:-false}"
+  local nsfw
+  nsfw="$(source_nsfw "$name")"
+  nsfw="${nsfw:-false}"
   
   # Create manifest.json
   local pkg_dir="$OUTPUT_DIR/pkg/$name"
@@ -238,8 +247,8 @@ cargo build --release -p koma-source-dev 2>&1 | tail -1 >&2
 log "▸ Building all WASM sources..."
 CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS="${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS:+$CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS }-C target-feature=-reference-types -C link-arg=--strip-all" \
 cargo build --release --target wasm32-unknown-unknown \
-  $(for name in "${!SOURCE_MAP[@]}"; do
-    dir="${SOURCE_MAP[$name]}"
+  $(for name in $(source_names); do
+    dir="$(source_crate_dir "$name")"
     crate=$(grep '^name' "$SOURCES_DIR/$dir/Cargo.toml" | head -1 | sed 's/.*= *"\(.*\)"/\1/')
     echo "-p $crate"
   done) 2>&1 | tail -1 >&2
@@ -249,7 +258,7 @@ mkdir -p "$OUTPUT_DIR/sources"
 
 INDEX_ENTRIES=()
 
-for name in $(echo "${!SOURCE_MAP[@]}" | tr ' ' '\n' | sort); do
+for name in $(source_names | sort); do
   if [[ -n "$ONLY_SOURCE" && "$name" != "$ONLY_SOURCE" ]]; then
     continue
   fi
