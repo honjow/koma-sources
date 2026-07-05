@@ -334,7 +334,9 @@ fn search_single_manga(url: &[u8], id: &[u8]) -> u32 {
     let mut title_buf = [0u8; 256];
     let title =
         extract_between_text(html, b"<p class=\"title\"", b"</p>", &mut title_buf).unwrap_or(id);
-    let cover = extract_attr_after(html, b"class=\"cover\"", b"src").unwrap_or(b"");
+    let cover = extract_first_img_src_after(html, b"class=\"cover\"")
+        .or_else(|| extract_attr_after(html, b"class=\"cover\"", b"src"))
+        .unwrap_or(b"");
     let payload = payload_buf();
     let mut c = 0usize;
     let ok = write_bytes(payload, &mut c, br#"{"items":["#)
@@ -355,6 +357,14 @@ fn extract_attr_after<'a>(html: &'a [u8], marker: &[u8], attr: &[u8]) -> Option<
     let tag_start = find_back(html, p, b'<').unwrap_or(p);
     let tag_end = find_subslice(&html[p..], b">")? + p + 1;
     attr_value(&html[tag_start..tag_end], attr)
+}
+
+fn extract_first_img_src_after<'a>(html: &'a [u8], marker: &[u8]) -> Option<&'a [u8]> {
+    let p = find_subslice(html, marker)?;
+    let img_rel = find_subslice(&html[p..], b"<img")?;
+    let img_start = p + img_rel;
+    let img_end = find_subslice(&html[img_start..], b">")? + img_start + 1;
+    attr_value(&html[img_start..img_end], b"src")
 }
 
 fn find_back(bytes: &[u8], mut pos: usize, needle: u8) -> Option<usize> {
@@ -408,7 +418,9 @@ fn run_get_manga(req: &[u8]) -> u32 {
     });
     let desc =
         extract_between_text(html, b"<p class=\"content\"", b"</p>", &mut desc_buf).unwrap_or(b"");
-    let cover = extract_attr_after(html, b"class=\"cover\"", b"src").unwrap_or(b"");
+    let cover = extract_first_img_src_after(html, b"class=\"cover\"")
+        .or_else(|| extract_attr_after(html, b"class=\"cover\"", b"src"))
+        .unwrap_or(b"");
     let status = if contains_bytes(html, "已完结".as_bytes())
         || contains_bytes(html, "已完結".as_bytes())
     {
