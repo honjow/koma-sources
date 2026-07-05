@@ -13,6 +13,7 @@ use koma_source_sdk::{FetchError, build_get_request, fetch_error_code, parse_sta
 
 const API_BASE: &[u8] = b"https://api.mangadex.org";
 const COVERS_BASE: &[u8] = b"https://uploads.mangadex.org/covers/";
+const MANGADEX_USER_AGENT: &[u8] = b"Koma/0.1 (+https://github.com/honjow/Koma)";
 koma_source_sdk::koma_source_buffers! {
     payload: 128 * 1024,
     http_out: 512 * 1024,
@@ -129,8 +130,12 @@ fn chapter_num_dedup_seen(seen_buf: &mut [u8], seen_cursor: &mut usize, value: &
 }
 
 fn fetch_json(url_bytes: &[u8]) -> Result<&'static [u8], FetchError> {
-    let req_len =
-        build_get_request(http_req_buf(), url_bytes, None, &[]).ok_or(FetchError::Network)?;
+    let req_len = build_get_request(
+        http_req_buf(),
+        url_bytes,
+        None,
+        &[(b"User-Agent", MANGADEX_USER_AGENT)],
+    ).ok_or(FetchError::Network)?;
     // Retry transport-level failures up to 3 times.
     let mut resp_len = 0usize;
     let mut transport_failed = true;
@@ -145,6 +150,16 @@ fn fetch_json(url_bytes: &[u8]) -> Result<&'static [u8], FetchError> {
     }
     if transport_failed { return Err(FetchError::Network); }
     let resp = &http_out()[..resp_len];
+    if let Some(code_bytes) = extract_json_number(resp, b"status") {
+        match parse_status_code(code_bytes) {
+            200..=299 => {}
+            404 => return Err(FetchError::NotFound),
+            429 => return Err(FetchError::RateLimit),
+            400..=499 => return Err(FetchError::ClientError),
+            500..=599 => return Err(FetchError::ServerError),
+            _ => return Err(FetchError::Network),
+        }
+    }
     if !contains_bytes(resp, br#""ok":true"#) {
         log_info(b"mangadex: http response not ok");
         let err = if let Some(code_bytes) = extract_json_number(resp, b"statusCode") {
