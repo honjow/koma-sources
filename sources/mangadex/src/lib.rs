@@ -22,14 +22,17 @@ koma_source_sdk::koma_source_buffers! {
     scratch: 2048,
 }
 koma_source_sdk::koma_source_helpers!();
-const JSON_BUF_CAP: usize = 256 * 1024;
+// MangaDex's 20-item browse responses can exceed 256 KiB once cover-art and
+// relationship metadata are included. Keep the decoded JSON buffer below the
+// host response capacity while preserving the page size expected by Koma.
+const JSON_BUF_CAP: usize = 512 * 1024;
 
 static mut JSON_BUF: [u8; JSON_BUF_CAP] = [0; JSON_BUF_CAP];
 
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "org.mangadex.koma",
     name: "MangaDex",
-    version: "0.1.0",
+    version: "0.1.2",
     api_version: "0.2",
     language: "en",
     author: "Koma",
@@ -656,66 +659,16 @@ fn run_get_pages(req: &[u8]) -> u32 {
 }
 
 fn run_get_listings(_req: &[u8]) -> u32 {
-    // Popular new titles: /manga?order[followedCount]=desc&limit=20&includes[]=cover_art
-    let url = b"https://api.mangadex.org/manga?order%5BfollowedCount%5D=desc&limit=20&includes%5B%5D=cover_art";
-
-    let api_json = match fetch_json(url) {
-        Ok(v) => v,
-        Err(e) => { let (c, m) = fetch_error_code(e); return write_error("get_listings", c, m); }
-    };
-
+    // A listing is a browse entry point, not a manga result. Keep these stable
+    // identifiers so every host can render a semantic browse menu without a
+    // network request, then let get_manga_list resolve the corresponding order.
+    const LISTINGS_JSON: &[u8] = br#"{"listings":[{"id":"listing:popular","name":"Popular","kind":"popular"},{"id":"listing:latest","name":"Latest Updates","kind":"latest"},{"id":"listing:top_rated","name":"Top Rated","kind":"top_rated"}]}"#;
     let payload = payload_buf();
-    let mut c = 0usize;
-    if !write_bytes(payload, &mut c, br#"{"items":["#) {
+    if LISTINGS_JSON.len() > payload.len() {
         return write_error("get_listings", "internal_error", "overflow");
     }
-
-    let mut iter = match JsonArrayIter::new(api_json, b"data") {
-        Some(it) => it,
-        None => return write_error("get_listings", "parse_error", "no data"),
-    };
-
-    let mut written = 0usize;
-    while let Some(obj) = iter.next_object() {
-        if written >= 20 { break; }
-        let id = match extract_json_string(obj, b"id") {
-            Some(v) => v,
-            None => continue,
-        };
-        let title = extract_json_string(obj, b"en")
-            .or_else(|| extract_json_string(obj, b"ja"))
-            .unwrap_or(b"Unknown");
-        let status = extract_json_string(obj, b"status").unwrap_or(b"unknown");
-        let cover_fn = extract_cover_filename(obj);
-
-        if written > 0 {
-            if !write_bytes(payload, &mut c, b",") { break; }
-        }
-        let ok = write_bytes(payload, &mut c, br#"{"id":"mdx:"#)
-            && append_json_escaped(payload, &mut c, id)
-            && write_bytes(payload, &mut c, br#"","title":""#)
-            && append_json_escaped(payload, &mut c, title)
-            && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":""#)
-            && write_bytes(payload, &mut c, COVERS_BASE)
-            && append_json_escaped(payload, &mut c, id)
-            && write_bytes(payload, &mut c, b"/");
-        if !ok { break; }
-        if let Some(cfn) = cover_fn {
-            if !append_json_escaped(payload, &mut c, cfn) { break; }
-        } else {
-            if !write_bytes(payload, &mut c, b"none.jpg") { break; }
-        }
-        let ok2 = write_bytes(payload, &mut c, br#""},"authors":[],"status":""#)
-            && append_json_escaped(payload, &mut c, status)
-            && write_bytes(payload, &mut c, br#"","contentRating":"unknown","sourceTags":["mangadex"]}"#);
-        if !ok2 { break; }
-        written += 1;
-    }
-
-    if !write_bytes(payload, &mut c, br#"],"page":{"nextCursor":null,"hasMore":false}}"#) {
-        return write_error("get_listings", "internal_error", "overflow");
-    }
-    write_success_payload("get_listings", c)
+    payload[..LISTINGS_JSON.len()].copy_from_slice(LISTINGS_JSON);
+    write_success_payload("get_listings", LISTINGS_JSON.len())
 }
 
 // --- get_filters: return browseable filter definitions ---
@@ -742,7 +695,17 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     let status = extract_json_string(req, b"status").unwrap_or(b"all");
     let content_rating = extract_json_string(req, b"contentRating").unwrap_or(b"all");
     let demographic = extract_json_string(req, b"demographic").unwrap_or(b"all");
-    let order = extract_json_string(req, b"order").unwrap_or(b"relevance");
+    let listing_id = extract_json_string(req, b"listingId").unwrap_or(b"listing:popular");
+    let requested_order = extract_json_string(req, b"order").unwrap_or(b"relevance");
+    let order: &[u8] = if requested_order != b"relevance" {
+        requested_order
+    } else if listing_id == b"listing:latest" {
+        b"latestUploadedChapter"
+    } else if listing_id == b"listing:top_rated" {
+        b"rating"
+    } else {
+        b"followedCount"
+    };
     let page_bytes = extract_json_number(req, b"page");
     let page_num = if let Some(pb) = page_bytes {
         let mut n = 0usize;
@@ -781,13 +744,11 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
             && write_bytes(url_buf, &mut url_cursor, demographic);
         if !ok2 { return write_error("get_manga_list", "internal_error", "url overflow"); }
     }
-    // Append order
-    if order != b"relevance" {
-        let ok2 = write_bytes(url_buf, &mut url_cursor, b"&order%5B")
-            && write_bytes(url_buf, &mut url_cursor, order)
-            && write_bytes(url_buf, &mut url_cursor, b"%5D=desc");
-        if !ok2 { return write_error("get_manga_list", "internal_error", "url overflow"); }
-    }
+    // The selected listing supplies a default order; an explicit filter wins.
+    let ok2 = write_bytes(url_buf, &mut url_cursor, b"&order%5B")
+        && write_bytes(url_buf, &mut url_cursor, order)
+        && write_bytes(url_buf, &mut url_cursor, b"%5D=desc");
+    if !ok2 { return write_error("get_manga_list", "internal_error", "url overflow"); }
 
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
 
