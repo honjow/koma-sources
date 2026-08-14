@@ -184,21 +184,14 @@ if ! grep -q "\"sources/$NAME\"" "$ROOT_DIR/Cargo.toml"; then
   mv "$tmp" "$ROOT_DIR/Cargo.toml"
 fi
 
-if ! grep -q "\\[\"$NAME\"\\]=\"$NAME\"" "$ROOT_DIR/build.sh"; then
+if ! grep -q "^$NAME|" "$ROOT_DIR/build.sh"; then
   tmp="$(mktemp)"
-  awk -v name="$NAME" '
-    BEGIN { in_source = 0; in_nsfw = 0; source_done = 0; nsfw_done = 0 }
-    /^declare -A SOURCE_MAP=\(/ { in_source = 1 }
-    /^declare -A NSFW_MAP=\(/ { in_nsfw = 1 }
-    in_source && /^\)/ && !source_done {
-      printf "  [\"%s\"]=\"%s\"\n", name, name
-      source_done = 1
-      in_source = 0
-    }
-    in_nsfw && /^\)/ && !nsfw_done {
-      printf "  [\"%s\"]=\"false\"\n", name
-      nsfw_done = 1
-      in_nsfw = 0
+  awk -v entry="$NAME|$NAME|false|0.1.0" '
+    /^SOURCE_ENTRIES=/ { in_entries = 1 }
+    in_entries && $0 == "\047" && !inserted {
+      print entry
+      inserted = 1
+      in_entries = 0
     }
     { print }
   ' "$ROOT_DIR/build.sh" > "$tmp"

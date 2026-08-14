@@ -308,4 +308,6 @@ Use `.wasm` files, NOT `.koma` zip packages.
 
 ## Distribution
 
-`.koma` zip = `manifest.json` + `source.wasm`. Built by `build.sh` automatically.
+`.koma` zip = `manifest.json` + `source.wasm` + optional root `icon.png`.
+`build.sh` validates an icon before packaging; it is the source identity asset,
+not a manga cover.

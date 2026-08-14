@@ -24,42 +24,47 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SOURCES_DIR="$SCRIPT_DIR/sources"
 OUTPUT_DIR="$SCRIPT_DIR/dist"
 DEV_RUNNER="${DEV_RUNNER:-$SCRIPT_DIR/target/release/koma-source-dev}"
+ICON_VALIDATOR="$SCRIPT_DIR/scripts/validate-source-icon.py"
+RELEASE_ICON_DIR="$OUTPUT_DIR/release-icons"
+RELEASE_PACKAGE_DIR="$OUTPUT_DIR/release-packages"
 
-# Source registry: source name | crate directory | nsfw.
+# Source registry: source name | crate directory | nsfw | minimum Koma version.
 # Keep this Bash 3 compatible for macOS /bin/bash.
 SOURCE_ENTRIES='
-baozimh|baozimh|false
-mangadex|mangadex|true
-mangabz|mangabz|false
-manhuaren|manhuaren|false
-zaimanhua|zaimanhua|false
-happymh|happymh|false
-manhuagui|manhuagui|true
-terrahistoricus|terrahistoricus|false
-noyacg|noyacg|true
-komiic|komiic|true
-dm5|dm5|true
-zerobyw|zerobyw|true
-manhuashe|manhuashe|false
-dongmanmanhua|dongmanmanhua|false
-manhuawu|manhuawu|false
-iqiyi|iqiyi|false
-jiuermanhua|jiuermanhua|false
-zazhimi|zazhimi|false
-mh1234|mh1234|false
-hanman18|hanman18|true
-example-demo|example-demo|false
+baozimh|baozimh|false|0.1.0
+mangadex|mangadex|true|0.1.0
+mangabz|mangabz|false|0.1.0
+manhuaren|manhuaren|false|0.1.0
+zaimanhua|zaimanhua|false|0.1.0
+happymh|happymh|false|0.1.0
+manhuagui|manhuagui|true|0.1.0
+terrahistoricus|terrahistoricus|false|0.1.0
+noyacg|noyacg|true|0.1.0
+komiic|komiic|true|0.1.0
+dm5|dm5|true|0.1.0
+zerobyw|zerobyw|true|0.1.0
+manhuashe|manhuashe|false|0.1.0
+dongmanmanhua|dongmanmanhua|false|0.1.0
+manhuawu|manhuawu|false|0.1.0
+iqiyi|iqiyi|false|0.1.0
+jiuermanhua|jiuermanhua|false|0.1.0
+zazhimi|zazhimi|false|0.1.0
+mh1234|mh1234|false|0.1.0
+hanman18|hanman18|true|0.1.0
+example-demo|example-demo|false|0.1.0
 '
 
+SOURCE_APP_VERSION_RE='^(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$'
+
 source_names() {
-  printf '%s\n' "$SOURCE_ENTRIES" | while IFS='|' read -r name _dir _nsfw; do
+  printf '%s\n' "$SOURCE_ENTRIES" | while IFS='|' read -r name _dir _nsfw _min_app_version; do
     [[ -n "$name" ]] && printf '%s\n' "$name"
   done
 }
 
 source_crate_dir() {
   local target="$1"
-  printf '%s\n' "$SOURCE_ENTRIES" | while IFS='|' read -r name dir _nsfw; do
+  printf '%s\n' "$SOURCE_ENTRIES" | while IFS='|' read -r name dir _nsfw _min_app_version; do
     if [[ "$name" == "$target" ]]; then
       printf '%s\n' "$dir"
       return 0
@@ -69,9 +74,19 @@ source_crate_dir() {
 
 source_nsfw() {
   local target="$1"
-  printf '%s\n' "$SOURCE_ENTRIES" | while IFS='|' read -r name _dir nsfw; do
+  printf '%s\n' "$SOURCE_ENTRIES" | while IFS='|' read -r name _dir nsfw _min_app_version; do
     if [[ "$name" == "$target" ]]; then
       printf '%s\n' "$nsfw"
+      return 0
+    fi
+  done
+}
+
+source_min_app_version() {
+  local target="$1"
+  printf '%s\n' "$SOURCE_ENTRIES" | while IFS='|' read -r name _dir _nsfw min_app_version; do
+    if [[ "$name" == "$target" ]]; then
+      printf '%s\n' "$min_app_version"
       return 0
     fi
   done
@@ -101,10 +116,41 @@ done
 
 log() { echo "$@" >&2; }
 
+validate_selected_source_icons() {
+  local name crate_dir icon_path
+  for name in $(selected_source_names); do
+    crate_dir="$(source_crate_dir "$name")"
+    icon_path="$SOURCES_DIR/$crate_dir/icon.png"
+    if [[ -e "$icon_path" || -L "$icon_path" ]]; then
+      if ! command -v python3 >/dev/null 2>&1; then
+        log "ERROR: python3 is required only when packaging a source with icon.png"
+        return 1
+      fi
+      python3 "$ICON_VALIDATOR" --icon "$icon_path"
+    fi
+  done
+}
+
+validate_selected_source_registry() {
+  local name min_app_version
+  for name in $(selected_source_names); do
+    min_app_version="$(source_min_app_version "$name")"
+    if [[ ! "$min_app_version" =~ $SOURCE_APP_VERSION_RE ]]; then
+      log "ERROR: source $name has invalid minimum Koma version: $min_app_version"
+      return 1
+    fi
+  done
+}
+
 if [[ -n "$SCAFFOLD_NAME" ]]; then
   "$SCRIPT_DIR/scripts/scaffold-source.sh" "$SCAFFOLD_NAME"
   exit 0
 fi
+
+log "▸ Validating source registry..."
+validate_selected_source_registry
+log "▸ Validating source icons..."
+validate_selected_source_icons
 
 build_source() {
   local name="$1"
@@ -145,9 +191,10 @@ build_source() {
   src_desc=$(echo "$info" | jq -r '.data.sourceInfo.description')
   src_content_rating=$(echo "$info" | jq -r '.data.sourceInfo.contentRating')
   
-  local nsfw
+  local nsfw min_app_version
   nsfw="$(source_nsfw "$name")"
   nsfw="${nsfw:-false}"
+  min_app_version="$(source_min_app_version "$name")"
   
   # Create manifest.json
   local pkg_dir="$OUTPUT_DIR/pkg/$name"
@@ -162,7 +209,7 @@ build_source() {
     --arg author "$src_author" \
     --arg description "$src_desc" \
     --arg contentRating "$src_content_rating" \
-    --arg minAppVersion "0.1.0" \
+    --arg minAppVersion "$min_app_version" \
     '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, minAppVersion: $minAppVersion}' \
     > "$pkg_dir/manifest.json"
 
@@ -178,25 +225,43 @@ build_source() {
   local koma_file="$OUTPUT_DIR/sources/$name/${name}-${src_version}.koma"
   mkdir -p "$(dirname "$koma_file")"
   rm -f "$koma_file"
-  (cd "$pkg_dir" && zip -q "$koma_file" manifest.json source.wasm icon.png 2>/dev/null || \
-   cd "$pkg_dir" && zip -q "$koma_file" manifest.json source.wasm)
+  local package_entries=(manifest.json source.wasm)
+  if [[ -f "$pkg_dir/icon.png" ]]; then
+    package_entries+=(icon.png)
+  fi
+  (cd "$pkg_dir" && zip -q "$koma_file" "${package_entries[@]}")
   
   local size
   size=$(stat -c%s "$koma_file" 2>/dev/null || stat -f%z "$koma_file")
   log "  ✓ ${name}-${src_version}.koma ($(numfmt --to=iec "$size" 2>/dev/null || echo "${size}B"))"
   
-  # Copy icon to dist
+  # Local/static indexes serve their package identity asset beneath the index
+  # document. A tagged GitHub Release has a flat asset namespace instead, so
+  # publish a unique filename and keep the index reference relative to its
+  # own release download directory.
   local icon_path=""
   if [[ -f "$pkg_dir/icon.png" ]]; then
-    icon_path="sources/$name/icon.png"
-    cp "$pkg_dir/icon.png" "$OUTPUT_DIR/sources/$name/icon.png"
+    if [[ -n "$VERSION_TAG" ]]; then
+      local release_icon_name="${name}-icon.png"
+      mkdir -p "$RELEASE_ICON_DIR"
+      cp "$pkg_dir/icon.png" "$RELEASE_ICON_DIR/$release_icon_name"
+      icon_path="$release_icon_name"
+    else
+      icon_path="sources/$name/icon.png"
+      cp "$pkg_dir/icon.png" "$OUTPUT_DIR/sources/$name/icon.png"
+    fi
   fi
   
   # Determine pkg download URL/path
   local pkg_filename="${name}-${src_version}.koma"
   local pkg_url
   if [[ -n "$VERSION_TAG" ]]; then
-    pkg_url="${REPO_URL}/releases/download/${VERSION_TAG}/${pkg_filename}"
+    # GitHub Release assets share the index document's flat download directory.
+    # Keep this relative so Koma applies the same directory/origin containment
+    # policy to packages and icons.
+    mkdir -p "$RELEASE_PACKAGE_DIR"
+    cp "$koma_file" "$RELEASE_PACKAGE_DIR/$pkg_filename"
+    pkg_url="$pkg_filename"
   else
     pkg_url="sources/${name}/${pkg_filename}"
   fi
@@ -213,12 +278,13 @@ build_source() {
     --arg contentRating "$src_content_rating" \
     --arg pkg "$pkg_url" \
     --arg icon "$icon_path" \
-    --arg minAppVersion "0.1.0" \
+    --arg minAppVersion "$min_app_version" \
     '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, pkg: $pkg, icon: $icon, minAppVersion: $minAppVersion}'
 }
 
 validate_index_packages() {
   local index_file="$OUTPUT_DIR/index.json"
+  local pkg_path expected_path
   local failures=0
 
   while IFS= read -r pkg_path; do
@@ -228,18 +294,25 @@ validate_index_packages() {
       continue
     fi
 
-    if [[ "$pkg_path" == /* || "$pkg_path" =~ ^[A-Za-z][A-Za-z0-9+.-]*: ]]; then
-      continue
+    if [[ -n "$VERSION_TAG" ]]; then
+      if [[ "$pkg_path" == */* || "$pkg_path" != *.koma ]]; then
+        log "ERROR: release package path must be a flat unique Koma asset: $pkg_path"
+        failures=$((failures + 1))
+        continue
+      fi
+      expected_path="$RELEASE_PACKAGE_DIR/$pkg_path"
+    else
+      if [[ "$pkg_path" == /* || "$pkg_path" =~ ^[A-Za-z][A-Za-z0-9+.-]*: ||
+        "$pkg_path" == ../* || "$pkg_path" == */../* ]]; then
+        log "ERROR: pkg path escapes dist: $pkg_path"
+        failures=$((failures + 1))
+        continue
+      fi
+      expected_path="$OUTPUT_DIR/$pkg_path"
     fi
 
-    if [[ "$pkg_path" == ../* || "$pkg_path" == */../* ]]; then
-      log "ERROR: pkg path escapes dist: $pkg_path"
-      failures=$((failures + 1))
-      continue
-    fi
-
-    if [[ ! -f "$OUTPUT_DIR/$pkg_path" ]]; then
-      log "ERROR: pkg path does not exist under dist: $pkg_path"
+    if [[ ! -f "$expected_path" ]]; then
+      log "ERROR: index package path does not exist in build output: $pkg_path"
       failures=$((failures + 1))
     fi
   done < <(jq -r '.[].pkg' "$index_file")
@@ -249,6 +322,43 @@ validate_index_packages() {
   fi
 
   log "  ✓ package paths resolve under dist"
+}
+
+validate_index_icons() {
+  local index_file="$OUTPUT_DIR/index.json"
+  local icon_path expected_path
+  local failures=0
+
+  while IFS= read -r icon_path; do
+    if [[ -z "$icon_path" || "$icon_path" == "null" ]]; then
+      continue
+    fi
+    if [[ -n "$VERSION_TAG" ]]; then
+      if [[ "$icon_path" == */* || "$icon_path" != *-icon.png ]]; then
+        log "ERROR: release icon path must be a flat unique PNG asset: $icon_path"
+        failures=$((failures + 1))
+        continue
+      fi
+      expected_path="$RELEASE_ICON_DIR/$icon_path"
+    else
+      if [[ "$icon_path" != sources/*/icon.png ]]; then
+        log "ERROR: static index icon path is invalid: $icon_path"
+        failures=$((failures + 1))
+        continue
+      fi
+      expected_path="$OUTPUT_DIR/$icon_path"
+    fi
+    if [[ ! -f "$expected_path" ]]; then
+      log "ERROR: index icon path does not exist in build output: $icon_path"
+      failures=$((failures + 1))
+    fi
+  done < <(jq -r '.[].icon' "$index_file")
+
+  if [[ "$failures" -gt 0 ]]; then
+    return 1
+  fi
+
+  log "  ✓ icon paths resolve in build output"
 }
 
 # Main
@@ -288,6 +398,7 @@ log "  ✓ index.json ($count sources)"
 rm -rf "$OUTPUT_DIR/pkg"
 
 validate_index_packages
+validate_index_icons
 
 log ""
 log "Done. Output in $OUTPUT_DIR/"

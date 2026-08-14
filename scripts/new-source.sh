@@ -42,9 +42,20 @@ if ! grep -q "\"sources/$NAME\"" "$ROOT_DIR/Cargo.toml"; then
   sed -i "/\"sources\/mangadex\"/a\\  \"sources/$NAME\"," "$ROOT_DIR/Cargo.toml"
 fi
 
-# Add to build.sh SOURCE_MAP
-if ! grep -q "\"$NAME\"" "$ROOT_DIR/build.sh"; then
-  sed -i "/\[\"mangadex\"\]=\"mangadex\"/a\\  [\"$NAME\"]=\"$NAME\"" "$ROOT_DIR/build.sh"
+# Add to the build.sh source registry.
+if ! grep -q "^$NAME|" "$ROOT_DIR/build.sh"; then
+  tmp="$(mktemp)"
+  awk -v entry="$NAME|$NAME|false|0.1.0" '
+    /^SOURCE_ENTRIES=/ { in_entries = 1 }
+    in_entries && $0 == "\047" && !inserted {
+      print entry
+      inserted = 1
+      in_entries = 0
+    }
+    { print }
+  ' "$ROOT_DIR/build.sh" > "$tmp"
+  mv "$tmp" "$ROOT_DIR/build.sh"
+  chmod 755 "$ROOT_DIR/build.sh"
 fi
 
 echo "✓ Created sources/$NAME (crate: $CRATE_NAME)"

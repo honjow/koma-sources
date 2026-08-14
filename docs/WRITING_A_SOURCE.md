@@ -14,16 +14,21 @@ cd koma-sources
 
 # 2. Edit source metadata in sources/mysource/src/lib.rs
 # 3. Implement the run_* functions
-# 4. Register in build.sh (add to SOURCE_MAP and NSFW_MAP)
-# 5. Add "sources/mysource" to workspace Cargo.toml members
+# 4. `--scaffold` already adds name|crate_dir|false|0.1.0 to SOURCE_ENTRIES
+#    and adds the crate to workspace Cargo.toml; raise minAppVersion only when needed.
 
-# 6. Build
+# 6. Optional: add `sources/mysource/icon.png`
+# 7. Build
 ./build.sh --source mysource
 
-# 7. Test
+# 8. Test
 ./target/release/koma-source-dev test-all \
   target/wasm32-unknown-unknown/release/koma_mysource_source.wasm
 ```
+
+`icon.png` is a package-owned source identity asset, not a manga cover. It
+must be a regular root PNG within the package icon limits documented in the
+repository README; `build.sh` validates it before packaging.
 
 ## Architecture
 
@@ -505,7 +510,7 @@ When writing Chinese text to JSON output, use `append_json_escaped` — it handl
 ./build.sh --source foo # Build single source
 ```
 
-Output: `dist/sources/<name>/<name>-<version>.koma` (zip with manifest.json + source.wasm).
+Output: `dist/sources/<name>/<name>-<version>.koma` (zip with `manifest.json`, `source.wasm`, and optional package-owned `icon.png`). The generated manifest carries `author`, `description`, and `contentRating` from `SOURCE_INFO`; its `minAppVersion` comes from that source's `SOURCE_ENTRIES` row. Keep these source-level fields accurate because Koma preserves them in the installed source details. `minAppVersion` must use canonical `MAJOR.MINOR.PATCH` text, for example `0.1.0`.
 
 ### Third-party source repos
 
@@ -524,10 +529,17 @@ The `index.json` format:
       "id": "com.example.mysource",
       "name": "My Source",
       "version": "0.1.0",
-      "url": "https://github.com/you/koma-sources/releases/download/v0.1.0/mysource-0.1.0.koma"
+      "lang": "en",
+      "nsfw": false,
+      "author": "Example author",
+      "description": "A concise source description.",
+      "contentRating": "safe",
+      "minAppVersion": "0.1.0",
+      "pkg": "mysource-0.1.0.koma",
+      "icon": ""
     }
   ]
 }
 ```
 
-App fetches the index URL and lists available sources for download.
+`pkg` must be a safe relative `.koma` path resolved from the index document's directory. For a GitHub Release, `index.json` and `mysource-0.1.0.koma` are sibling release assets, so the flat filename above resolves correctly. Koma then fetches the package and lists the available source for download.

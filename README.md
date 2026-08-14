@@ -31,7 +31,7 @@ Quick overview:
 1. `./build.sh --scaffold mysource` — creates `sources/mysource/` from template
 2. Edit `SOURCE_INFO` and `SOURCE_CAPS` in `src/lib.rs`
 3. Implement `run_search`, `run_get_manga`, `run_get_chapters`, `run_get_pages`
-4. Add to `SOURCE_MAP`/`NSFW_MAP` in `build.sh` and workspace `Cargo.toml`
+4. `--scaffold` already registers `name|crate_dir|false|0.1.0` in `SOURCE_ENTRIES` and adds the crate to workspace `Cargo.toml`; adjust the row if this source needs a newer Koma version
 5. Build and test
 
 The template uses SDK macros that reduce boilerplate from ~180 lines to ~10:
@@ -91,9 +91,15 @@ Each source is distributed as a `.koma` file (zip archive) containing:
 
 | File | Required | Description |
 |------|----------|-------------|
-| `manifest.json` | ✓ | Source metadata (id, name, version, lang, etc.) |
+| `manifest.json` | ✓ | Source metadata (id, name, version, lang, author, description, contentRating, minAppVersion) |
 | `source.wasm` | ✓ | Compiled WASM module |
-| `icon.png` | | Source icon (256×256 recommended) |
+| `icon.png` | | Package-owned source identity icon (256×256 recommended) |
+
+When present, `icon.png` must be a regular root file no larger than 1 MiB and
+between 1 and 1024 px on each side. Koma accepts standard non-interlaced PNG:
+8-bit indexed palette, or 8-/16-bit grayscale, RGB, grayscale-with-alpha, and
+RGBA. `build.sh` validates this before compiling a package; the app validates
+and decodes it again before exposing it in the installed source list.
 
 ## Release
 
@@ -128,11 +134,23 @@ Requirements:
       "id": "com.example.mysource",
       "name": "My Source",
       "version": "0.1.0",
-      "url": "https://github.com/you/koma-sources/releases/download/v0.1.0/mysource-0.1.0.koma"
+      "lang": "en",
+      "nsfw": false,
+      "author": "Example author",
+      "description": "A concise source description.",
+      "contentRating": "safe",
+      "minAppVersion": "0.1.0",
+      "pkg": "mysource-0.1.0.koma",
+      "icon": ""
     }
   ]
 }
 ```
+
+`pkg` is the package URL Koma downloads. `minAppVersion` is a required
+canonical `MAJOR.MINOR.PATCH` value for generated sources and is checked before
+installation. `icon` is optional and, when present, must match the packaged
+root `icon.png` asset.
 
 ## Current Sources (20)
 

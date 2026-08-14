@@ -53,6 +53,7 @@ jobs:
           tag_name: ${{ steps.tag.outputs.tag }}
           files: |
             dist/index.json
-            dist/sources/**/*.koma
+            dist/release-packages/*.koma
+            dist/release-icons/*.png
             target/release/koma-source-dev
           generate_release_notes: true
