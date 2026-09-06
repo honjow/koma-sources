@@ -6,7 +6,7 @@ use koma_source_sdk::host::{self, http_request, log_info};
 use koma_source_sdk::json_utils::{
     JsonArrayIter, append_json_escaped, append_json_unescaped_then_escaped, contains_bytes,
     extract_json_number, extract_json_string, find_subslice, write_bytes, write_url_encoded,
-    write_usize,
+    write_usize, json_object_member,
 };
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{FetchError, build_get_request, fetch_error_code, parse_status_code};
@@ -29,10 +29,29 @@ const JSON_BUF_CAP: usize = 512 * 1024;
 
 static mut JSON_BUF: [u8; JSON_BUF_CAP] = [0; JSON_BUF_CAP];
 
+// A language key is meaningful only inside its owning localized attribute.
+fn localized_attribute<'a>(obj: &'a [u8], field: &[u8], language: &[u8]) -> Option<&'a [u8]> {
+    let attributes = json_object_member(obj, b"attributes")?;
+    let localized = json_object_member(attributes, field)?;
+    let value = json_object_member(localized, language)?;
+    if value.len() >= 2 && value.first() == Some(&b'"') && value.last() == Some(&b'"') {
+        Some(&value[1..value.len() - 1])
+    } else {
+        None
+    }
+}
+
+fn manga_title(obj: &[u8]) -> &[u8] {
+    localized_attribute(obj, b"title", b"en")
+        .or_else(|| localized_attribute(obj, b"title", b"ja"))
+        .or_else(|| localized_attribute(obj, b"title", b"ja-ro"))
+        .unwrap_or(b"Unknown")
+}
+
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "org.mangadex.koma",
     name: "MangaDex",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "en",
     author: "Koma",
@@ -255,10 +274,7 @@ fn run_search(req: &[u8]) -> u32 {
             None => continue,
         };
         // Title: look for "en":"..." inside "title":{...}
-        let title = extract_json_string(obj, b"en")
-            .or_else(|| extract_json_string(obj, b"ja"))
-            .or_else(|| extract_json_string(obj, b"ja-ro"))
-            .unwrap_or(b"Unknown");
+        let title = manga_title(obj);
         let status = extract_json_string(obj, b"status").unwrap_or(b"unknown");
 
         // Cover: find fileName in relationships where type=cover_art
@@ -350,19 +366,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
     // Find the end of this object
     let obj = &api_json[data_start..];
 
-    let title = {
-        let title_marker = b"\"title\":{"; 
-        match find_subslice(obj, title_marker) {
-            Some(idx) => {
-                let title_obj = &obj[idx + title_marker.len()..];
-                extract_json_string(title_obj, b"en")
-                    .or_else(|| extract_json_string(title_obj, b"ja"))
-                    .or_else(|| extract_json_string(title_obj, b"ja-ro"))
-                    .unwrap_or(b"Unknown")
-            }
-            None => b"Unknown" as &[u8],
-        }
-    };
+    let title = manga_title(obj);
     let status = extract_json_string(obj, b"status").unwrap_or(b"unknown");
     let content_rating = extract_json_string(obj, b"contentRating").unwrap_or(b"unknown");
     // description is a nested object {"en":"...", ...} — find it, then extract "en" inside
@@ -801,10 +805,7 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
             Some(v) => v,
             None => continue,
         };
-        let title = extract_json_string(obj, b"en")
-            .or_else(|| extract_json_string(obj, b"ja"))
-            .or_else(|| extract_json_string(obj, b"ja-ro"))
-            .unwrap_or(b"Unknown");
+        let title = manga_title(obj);
         let st = extract_json_string(obj, b"status").unwrap_or(b"unknown");
         let cover_fn = extract_cover_filename(obj);
 
@@ -908,9 +909,7 @@ fn run_get_home(_req: &[u8]) -> u32 {
                         Some(v) => v,
                         None => continue,
                     };
-                    let title = extract_json_string(obj, b"en")
-                        .or_else(|| extract_json_string(obj, b"ja"))
-                        .unwrap_or(b"Unknown");
+                    let title = manga_title(obj);
                     let cover_fn = extract_cover_filename(obj);
 
                     if item_count > 0 {

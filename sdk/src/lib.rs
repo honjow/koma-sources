@@ -1645,6 +1645,11 @@ pub mod json_utils {
         }
     }
 
+    /// Return the raw JSON value of a direct member, never a nested namesake.
+    pub fn json_object_member<'a>(data: &'a [u8], key: &[u8]) -> Option<&'a [u8]> {
+        page_object_member(data, key)
+    }
+
     /// Numeric-page sources accept args.page.cursor and legacy numeric page.
     pub fn request_page_number(data: &[u8]) -> usize {
         let args = page_object_member(data, b"args").unwrap_or(data);
