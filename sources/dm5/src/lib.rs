@@ -5,7 +5,7 @@ extern crate koma_source_sdk;
 use koma_source_sdk::host::{self, http_request, log_info};
 use koma_source_sdk::json_utils::{
     append_json_escaped, contains_bytes, extract_json_number, extract_json_string, find_subslice,
-    write_bytes, write_url_encoded, write_usize,
+    write_bytes, write_url_encoded, write_usize, request_page_number,
 };
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{FetchError, build_get_request, fetch_error_code};
@@ -23,7 +23,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.dm5.koma",
     name: "DM5",
-    version: "0.1.1",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -252,6 +252,10 @@ fn find_last_subslice(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 }
 
 fn write_manga_page_from_url(operation: &str, url: &[u8], max: usize) -> u32 {
+    write_manga_page_from_url_at(operation, url, max, None)
+}
+
+fn write_manga_page_from_url_at(operation: &str, url: &[u8], max: usize, search_page: Option<usize>) -> u32 {
     let html_len = match fetch_body(url, None) {
         Ok(n) => n,
         Err(e) => {
@@ -260,16 +264,40 @@ fn write_manga_page_from_url(operation: &str, url: &[u8], max: usize) -> u32 {
         }
     };
     let html = unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), html_len) };
+    if search_page.is_some() {
+        if contains_bytes(html, b"class=\"box404\"") {
+            return write_error(operation, "not_found", "search page not found");
+        }
+        if !contains_bytes(html, b"id=\"txtKeywords\"") {
+            return write_error(operation, "parse_error", "missing search response");
+        }
+    }
     let payload = payload_buf();
     let mut c = 0usize;
     if !write_bytes(payload, &mut c, br#"{"items":["#) {
         return write_error(operation, "internal_error", "payload overflow");
     }
     let written = parse_cards(html, payload, &mut c, max, b"dm5");
-    let has_more = contains_bytes(html, b">>") || contains_bytes(html, b">&gt;<");
+    let mut next_link = [0u8; 48];
+    let mut next_link_len = 0usize;
+    let has_more = if let Some(page) = search_page {
+        write_bytes(&mut next_link, &mut next_link_len, b"page=")
+            && write_usize(&mut next_link, &mut next_link_len, page.saturating_add(1))
+            && write_bytes(&mut next_link, &mut next_link_len, b"\"")
+            && contains_bytes(html, &next_link[..next_link_len])
+            && written > 0
+    } else {
+        contains_bytes(html, b">>") || contains_bytes(html, b">&gt;<")
+    };
     let ok = write_bytes(payload, &mut c, br#"],"page":{"nextCursor":"#)
         && if has_more {
-            write_bytes(payload, &mut c, b"\"next\"")
+            if let Some(page) = search_page {
+                write_bytes(payload, &mut c, b"\"")
+                    && write_usize(payload, &mut c, page.saturating_add(1))
+                    && write_bytes(payload, &mut c, b"\"")
+            } else {
+                write_bytes(payload, &mut c, b"\"next\"")
+            }
         } else {
             write_bytes(payload, &mut c, b"null")
         }
@@ -291,6 +319,7 @@ fn write_manga_page_from_url(operation: &str, url: &[u8], max: usize) -> u32 {
 }
 
 fn run_search(req: &[u8]) -> u32 {
+    let page = request_page_number(req);
     let query = extract_json_string(req, b"query").unwrap_or(b"");
     if query.is_empty() {
         return run_get_listings(req);
@@ -310,16 +339,12 @@ fn run_search(req: &[u8]) -> u32 {
         && write_bytes(url_buf, &mut c, b"/search?title=")
         && write_url_encoded(url_buf, &mut c, query)
         && write_bytes(url_buf, &mut c, b"&language=1&page=")
-        && write_bytes(
-            url_buf,
-            &mut c,
-            extract_json_number(req, b"page").unwrap_or(b"1"),
-        ))
+        && write_usize(url_buf, &mut c, page))
     {
         return write_error("search", "internal_error", "url overflow");
     }
     let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), c) };
-    write_manga_page_from_url("search", url, 100)
+    write_manga_page_from_url_at("search", url, 100, Some(page))
 }
 
 fn search_single_manga(url: &[u8], id: &[u8]) -> u32 {

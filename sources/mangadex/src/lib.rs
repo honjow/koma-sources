@@ -32,7 +32,7 @@ static mut JSON_BUF: [u8; JSON_BUF_CAP] = [0; JSON_BUF_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "org.mangadex.koma",
     name: "MangaDex",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "en",
     author: "Koma",
@@ -210,6 +210,8 @@ fn fetch_json(url_bytes: &[u8]) -> Result<&'static [u8], FetchError> {
 // --- Operations ---
 
 fn run_search(req: &[u8]) -> u32 {
+    let page = koma_source_sdk::json_utils::request_page_number(req);
+    let offset = page.saturating_sub(1).saturating_mul(20);
     let query = match extract_json_string(req, b"query") {
         Some(q) => q,
         None => return write_error("search", "invalid_request", "missing query"),
@@ -221,7 +223,9 @@ fn run_search(req: &[u8]) -> u32 {
     let ok = write_bytes(url_buf, &mut url_cursor, API_BASE)
         && write_bytes(url_buf, &mut url_cursor, b"/manga?title=")
         && write_url_encoded(url_buf, &mut url_cursor, query)
-        && write_bytes(url_buf, &mut url_cursor, b"&limit=20&includes%5B%5D=cover_art");
+        && write_bytes(url_buf, &mut url_cursor, b"&limit=20&offset=")
+        && write_usize(url_buf, &mut url_cursor, offset)
+        && write_bytes(url_buf, &mut url_cursor, b"&includes%5B%5D=cover_art");
     if !ok { return write_error("search", "internal_error", "url overflow"); }
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
 
@@ -284,7 +288,19 @@ fn run_search(req: &[u8]) -> u32 {
         written += 1;
     }
 
-    if !write_bytes(payload, &mut c, br#"],"page":{"nextCursor":null,"hasMore":false}}"#) {
+    let total = extract_json_number(api_json, b"total")
+        .and_then(|bytes| core::str::from_utf8(bytes).ok())
+        .and_then(|text| text.parse::<usize>().ok());
+    let has_more = total.map(|total| written > 0 && offset.saturating_add(written) < total).unwrap_or(false);
+    if !(write_bytes(payload, &mut c, br#"],"page":{"nextCursor":"#)
+        && if has_more {
+            write_bytes(payload, &mut c, b"\"")
+                && write_usize(payload, &mut c, page.saturating_add(1))
+                && write_bytes(payload, &mut c, b"\"")
+        } else { write_bytes(payload, &mut c, b"null") }
+        && write_bytes(payload, &mut c, br#","hasMore":"#)
+        && write_bytes(payload, &mut c, if has_more { b"true" } else { b"false" })
+        && write_bytes(payload, &mut c, b"}}")) {
         return write_error("search", "internal_error", "overflow");
     }
     write_success_payload("search", c)

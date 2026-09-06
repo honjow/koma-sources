@@ -1599,6 +1599,79 @@ pub mod json_utils {
         Some(&data[num_start..i])
     }
 
+    // Read only a direct object member, skipping quoted strings and nested values.
+    fn page_object_member<'a>(data: &'a [u8], key: &[u8]) -> Option<&'a [u8]> {
+        let mut i = 0usize;
+        while i < data.len() && data[i].is_ascii_whitespace() { i += 1; }
+        if data.get(i) != Some(&b'{') { return None; }
+        i += 1;
+        loop {
+            while i < data.len() && (data[i].is_ascii_whitespace() || data[i] == b',') { i += 1; }
+            if data.get(i) != Some(&b'"') { return None; }
+            i += 1;
+            let key_start = i;
+            while i < data.len() && data[i] != b'"' {
+                if data[i] == b'\\' { i += 1; }
+                i += 1;
+            }
+            let matches = data.get(key_start..i) == Some(key);
+            i += 1;
+            while i < data.len() && data[i].is_ascii_whitespace() { i += 1; }
+            if data.get(i) != Some(&b':') { return None; }
+            i += 1;
+            while i < data.len() && data[i].is_ascii_whitespace() { i += 1; }
+            let start = i;
+            let mut depth = 0usize;
+            let mut in_string = false;
+            while i < data.len() {
+                let b = data[i];
+                if in_string {
+                    if b == b'\\' { i += 1; }
+                    else if b == b'"' { in_string = false; }
+                } else {
+                    match b {
+                        b'"' => in_string = true,
+                        b'{' | b'[' => depth += 1,
+                        b'}' | b']' if depth > 0 => depth -= 1,
+                        b',' | b'}' if depth == 0 => break,
+                        _ => {}
+                    }
+                }
+                i += 1;
+            }
+            let mut end = i.min(data.len());
+            while end > start && data[end - 1].is_ascii_whitespace() { end -= 1; }
+            if matches { return data.get(start..end); }
+        }
+    }
+
+    /// Numeric-page sources accept args.page.cursor and legacy numeric page.
+    pub fn request_page_number(data: &[u8]) -> usize {
+        let args = page_object_member(data, b"args").unwrap_or(data);
+        let value = page_object_member(args, b"page");
+        let bytes = value.map(|value| {
+            if value.first() == Some(&b'{') {
+                let cursor = page_object_member(value, b"cursor").unwrap_or(b"");
+                if cursor.len() >= 2 && cursor[0] == b'"' && cursor[cursor.len() - 1] == b'"' {
+                    &cursor[1..cursor.len() - 1]
+                } else { b"" }
+            } else { value }
+        });
+        let mut page = 0usize;
+        if let Some(bytes) = bytes {
+            for &digit in bytes {
+                if !digit.is_ascii_digit() {
+                    return 1;
+                }
+                page = match page.checked_mul(10).and_then(|n| n.checked_add((digit - b'0') as usize)) {
+                    Some(value) => value,
+                    None => return 1,
+                };
+            }
+        }
+        if page == 0 { 1 } else { page }
+    }
+
     /// Iterate objects inside a JSON array under `array_key`.
     pub struct JsonArrayIter<'a> {
         data: &'a [u8],
@@ -2132,6 +2205,20 @@ macro_rules! koma_source_exports {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn numeric_page_sources_accept_app_cursor_and_legacy_page() {
+        use crate::json_utils::request_page_number;
+        assert_eq!(request_page_number(br#"{"args":{"query":"girl","page":{"cursor":null,"limit":20}}}"#), 1);
+        assert_eq!(request_page_number(br#"{"args":{"query":"girl","page":{"cursor":"2","limit":20}}}"#), 2);
+        assert_eq!(request_page_number(br#"{"query":"girl","page":3}"#), 3);
+        assert_eq!(request_page_number(br#"{"page":{"cursor":"12","limit":20}}"#), 12);
+        assert_eq!(request_page_number(br#"{"page":{"cursor":"next","limit":20}}"#), 1);
+        assert_eq!(request_page_number(br#"{"page":0}"#), 1);
+        assert_eq!(request_page_number(br#"{"args":{"query":"page:9","filters":{"page":8,"cursor":"7"},"page":{"cursor":"2","limit":20}}}"#), 2);
+        assert_eq!(request_page_number(br#"{"args":{"query":"a\"page\":9","filters":{"page":8}}}"#), 1);
+        assert_eq!(request_page_number(br#"{ "args" : { "page" : { "cursor" : "3" } } }"#), 3);
+    }
+
     use crate::request::Request;
     use crate::source::{MangaListRequest, OperationRequest, SearchRequest, SourceCapabilities};
 

@@ -139,14 +139,20 @@ pub struct SourceCapabilities { search, manga_detail, chapters, pages, listings,
 ## JSON Schemas
 
 ### search
-Request: `{"query":"关键词","page":1}`
+Current App request envelope: `{"type":"request","version":1,"operation":"search","sourceId":"com.example.koma","args":{"query":"关键词","page":{"cursor":null,"limit":20},"filters":{}},"settings":{},"hostHints":{"network":true}}`.
+The next request passes the source's returned `nextCursor` as `args.page.cursor`.
+DM5, Komiic and MangaDex use numeric page strings (`"2"`, `"3"`, ...); the SDK
+`json_utils::request_page_number` reads this shape. A numeric `page` such as
+`{"query":"关键词","page":1}` is legacy compatibility only, not the App contract.
 Response items:
 ```json
 {"id":"manga:slug","title":"标题","cover":{"kind":"url","url":"https://..."},
  "authors":["作者"],"status":"ongoing","contentRating":"safe","description":"...",
  "sourceTags":["tag"]}
 ```
-Pagination: `"page":{"nextCursor":"next","hasMore":true}`
+Pagination: `"page":{"nextCursor":"2","hasMore":true}`; terminal response:
+`"page":{"nextCursor":null,"hasMore":false}`. A cursor must identify an actual
+next request, not a constant placeholder such as `"next"` for numeric-page sources.
 
 ### get_manga
 Request: `{"mangaId":"manga:slug"}`

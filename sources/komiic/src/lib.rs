@@ -30,7 +30,7 @@ static mut GQL_BODY_BUF: [u8; GQL_BODY_CAP] = [0; GQL_BODY_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.komiic.koma",
     name: "Komiic",
-    version: "0.1.0",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -53,7 +53,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
 };
 
 const QUERY_POPULAR: &[u8] = b"query hotComics($pagination: Pagination!) { comics: hotComics(pagination: $pagination) { id title description status imageUrl authors { id name } categories { id name } } }";
-const QUERY_SEARCH: &[u8] = b"query searchComicAndAuthorQuery($keyword: String!) { searchComicsAndAuthors(keyword: $keyword) { comics { id title description status imageUrl authors { id name } categories { id name } } } }";
+const QUERY_SEARCH: &[u8] = b"query searchComicQuery($keyword: String!, $pagination: Pagination!) { comics: searchComics(keyword: $keyword, pagination: $pagination) { id title description status imageUrl authors { id name } categories { id name } } }";
 const QUERY_DETAIL: &[u8] = b"query chapterByComicId($comicId: ID!) { comicById(comicId: $comicId) { id title description status imageUrl authors { id name } categories { id name } } chaptersByComicId(comicId: $comicId) { id serial type size dateCreated } }";
 const QUERY_PAGES: &[u8] = b"query imagesByChapterId($chapterId: ID!) { imagesByChapterId(chapterId: $chapterId) { kid } }";
 
@@ -209,14 +209,17 @@ fn post_graphql(body: &[u8]) -> Result<&'static [u8], FetchError> {
     Ok(body)
 }
 
-fn build_search_body(query: &[u8]) -> Option<usize> {
+fn build_search_body(query: &[u8], page: usize) -> Option<usize> {
     let dst = gql_body_buf();
     let mut c = 0usize;
     write_bytes(dst, &mut c, br#"{"query":""#).then_some(())?;
     append_json_escaped(dst, &mut c, QUERY_SEARCH).then_some(())?;
     write_bytes(dst, &mut c, br#"","variables":{"keyword":""#).then_some(())?;
     append_json_escaped(dst, &mut c, query).then_some(())?;
-    write_bytes(dst, &mut c, br#""}}"#).then_some(())?;
+    write_bytes(dst, &mut c, br#"","pagination":{"offset":"#).then_some(())?;
+    write_usize(dst, &mut c, page.saturating_sub(1).saturating_mul(20)).then_some(())?;
+    // Request one extra result so a full final page does not advertise more.
+    write_bytes(dst, &mut c, br#","limit":21,"orderBy":"MONTH_VIEWS","asc":false}}}"#).then_some(())?;
     Some(c)
 }
 
@@ -352,6 +355,10 @@ fn normalize_status(status: &[u8]) -> &'static [u8] {
 }
 
 fn write_manga_list(operation: &str, api_json: &[u8]) -> u32 {
+    write_manga_list_page(operation, api_json, PAGE_SIZE, None)
+}
+
+fn write_manga_list_page(operation: &str, api_json: &[u8], page_size: usize, search_page: Option<usize>) -> u32 {
     let payload = payload_buf();
     let mut c = 0usize;
     if !write_bytes(payload, &mut c, br#"{"items":["#) {
@@ -362,8 +369,10 @@ fn write_manga_list(operation: &str, api_json: &[u8]) -> u32 {
         None => return write_error(operation, "parse_error", "missing comics"),
     };
     let mut written = 0usize;
+    let mut extra_result = false;
     while let Some(obj) = iter.next_object() {
-        if written >= PAGE_SIZE {
+        if written >= page_size {
+            extra_result = true;
             break;
         }
         if written > 0 && !write_bytes(payload, &mut c, b",") {
@@ -374,9 +383,15 @@ fn write_manga_list(operation: &str, api_json: &[u8]) -> u32 {
         }
         written += 1;
     }
-    let has_more = if written == PAGE_SIZE { b"true" as &[u8] } else { b"false" as &[u8] };
-    if !(write_bytes(payload, &mut c, br#"],"page":{"nextCursor":null,"hasMore":"#)
-        && write_bytes(payload, &mut c, has_more)
+    let has_more = if search_page.is_some() { extra_result } else { written == PAGE_SIZE };
+    if !(write_bytes(payload, &mut c, br#"],"page":{"nextCursor":"#)
+        && if has_more && search_page.is_some() {
+            write_bytes(payload, &mut c, b"\"")
+                && write_usize(payload, &mut c, search_page.unwrap_or(1).saturating_add(1))
+                && write_bytes(payload, &mut c, b"\"")
+        } else { write_bytes(payload, &mut c, b"null") }
+        && write_bytes(payload, &mut c, br#","hasMore":"#)
+        && write_bytes(payload, &mut c, if has_more { b"true" } else { b"false" })
         && write_bytes(payload, &mut c, br#"}}"#))
     {
         return write_error(operation, "internal_error", "overflow");
@@ -392,7 +407,8 @@ fn run_search(req: &[u8]) -> u32 {
     if query.is_empty() {
         return run_popular_list("search", req);
     }
-    let body_len = match build_search_body(query) {
+    let page = koma_source_sdk::json_utils::request_page_number(req);
+    let body_len = match build_search_body(query, page) {
         Some(v) => v,
         None => return write_error("search", "internal_error", "body overflow"),
     };
@@ -404,7 +420,7 @@ fn run_search(req: &[u8]) -> u32 {
             return write_error("search", c, m);
         }
     };
-    write_manga_list("search", api_json)
+    write_manga_list_page("search", api_json, 20, Some(page))
 }
 
 fn run_popular_list(operation: &str, req: &[u8]) -> u32 {
