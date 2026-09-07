@@ -1684,6 +1684,13 @@ pub mod json_utils {
     }
 
     impl<'a> JsonArrayIter<'a> {
+        /// Iterate an already isolated array, without searching for a nested key.
+        pub fn from_raw_array(data: &'a [u8]) -> Option<Self> {
+            let start = data.iter().position(|b| !b.is_ascii_whitespace())?;
+            if data[start] != b'[' { return None; }
+            Some(Self { data, pos: start + 1 })
+        }
+
         pub fn new(data: &'a [u8], array_key: &[u8]) -> Option<Self> {
             let mut pattern = [0u8; 64];
             let needed = array_key.len() + 4;
@@ -1737,6 +1744,49 @@ pub mod json_utils {
                     }
                 }
                 self.pos += 1;
+            }
+            None
+        }
+    }
+    /// Iterate only direct string values of an already isolated JSON object.
+    /// Returned bytes retain their JSON escapes, like extract_json_string.
+    pub struct JsonObjectStringIter<'a> {
+        data: &'a [u8],
+        pos: usize,
+        depth: usize,
+    }
+
+    impl<'a> JsonObjectStringIter<'a> {
+        pub fn new(data: &'a [u8]) -> Option<Self> {
+            let start = data.iter().position(|b| !b.is_ascii_whitespace())?;
+            if data[start] != b'{' { return None; }
+            Some(Self { data, pos: start + 1, depth: 1 })
+        }
+
+        pub fn next_string(&mut self) -> Option<&'a [u8]> {
+            while self.pos < self.data.len() && self.depth > 0 {
+                match self.data[self.pos] {
+                    b'"' => {
+                        self.pos += 1;
+                        let start = self.pos;
+                        while self.pos < self.data.len() && self.data[self.pos] != b'"' {
+                            if self.data[self.pos] == b'\\' { self.pos += 1; }
+                            self.pos += 1;
+                        }
+                        if self.data.get(self.pos) != Some(&b'"') { return None; }
+                        let value = self.data.get(start..self.pos)?;
+                        self.pos += 1;
+                        while self.pos < self.data.len() && self.data[self.pos].is_ascii_whitespace() {
+                            self.pos += 1;
+                        }
+                        if self.depth == 1 && self.data.get(self.pos) != Some(&b':') {
+                            return Some(value);
+                        }
+                    }
+                    b'{' | b'[' => { self.depth += 1; self.pos += 1; }
+                    b'}' | b']' => { self.depth -= 1; self.pos += 1; }
+                    _ => self.pos += 1,
+                }
             }
             None
         }
@@ -2210,6 +2260,25 @@ macro_rules! koma_source_exports {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn title_iterators_stay_inside_the_isolated_owner() {
+        use crate::json_utils::{JsonArrayIter, JsonObjectStringIter, json_object_member};
+        let object = br#"{ "empty":"", "nested":{"en":"NESTED"}, "array":["ARRAY"], "count":4, "fr":"TITLE: with {braces} and \"quote\"", "ko-ro":"SECOND" }"#;
+        let mut strings = JsonObjectStringIter::new(object).unwrap();
+        assert_eq!(strings.next_string(), Some(&b""[..]));
+        assert_eq!(strings.next_string(), Some(&br#"TITLE: with {braces} and \"quote\""#[..]));
+        assert_eq!(strings.next_string(), Some(&b"SECOND"[..]));
+        assert_eq!(strings.next_string(), None);
+        assert!(JsonObjectStringIter::new(b"[]").is_none());
+        let attributes = br#"{"description":{"altTitles":[{"en":"BAIT"}]},"altTitles":[{"ja":"FIRST"},{"en":"SECOND"}]}"#;
+        let array = json_object_member(attributes, b"altTitles").unwrap();
+        let mut iter = JsonArrayIter::from_raw_array(array).unwrap();
+        assert_eq!(json_object_member(iter.next_object().unwrap(), b"ja"), Some(&br#""FIRST""#[..]));
+        assert_eq!(json_object_member(iter.next_object().unwrap(), b"en"), Some(&br#""SECOND""#[..]));
+        assert_eq!(iter.next_object(), None);
+        assert!(JsonArrayIter::from_raw_array(attributes).is_none());
+    }
+
     #[test]
     fn numeric_page_sources_accept_app_cursor_and_legacy_page() {
         use crate::json_utils::request_page_number;

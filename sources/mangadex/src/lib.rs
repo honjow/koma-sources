@@ -4,7 +4,7 @@ extern crate koma_source_sdk;
 
 use koma_source_sdk::host::{self, http_request, log_info};
 use koma_source_sdk::json_utils::{
-    JsonArrayIter, append_json_escaped, append_json_unescaped_then_escaped, contains_bytes,
+    JsonArrayIter, JsonObjectStringIter, append_json_escaped, append_json_unescaped_then_escaped, contains_bytes,
     extract_json_number, extract_json_string, find_subslice, write_bytes, write_url_encoded,
     write_usize, json_object_member,
 };
@@ -29,29 +29,51 @@ const JSON_BUF_CAP: usize = 512 * 1024;
 
 static mut JSON_BUF: [u8; JSON_BUF_CAP] = [0; JSON_BUF_CAP];
 
-// A language key is meaningful only inside its owning localized attribute.
-fn localized_attribute<'a>(obj: &'a [u8], field: &[u8], language: &[u8]) -> Option<&'a [u8]> {
-    let attributes = json_object_member(obj, b"attributes")?;
-    let localized = json_object_member(attributes, field)?;
-    let value = json_object_member(localized, language)?;
+fn nonempty_title_string(value: &[u8]) -> Option<&[u8]> {
     if value.len() >= 2 && value.first() == Some(&b'"') && value.last() == Some(&b'"') {
-        Some(&value[1..value.len() - 1])
-    } else {
-        None
+        let title = &value[1..value.len() - 1];
+        if title.iter().any(|b| !b.is_ascii_whitespace()) {
+            return Some(title);
+        }
     }
+    None
 }
 
 fn manga_title(obj: &[u8]) -> &[u8] {
-    localized_attribute(obj, b"title", b"en")
-        .or_else(|| localized_attribute(obj, b"title", b"ja"))
-        .or_else(|| localized_attribute(obj, b"title", b"ja-ro"))
-        .unwrap_or(b"Unknown")
+    let attributes = json_object_member(obj, b"attributes").unwrap_or(b"");
+    let primary = json_object_member(attributes, b"title").unwrap_or(b"");
+    let languages: [&[u8]; 3] = [b"en", b"ja", b"ja-ro"];
+    for language in languages {
+        if let Some(title) = json_object_member(primary, language).and_then(nonempty_title_string) {
+            return title;
+        }
+    }
+    // Preferred-language alternatives never replace an existing preferred primary title.
+    if let Some(alternatives) = json_object_member(attributes, b"altTitles") {
+        for language in languages {
+            if let Some(mut iter) = JsonArrayIter::from_raw_array(alternatives) {
+                while let Some(alternate) = iter.next_object() {
+                    if let Some(title) = json_object_member(alternate, language).and_then(nonempty_title_string) {
+                        return title;
+                    }
+                }
+            }
+        }
+    }
+    if let Some(mut iter) = JsonObjectStringIter::new(primary) {
+        while let Some(title) = iter.next_string() {
+            if title.iter().any(|b| !b.is_ascii_whitespace()) {
+                return title;
+            }
+        }
+    }
+    b"Unknown"
 }
 
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "org.mangadex.koma",
     name: "MangaDex",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "en",
     author: "Koma",
