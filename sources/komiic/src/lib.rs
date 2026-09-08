@@ -30,7 +30,7 @@ static mut GQL_BODY_BUF: [u8; GQL_BODY_CAP] = [0; GQL_BODY_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.komiic.koma",
     name: "Komiic",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -548,7 +548,8 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             None => continue,
         };
         let serial = extract_json_string(obj, b"serial").unwrap_or(b"");
-        let typ = extract_json_string(obj, b"type").unwrap_or(b"chapter");
+        let typ = extract_json_string(obj, b"type").unwrap_or(b"");
+        let continuation_eligible = (typ == b"chapter" || typ == b"book") && valid_chapter_serial(serial);
         let size = extract_json_number(obj, b"size").unwrap_or(b"0");
         let date = extract_json_string(obj, b"dateCreated").unwrap_or(b"");
         if written > 0 && !write_bytes(payload, &mut c, b",") {
@@ -568,7 +569,15 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             && write_bytes(payload, &mut c, b"P\xEF\xBC\x89")
             && write_bytes(payload, &mut c, br#"","chapterNumber":""#)
             && append_json_escaped(payload, &mut c, serial)
-            && write_bytes(payload, &mut c, br#"","volumeNumber":null,"language":"zh","scanlator":""#)
+            && write_bytes(payload, &mut c, br#"","volumeNumber":"#)
+            && if typ == b"book" && continuation_eligible {
+                write_bytes(payload, &mut c, b"\"") && append_json_escaped(payload, &mut c, serial) && write_bytes(payload, &mut c, b"\"")
+            } else { write_bytes(payload, &mut c, b"null") }
+            && write_bytes(payload, &mut c, br#", "readingGroup":""#)
+            && append_json_escaped(payload, &mut c, typ)
+            && write_bytes(payload, &mut c, br#"","continuationEligible":"#)
+            && write_bytes(payload, &mut c, if continuation_eligible { b"true" } else { b"false" })
+            && write_bytes(payload, &mut c, br#", "language":"zh","scanlator":""#)
             && write_bytes(payload, &mut c, scanlator)
             && write_bytes(payload, &mut c, br#"","publishedAt":""#)
             && append_json_escaped(payload, &mut c, date)
@@ -584,6 +593,17 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         return write_error("get_chapters", "internal_error", "overflow");
     }
     write_success_payload("get_chapters", c)
+}
+
+fn valid_chapter_serial(serial: &[u8]) -> bool {
+    if serial.is_empty() { return false; }
+    let mut decimal = false;
+    for (index, byte) in serial.iter().enumerate() {
+        if *byte == b'.' && !decimal && index > 0 && index + 1 < serial.len() {
+            decimal = true;
+        } else if !byte.is_ascii_digit() { return false; }
+    }
+    true
 }
 
 fn run_get_pages(req: &[u8]) -> u32 {

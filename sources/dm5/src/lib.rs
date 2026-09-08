@@ -23,7 +23,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.dm5.koma",
     name: "DM5",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -540,6 +540,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             &mut title_buf,
         );
         let page_count = extract_page_count(title);
+        let sequence = chapter_sequence(title);
         if written > 0 && !write_bytes(payload, &mut c, b",") {
             break;
         }
@@ -553,9 +554,15 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             && append_json_escaped(payload, &mut c, id)
             && write_bytes(payload, &mut c, br#"","title":""#)
             && append_json_escaped(payload, &mut c, title)
-            && write_bytes(payload, &mut c, br#"","chapterNumber":""#)
-            && append_json_escaped(payload, &mut c, first_number(title).unwrap_or(cid))
-            && write_bytes(payload, &mut c, br#"","volumeNumber":null,"language":"zh","publishedAt":null,"updatedAt":null,"pageCount":"#)
+            && write_bytes(payload, &mut c, br#"","chapterNumber":"#)
+            && write_chapter_sequence_number(payload, &mut c, sequence, false)
+            && write_bytes(payload, &mut c, br#", "volumeNumber":"#)
+            && write_chapter_sequence_number(payload, &mut c, sequence, true)
+            && write_bytes(payload, &mut c, br#", "readingGroup":""#)
+            && write_bytes(payload, &mut c, if sequence.map(|(_, volume)| volume).unwrap_or(false) { b"volume" } else { b"chapter" })
+            && write_bytes(payload, &mut c, br#"","continuationEligible":"#)
+            && write_bytes(payload, &mut c, if sequence.is_some() { b"true" } else { b"false" })
+            && write_bytes(payload, &mut c, br#", "language":"zh","publishedAt":null,"updatedAt":null,"pageCount":"#)
             && if page_count > 0 { write_usize(payload, &mut c, page_count) } else { write_bytes(payload, &mut c, b"null") }
             && write_bytes(payload, &mut c, b"}");
         if !ok {
@@ -595,19 +602,38 @@ fn extract_page_count(title: &[u8]) -> usize {
     n
 }
 
-fn first_number(bytes: &[u8]) -> Option<&[u8]> {
-    let mut i = 0usize;
-    while i < bytes.len() && !(bytes[i] >= b'0' && bytes[i] <= b'9') {
-        i += 1;
+// Only the source's chapter/volume label grammar supplies an order. Page counts,
+// announcements and unknown extras remain in the manual catalog without adjacency.
+fn chapter_sequence(title: &[u8]) -> Option<(&[u8], bool)> {
+    let title = trim_ascii(title);
+    let bytes = title.strip_prefix("第".as_bytes()).unwrap_or(title);
+    let mut end = 0;
+    while end < bytes.len() && bytes[end].is_ascii_digit() { end += 1; }
+    if end == 0 { return None; }
+    if end < bytes.len() && bytes[end] == b'.' {
+        end += 1;
+        let decimal_start = end;
+        while end < bytes.len() && bytes[end].is_ascii_digit() { end += 1; }
+        if end == decimal_start { return None; }
     }
-    if i >= bytes.len() {
-        return None;
+    let suffix = &bytes[end..];
+    let volume = if suffix.starts_with("卷".as_bytes()) { true }
+        else if suffix.starts_with("话".as_bytes()) || suffix.starts_with("話".as_bytes()) { false }
+        else { return None; };
+    Some((&bytes[..end], volume))
+}
+
+fn write_chapter_sequence_number(
+    output: &mut [u8], cursor: &mut usize, sequence: Option<(&[u8], bool)>, volume: bool,
+) -> bool {
+    match sequence {
+        Some((number, is_volume)) if is_volume == volume => {
+            write_bytes(output, cursor, b"\"")
+                && append_json_escaped(output, cursor, number)
+                && write_bytes(output, cursor, b"\"")
+        }
+        _ => write_bytes(output, cursor, b"null"),
     }
-    let start = i;
-    while i < bytes.len() && ((bytes[i] >= b'0' && bytes[i] <= b'9') || bytes[i] == b'.') {
-        i += 1;
-    }
-    Some(&bytes[start..i])
 }
 
 fn run_get_pages(req: &[u8]) -> u32 {
