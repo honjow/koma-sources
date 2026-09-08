@@ -73,7 +73,7 @@ fn manga_title(obj: &[u8]) -> &[u8] {
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "org.mangadex.koma",
     name: "MangaDex",
-    version: "0.1.5",
+    version: "0.1.6",
     api_version: "0.2",
     language: "en",
     author: "Koma",
@@ -148,29 +148,6 @@ fn decode_unicode_in_place(buf: &mut [u8], len: usize) -> usize {
         }
     }
     dst
-}
-
-fn chapter_num_dedup_seen(seen_buf: &mut [u8], seen_cursor: &mut usize, value: &[u8]) -> bool {
-    let mut pos = 0usize;
-    while pos < *seen_cursor {
-        let len = seen_buf[pos] as usize;
-        pos += 1;
-        if *seen_cursor < pos + len {
-            break;
-        }
-        if &seen_buf[pos..pos + len] == value {
-            return true;
-        }
-        pos += len;
-    }
-    let vlen = value.len();
-    if *seen_cursor + 1 + vlen <= seen_buf.len() {
-        seen_buf[*seen_cursor] = vlen as u8;
-        *seen_cursor += 1;
-        seen_buf[*seen_cursor..*seen_cursor + vlen].copy_from_slice(value);
-        *seen_cursor += vlen;
-    }
-    false
 }
 
 fn fetch_json(url_bytes: &[u8]) -> Result<&'static [u8], FetchError> {
@@ -504,13 +481,25 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     }
     let uuid = &manga_id[prefix.len()..];
 
-    // /manga/{id}/feed?limit=100&translatedLanguage[]=en&order[chapter]=desc
+    let language = json_object_member(req, b"settings")
+        .and_then(|settings| extract_json_string(settings, b"language"))
+        .filter(|value| !value.is_empty())
+        .unwrap_or(b"en");
+    let page = koma_source_sdk::json_utils::request_page_number(req);
+    let offset = match (page - 1).checked_mul(100) {
+        Some(value) => value,
+        None => return write_error("get_chapters", "invalid_request", "invalid page"),
+    };
     let url_buf = scratch_a();
     let mut url_cursor = 0usize;
     let ok = write_bytes(url_buf, &mut url_cursor, API_BASE)
         && write_bytes(url_buf, &mut url_cursor, b"/manga/")
         && write_bytes(url_buf, &mut url_cursor, uuid)
-        && write_bytes(url_buf, &mut url_cursor, b"/feed?limit=100&order%5Bchapter%5D=desc");
+        && write_bytes(url_buf, &mut url_cursor, b"/feed?limit=100&offset=")
+        && write_usize(url_buf, &mut url_cursor, offset)
+        && write_bytes(url_buf, &mut url_cursor, b"&translatedLanguage%5B%5D=")
+        && write_url_encoded(url_buf, &mut url_cursor, language)
+        && write_bytes(url_buf, &mut url_cursor, b"&order%5Bchapter%5D=desc");
     if !ok { return write_error("get_chapters", "internal_error", "url overflow"); }
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
 
@@ -525,9 +514,14 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         return write_error("get_chapters", "internal_error", "overflow");
     }
 
-    // Dedup: track seen chapter-number strings so each chapter# appears once.
-    let seen_buf = scratch_a();
-    let mut seen_cursor = 0usize;
+    let pagination_number = |key: &[u8]| json_object_member(api_json, key)
+        .and_then(|bytes| core::str::from_utf8(bytes).ok())
+        .and_then(|text| text.parse::<usize>().ok());
+    let has_more = match (pagination_number(b"offset"), pagination_number(b"limit"), pagination_number(b"total")) {
+        (Some(response_offset), Some(100), Some(total)) if response_offset == offset =>
+            response_offset.saturating_add(100) < total,
+        _ => return write_error("get_chapters", "parse_error", "invalid feed pagination"),
+    };
 
     let mut iter = match JsonArrayIter::new(api_json, b"data") {
         Some(it) => it,
@@ -573,11 +567,6 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             continue;
         }
 
-        // Dedup by chapter number: skip if already seen (multi-language dupes)
-        if chapter_num_dedup_seen(seen_buf, &mut seen_cursor, chapter_num) {
-            continue;
-        }
-
         if written > 0 {
             if !write_bytes(payload, &mut c, b",") { break; }
         }
@@ -600,7 +589,15 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         written += 1;
     }
 
-    if !write_bytes(payload, &mut c, br#"],"page":{"nextCursor":null,"hasMore":false}}"#) {
+    if !(write_bytes(payload, &mut c, br#"],"page":{"nextCursor":"#)
+        && if has_more {
+            write_bytes(payload, &mut c, b"\"")
+                && write_usize(payload, &mut c, page.saturating_add(1))
+                && write_bytes(payload, &mut c, b"\"")
+        } else { write_bytes(payload, &mut c, b"null") }
+        && write_bytes(payload, &mut c, br#","hasMore":"#)
+        && write_bytes(payload, &mut c, if has_more { b"true" } else { b"false" })
+        && write_bytes(payload, &mut c, b"}}")) {
         return write_error("get_chapters", "internal_error", "overflow");
     }
     write_success_payload("get_chapters", c)
