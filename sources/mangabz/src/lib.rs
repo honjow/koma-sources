@@ -5,10 +5,10 @@ extern crate koma_source_sdk;
 use koma_source_sdk::host::{self, http_request, log_info};
 use koma_source_sdk::json_utils::{
     append_json_escaped, contains_bytes, extract_json_number, extract_json_string, find_subslice,
-    write_bytes, write_url_encoded, write_usize,
+    json_object_member, write_bytes, write_url_encoded, write_usize,
 };
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
-use koma_source_sdk::{FetchError, build_get_request, fetch_error_code};
+use koma_source_sdk::{build_get_request, fetch_error_code, FetchError};
 
 const BASE_URL: &[u8] = b"https://www.mangabz.com";
 koma_source_sdk::koma_source_buffers! {
@@ -23,7 +23,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mangabz.koma",
     name: "Mangabz",
-    version: "0.1.0",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -38,15 +38,21 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     pages: true,
     listings: true,
     manga_list: true,
-    home: true,
-    filters: true,
-    settings: true,
+    home: false,
+    filters: false,
+    settings: false,
     image_request: true,
     credentials: false,
 };
 
 fn fetch_body(url: &[u8], referer: Option<&[u8]>) -> Result<usize, FetchError> {
-    let req_len = build_get_request(http_req_buf(), url, referer, &[]).ok_or(FetchError::Network)?;
+    let req_len = build_get_request(
+        http_req_buf(),
+        url,
+        referer,
+        &[(b"User-Agent", b"Koma/0.1")],
+    )
+    .ok_or(FetchError::Network)?;
     let mut resp_len = 0usize;
     let mut transport_failed = true;
     for attempt in 0..3u8 {
@@ -66,7 +72,20 @@ fn fetch_body(url: &[u8], referer: Option<&[u8]>) -> Result<usize, FetchError> {
     if transport_failed {
         return Err(FetchError::Network);
     }
-    decode_json_body(&http_out()[..resp_len])
+    let response = &http_out()[..resp_len];
+    // Native transport `ok` acknowledges the exchange, not HTTP success.
+    let status = json_object_member(response, b"status")
+        .or_else(|| json_object_member(response, b"statusCode"))
+        .and_then(parse_usize)
+        .ok_or(FetchError::Network)?;
+    match status {
+        200..=299 => decode_json_body(response),
+        404 => Err(FetchError::NotFound),
+        429 => Err(FetchError::RateLimit),
+        400..=499 => Err(FetchError::ClientError),
+        500..=599 => Err(FetchError::ServerError),
+        _ => Err(FetchError::Network),
+    }
 }
 
 fn make_url(parts: &[&[u8]]) -> Option<usize> {
@@ -179,10 +198,10 @@ fn write_card_item(
         && write_bytes(payload, c, br#""]}"#)
 }
 
-fn parse_cards(html: &[u8], payload: &mut [u8], c: &mut usize, max: usize, tag: &[u8]) -> usize {
+fn parse_cards(html: &[u8], payload: &mut [u8], c: &mut usize, tag: &[u8]) -> Result<usize, &'static str> {
     let mut pos = 0usize;
     let mut written = 0usize;
-    while written < max {
+    loop {
         let rel = match find_subslice(&html[pos..], b"<a ") {
             Some(v) => v,
             None => break,
@@ -190,7 +209,7 @@ fn parse_cards(html: &[u8], payload: &mut [u8], c: &mut usize, max: usize, tag: 
         let a_start = pos + rel;
         let a_end = match find_subslice(&html[a_start..], b">") {
             Some(v) => a_start + v + 1,
-            None => break,
+            None => return Err("unterminated card anchor"),
         };
         pos = a_end;
         let a_tag = &html[a_start..a_end];
@@ -217,14 +236,14 @@ fn parse_cards(html: &[u8], payload: &mut [u8], c: &mut usize, max: usize, tag: 
             cover = attr_value(&html[img_start..img_end], b"src").unwrap_or(b"");
         }
         if written > 0 && !write_bytes(payload, c, b",") {
-            break;
+            return Err("payload overflow");
         }
         if !write_card_item(payload, c, id, title, cover, tag) {
-            break;
+            return Err("payload overflow");
         }
         written += 1;
     }
-    written
+    Ok(written)
 }
 
 fn find_last_subslice(haystack: &[u8], needle: &[u8]) -> Option<usize> {
@@ -242,7 +261,7 @@ fn find_last_subslice(haystack: &[u8], needle: &[u8]) -> Option<usize> {
     result
 }
 
-fn write_manga_page_from_url(operation: &str, url: &[u8], max: usize) -> u32 {
+fn write_manga_page_from_url(operation: &str, url: &[u8], page: usize) -> u32 {
     let html_len = match fetch_body(url, None) {
         Ok(n) => n,
         Err(e) => {
@@ -256,11 +275,21 @@ fn write_manga_page_from_url(operation: &str, url: &[u8], max: usize) -> u32 {
     if !write_bytes(payload, &mut c, br#"{"items":["#) {
         return write_error(operation, "internal_error", "payload overflow");
     }
-    let written = parse_cards(html, payload, &mut c, max, b"mangabz");
-    let has_more = contains_bytes(html, b">>") || contains_bytes(html, b">&gt;<");
+    let written = match parse_cards(html, payload, &mut c, b"mangabz") {
+        Ok(count) => count,
+        Err(message) => return write_error(operation, "parse_error", message),
+    };
+    let mut marker = [0u8; 64];
+    let mut m = 0;
+    write_bytes(&mut marker, &mut m, b"data-index=\"");
+    write_usize(&mut marker, &mut m, page + 1);
+    write_bytes(&mut marker, &mut m, b"\"");
+    let has_more = written > 0 && contains_bytes(html, &marker[..m]);
     let ok = write_bytes(payload, &mut c, br#"],"page":{"nextCursor":"#)
         && if has_more {
-            write_bytes(payload, &mut c, b"\"next\"")
+            write_bytes(payload, &mut c, b"\"")
+                && write_usize(payload, &mut c, page + 1)
+                && write_bytes(payload, &mut c, b"\"")
         } else {
             write_bytes(payload, &mut c, b"null")
         }
@@ -284,7 +313,7 @@ fn write_manga_page_from_url(operation: &str, url: &[u8], max: usize) -> u32 {
 fn run_search(req: &[u8]) -> u32 {
     let query = extract_json_string(req, b"query").unwrap_or(b"");
     if query.is_empty() {
-        return run_get_listings(req);
+        return run_manga_list(req, "search");
     }
     if query.starts_with(b"id:") {
         let id = &query[3..];
@@ -295,17 +324,22 @@ fn run_search(req: &[u8]) -> u32 {
         let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_len) };
         return search_single_manga(url, id);
     }
+    let page = match request_page(req) {
+        Some(v) => v,
+        None => return write_error("search", "invalid_request", "invalid page cursor"),
+    };
     let mut c = 0usize;
     let url_buf = scratch_a();
     if !(write_bytes(url_buf, &mut c, BASE_URL)
         && write_bytes(url_buf, &mut c, b"/search?title=")
         && write_url_encoded(url_buf, &mut c, query)
-        && write_bytes(url_buf, &mut c, b"&page=1"))
+        && write_bytes(url_buf, &mut c, b"&page=")
+        && write_usize(url_buf, &mut c, page))
     {
         return write_error("search", "internal_error", "url overflow");
     }
     let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), c) };
-    write_manga_page_from_url("search", url, 100)
+    write_manga_page_from_url("search", url, page)
 }
 
 fn search_single_manga(url: &[u8], id: &[u8]) -> u32 {
@@ -370,6 +404,104 @@ fn extract_between_text<'a>(
     Some(strip_tags_to(&html[gt..end], out))
 }
 
+// Detail-only cleanup: retain hidden synopsis continuation, omit fold controls.
+fn clean_description<'a>(src: &[u8], out: &'a mut [u8]) -> Option<&'a [u8]> {
+    let mut i = 0usize;
+    let mut n = 0usize;
+    let mut space = false;
+    while i < src.len() {
+        if src[i] == b'<' {
+            let end = find_subslice(&src[i..], b">")? + i + 1;
+            let tag = &src[i..end];
+            let class = attr_value(tag, b"class").unwrap_or(b"");
+            if tag.starts_with(b"<a ") && (class == b"fold_open" || class == b"fold_close") {
+                i = find_subslice(&src[end..], b"</a>")? + end + 4;
+            } else {
+                i = end;
+            }
+            continue;
+        }
+        if src[i].is_ascii_whitespace() {
+            space = n > 0;
+            i += 1;
+            continue;
+        }
+        if space {
+            if n >= out.len() {
+                return None;
+            }
+            out[n] = b' ';
+            n += 1;
+            space = false;
+        }
+        if n >= out.len() {
+            return None;
+        }
+        out[n] = src[i];
+        n += 1;
+        i += 1;
+    }
+    Some(&out[..n])
+}
+
+fn detail_description<'a>(html: &[u8], out: &'a mut [u8]) -> Option<&'a [u8]> {
+    let p = find_subslice(html, b"class=\"detail-info-content\"")?;
+    let start = find_subslice(&html[p..], b">")? + p + 1;
+    let end = find_subslice(&html[start..], b"</p>")? + start;
+    clean_description(&html[start..end], out)
+}
+
+fn write_detail_authors(html: &[u8], payload: &mut [u8], cursor: &mut usize) -> bool {
+    let p = match find_subslice(html, b"class=\"detail-info-tip\"") {
+        Some(v) => v,
+        None => return true,
+    };
+    let end = match find_subslice(&html[p..], b"</p>") {
+        Some(v) => p + v,
+        None => return true,
+    };
+    let tips = &html[p..end];
+    let span = match find_subslice(tips, b"<span") {
+        Some(v) => v,
+        None => return true,
+    };
+    let span_end = match find_subslice(&tips[span..], b"</span>") {
+        Some(v) => span + v,
+        None => return true,
+    };
+    let authors = &tips[span..span_end];
+    let mut i = 0usize;
+    let mut count = 0usize;
+    while let Some(relative) = find_subslice(&authors[i..], b"<a ") {
+        let start = i + relative;
+        let text_start = match find_subslice(&authors[start..], b">") {
+            Some(v) => start + v + 1,
+            None => break,
+        };
+        let text_end = match find_subslice(&authors[text_start..], b"</a>") {
+            Some(v) => text_start + v,
+            None => break,
+        };
+        i = text_end + 4;
+        let mut text_buf = [0u8; 512];
+        let text = strip_tags_to(&authors[text_start..text_end], &mut text_buf);
+        if text.is_empty() {
+            continue;
+        }
+        if count > 0 && !write_bytes(payload, cursor, b",") {
+            return false;
+        }
+        if !write_bytes(payload, cursor, b"\"")
+            || !append_json_escaped(payload, cursor, text)
+            || !write_bytes(payload, cursor, b"\"")
+        {
+            return false;
+        }
+        count += 1;
+    }
+    true
+}
+
 fn run_get_manga(req: &[u8]) -> u32 {
     let manga_id = match extract_json_string(req, b"mangaId") {
         Some(v) => v,
@@ -401,13 +533,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
         &mut title_buf,
     )
     .unwrap_or(id);
-    let desc = extract_between_text(
-        html,
-        b"class=\"detail-info-content\"",
-        b"</p>",
-        &mut desc_buf,
-    )
-    .unwrap_or(b"");
+    let desc = detail_description(html, &mut desc_buf).unwrap_or(b"");
     let cover = extract_attr_after(html, b"class=\"detail-info-cover\"", b"src").unwrap_or(b"");
     let status = if contains_bytes(html, "已完结".as_bytes())
         || contains_bytes(html, "已完結".as_bytes())
@@ -429,7 +555,9 @@ fn run_get_manga(req: &[u8]) -> u32 {
         && append_json_escaped(payload, &mut c, desc)
         && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":""#)
         && append_json_escaped(payload, &mut c, cover)
-        && write_bytes(payload, &mut c, br#""},"authors":[],"artists":[],"status":""#)
+        && write_bytes(payload, &mut c, br#""},"authors":["#)
+        && write_detail_authors(html, payload, &mut c)
+        && write_bytes(payload, &mut c, br#"],"artists":[],"status":""#)
         && write_bytes(payload, &mut c, status)
         && write_bytes(payload, &mut c, br#"","contentRating":"safe","language":"zh","tags":[],"links":[{"kind":"source","url":""#)
         && append_json_escaped(payload, &mut c, url)
@@ -503,8 +631,9 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             &mut title_buf,
         );
         let page_count = extract_page_count(title);
+        let sequence = chapter_sequence(title);
         if written > 0 && !write_bytes(payload, &mut c, b",") {
-            break;
+            return write_error("get_chapters", "internal_error", "payload overflow");
         }
         let ok = write_bytes(payload, &mut c, br#"{"id":"chapter:"#)
             && append_json_escaped(payload, &mut c, id)
@@ -516,18 +645,25 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             && append_json_escaped(payload, &mut c, id)
             && write_bytes(payload, &mut c, br#"","title":""#)
             && append_json_escaped(payload, &mut c, title)
-            && write_bytes(payload, &mut c, br#"","chapterNumber":""#)
-            && append_json_escaped(payload, &mut c, first_number(title).unwrap_or(cid))
-            && write_bytes(payload, &mut c, br#"","volumeNumber":null,"language":"zh","publishedAt":null,"updatedAt":null,"pageCount":"#)
+            && write_bytes(payload, &mut c, br#"","chapterNumber":"#)
+            && write_chapter_sequence_number(payload, &mut c, sequence, false)
+            && write_bytes(payload, &mut c, br#", "volumeNumber":"#)
+            && write_chapter_sequence_number(payload, &mut c, sequence, true)
+            && write_bytes(payload, &mut c, br#", "readingGroup":"#)
+            && match sequence {
+                Some((_, true)) => write_bytes(payload, &mut c, b"\"volume\""),
+                Some((_, false)) => write_bytes(payload, &mut c, b"\"chapter\""),
+                None => write_bytes(payload, &mut c, b"null"),
+            }
+            && write_bytes(payload, &mut c, br#", "continuationEligible":"#)
+            && write_bytes(payload, &mut c, if sequence.is_some() { b"true" } else { b"false" })
+            && write_bytes(payload, &mut c, br#", "publishedAt":null,"updatedAt":null,"pageCount":"#)
             && if page_count > 0 { write_usize(payload, &mut c, page_count) } else { write_bytes(payload, &mut c, b"null") }
             && write_bytes(payload, &mut c, b"}");
         if !ok {
-            break;
+            return write_error("get_chapters", "internal_error", "payload overflow");
         }
         written += 1;
-        if written >= 600 {
-            break;
-        }
     }
     if !write_bytes(
         payload,
@@ -558,19 +694,50 @@ fn extract_page_count(title: &[u8]) -> usize {
     n
 }
 
-fn first_number(bytes: &[u8]) -> Option<&[u8]> {
-    let mut i = 0usize;
-    while i < bytes.len() && !(bytes[i] >= b'0' && bytes[i] <= b'9') {
-        i += 1;
+// The site mixes volumes, regular episodes and extras in one parent list.
+// Only an explicit leading chapter/volume label supplies a sequence; neither
+// the resource cid nor a trailing page count is a chapter ordinal.
+fn chapter_sequence(title: &[u8]) -> Option<(&[u8], bool)> {
+    let title = trim_ascii(title);
+    let bytes = title.strip_prefix("第".as_bytes()).unwrap_or(title);
+    let mut end = 0;
+    while end < bytes.len() && bytes[end].is_ascii_digit() { end += 1; }
+    if end == 0 { return None; }
+    if bytes.get(end) == Some(&b'.') {
+        end += 1;
+        let start = end;
+        while end < bytes.len() && bytes[end].is_ascii_digit() { end += 1; }
+        if end == start { return None; }
     }
-    if i >= bytes.len() {
+    let suffix = &bytes[end..];
+    if let Some(rest) = suffix.strip_prefix("卷".as_bytes()) {
+        // "20卷 附錄" is an extra, not the complete numbered volume.
+        let rest = trim_ascii(rest);
+        let rest = rest.strip_prefix("（".as_bytes())
+            .and_then(|v| v.strip_suffix("P）".as_bytes()))
+            .or_else(|| rest.strip_prefix(b"(").and_then(|v| v.strip_suffix(b"P)")));
+        if trim_ascii(suffix.strip_prefix("卷".as_bytes())?).is_empty()
+            || rest.map(|v| !v.is_empty() && v.iter().all(u8::is_ascii_digit)).unwrap_or(false)
+        { return Some((&bytes[..end], true)); }
         return None;
     }
-    let start = i;
-    while i < bytes.len() && ((bytes[i] >= b'0' && bytes[i] <= b'9') || bytes[i] == b'.') {
-        i += 1;
+    if suffix.starts_with("話".as_bytes()) || suffix.starts_with("话".as_bytes())
+        || suffix.starts_with("章".as_bytes())
+    { return Some((&bytes[..end], false)); }
+    None
+}
+
+fn write_chapter_sequence_number(
+    output: &mut [u8], cursor: &mut usize, sequence: Option<(&[u8], bool)>, volume: bool,
+) -> bool {
+    match sequence {
+        Some((number, is_volume)) if is_volume == volume => {
+            write_bytes(output, cursor, b"\"")
+                && append_json_escaped(output, cursor, number)
+                && write_bytes(output, cursor, b"\"")
+        }
+        _ => write_bytes(output, cursor, b"null"),
     }
-    Some(&bytes[start..i])
 }
 
 fn run_get_pages(req: &[u8]) -> u32 {
@@ -591,11 +758,19 @@ fn run_get_pages(req: &[u8]) -> u32 {
     let sep2 = find_subslice(tail, b":");
     let cid = if let Some(v) = sep2 { &tail[..v] } else { tail };
     let encoded_page_count = sep2.and_then(|v| parse_usize(&tail[v + 1..]));
-    let page_count = extract_json_number(req, b"pageCount")
+    let page_count = match extract_json_number(req, b"pageCount")
         .and_then(parse_usize)
         .or(encoded_page_count)
-        .unwrap_or(300)
-        .min(500);
+    {
+        Some(n) if n > 0 && n <= 5000 => n,
+        _ => {
+            return write_error(
+                "get_pages",
+                "invalid_request",
+                "missing or invalid known page count",
+            )
+        }
+    };
     let payload = payload_buf();
     let mut c = 0usize;
     let ok = write_bytes(payload, &mut c, br#"{"chapterId":"chapter:"#)
@@ -614,11 +789,8 @@ fn run_get_pages(req: &[u8]) -> u32 {
         let got = match fetch_chapter_images(manga, cid, page, payload, &mut c, &mut written) {
             Ok(n) => n,
             Err(e) => {
-                if written == 0 {
-                    let (code, msg) = fetch_error_code(e);
-                    return write_error("get_pages", code, msg);
-                }
-                break;
+                let (code, msg) = fetch_error_code(e);
+                return write_error("get_pages", code, msg);
             }
         };
         if got == 0 {
@@ -628,6 +800,13 @@ fn run_get_pages(req: &[u8]) -> u32 {
         if written >= page_count {
             break;
         }
+    }
+    if written != page_count {
+        return write_error(
+            "get_pages",
+            "parse_error",
+            "incomplete public chapter image list",
+        );
     }
     if !write_bytes(payload, &mut c, b"]}") {
         return write_error("get_pages", "internal_error", "payload overflow");
@@ -642,7 +821,7 @@ fn parse_usize(bytes: &[u8]) -> Option<usize> {
         if b < b'0' || b > b'9' {
             return None;
         }
-        n = n * 10 + (b - b'0') as usize;
+        n = n.checked_mul(10)?.checked_add((b - b'0') as usize)?;
         any = true;
     }
     if any {
@@ -824,7 +1003,10 @@ fn parse_base(bytes: &[u8], base: usize) -> usize {
         if v >= base {
             return usize::MAX;
         }
-        n = n * base + v;
+        n = match n.checked_mul(base).and_then(|n| n.checked_add(v)) {
+            Some(n) => n,
+            None => return usize::MAX,
+        };
     }
     n
 }
@@ -836,16 +1018,49 @@ fn extract_js_string<'a>(data: &'a [u8], marker: &[u8]) -> Option<&'a [u8]> {
 }
 
 fn run_get_listings(_req: &[u8]) -> u32 {
-    let url_len = make_url(&[BASE_URL, b"/manga-list-p1/"]).unwrap_or(0);
-    let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_len) };
-    write_manga_page_from_url("get_listings", url, 100)
+    let data = r#"{"listings":[{"id":"popular","name":"熱門漫畫","supportsPaging":true},{"id":"latest","name":"最新更新","supportsPaging":true}]}"#.as_bytes();
+    payload_buf()[..data.len()].copy_from_slice(data);
+    write_success_payload("get_listings", data.len())
+}
+
+fn request_page(req: &[u8]) -> Option<usize> {
+    let args = json_object_member(req, b"args").unwrap_or(req);
+    let raw = match json_object_member(args, b"page") {
+        Some(v) => v,
+        None => return Some(1),
+    };
+    let bytes = if raw.first() == Some(&b'{') {
+        let cursor = json_object_member(raw, b"cursor").unwrap_or(b"null");
+        if cursor == b"null" {
+            return Some(1);
+        }
+        if cursor.len() < 2 || cursor.first() != Some(&b'"') || cursor.last() != Some(&b'"') {
+            return None;
+        }
+        &cursor[1..cursor.len() - 1]
+    } else {
+        raw
+    };
+    let page = parse_usize(bytes)?;
+    if page == 0 || page > 100000 {
+        None
+    } else {
+        Some(page)
+    }
 }
 
 fn run_get_manga_list(req: &[u8]) -> u32 {
+    run_manga_list(req, "get_manga_list")
+}
+fn run_manga_list(req: &[u8], op: &str) -> u32 {
     let listing = extract_json_string(req, b"listingId").unwrap_or(b"popular");
-    let page = extract_json_number(req, b"page")
-        .and_then(parse_usize)
-        .unwrap_or(1);
+    if listing != b"popular" && listing != b"latest" {
+        return write_error(op, "invalid_request", "unknown listing");
+    }
+    let page = match request_page(req) {
+        Some(v) => v,
+        None => return write_error(op, "invalid_request", "invalid page cursor"),
+    };
     let url_buf = scratch_a();
     let mut c = 0usize;
     let ok = write_bytes(url_buf, &mut c, BASE_URL)
@@ -857,10 +1072,10 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
         && write_usize(url_buf, &mut c, page)
         && write_bytes(url_buf, &mut c, b"/");
     if !ok {
-        return write_error("get_manga_list", "internal_error", "url overflow");
+        return write_error(op, "internal_error", "url overflow");
     }
     let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), c) };
-    write_manga_page_from_url("get_manga_list", url, 100)
+    write_manga_page_from_url(op, url, page)
 }
 
 fn run_get_home(_req: &[u8]) -> u32 {
