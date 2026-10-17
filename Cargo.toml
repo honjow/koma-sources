@@ -9,6 +9,7 @@ members = [
   "sdk",
   "sources/genshin-zh",
   "sources/fgo-zh",
+  "sources/magireco-zh",
   "sources/baozimh",
   "sources/bh3",
   "sources/mangadex",

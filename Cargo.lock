@@ -1217,6 +1217,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_magireco_zh_source"
+version = "0.1.1"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
 name = "koma_mangabz_source"
 version = "0.1.0"
 dependencies = [

@@ -39,6 +39,7 @@ dbmultiverse-zh|dbmultiverse-zh|false|0.1.0
 bns-zh-hant|bns-zh-hant|false|0.1.1
 genshin-zh|genshin-zh|false|0.1.0
 fgo-zh|fgo-zh|false|0.1.1
+magireco-zh|magireco-zh|false|0.1.1
 baozimh|baozimh|false|0.1.0
 mangadex|mangadex|true|0.1.0
 mangabz|mangabz|false|0.1.0
