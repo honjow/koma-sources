@@ -1,0 +1,8 @@
+Tencent Comics source parser references:
+Keiyoushi extensions-source, TencentComics.kt and Dto.kt.
+https://github.com/keiyoushi/extensions-source/tree/5b95ccc4b6a96fb9a4a28cead59255b0af99276e/src/zh/tencentcomics
+Apache License 2.0; copyright respective upstream contributors.
+Adapted public URL/selector and base64 noise-removal contract; no QuickJS code,
+browser stub or executable JavaScript is included. A new bounded integer-constant
+parser fails on unsupported symbols and calls. No website images/assets bundled.
+The package LICENSE contains the upstream Apache 2.0 license text.
