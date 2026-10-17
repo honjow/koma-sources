@@ -5,7 +5,8 @@ extern crate koma_source_sdk;
 use koma_source_sdk::host::{self, http_request, log_info};
 use koma_source_sdk::json_utils::{
     append_json_escaped, contains_bytes, extract_json_number, extract_json_string, find_subslice,
-    write_bytes, write_url_encoded, write_usize, request_page_number,
+    write_bytes, write_url_encoded, write_usize, request_page_number, json_object_member,
+    append_json_unescaped_then_escaped,
 };
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{FetchError, build_get_request, fetch_error_code};
@@ -23,7 +24,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.dm5.koma",
     name: "DM5",
-    version: "0.1.5",
+    version: "0.1.17",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -178,11 +179,34 @@ fn write_card_item(
         && write_bytes(payload, c, br#""]}"#)
 }
 
-fn parse_cards(html: &[u8], payload: &mut [u8], c: &mut usize, max: usize, tag: &[u8]) -> usize {
+// Read the cover only from this title's original card parent. A nearby image
+// outside the li (for example the hidden search-empty image) is not a cover.
+fn card_cover<'a>(html: &'a [u8], title_at: usize, id: &[u8]) -> Option<&'a [u8]> {
+    let start = find_last_subslice(&html[..title_at], b"<li>")?;
+    let end = start + find_subslice(&html[start..], b"</li>")?;
+    if title_at >= end { return None; }
+    let card = &html[start..end];
+    if !contains_bytes(card, b"class=\"mh-item mh-card-wrap\"")
+        || extract_attr_after(card, b"class=\"manga-info\"", b"uk")? != id
+    {
+        return None;
+    }
+    let marker = b"class=\"mh-cover\"";
+    let at = find_subslice(card, marker)?;
+    if contains_bytes(&card[at + marker.len()..], marker) { return None; }
+    let style = extract_attr_after(card, marker, b"style")?;
+    let prefix = b"background-image: url(";
+    let from = find_subslice(style, prefix)? + prefix.len();
+    let to = from + find_subslice(&style[from..], b")")?;
+    let cover = trim_ascii(&style[from..to]);
+    if cover.is_empty() { None } else { Some(cover) }
+}
+
+fn parse_cards(html: &[u8], payload: &mut [u8], c: &mut usize, tag: &[u8]) -> Result<usize, &'static str> {
     let mut pos = 0usize;
     let mut written = 0usize;
     let mut last_id = b"" as &[u8];
-    while written < max {
+    loop {
         let rel = match find_subslice(&html[pos..], b"<a ") {
             Some(v) => v,
             None => break,
@@ -190,7 +214,7 @@ fn parse_cards(html: &[u8], payload: &mut [u8], c: &mut usize, max: usize, tag: 
         let a_start = pos + rel;
         let a_end = match find_subslice(&html[a_start..], b">") {
             Some(v) => a_start + v + 1,
-            None => break,
+            None => return Err("unterminated card anchor"),
         };
         pos = a_end;
         let a_tag = &html[a_start..a_end];
@@ -209,31 +233,17 @@ fn parse_cards(html: &[u8], payload: &mut [u8], c: &mut usize, max: usize, tag: 
             Some(v) => v,
             None => continue,
         };
-        let mut cover = b"" as &[u8];
-        let search_start = a_start.saturating_sub(700);
-        let before = &html[search_start..a_start];
-        if let Some(img_rel) = find_last_subslice(before, b"<img") {
-            let img_start = search_start + img_rel;
-            let img_end = find_subslice(&html[img_start..], b">")
-                .map(|v| img_start + v + 1)
-                .unwrap_or(a_start);
-            cover = attr_value(&html[img_start..img_end], b"src").unwrap_or(b"");
-        } else if let Some(style_rel) = find_last_subslice(before, b"background-image: url(") {
-            let start = search_start + style_rel + b"background-image: url(".len();
-            if let Some(end_rel) = find_subslice(&html[start..a_start], b")") {
-                cover = trim_ascii(&html[start..start + end_rel]);
-            }
-        }
+        let cover = card_cover(html, a_start, id).unwrap_or(b"");
         if written > 0 && !write_bytes(payload, c, b",") {
-            break;
+            return Err("payload overflow");
         }
         if !write_card_item(payload, c, id, title, cover, tag) {
-            break;
+            return Err("payload overflow");
         }
         last_id = id;
         written += 1;
     }
-    written
+    Ok(written)
 }
 
 fn find_last_subslice(haystack: &[u8], needle: &[u8]) -> Option<usize> {
@@ -251,11 +261,11 @@ fn find_last_subslice(haystack: &[u8], needle: &[u8]) -> Option<usize> {
     result
 }
 
-fn write_manga_page_from_url(operation: &str, url: &[u8], max: usize) -> u32 {
-    write_manga_page_from_url_at(operation, url, max, None)
+fn write_manga_page_from_url(operation: &str, url: &[u8]) -> u32 {
+    write_manga_page_from_url_at(operation, url, None)
 }
 
-fn write_manga_page_from_url_at(operation: &str, url: &[u8], max: usize, search_page: Option<usize>) -> u32 {
+fn write_manga_page_from_url_at(operation: &str, url: &[u8], search_page: Option<usize>) -> u32 {
     let html_len = match fetch_body(url, None) {
         Ok(n) => n,
         Err(e) => {
@@ -277,7 +287,10 @@ fn write_manga_page_from_url_at(operation: &str, url: &[u8], max: usize, search_
     if !write_bytes(payload, &mut c, br#"{"items":["#) {
         return write_error(operation, "internal_error", "payload overflow");
     }
-    let written = parse_cards(html, payload, &mut c, max, b"dm5");
+    let written = match parse_cards(html, payload, &mut c, b"dm5") {
+        Ok(count) => count,
+        Err(message) => return write_error(operation, "parse_error", message),
+    };
     let mut next_link = [0u8; 48];
     let mut next_link_len = 0usize;
     let has_more = if let Some(page) = search_page {
@@ -344,7 +357,7 @@ fn run_search(req: &[u8]) -> u32 {
         return write_error("search", "internal_error", "url overflow");
     }
     let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), c) };
-    write_manga_page_from_url_at("search", url, 100, Some(page))
+    write_manga_page_from_url_at("search", url, Some(page))
 }
 
 fn search_single_manga(url: &[u8], id: &[u8]) -> u32 {
@@ -518,7 +531,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         let a_start = pos + rel;
         let a_end = match find_subslice(&list[a_start..], b"</a>") {
             Some(v) => a_start + v + 4,
-            None => break,
+            None => return write_error("get_chapters", "parse_error", "unterminated chapter anchor"),
         };
         let block = &list[a_start..a_end];
         pos = a_end;
@@ -534,15 +547,18 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             Some(v) => v,
             None => continue,
         };
+        // Retain the established identity/metadata algorithm separately from display.
+        let title_html=&block[tag_end..block.len().saturating_sub(4)];
+        let display_title=DisplayChapterTitle::new(title_html);
         let mut title_buf = [0u8; 256];
-        let title = strip_tags_to(
-            &block[tag_end..block.len().saturating_sub(4)],
+        let identity_title = strip_tags_to(
+            title_html,
             &mut title_buf,
         );
-        let page_count = extract_page_count(title);
-        let sequence = chapter_sequence(title);
+        let page_count = extract_page_count(identity_title);
+        let sequence = chapter_sequence(identity_title);
         if written > 0 && !write_bytes(payload, &mut c, b",") {
-            break;
+            return write_error("get_chapters", "internal_error", "payload overflow");
         }
         let ok = write_bytes(payload, &mut c, br#"{"id":"chapter:"#)
             && append_json_escaped(payload, &mut c, id)
@@ -553,7 +569,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             && write_bytes(payload, &mut c, br#"","mangaId":"manga:"#)
             && append_json_escaped(payload, &mut c, id)
             && write_bytes(payload, &mut c, br#"","title":""#)
-            && append_json_escaped(payload, &mut c, title)
+            && write_display_chapter_title(payload, &mut c, display_title)
             && write_bytes(payload, &mut c, br#"","chapterNumber":"#)
             && write_chapter_sequence_number(payload, &mut c, sequence, false)
             && write_bytes(payload, &mut c, br#", "volumeNumber":"#)
@@ -562,16 +578,13 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             && write_bytes(payload, &mut c, if sequence.map(|(_, volume)| volume).unwrap_or(false) { b"volume" } else { b"chapter" })
             && write_bytes(payload, &mut c, br#"","continuationEligible":"#)
             && write_bytes(payload, &mut c, if sequence.is_some() { b"true" } else { b"false" })
-            && write_bytes(payload, &mut c, br#", "language":"zh","publishedAt":null,"updatedAt":null,"pageCount":"#)
+            && write_bytes(payload, &mut c, br#","publishedAt":null,"updatedAt":null,"pageCount":"#)
             && if page_count > 0 { write_usize(payload, &mut c, page_count) } else { write_bytes(payload, &mut c, b"null") }
             && write_bytes(payload, &mut c, b"}");
         if !ok {
-            break;
+            return write_error("get_chapters", "internal_error", "payload overflow");
         }
         written += 1;
-        if written >= 600 {
-            break;
-        }
     }
     if !write_bytes(
         payload,
@@ -583,6 +596,45 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     write_success_payload("get_chapters", c)
 }
 
+// Preserve strip_tags_to's byte semantics and its four-byte trim set, without
+// materializing a truncated title. The first pass locates the complete trim range.
+#[derive(Clone)]
+struct DisplayChapterTitle<'a> { raw: &'a [u8], pos: usize, end: usize, in_tag: bool }
+impl<'a> DisplayChapterTitle<'a> {
+    fn new(raw: &'a [u8]) -> Self {
+        let mut first = raw.len();
+        let mut end = 0;
+        let mut in_tag = false;
+        for (i, &byte) in raw.iter().enumerate() {
+            if byte == b'<' { in_tag = true; continue; }
+            if byte == b'>' { in_tag = false; continue; }
+            if !in_tag && !matches!(byte, b' ' | b'\t' | b'\n' | b'\r') {
+                first = first.min(i);
+                end = i + 1;
+            }
+        }
+        Self { raw, pos: first, end, in_tag: false }
+    }
+}
+impl Iterator for DisplayChapterTitle<'_> {
+    type Item = u8;
+    fn next(&mut self) -> Option<u8> {
+        while self.pos < self.end {
+            let byte = self.raw[self.pos];
+            self.pos += 1;
+            if byte == b'<' { self.in_tag = true; continue; }
+            if byte == b'>' { self.in_tag = false; continue; }
+            if !self.in_tag { return Some(byte); }
+        }
+        None
+    }
+}
+fn write_display_chapter_title(output: &mut [u8], cursor: &mut usize, title: DisplayChapterTitle<'_>) -> bool {
+    for byte in title {
+        if !append_json_escaped(output, cursor, &[byte]) { return false; }
+    }
+    true
+}
 fn extract_page_count(title: &[u8]) -> usize {
     let p_marker = "P".as_bytes();
     let p = match find_subslice(title, p_marker) {
@@ -688,12 +740,14 @@ fn run_get_pages(req: &[u8]) -> u32 {
     let dt = &dt_store[..dt_raw.len()];
     let sign = &sign_store[..sign_raw.len()];
     let encoded_page_count = sep2.and_then(|v| parse_usize(&tail[v + 1..]));
-    let page_count = extract_js_number(html, b"DM5_IMAGE_COUNT=")
+    let page_count = match extract_js_number(html, b"DM5_IMAGE_COUNT=")
         .and_then(parse_usize)
         .or_else(|| extract_json_number(req, b"pageCount").and_then(parse_usize))
         .or(encoded_page_count)
-        .unwrap_or(300)
-        .min(500);
+    {
+        Some(n) if n > 0 => n,
+        _ => return write_error("get_pages", "parse_error", "missing known chapter page count"),
+    };
     let payload = payload_buf();
     let mut c = 0usize;
     let ok = write_bytes(payload, &mut c, br#"{"chapterId":"chapter:"#)
@@ -722,11 +776,8 @@ fn run_get_pages(req: &[u8]) -> u32 {
         ) {
             Ok(n) => n,
             Err(e) => {
-                if written == 0 {
-                    let (code, msg) = fetch_error_code(e);
-                    return write_error("get_pages", code, msg);
-                }
-                break;
+                let (code, msg) = fetch_error_code(e);
+                return write_error("get_pages", code, msg);
             }
         };
         if got == 0 {
@@ -736,6 +787,9 @@ fn run_get_pages(req: &[u8]) -> u32 {
         if written >= page_count {
             break;
         }
+    }
+    if written != page_count {
+        return write_error("get_pages", "parse_error", "incomplete public chapter image list");
     }
     if !write_bytes(payload, &mut c, b"]}") {
         return write_error("get_pages", "internal_error", "payload overflow");
@@ -888,6 +942,7 @@ fn unpack_and_write_images(
     }
     let unpacked = &out[..o];
     let pix = extract_js_string(unpacked, b"pix=\"").ok_or(FetchError::Network)?;
+    let key = extract_js_single_quoted_string(unpacked, b"key='").ok_or(FetchError::Network)?;
     let arr_start = find_subslice(unpacked, b"pvalue=[\"").ok_or(FetchError::Network)? + 9;
     let mut pos = arr_start;
     let mut added = 0usize;
@@ -897,6 +952,11 @@ fn unpack_and_write_images(
             None => break,
         };
         let path = &unpacked[pos..end];
+        let suffix = if path.starts_with(b"http://") || path.starts_with(b"https://") {
+            None
+        } else {
+            Some(original_image_suffix(unpacked, cid, key)?)
+        };
         if *written > 0 && !write_bytes(payload, c, b",") {
             return Err(FetchError::Network);
         }
@@ -909,8 +969,13 @@ fn unpack_and_write_images(
             && write_bytes(payload, c, br#"","index":"#)
             && write_usize(payload, c, *written)
             && write_bytes(payload, c, br#","image":{"kind":"url","url":""#)
-            && append_json_escaped(payload, c, pix)
-            && append_json_escaped(payload, c, path)
+            && if path.starts_with(b"http://") || path.starts_with(b"https://") {
+                append_json_escaped(payload, c, path)
+            } else {
+                append_json_escaped(payload, c, pix)
+                    && append_json_escaped(payload, c, path)
+                    && append_json_escaped(payload, c, suffix.ok_or(FetchError::Network)?)
+            }
             && write_bytes(payload, c, br#""}}"#);
         if !ok {
             return Err(FetchError::Network);
@@ -925,6 +990,37 @@ fn unpack_and_write_images(
         }
     }
     Ok(added)
+}
+
+
+// Read the site's explicit concatenation literal; never regenerate signed fields.
+fn original_image_suffix<'a>(
+    unpacked: &'a [u8],
+    cid: &[u8],
+    key: &[u8],
+) -> Result<&'a [u8], FetchError> {
+    let marker = b"pvalue[i]=pix+pvalue[i]+'";
+    let start = find_subslice(unpacked, marker).ok_or(FetchError::Network)? + marker.len();
+    if find_subslice(&unpacked[start..], marker).is_some() {
+        return Err(FetchError::Network);
+    }
+    let end = find_subslice(&unpacked[start..], b"'").ok_or(FetchError::Network)? + start;
+    let suffix = &unpacked[start..end];
+    if suffix.len() > 1024
+        || suffix.iter().any(|b| !(0x21..=0x7e).contains(b) || matches!(b, b'\\' | b'"' | b'#' | b'<' | b'>'))
+        || !matches!(unpacked.get(end + 1), Some(b';' | b'}'))
+    {
+        return Err(FetchError::Network);
+    }
+    let rest = suffix.strip_prefix(b"?cid=")
+        .and_then(|v| v.strip_prefix(cid))
+        .and_then(|v| v.strip_prefix(b"&key="))
+        .and_then(|v| v.strip_prefix(key))
+        .ok_or(FetchError::Network)?;
+    if !rest.is_empty() && !rest.starts_with(b"&") {
+        return Err(FetchError::Network);
+    }
+    Ok(suffix)
 }
 
 fn is_word(b: u8) -> bool {
@@ -954,6 +1050,31 @@ fn extract_js_string<'a>(data: &'a [u8], marker: &[u8]) -> Option<&'a [u8]> {
     Some(&data[start..end])
 }
 
+fn extract_js_single_quoted_string<'a>(data: &'a [u8], marker: &[u8]) -> Option<&'a [u8]> {
+    let start = find_subslice(data, marker)? + marker.len();
+    let end = find_subslice(&data[start..], b"'")? + start;
+    Some(&data[start..end])
+}
+
+fn extract_query_value<'a>(url: &'a [u8], key: &[u8]) -> Option<&'a [u8]> {
+    let mut marker = [0u8; 64];
+    if key.len() + 1 > marker.len() {
+        return None;
+    }
+    marker[..key.len()].copy_from_slice(key);
+    marker[key.len()] = b'=';
+    let start = find_subslice(url, &marker[..key.len() + 1])? + key.len() + 1;
+    let mut end = start;
+    while end < url.len() && url[end] != b'&' && url[end] != b'#' {
+        end += 1;
+    }
+    if end > start {
+        Some(&url[start..end])
+    } else {
+        None
+    }
+}
+
 fn extract_js_number<'a>(data: &'a [u8], marker: &[u8]) -> Option<&'a [u8]> {
     let start = find_subslice(data, marker)? + marker.len();
     let mut end = start;
@@ -967,36 +1088,240 @@ fn extract_js_number<'a>(data: &'a [u8], marker: &[u8]) -> Option<&'a [u8]> {
     }
 }
 
+#[derive(Clone, Copy)]
+enum Listing { Popular, Latest }
+
+impl Listing {
+    fn id(self) -> &'static [u8] {
+        match self { Self::Popular => b"popular", Self::Latest => b"latest" }
+    }
+    fn prefix(self) -> &'static [u8] {
+        match self { Self::Popular => b"/manhua-list-p", Self::Latest => b"/manhua-list-s2-p" }
+    }
+    fn first(self) -> &'static [u8] {
+        match self { Self::Popular => b"/manhua-list-p1/", Self::Latest => b"/manhua-list-s2-p1/" }
+    }
+    fn page<'a>(self, uri: &'a [u8]) -> Option<&'a [u8]> {
+        let path = uri.strip_prefix(BASE_URL).unwrap_or(uri);
+        if matches!(self, Self::Popular) && path == b"/manhua-list/" { return Some(b"1"); }
+        if matches!(self, Self::Latest) && path == b"/manhua-list-s2/" { return Some(b"1"); }
+        let digits = path.strip_prefix(self.prefix())?.strip_suffix(b"/")?;
+        decimal(digits)
+    }
+}
+
+// Whitelisted route/id alphabets have no JSON-escaped output characters.
+// Use the SDK's Unicode/escape decoder before validating those alphabets.
+fn decode_route_string<'a>(raw: &[u8], dst: &'a mut [u8]) -> Option<&'a [u8]> {
+    let mut len = 0;
+    append_json_unescaped_then_escaped(dst, &mut len, raw).then_some(())?;
+    Some(&dst[..len])
+}
+
+fn decimal(value: &[u8]) -> Option<&[u8]> {
+    if value.is_empty() || !value.iter().all(|b| b.is_ascii_digit()) { return None; }
+    let start = value.iter().position(|b| *b != b'0')?;
+    Some(&value[start..])
+}
+
+fn decimal_after(a: &[u8], b: &[u8]) -> bool {
+    a.len() > b.len() || (a.len() == b.len() && a > b)
+}
+
+fn decimal_next(current: &[u8], candidate: &[u8]) -> bool {
+    let mut left = current.len();
+    let mut right = candidate.len();
+    let mut carry = 1u8;
+    while left > 0 {
+        if right == 0 { return false; }
+        left -= 1; right -= 1;
+        let digit = current[left] - b'0' + carry;
+        if candidate[right] != b'0' + digit % 10 { return false; }
+        carry = digit / 10;
+    }
+    if carry == 1 { right == 1 && candidate[0] == b'1' } else { right == 0 }
+}
+
+struct DirectoryDocument(host::HtmlDescriptor);
+impl Drop for DirectoryDocument {
+    fn drop(&mut self) { let _ = host::html_close(self.0); }
+}
+
+#[link(wasm_import_module = "koma_host")]
+extern "C" {
+    #[link_name = "html_select_all"]
+    fn directory_select_all(parent: i32, selector: *const u8, selector_len: u32, out: *mut u8, out_cap: u32) -> i32;
+}
+
+fn select_directory_nodes(parent: host::HtmlDescriptor, dst: &mut [u8]) -> i32 {
+    let selector = b".page-pagination a[data-index][href]";
+    unsafe { directory_select_all(parent.raw(), selector.as_ptr(), selector.len() as u32, dst.as_mut_ptr(), dst.len() as u32) }
+}
+
+struct DirectoryNodes<'a> { bytes: &'a [u8], count: usize }
+impl DirectoryNodes<'_> {
+    fn at(&self, index: usize) -> Option<host::HtmlDescriptor> {
+        if index >= self.count { return None; }
+        let at = index * 4;
+        let raw = i32::from_le_bytes([self.bytes[at], self.bytes[at+1], self.bytes[at+2], self.bytes[at+3]]);
+        if raw <= 0 { return None; }
+        Some(unsafe { core::mem::transmute(raw) })
+    }
+}
+impl Drop for DirectoryNodes<'_> {
+    fn drop(&mut self) {
+        for index in 0..self.count { if let Some(h) = self.at(index) { let _ = host::html_close(h); } }
+    }
+}
+
+fn directory_next(html: &[u8], listing: Listing, current: &[u8], dst: &mut [u8]) -> Result<usize, &'static str> {
+    let document = DirectoryDocument(host::html_parse(html).map_err(|_| "directory HTML parse failed")?);
+    let count = select_directory_nodes(document.0, &mut scratch_b()[..0]);
+    if count <= 0 { return Err("missing directory pagination"); }
+    let capacity = (count as usize).checked_mul(4).filter(|n| *n <= BODY_CAP).ok_or("pagination capacity exceeded")?;
+    // Card parsing is complete; Lexbor owns its DOM storage independently.
+    let handles = &mut body_buf()[..capacity];
+    let actual = select_directory_nodes(document.0, handles);
+    if actual < 0 { return Err("directory pagination selection failed"); }
+    let nodes = DirectoryNodes { bytes: handles, count: (actual as usize).min(capacity / 4) };
+    if actual != count { return Err("directory pagination changed"); }
+    let mut active_seen = false;
+    let mut forward_seen = false;
+    let mut next_len = 0usize;
+    for index in 0..nodes.count {
+        let node = nodes.at(index).ok_or("missing pagination node")?;
+        let work = scratch_b();
+        let active = host::html_attr(node, b"class", work).ok()
+            .map(|n| work[..n].split(|b| b.is_ascii_whitespace()).any(|token| token == b"active")).unwrap_or(false);
+        let index_len = host::html_attr(node, b"data-index", work).map_err(|_| "missing pagination index")?;
+        let page = decimal(&work[..index_len]).ok_or("invalid pagination index")?;
+        let href_out = &mut http_out()[..PAYLOAD_CAP];
+        let href_len = host::html_attr(node, b"href", href_out).map_err(|_| "missing pagination href")?;
+        if href_len == href_out.len() { return Err("pagination href capacity exceeded"); }
+        let href = &href_out[..href_len];
+        let route_page = listing.page(href).ok_or("pagination route is outside listing")?;
+        if route_page != page { return Err("pagination index and route differ"); }
+        if active {
+            if page != current { return Err("directory current page differs"); }
+            active_seen = true;
+        }
+        if decimal_after(page, current) { forward_seen = true; }
+        if decimal_next(current, page) {
+            if next_len > 0 && listing_path(&dst[..next_len]) != listing_path(href) {
+                return Err("conflicting directory next links");
+            }
+            if next_len == 0 {
+                let mut len = 0;
+                if !write_bytes(dst, &mut len, href) { return Err("pagination cursor capacity exceeded"); }
+                next_len = len;
+            }
+        }
+    }
+    if !active_seen { return Err("missing directory current page"); }
+    if next_len == 0 && forward_seen { return Err("missing consecutive directory next link"); }
+    Ok(next_len)
+}
+
+fn listing_path(uri: &[u8]) -> &[u8] { uri.strip_prefix(BASE_URL).unwrap_or(uri) }
+
 fn run_get_listings(_req: &[u8]) -> u32 {
-    let url_len = make_url(&[BASE_URL, b"/manhua-list-p1/"]).unwrap_or(0);
-    let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_len) };
-    write_manga_page_from_url("get_listings", url, 100)
+    let json = r#"{"listings":[{"id":"popular","name":"热门漫画","kind":"popular"},{"id":"latest","name":"最新更新","kind":"latest"}]}"#.as_bytes();
+    payload_buf()[..json.len()].copy_from_slice(json);
+    write_success_payload("get_listings", json.len())
 }
 
 fn run_get_manga_list(req: &[u8]) -> u32 {
-    let listing = extract_json_string(req, b"listingId").unwrap_or(b"popular");
-    let page = extract_json_number(req, b"page")
-        .and_then(parse_usize)
-        .unwrap_or(1);
-    let url_buf = scratch_a();
-    let mut c = 0usize;
-    let ok = write_bytes(url_buf, &mut c, BASE_URL)
-        && if listing == b"latest" {
-            write_bytes(url_buf, &mut c, b"/manhua-list-s2-p")
-        } else {
-            write_bytes(url_buf, &mut c, b"/manhua-list-p")
+    let args = json_object_member(req, b"args").unwrap_or(req);
+    let raw_id = extract_json_string(args, b"listingId").unwrap_or(b"popular");
+    let id = match decode_route_string(raw_id, scratch_b()) {
+        Some(id) => id,
+        None => return write_error("get_manga_list", "invalid_request", "listing ID capacity exceeded"),
+    };
+    let listing = match id {
+        b"popular" | b"listing:popular" => Listing::Popular,
+        b"latest" | b"listing:latest" => Listing::Latest,
+        _ => return write_error("get_manga_list", "invalid_request", "unknown listing"),
+    };
+    let raw_page = json_object_member(args, b"page");
+    let raw_cursor = raw_page.and_then(|page| json_object_member(page, b"cursor"));
+    if let Some(value) = raw_cursor {
+        if value != b"null" && !(value.starts_with(b"\"") && value.ends_with(b"\"")) {
+            return write_error("get_manga_list", "invalid_request", "cursor must be a string or null");
         }
-        && write_usize(url_buf, &mut c, page)
-        && write_bytes(url_buf, &mut c, b"/");
-    if !ok {
-        return write_error("get_manga_list", "internal_error", "url overflow");
     }
-    let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), c) };
-    write_manga_page_from_url("get_manga_list", url, 100)
+    let cursor = raw_cursor.filter(|raw| *raw != b"null")
+        .and_then(|raw| raw.strip_prefix(b"\"").and_then(|v| v.strip_suffix(b"\"")));
+    let path = if let Some(raw) = cursor {
+        let value = match decode_route_string(raw, scratch_b()) {
+            Some(value) => value,
+            None => return write_error("get_manga_list", "invalid_request", "cursor capacity exceeded"),
+        };
+        if decimal(value).is_some() {
+            let url = scratch_a(); let mut n = 0;
+            if !(write_bytes(url, &mut n, listing.prefix()) && write_bytes(url, &mut n, value) && write_bytes(url, &mut n, b"/")) {
+                return write_error("get_manga_list", "internal_error", "URL capacity exceeded");
+            }
+            unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), n) }
+        } else {
+            if listing.page(value).is_none() { return write_error("get_manga_list", "invalid_request", "cursor is outside listing"); }
+            let mut n = 0;
+            if !write_bytes(scratch_a(), &mut n, listing_path(value)) { return write_error("get_manga_list", "internal_error", "URL capacity exceeded"); }
+            unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), n) }
+        }
+    } else if let Some(page) = raw_page.filter(|p| p.first() != Some(&b'{')) {
+        let value = match decimal(page) {
+            Some(value) => value,
+            None => return write_error("get_manga_list", "invalid_request", "invalid numeric page"),
+        };
+        let mut n = 0;
+        if !(write_bytes(scratch_a(), &mut n, listing.prefix()) && write_bytes(scratch_a(), &mut n, value) && write_bytes(scratch_a(), &mut n, b"/")) {
+            return write_error("get_manga_list", "internal_error", "URL capacity exceeded");
+        }
+        unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), n) }
+    } else { listing.first() };
+    let mut n = 0;
+    if !(write_bytes(scratch_b(), &mut n, BASE_URL) && write_bytes(scratch_b(), &mut n, path)) {
+        return write_error("get_manga_list", "internal_error", "URL capacity exceeded");
+    }
+    let url = unsafe { core::slice::from_raw_parts(SCRATCH_B.as_ptr(), n) };
+    let page_value = match listing.page(url) {
+        Some(value) => value,
+        None => return write_error("get_manga_list", "invalid_request", "invalid listing route"),
+    };
+    // Keep current-page digits outside the HTTP/body buffers and URL scratch.
+    let mut current_size = 0;
+    if !write_bytes(scratch_a(), &mut current_size, page_value) {
+        return write_error("get_manga_list", "internal_error", "page capacity exceeded");
+    }
+    let current = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), current_size) };
+    let html_len = match fetch_body(url, None) {
+        Ok(n) => n,
+        Err(error) => { let (code, message) = fetch_error_code(error); return write_error("get_manga_list", code, message); }
+    };
+    let html = unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), html_len) };
+    let payload = payload_buf(); let mut c = 0;
+    if !(write_bytes(payload, &mut c, br#"{"listingId":""#) && write_bytes(payload, &mut c, listing.id()) && write_bytes(payload, &mut c, br#"","items":["#)) {
+        return write_error("get_manga_list", "internal_error", "payload overflow");
+    }
+    if let Err(message) = parse_cards(html, payload, &mut c, b"dm5") {
+        return write_error("get_manga_list", "parse_error", message);
+    }
+    let cursor_len = match directory_next(html, listing, current, http_req_buf()) {
+        Ok(len) => len,
+        Err(message) => return write_error("get_manga_list", "parse_error", message),
+    };
+    let has_more = cursor_len > 0;
+    let ok = write_bytes(payload, &mut c, br#"],"page":{"nextCursor":"#)
+        && if has_more { write_bytes(payload, &mut c, b"\"") && append_json_escaped(payload, &mut c, &http_req_buf()[..cursor_len]) && write_bytes(payload, &mut c, b"\"") } else { write_bytes(payload, &mut c, b"null") }
+        && write_bytes(payload, &mut c, br#", "hasMore":"#)
+        && write_bytes(payload, &mut c, if has_more { b"true" } else { b"false" })
+        && write_bytes(payload, &mut c, b"}}");
+    if !ok { return write_error("get_manga_list", "internal_error", "payload overflow"); }
+    write_success_payload("get_manga_list", c)
 }
 
 fn run_get_home(_req: &[u8]) -> u32 {
-    const HOME_JSON: &str = r#"{"sections":[{"title":"热门漫画","listingId":"popular"},{"title":"最新更新","listingId":"latest"}]}"#;
+    const HOME_JSON: &str = r#"{"sections":[{"id":"home:popular","title":"热门漫画","kind":"listingLink","listingId":"popular"},{"id":"home:latest","title":"最新更新","kind":"listingLink","listingId":"latest"}]}"#;
     let payload = payload_buf();
     let bytes = HOME_JSON.as_bytes();
     if bytes.len() > payload.len() {
@@ -1026,16 +1351,96 @@ fn run_get_settings(_req: &[u8]) -> u32 {
     write_success_payload("get_settings", SETTINGS.len())
 }
 
+// Covers are emitted by catalogue/detail metadata and have no chapter cid.
+// This role trusts that metadata pairing; it does not fetch/revalidate the pairing.
+fn cover_manga_slug(id: &[u8]) -> Option<&[u8]> {
+    let slug = id.strip_prefix(b"manga:")?;
+    if !slug.starts_with(b"manhua-") || slug.len() <= 7 || slug.len() > 160
+        || !slug.iter().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_'))
+    {
+        return None;
+    }
+    Some(slug)
+}
+
+fn valid_cover_url(url: &[u8]) -> bool {
+    let rest = match url.strip_prefix(b"https://") { Some(v) => v, None => return false };
+    let slash = match rest.iter().position(|b| *b == b'/') { Some(v) => v, None => return false };
+    let hostname = &rest[..slash];
+    let label = match hostname.strip_suffix(b".cdndm5.com") { Some(v) => v, None => return false };
+    if !label.starts_with(b"mhfm") || label.len() <= 4 || label.len() > 64
+        || !label.iter().all(|b| b.is_ascii_alphanumeric() || *b == b'-')
+    {
+        return false;
+    }
+    let mut parts = rest[slash + 1..].split(|b| *b == b'/');
+    for _ in 0..2 {
+        match parts.next() {
+            Some(v) if !v.is_empty() && v.iter().all(u8::is_ascii_digit) => {},
+            _ => return false,
+        }
+    }
+    let file = match parts.next().and_then(|v| {
+        v.strip_suffix(b".jpg").or_else(|| v.strip_suffix(b".jpeg"))
+    }) {
+        Some(v) => v, None => return false,
+    };
+    parts.next().is_none() && !file.is_empty() && file.len() <= 128
+        && file.iter().all(|b| b.is_ascii_digit() || matches!(b, b'_' | b'x'))
+}
+
+fn write_cover_image_request(req: &[u8], id: &[u8], url: &[u8]) -> u32 {
+    let slug = match cover_manga_slug(id) {
+        Some(v) => v,
+        None => return write_error("get_image_request", "invalid_request", "invalid cover owner"),
+    };
+    if !valid_cover_url(url) {
+        return write_error("get_image_request", "invalid_request", "unsupported cover url");
+    }
+    let referer = scratch_a();
+    let mut n = 0;
+    if !(write_bytes(referer, &mut n, BASE_URL) && write_bytes(referer, &mut n, b"/")
+        && write_bytes(referer, &mut n, slug) && write_bytes(referer, &mut n, b"/"))
+    {
+        return write_error("get_image_request", "internal_error", "cover referer overflow");
+    }
+    if let Some(owner_url) = extract_json_string(req, b"mangaUrl") {
+        if owner_url != &referer[..n] {
+            return write_error("get_image_request", "invalid_request", "cover owner mismatch");
+        }
+    }
+    let payload = payload_buf();
+    let mut c = 0;
+    let ok = write_bytes(payload, &mut c, br#"{"url":""#)
+        && append_json_escaped(payload, &mut c, url)
+        && write_bytes(payload, &mut c, br#"","headers":{"Referer":""#)
+        && append_json_escaped(payload, &mut c, &referer[..n])
+        && write_bytes(payload, &mut c, br#"","Accept-Language":"zh-TW","User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}}"#);
+    if !ok { return write_error("get_image_request", "internal_error", "payload overflow"); }
+    write_success_payload("get_image_request", c)
+}
+
 fn run_get_image_request(req: &[u8]) -> u32 {
     let url = match extract_json_string(req, b"url") {
         Some(v) => v,
         None => return write_error("get_image_request", "invalid_request", "missing url"),
     };
+    if let Some(id) = extract_json_string(req, b"pageId") {
+        if id.starts_with(b"manga:") {
+            return write_cover_image_request(req, id, url);
+        }
+    }
+    let cid = match extract_query_value(url, b"cid") {
+        Some(v) => v,
+        None => return write_error("get_image_request", "invalid_request", "missing cid"),
+    };
     let payload = payload_buf();
     let mut c = 0usize;
     let ok = write_bytes(payload, &mut c, br#"{"url":""#)
         && append_json_escaped(payload, &mut c, url)
-        && write_bytes(payload, &mut c, br#"","headers":{"Referer":"https://www.dm5.cn/","Accept-Language":"zh-TW","User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}}"#);
+        && write_bytes(payload, &mut c, br#"","headers":{"Referer":"https://www.dm5.cn/m"#)
+        && append_json_escaped(payload, &mut c, cid)
+        && write_bytes(payload, &mut c, br#"/","Accept-Language":"zh-TW","User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}}"#);
     if !ok {
         return write_error("get_image_request", "internal_error", "payload overflow");
     }
