@@ -23,6 +23,7 @@ members = [
   "sources/terrahistoricus",
   "sources/zerobyw",
   "sources/dm5",
+  "sources/comicabc",
   "sources/dongmanmanhua",
   "sources/manhuashe",
   "sources/manhuawu",

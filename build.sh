@@ -51,6 +51,7 @@ terrahistoricus|terrahistoricus|false|0.1.0
 noyacg|noyacg|true|0.1.0
 komiic|komiic|true|0.1.0
 dm5|dm5|true|0.1.0
+comicabc|comicabc|false|0.1.0
 zerobyw|zerobyw|true|0.1.0
 manhuashe|manhuashe|false|0.1.0
 dongmanmanhua|dongmanmanhua|false|0.1.0

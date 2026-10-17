@@ -1,0 +1,8 @@
+ComicABC/無限動漫 source parser references:
+Keiyoushi extensions-source Comicabc.kt, commit05c19676fd9870109557536d6e8646dd4a96bba0.
+https://github.com/keiyoushi/extensions-source/tree/05c19676fd9870109557536d6e8646dd4a96bba0/src/zh/comicabc
+Apache License2.0; copyright respective upstream contributors.
+Adapted public routes/selectors, simplified-traditional search character pairs,
+and fixed lc/nn/mm public literal-record schema. No QuickJS/runtime JavaScript,
+browser globals, site images or icons are included. Unsupported schema fails.
+Package LICENSE contains the upstream Apache2.0 license text.
