@@ -8,6 +8,7 @@ members = [
   "sources/bns-zh-hant",
   "sdk",
   "sources/genshin-zh",
+  "sources/fgo-zh",
   "sources/baozimh",
   "sources/bh3",
   "sources/mangadex",
