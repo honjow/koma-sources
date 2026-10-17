@@ -30,7 +30,7 @@ static mut GQL_BODY_BUF: [u8; GQL_BODY_CAP] = [0; GQL_BODY_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.komiic.koma",
     name: "Komiic",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -55,6 +55,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
 const QUERY_POPULAR: &[u8] = b"query hotComics($pagination: Pagination!) { comics: hotComics(pagination: $pagination) { id title description status imageUrl authors { id name } categories { id name } } }";
 const QUERY_SEARCH: &[u8] = b"query searchComicQuery($keyword: String!, $pagination: Pagination!) { comics: searchComics(keyword: $keyword, pagination: $pagination) { id title description status imageUrl authors { id name } categories { id name } } }";
 const QUERY_DETAIL: &[u8] = b"query chapterByComicId($comicId: ID!) { comicById(comicId: $comicId) { id title description status imageUrl authors { id name } categories { id name } } chaptersByComicId(comicId: $comicId) { id serial type size dateCreated } }";
+const QUERY_IMAGE_TICKET: &[u8] = b"query getImageTicket($kid: String!) { getImageTicket(kid: $kid) { url ticket kid } }";
 const QUERY_PAGES: &[u8] = b"query imagesByChapterId($chapterId: ID!) { imagesByChapterId(chapterId: $chapterId) { kid } }";
 
 
@@ -255,6 +256,17 @@ fn build_pages_body(id: &[u8]) -> Option<usize> {
     append_json_escaped(dst, &mut c, QUERY_PAGES).then_some(())?;
     write_bytes(dst, &mut c, br#"","variables":{"chapterId":""#).then_some(())?;
     append_json_escaped(dst, &mut c, id).then_some(())?;
+    write_bytes(dst, &mut c, br#""}}"#).then_some(())?;
+    Some(c)
+}
+
+fn build_image_ticket_body(kid: &[u8]) -> Option<usize> {
+    let dst = gql_body_buf();
+    let mut c = 0usize;
+    write_bytes(dst, &mut c, br#"{"query":""#).then_some(())?;
+    append_json_escaped(dst, &mut c, QUERY_IMAGE_TICKET).then_some(())?;
+    write_bytes(dst, &mut c, br#"","variables":{"kid":""#).then_some(())?;
+    append_json_escaped(dst, &mut c, kid).then_some(())?;
     write_bytes(dst, &mut c, br#""}}"#).then_some(())?;
     Some(c)
 }
@@ -669,14 +681,56 @@ fn run_get_pages(req: &[u8]) -> u32 {
 
 fn run_get_image_request(req: &[u8]) -> u32 {
     let url = match extract_json_string(req, b"url") {
-        Some(v) => v,
-        None => return write_error("get_image_request", "invalid_request", "missing url"),
+        Some(v) if !v.is_empty() => v,
+        _ => return write_error("get_image_request", "invalid_request", "missing url"),
     };
+    // Keep the existing page:index identity. The original image URL carries kid;
+    // pageId is also used by persisted reader and download cache entries.
+    let kid = strip_prefix(url, IMAGE_BASE);
+    let ticket_response = if let Some(kid) = kid {
+        let body_len = match build_image_ticket_body(kid) {
+            Some(v) => v,
+            None => return write_error("get_image_request", "internal_error", "body overflow"),
+        };
+        let api_json = match post_graphql(&gql_body_buf()[..body_len]) {
+            Ok(v) => v,
+            Err(e) => {
+                let (code, message) = fetch_error_code(e);
+                return write_error("get_image_request", code, message);
+            }
+        };
+        let record = match find_object_after_key(api_json, b"getImageTicket") {
+            Some(v) => v,
+            None => return write_error("get_image_request", "parse_error", "missing image ticket result"),
+        };
+        let image_url = match extract_json_string(record, b"url") {
+            Some(v) if v.starts_with(b"https://img.komiic.com/")
+                && !v.contains(&b'?') && !v.contains(&b'#') => v,
+            _ => return write_error("get_image_request", "parse_error", "invalid image ticket url"),
+        };
+        let ticket = match extract_json_string(record, b"ticket") {
+            Some(v) if !v.is_empty() => v,
+            _ => return write_error("get_image_request", "parse_error", "missing image ticket"),
+        };
+        if extract_json_string(record, b"kid") != Some(kid) {
+            return write_error("get_image_request", "parse_error", "image ticket identity mismatch");
+        }
+        Some((image_url, ticket))
+    } else { None };
     let payload = payload_buf();
     let mut c = 0usize;
-    let ok = write_bytes(payload, &mut c, br#"{"url":""#)
-        && append_json_escaped(payload, &mut c, url)
-        && write_bytes(payload, &mut c, br#"","headers":{"accept":"image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8","referer":"https://komiic.com/"}}"#);
+    let ok = if let Some((image_url, ticket)) = ticket_response {
+        write_bytes(payload, &mut c, br#"{"url":""#)
+            && append_json_unescaped_then_escaped(payload, &mut c, image_url)
+            && write_bytes(payload, &mut c, br#"","headers":{"X-Image-Ticket":""#)
+            && append_json_unescaped_then_escaped(payload, &mut c, ticket)
+            && write_bytes(payload, &mut c, br#""}}"#)
+    } else {
+        // Covers and unrelated URLs retain the existing request contract.
+        write_bytes(payload, &mut c, br#"{"url":""#)
+            && append_json_escaped(payload, &mut c, url)
+            && write_bytes(payload, &mut c, br#"","headers":{"accept":"image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8","referer":"https://komiic.com/"}}"#)
+    };
     if !ok {
         return write_error("get_image_request", "internal_error", "overflow");
     }
