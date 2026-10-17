@@ -1326,6 +1326,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_webtoons_source"
+version = "0.1.4"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
 name = "koma_weicomic_ronshaonien_source"
 version = "0.1.0"
 dependencies = [

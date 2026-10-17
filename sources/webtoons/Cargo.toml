@@ -1,0 +1,18 @@
+[package]
+name = "koma_webtoons_source"
+version = "0.1.4"
+edition = "2021"
+license = "Apache-2.0"
+description = "English public WEBTOON and CANVAS source for Koma"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+koma_source_sdk = { path = "../../sdk" }
+
+[profile.release]
+panic = "abort"
+opt-level = "s"
+lto = true
+strip = true
