@@ -36,5 +36,6 @@ members = [
   "sources/tongli",
   "sources/example-demo",
   "sources/tencentcomics",
+  "sources/kuaikan",
   "tools/koma-source-dev",
 ]

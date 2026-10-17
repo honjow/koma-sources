@@ -64,6 +64,7 @@ hanman18|hanman18|true|0.1.0
 example-demo|example-demo|false|0.1.0
 tencentcomics|tencentcomics|false|0.1.0
 bh3|bh3|false|0.1.0
+kuaikan|kuaikan|false|0.1.0
 '
 
 SOURCE_APP_VERSION_RE='^(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$'
