@@ -66,6 +66,7 @@ tencentcomics|tencentcomics|false|0.1.0
 bh3|bh3|false|0.1.0
 kuaikan|kuaikan|false|0.1.0
 webtoons|webtoons|false|0.1.0
+lol-zh|lol-zh|false|0.1.1
 '
 
 SOURCE_APP_VERSION_RE='^(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$'

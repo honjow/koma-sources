@@ -38,5 +38,6 @@ members = [
   "sources/tencentcomics",
   "sources/kuaikan",
   "sources/webtoons",
+  "sources/lol-zh",
   "tools/koma-source-dev",
 ]
