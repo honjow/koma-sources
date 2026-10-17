@@ -3,6 +3,7 @@ resolver = "2"
 members = [
   "sources/comicfury-zh",
   "sources/xkcd-zh",
+  "sources/weicomic-ronshaonien",
   "sdk",
   "sources/baozimh",
   "sources/bh3",
