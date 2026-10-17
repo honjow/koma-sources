@@ -4,7 +4,7 @@ extern crate koma_source_sdk;
 
 use koma_source_sdk::host::{self, http_request, log_info};
 use koma_source_sdk::json_utils::{
-    JsonArrayIter, JsonObjectStringIter, append_json_escaped, append_json_unescaped_then_escaped, contains_bytes,
+    JsonArrayIter, JsonObjectStringIter, append_json_escaped, contains_bytes,
     extract_json_number, extract_json_string, find_subslice, write_bytes, write_url_encoded,
     write_usize, json_object_member,
 };
@@ -73,7 +73,7 @@ fn manga_title(obj: &[u8]) -> &[u8] {
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "org.mangadex.koma",
     name: "MangaDex",
-    version: "0.1.6",
+    version: "0.1.10",
     api_version: "0.2",
     language: "en",
     author: "Koma",
@@ -102,52 +102,32 @@ fn json_buf() -> &'static mut [u8] {
 
 // --- HTTP helper ---
 
-fn parse_hex4_into_codepoint(hex: &[u8]) -> u16 {
-    let mut n = 0u16;
-    for &b in hex.iter().take(4) {
-        n = n << 4
-            | match b {
-                b'0'..=b'9' => (b - b'0') as u16,
-                b'a'..=b'f' => (b - b'a' + 10) as u16,
-                b'A'..=b'F' => (b - b'A' + 10) as u16,
-                _ => 0,
-            };
-    }
-    n
+fn api_string<'a>(obj: &'a [u8], key: &[u8]) -> Option<&'a [u8]> {
+    let value = json_object_member(obj, key)?;
+    if value.len() >= 2 && value.first() == Some(&b'"') && value.last() == Some(&b'"') {
+        Some(&value[1..value.len() - 1])
+    } else { None }
 }
 
-fn encode_codepoint_utf8(cp: u16, dst: &mut [u8]) -> usize {
-    if cp < 0x80 {
-        dst[0] = cp as u8;
-        1
-    } else if cp < 0x800 {
-        dst[0] = 0xC0 | (cp >> 6) as u8;
-        dst[1] = 0x80 | (cp & 0x3F) as u8;
-        2
-    } else {
-        dst[0] = 0xE0 | (cp >> 12) as u8;
-        dst[1] = 0x80 | ((cp >> 6) & 0x3F) as u8;
-        dst[2] = 0x80 | (cp & 0x3F) as u8;
-        3
-    }
+fn api_number<'a>(obj: &'a [u8], key: &[u8]) -> Option<&'a [u8]> {
+    let value = json_object_member(obj, key)?;
+    if !value.is_empty() && value.iter().all(u8::is_ascii_digit) { Some(value) } else { None }
 }
 
-/// Decode \uXXXX escapes in JSON strings in-place. Returns new length.
-fn decode_unicode_in_place(buf: &mut [u8], len: usize) -> usize {
-    let mut src = 0usize;
-    let mut dst = 0usize;
-    while src < len {
-        if buf[src] == b'\\' && src + 5 < len && buf[src + 1] == b'u' {
-            let cp = parse_hex4_into_codepoint(&buf[src + 2..src + 6]);
-            src += 6;
-            dst += encode_codepoint_utf8(cp, &mut buf[dst..]);
-        } else {
-            buf[dst] = buf[src];
-            dst += 1;
-            src += 1;
-        }
-    }
-    dst
+fn api_array<'a>(obj: &'a [u8], key: &[u8]) -> Option<JsonArrayIter<'a>> {
+    let value = json_object_member(obj, key)?;
+    if value.first() != Some(&b'[') || value.last() != Some(&b']') { return None; }
+    JsonArrayIter::from_raw_array(value)
+}
+
+fn api_attributes(obj: &[u8]) -> &[u8] {
+    json_object_member(obj, b"attributes").unwrap_or(b"{}")
+}
+
+// API string contents already carry JSON escaping, including surrogate pairs.
+// Copy them unchanged inside an output JSON string; do not double-escape them.
+fn append_api_string(dst: &mut [u8], cursor: &mut usize, raw: &[u8]) -> bool {
+    write_bytes(dst, cursor, raw)
 }
 
 fn fetch_json(url_bytes: &[u8]) -> Result<&'static [u8], FetchError> {
@@ -201,6 +181,7 @@ fn fetch_json(url_bytes: &[u8]) -> Result<&'static [u8], FetchError> {
     let out = json_buf();
     let mut out_cursor = 0usize;
     let mut i = body_start;
+    let mut body_closed = false;
     while i < resp.len() {
         let b = resp[i];
         if b == b'\\' && i + 1 < resp.len() {
@@ -216,20 +197,49 @@ fn fetch_json(url_bytes: &[u8]) -> Result<&'static [u8], FetchError> {
             i += 2;
             continue;
         }
-        if b == b'"' { break; }
+        if b == b'"' { body_closed = true; break; }
         if out_cursor >= out.len() { return Err(FetchError::Network); }
         out[out_cursor] = b;
         out_cursor += 1;
         i += 1;
     }
+    if !body_closed { return Err(FetchError::Network); }
     Ok(unsafe { core::slice::from_raw_parts(JSON_BUF.as_ptr(), out_cursor) })
 }
 
 // --- Operations ---
 
+// Explicit single-class filters win; All delegates to the saved default set.
+fn content_rating_query(req: &[u8], use_filter: bool) -> &'static [u8] {
+    let args = json_object_member(req, b"args").unwrap_or(req);
+    let filter = if use_filter {
+        json_object_member(args, b"filters").unwrap_or(args)
+    } else { b"{}" };
+    let explicit = json_object_member(filter, b"contentRating").and_then(nonempty_title_string);
+    match explicit {
+        Some(b"safe") => return b"&contentRating%5B%5D=safe",
+        Some(b"suggestive") => return b"&contentRating%5B%5D=suggestive",
+        Some(b"erotica") => return b"&contentRating%5B%5D=erotica",
+        _ => {},
+    }
+    let default = json_object_member(req, b"settings")
+        .and_then(|settings| json_object_member(settings, b"defaultContentRating"))
+        .and_then(nonempty_title_string);
+    match default {
+        Some(b"safe") => b"&contentRating%5B%5D=safe",
+        Some(b"erotica") => b"&contentRating%5B%5D=safe&contentRating%5B%5D=suggestive&contentRating%5B%5D=erotica",
+        _ => b"&contentRating%5B%5D=safe&contentRating%5B%5D=suggestive",
+    }
+}
+
+
+
 fn run_search(req: &[u8]) -> u32 {
     let page = koma_source_sdk::json_utils::request_page_number(req);
-    let offset = page.saturating_sub(1).saturating_mul(20);
+    let offset = match (page - 1).checked_mul(20) {
+        Some(offset) => offset,
+        None => return write_error("search", "invalid_request", "invalid page"),
+    };
     let query = match extract_json_string(req, b"query") {
         Some(q) => q,
         None => return write_error("search", "invalid_request", "missing query"),
@@ -243,7 +253,8 @@ fn run_search(req: &[u8]) -> u32 {
         && write_url_encoded(url_buf, &mut url_cursor, query)
         && write_bytes(url_buf, &mut url_cursor, b"&limit=20&offset=")
         && write_usize(url_buf, &mut url_cursor, offset)
-        && write_bytes(url_buf, &mut url_cursor, b"&includes%5B%5D=cover_art");
+        && write_bytes(url_buf, &mut url_cursor, b"&includes%5B%5D=cover_art")
+        && write_bytes(url_buf, &mut url_cursor, content_rating_query(req, true));
     if !ok { return write_error("search", "internal_error", "url overflow"); }
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
 
@@ -259,7 +270,7 @@ fn run_search(req: &[u8]) -> u32 {
         return write_error("search", "internal_error", "overflow");
     }
 
-    let mut iter = match JsonArrayIter::new(api_json, b"data") {
+    let mut iter = match api_array(api_json, b"data") {
         Some(it) => it,
         None => return write_error("search", "parse_error", "no data array"),
     };
@@ -268,45 +279,48 @@ fn run_search(req: &[u8]) -> u32 {
     while let Some(obj) = iter.next_object() {
         if written >= 20 { break; }
         // Extract: id, title (en or first), status
-        let id = match extract_json_string(obj, b"id") {
+        let id = match api_string(obj, b"id") {
             Some(v) => v,
             None => continue,
         };
         // Title: look for "en":"..." inside "title":{...}
         let title = manga_title(obj);
-        let status = extract_json_string(obj, b"status").unwrap_or(b"unknown");
+        let status = api_string(api_attributes(obj), b"status").unwrap_or(b"unknown");
 
         // Cover: find fileName in relationships where type=cover_art
         let cover_fn = extract_cover_filename(obj);
 
         if written > 0 {
-            if !write_bytes(payload, &mut c, b",") { break; }
+            if !write_bytes(payload, &mut c, b",") { return write_error("search", "internal_error", "overflow"); }
         }
         let ok = write_bytes(payload, &mut c, br#"{"id":"mdx:"#)
-            && append_json_escaped(payload, &mut c, id)
+            && append_api_string(payload, &mut c, id)
             && write_bytes(payload, &mut c, br#"","title":""#)
-            && append_json_escaped(payload, &mut c, title)
+            && append_api_string(payload, &mut c, title)
             && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":""#)
             && write_bytes(payload, &mut c, COVERS_BASE)
-            && append_json_escaped(payload, &mut c, id)
+            && append_api_string(payload, &mut c, id)
             && write_bytes(payload, &mut c, b"/");
-        if !ok { break; }
+        if !ok { return write_error("search", "internal_error", "overflow"); }
         if let Some(cfn) = cover_fn {
-            if !append_json_escaped(payload, &mut c, cfn) { break; }
+            if !append_api_string(payload, &mut c, cfn) { return write_error("search", "internal_error", "overflow"); }
         } else {
-            if !write_bytes(payload, &mut c, b"none.jpg") { break; }
+            if !write_bytes(payload, &mut c, b"none.jpg") { return write_error("search", "internal_error", "overflow"); }
         }
         let ok2 = write_bytes(payload, &mut c, br#""},"authors":[],"status":""#)
-            && append_json_escaped(payload, &mut c, status)
+            && append_api_string(payload, &mut c, status)
             && write_bytes(payload, &mut c, br#"","contentRating":"unknown","sourceTags":["mangadex"]}"#);
-        if !ok2 { break; }
+        if !ok2 { return write_error("search", "internal_error", "overflow"); }
         written += 1;
     }
 
-    let total = extract_json_number(api_json, b"total")
+    let total = match api_number(api_json, b"total")
         .and_then(|bytes| core::str::from_utf8(bytes).ok())
-        .and_then(|text| text.parse::<usize>().ok());
-    let has_more = total.map(|total| written > 0 && offset.saturating_add(written) < total).unwrap_or(false);
+        .and_then(|text| text.parse::<usize>().ok()) {
+        Some(total) => total,
+        None => return write_error("search", "parse_error", "invalid pagination total"),
+    };
+    let has_more = written > 0 && offset.saturating_add(written) < total;
     if !(write_bytes(payload, &mut c, br#"],"page":{"nextCursor":"#)
         && if has_more {
             write_bytes(payload, &mut c, b"\"")
@@ -321,13 +335,18 @@ fn run_search(req: &[u8]) -> u32 {
     write_success_payload("search", c)
 }
 
-fn extract_cover_filename<'a>(obj: &'a [u8]) -> Option<&'a [u8]> {
-    // Look for "fileName":"..." after "type":"cover_art"
-    let marker = b"\"type\":\"cover_art\"";
-    let idx = find_subslice(obj, marker)?;
-    // Look for fileName after this point
-    let rest = &obj[idx..];
-    extract_json_string(rest, b"fileName")
+fn relationship_string<'a>(obj: &'a [u8], kind: &[u8], key: &[u8]) -> Option<&'a [u8]> {
+    let mut relations = api_array(obj, b"relationships")?;
+    while let Some(relation) = relations.next_object() {
+        if api_string(relation, b"type") == Some(kind) {
+            return api_string(api_attributes(relation), key);
+        }
+    }
+    None
+}
+
+fn extract_cover_filename(obj: &[u8]) -> Option<&[u8]> {
+    relationship_string(obj, b"cover_art", b"fileName")
 }
 
 fn run_get_manga(req: &[u8]) -> u32 {
@@ -356,29 +375,16 @@ fn run_get_manga(req: &[u8]) -> u32 {
         Err(e) => { let (c, m) = fetch_error_code(e); return write_error("get_manga", c, m); }
     };
 
-    // Parse manga object from "data":{...}
-    let data_marker = b"\"data\":{";
-    let data_start = match find_subslice(api_json, data_marker) {
-        Some(idx) => idx + data_marker.len() - 1, // include {
-        None => return write_error("get_manga", "parse_error", "no data"),
+    let obj = match json_object_member(api_json, b"data") {
+        Some(obj) if obj.first() == Some(&b'{') => obj,
+        _ => return write_error("get_manga", "parse_error", "no data"),
     };
-    // Find the end of this object
-    let obj = &api_json[data_start..];
-
+    let attributes = api_attributes(obj);
     let title = manga_title(obj);
-    let status = extract_json_string(obj, b"status").unwrap_or(b"unknown");
-    let content_rating = extract_json_string(obj, b"contentRating").unwrap_or(b"unknown");
-    // description is a nested object {"en":"...", ...} — find it, then extract "en" inside
-    let desc = {
-        let desc_marker = b"\"description\":{";
-        match find_subslice(obj, desc_marker) {
-            Some(idx) => {
-                let desc_obj = &obj[idx + desc_marker.len()..];
-                extract_json_string(desc_obj, b"en").unwrap_or(b"")
-            }
-            None => b"" as &[u8],
-        }
-    };
+    let status = api_string(attributes, b"status").unwrap_or(b"unknown");
+    let content_rating = api_string(attributes, b"contentRating").unwrap_or(b"unknown");
+    let desc = json_object_member(attributes, b"description")
+        .and_then(|value| api_string(value, b"en")).unwrap_or(b"");
     let cover_fn = extract_cover_filename(obj);
 
     // Extract author names from relationships
@@ -391,16 +397,16 @@ fn run_get_manga(req: &[u8]) -> u32 {
     let ok = write_bytes(payload, &mut c, br#"{"manga":{"id":"mdx:"#)
         && append_json_escaped(payload, &mut c, uuid)
         && write_bytes(payload, &mut c, br#"","title":""#)
-        && append_json_escaped(payload, &mut c, title)
+        && append_api_string(payload, &mut c, title)
         && write_bytes(payload, &mut c, br#"","alternateTitles":[],"description":""#)
-        && append_json_unescaped_then_escaped(payload, &mut c, desc)
+        && append_api_string(payload, &mut c, desc)
         && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":""#)
         && write_bytes(payload, &mut c, COVERS_BASE)
         && append_json_escaped(payload, &mut c, uuid)
         && write_bytes(payload, &mut c, b"/");
     if !ok { return write_error("get_manga", "internal_error", "overflow"); }
     if let Some(cfn) = cover_fn {
-        if !append_json_escaped(payload, &mut c, cfn) {
+        if !append_api_string(payload, &mut c, cfn) {
             return write_error("get_manga", "internal_error", "overflow");
         }
     } else {
@@ -411,34 +417,37 @@ fn run_get_manga(req: &[u8]) -> u32 {
     let ok2 = write_bytes(payload, &mut c, br#""},"authors":["#);
     if !ok2 { return write_error("get_manga", "internal_error", "overflow"); }
     if let Some(author) = author_name {
-        let _ = write_bytes(payload, &mut c, b"\"")
-            && append_json_unescaped_then_escaped(payload, &mut c, author)
+        let ok_string = write_bytes(payload, &mut c, b"\"")
+            && append_api_string(payload, &mut c, author)
             && write_bytes(payload, &mut c, b"\"");
+        if !ok_string { return write_error("get_manga", "internal_error", "overflow"); }
     }
     let ok3 = write_bytes(payload, &mut c, br#"],"artists":["#);
     if !ok3 { return write_error("get_manga", "internal_error", "overflow"); }
     if let Some(artist) = artist_name {
-        let _ = write_bytes(payload, &mut c, b"\"")
-            && append_json_unescaped_then_escaped(payload, &mut c, artist)
+        let ok_string = write_bytes(payload, &mut c, b"\"")
+            && append_api_string(payload, &mut c, artist)
             && write_bytes(payload, &mut c, b"\"");
+        if !ok_string { return write_error("get_manga", "internal_error", "overflow"); }
     }
     let ok4 = write_bytes(payload, &mut c, br#"],"status":""#)
-        && append_json_escaped(payload, &mut c, status)
+        && append_api_string(payload, &mut c, status)
         && write_bytes(payload, &mut c, br#"","contentRating":""#)
-        && append_json_escaped(payload, &mut c, content_rating)
+        && append_api_string(payload, &mut c, content_rating)
         && write_bytes(payload, &mut c, br#"","language":"en","tags":["#);
     if !ok4 { return write_error("get_manga", "internal_error", "overflow"); }
     // Extract tag names from tags array
-    if let Some(mut tag_iter) = JsonArrayIter::new(obj, b"tags") {
+    if let Some(mut tag_iter) = api_array(attributes, b"tags") {
         let mut tag_count = 0usize;
         while let Some(tag_obj) = tag_iter.next_object() {
-            if let Some(name) = extract_json_string(tag_obj, b"en") {
+            if let Some(name) = json_object_member(api_attributes(tag_obj), b"name").and_then(|name| api_string(name, b"en")) {
                 if tag_count > 0 {
-                    if !write_bytes(payload, &mut c, b",") { break; }
+                    if !write_bytes(payload, &mut c, b",") { return write_error("get_manga", "internal_error", "overflow"); }
                 }
-                let _ = write_bytes(payload, &mut c, b"\"")
-                    && append_json_unescaped_then_escaped(payload, &mut c, name)
+                let ok_string = write_bytes(payload, &mut c, b"\"")
+                    && append_api_string(payload, &mut c, name)
                     && write_bytes(payload, &mut c, b"\"");
+        if !ok_string { return write_error("get_manga", "internal_error", "overflow"); }
                 tag_count += 1;
             }
         }
@@ -456,18 +465,51 @@ fn run_get_manga(req: &[u8]) -> u32 {
     write_success_payload("get_manga", c)
 }
 
-fn extract_author_name<'a>(obj: &'a [u8]) -> Option<&'a [u8]> {
-    let marker = b"\"type\":\"author\"";
-    let idx = find_subslice(obj, marker)?;
-    let rest = &obj[idx..];
-    extract_json_string(rest, b"name")
+fn extract_author_name(obj: &[u8]) -> Option<&[u8]> {
+    relationship_string(obj, b"author", b"name")
 }
 
-fn extract_artist_name<'a>(obj: &'a [u8]) -> Option<&'a [u8]> {
-    let marker = b"\"type\":\"artist\"";
-    let idx = find_subslice(obj, marker)?;
-    let rest = &obj[idx..];
-    extract_json_string(rest, b"name")
+fn extract_artist_name(obj: &[u8]) -> Option<&[u8]> {
+    relationship_string(obj, b"artist", b"name")
+}
+
+// The cursor carries only this traversal's facts, never chapter identity or URLs.
+struct ChapterTraversal {
+    page: usize,
+    known: bool,
+    hosted: bool,
+    external: bool,
+    other: bool,
+}
+
+fn chapter_traversal(req: &[u8]) -> Option<ChapterTraversal> {
+    let cursor = json_object_member(req, b"args")
+        .and_then(|args| json_object_member(args, b"page"))
+        .and_then(|page| json_object_member(page, b"cursor"));
+    if let Some(raw) = cursor {
+        if raw != b"null" {
+            let text = core::str::from_utf8(nonempty_title_string(raw)?).ok()?;
+            if let Some(state) = text.strip_prefix("mdxc1:") {
+                let mut fields = state.split(':');
+                let page_text = fields.next()?;
+                if page_text.is_empty() || !page_text.bytes().all(|byte| byte.is_ascii_digit()) { return None; }
+                let page = page_text.parse::<usize>().ok()?;
+                let mut flag = || match fields.next()? { "0" => Some(false), "1" => Some(true), _ => None };
+                let known = flag()?;
+                let hosted = flag()?;
+                let external = flag()?;
+                let other = flag()?;
+                if page == 0 || fields.next().is_some() { return None; }
+                return Some(ChapterTraversal { page, known, hosted, external, other });
+            }
+            if text.is_empty() || !text.bytes().all(|byte| byte.is_ascii_digit()) { return None; }
+            let page = text.parse::<usize>().ok()?;
+            if page == 0 { return None; }
+            return Some(ChapterTraversal { page, known: page == 1, hosted: false, external: false, other: false });
+        }
+    }
+    let page = koma_source_sdk::json_utils::request_page_number(req);
+    Some(ChapterTraversal { page, known: page == 1, hosted: false, external: false, other: false })
 }
 
 fn run_get_chapters(req: &[u8]) -> u32 {
@@ -481,25 +523,49 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     }
     let uuid = &manga_id[prefix.len()..];
 
+    let exact_chapter = match json_object_member(req, b"args")
+        .and_then(|args| json_object_member(args, b"chapterId")) {
+        Some(value) => {
+            let id = match nonempty_title_string(value) {
+                Some(id) if id.starts_with(b"ch:") => &id[3..],
+                _ => return write_error("get_chapters", "invalid_request", "bad chapterId"),
+            };
+            if id.len() != 36 || !id.iter().enumerate().all(|(index, byte)| {
+                if matches!(index, 8 | 13 | 18 | 23) { *byte == b'-' } else { byte.is_ascii_hexdigit() }
+            }) {
+                return write_error("get_chapters", "invalid_request", "bad chapterId");
+            }
+            Some(id)
+        }
+        None => None,
+    };
     let language = json_object_member(req, b"settings")
         .and_then(|settings| extract_json_string(settings, b"language"))
         .filter(|value| !value.is_empty())
         .unwrap_or(b"en");
-    let page = koma_source_sdk::json_utils::request_page_number(req);
+    let mut traversal = match chapter_traversal(req) {
+        Some(value) => value,
+        None => return write_error("get_chapters", "invalid_request", "invalid chapter cursor"),
+    };
+    let page = traversal.page;
     let offset = match (page - 1).checked_mul(100) {
         Some(value) => value,
         None => return write_error("get_chapters", "invalid_request", "invalid page"),
     };
     let url_buf = scratch_a();
     let mut url_cursor = 0usize;
-    let ok = write_bytes(url_buf, &mut url_cursor, API_BASE)
+    let ok = if let Some(chapter_uuid) = exact_chapter {
+        write_bytes(url_buf, &mut url_cursor, API_BASE)
+            && write_bytes(url_buf, &mut url_cursor, b"/chapter/")
+            && write_bytes(url_buf, &mut url_cursor, chapter_uuid)
+    } else { write_bytes(url_buf, &mut url_cursor, API_BASE)
         && write_bytes(url_buf, &mut url_cursor, b"/manga/")
         && write_bytes(url_buf, &mut url_cursor, uuid)
         && write_bytes(url_buf, &mut url_cursor, b"/feed?limit=100&offset=")
         && write_usize(url_buf, &mut url_cursor, offset)
         && write_bytes(url_buf, &mut url_cursor, b"&translatedLanguage%5B%5D=")
         && write_url_encoded(url_buf, &mut url_cursor, language)
-        && write_bytes(url_buf, &mut url_cursor, b"&order%5Bchapter%5D=desc");
+        && write_bytes(url_buf, &mut url_cursor, b"&order%5Bchapter%5D=desc") };
     if !ok { return write_error("get_chapters", "internal_error", "url overflow"); }
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
 
@@ -517,82 +583,104 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     let pagination_number = |key: &[u8]| json_object_member(api_json, key)
         .and_then(|bytes| core::str::from_utf8(bytes).ok())
         .and_then(|text| text.parse::<usize>().ok());
-    let has_more = match (pagination_number(b"offset"), pagination_number(b"limit"), pagination_number(b"total")) {
+    let has_more = if exact_chapter.is_some() { false } else { match (pagination_number(b"offset"), pagination_number(b"limit"), pagination_number(b"total")) {
         (Some(response_offset), Some(100), Some(total)) if response_offset == offset =>
             response_offset.saturating_add(100) < total,
         _ => return write_error("get_chapters", "parse_error", "invalid feed pagination"),
-    };
+    }};
 
-    let mut iter = match JsonArrayIter::new(api_json, b"data") {
-        Some(it) => it,
-        None => return write_error("get_chapters", "parse_error", "no data"),
-    };
+    let mut exact_item = if let Some(chapter_uuid) = exact_chapter {
+        let item = match json_object_member(api_json, b"data") {
+            Some(item) => item,
+            None => return write_error("get_chapters", "parse_error", "no chapter data"),
+        };
+        let same_id = json_object_member(item, b"id").and_then(nonempty_title_string) == Some(chapter_uuid);
+        let mut same_manga = false;
+        if let Some(mut relations) = api_array(item, b"relationships") {
+            while let Some(relation) = relations.next_object() {
+                if json_object_member(relation, b"type").and_then(nonempty_title_string) == Some(b"manga") &&
+                    json_object_member(relation, b"id").and_then(nonempty_title_string) == Some(uuid) {
+                    same_manga = true;
+                }
+            }
+        }
+        if !same_id || !same_manga {
+            return write_error("get_chapters", "not_found", "chapter does not match manga");
+        }
+        Some(item)
+    } else { None };
+    let mut iter = if exact_chapter.is_none() {
+        match api_array(api_json, b"data") {
+            Some(it) => Some(it),
+            None => return write_error("get_chapters", "parse_error", "no data"),
+        }
+    } else { None };
 
     let mut written = 0usize;
-    while let Some(obj) = iter.next_object() {
+    while let Some(obj) = exact_item.take().or_else(|| iter.as_mut().and_then(|it| it.next_object())) {
         if written >= 100 { break; }
-        let ch_id = match extract_json_string(obj, b"id") {
+        let ch_id = match api_string(obj, b"id") {
             Some(v) => v,
-            None => continue,
+            None => { traversal.other = true; continue; },
         };
-        let chapter_num = extract_json_string(obj, b"chapter").unwrap_or(b"0");
-        let title = extract_json_string(obj, b"title").unwrap_or(b"");
-        let lang = extract_json_string(obj, b"translatedLanguage").unwrap_or(b"en");
+        let chapter_num = api_string(api_attributes(obj), b"chapter").unwrap_or(b"0");
+        let title = api_string(api_attributes(obj), b"title").unwrap_or(b"");
+        let lang = api_string(api_attributes(obj), b"translatedLanguage").unwrap_or(b"en");
 
-        // Decode \uXXXX escapes from title/language.
-        let mut title_buf = [0u8; 256];
-        let mut lang_buf = [0u8; 16];
-        let title_len = {
-            let tlen = title.len().min(255);
-            title_buf[..tlen].copy_from_slice(&title[..tlen]);
-            decode_unicode_in_place(&mut title_buf, tlen)
-        };
-        let lang_len = {
-            let llen = lang.len().min(15);
-            lang_buf[..llen].copy_from_slice(&lang[..llen]);
-            decode_unicode_in_place(&mut lang_buf, llen)
-        };
-        let title_decoded = &title_buf[..title_len];
-        let lang_decoded = &lang_buf[..lang_len];
-
-        let pages = extract_json_number(obj, b"pages");
+        let pages = api_number(api_attributes(obj), b"pages");
 
         // Skip chapters that MangaDex doesn't host (externalUrl, e.g. MangaPlus)
-        let has_external = extract_json_string(obj, b"externalUrl").is_some();
+        let has_external = api_string(api_attributes(obj), b"externalUrl").is_some();
         let pages_zero = match pages {
             Some(p) => p == b"0",
             None => false,
         };
         if has_external || pages_zero {
+            if has_external && api_string(api_attributes(obj), b"externalUrl").map_or(false, |value| !value.is_empty()) {
+                traversal.external = true;
+            } else { traversal.other = true; }
             continue;
         }
 
         if written > 0 {
-            if !write_bytes(payload, &mut c, b",") { break; }
+            if !write_bytes(payload, &mut c, b",") { return write_error("get_chapters", "internal_error", "overflow"); }
         }
         let ok = write_bytes(payload, &mut c, br#"{"id":"ch:"#)
-            && append_json_escaped(payload, &mut c, ch_id)
+            && append_api_string(payload, &mut c, ch_id)
             && write_bytes(payload, &mut c, br#"","mangaId":"mdx:"#)
             && append_json_escaped(payload, &mut c, uuid)
             && write_bytes(payload, &mut c, br#"","title":""#)
-            && append_json_escaped(payload, &mut c, title_decoded)          && write_bytes(payload, &mut c, br#"","chapterNumber":""#)
-            && append_json_escaped(payload, &mut c, chapter_num)
+            && append_api_string(payload, &mut c, title)          && write_bytes(payload, &mut c, br#"","chapterNumber":""#)
+            && append_api_string(payload, &mut c, chapter_num)
             && write_bytes(payload, &mut c, br#"","volumeNumber":null,"language":""#)
-            && append_json_escaped(payload, &mut c, lang_decoded)            && write_bytes(payload, &mut c, br#"","publishedAt":null,"updatedAt":null,"pageCount":"#);
-        if !ok { break; }
+            && append_api_string(payload, &mut c, lang)            && write_bytes(payload, &mut c, br#"","publishedAt":null,"updatedAt":null,"pageCount":"#);
+        if !ok { return write_error("get_chapters", "internal_error", "overflow"); }
         if let Some(p) = pages {
-            if !write_bytes(payload, &mut c, p) { break; }
+            if !write_bytes(payload, &mut c, p) { return write_error("get_chapters", "internal_error", "overflow"); }
         } else {
-            if !write_bytes(payload, &mut c, b"null") { break; }
+            if !write_bytes(payload, &mut c, b"null") { return write_error("get_chapters", "internal_error", "overflow"); }
         }
-        if !write_bytes(payload, &mut c, b"}") { break; }
+        if !write_bytes(payload, &mut c, b"}") { return write_error("get_chapters", "internal_error", "overflow"); }
         written += 1;
+        traversal.hosted = true;
     }
 
+    if !has_more && traversal.known && traversal.external && !traversal.hosted && !traversal.other {
+        return write_error("get_chapters", "unsupported", "external chapters are not hosted by this source");
+    }
+    let next_page = match page.checked_add(1) {
+        Some(value) => value,
+        None if has_more => return write_error("get_chapters", "invalid_request", "invalid page"),
+        None => page,
+    };
     if !(write_bytes(payload, &mut c, br#"],"page":{"nextCursor":"#)
         && if has_more {
-            write_bytes(payload, &mut c, b"\"")
-                && write_usize(payload, &mut c, page.saturating_add(1))
+            write_bytes(payload, &mut c, b"\"mdxc1:")
+                && write_usize(payload, &mut c, next_page)
+                && write_bytes(payload, &mut c, if traversal.known { b":1" } else { b":0" })
+                && write_bytes(payload, &mut c, if traversal.hosted { b":1" } else { b":0" })
+                && write_bytes(payload, &mut c, if traversal.external { b":1" } else { b":0" })
+                && write_bytes(payload, &mut c, if traversal.other { b":1" } else { b":0" })
                 && write_bytes(payload, &mut c, b"\"")
         } else { write_bytes(payload, &mut c, b"null") }
         && write_bytes(payload, &mut c, br#","hasMore":"#)
@@ -603,7 +691,14 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     write_success_payload("get_chapters", c)
 }
 
+fn data_saver_enabled(req: &[u8]) -> bool {
+    let value = json_object_member(req, b"settings")
+        .and_then(|settings| json_object_member(settings, b"dataSaver"));
+    matches!(value, Some(b"true") | Some(br#""true""#))
+}
+
 fn run_get_pages(req: &[u8]) -> u32 {
+    let data_saver = data_saver_enabled(req);
     let chapter_id = match extract_json_string(req, b"chapterId") {
         Some(v) => v,
         None => return write_error("get_pages", "invalid_request", "missing chapterId"),
@@ -629,11 +724,11 @@ fn run_get_pages(req: &[u8]) -> u32 {
     };
 
     // Extract baseUrl and hash
-    let base_url = match extract_json_string(api_json, b"baseUrl") {
+    let base_url = match api_string(api_json, b"baseUrl") {
         Some(v) => v,
         None => return write_error("get_pages", "parse_error", "no baseUrl"),
     };
-    let hash = match extract_json_string(api_json, b"hash") {
+    let hash = match json_object_member(api_json, b"chapter").and_then(|obj| api_string(obj, b"hash")) {
         Some(v) => v,
         None => return write_error("get_pages", "parse_error", "no hash"),
     };
@@ -646,34 +741,35 @@ fn run_get_pages(req: &[u8]) -> u32 {
         && write_bytes(payload, &mut c, br#"","pages":["#);
     if !ok2 { return write_error("get_pages", "internal_error", "overflow"); }
 
-    // Find "data":[ array and extract filenames
-    let data_arr_marker = b"\"data\":[";
-    let arr_start = match find_subslice(api_json, data_arr_marker) {
-        Some(idx) => idx + data_arr_marker.len(),
-        None => return write_error("get_pages", "parse_error", "no data array"),
+    // Select the filenames supplied for this quality; filenames are not aliases.
+    let chapter = match json_object_member(api_json, b"chapter") {
+        Some(value) => value,
+        None => return write_error("get_pages", "parse_error", "no chapter object"),
     };
-
-    let mut i = arr_start;
+    let array_key: &[u8] = if data_saver { b"dataSaver" } else { b"data" };
+    let filenames = match json_object_member(chapter, array_key) {
+        Some(array) if array.starts_with(b"[") && array.ends_with(b"]") => array,
+        _ => return write_error("get_pages", "parse_error", "no selected image array"),
+    };
+    let mut i = 1usize;
     let mut page_idx = 0usize;
-    while i < api_json.len() {
-        // Skip whitespace/commas
-        while i < api_json.len() && (api_json[i] == b' ' || api_json[i] == b',' || api_json[i] == b'\n' || api_json[i] == b'\r') {
+    while i < filenames.len() {
+        while i < filenames.len() && (filenames[i].is_ascii_whitespace() || filenames[i] == b',') {
             i += 1;
         }
-        if i >= api_json.len() || api_json[i] == b']' { break; }
-        if api_json[i] != b'"' { break; }
-        // Read string
-        i += 1; // skip opening "
-        let str_start = i;
-        while i < api_json.len() && api_json[i] != b'"' {
-            if api_json[i] == b'\\' { i += 1; }
+        if i >= filenames.len() || filenames[i] == b']' { break; }
+        if filenames[i] != b'"' { return write_error("get_pages", "parse_error", "invalid image filename"); }
+        i += 1;
+        let start = i;
+        while i < filenames.len() && filenames[i] != b'"' {
+            if filenames[i] == b'\\' { i += 1; }
             i += 1;
         }
-        let filename = &api_json[str_start..i];
-        i += 1; // skip closing "
-
+        if i >= filenames.len() { return write_error("get_pages", "parse_error", "unterminated image filename"); }
+        let filename = &filenames[start..i];
+        i += 1;
         if page_idx > 0 {
-            if !write_bytes(payload, &mut c, b",") { break; }
+            if !write_bytes(payload, &mut c, b",") { return write_error("get_pages", "internal_error", "overflow"); }
         }
         // Build full URL: {baseUrl}/data/{hash}/{filename}
         let ok3 = write_bytes(payload, &mut c, br#"{"id":"page:"#)
@@ -681,13 +777,13 @@ fn run_get_pages(req: &[u8]) -> u32 {
             && write_bytes(payload, &mut c, br#"","index":"#)
             && write_usize(payload, &mut c, page_idx)
             && write_bytes(payload, &mut c, br#","image":{"kind":"url","url":""#)
-            && append_json_unescaped_then_escaped(payload, &mut c, base_url)
-            && write_bytes(payload, &mut c, b"/data/")
-            && append_json_unescaped_then_escaped(payload, &mut c, hash)
+            && append_api_string(payload, &mut c, base_url)
+            && write_bytes(payload, &mut c, if data_saver { b"/data-saver/" } else { b"/data/" })
+            && append_api_string(payload, &mut c, hash)
             && write_bytes(payload, &mut c, b"/")
-            && append_json_unescaped_then_escaped(payload, &mut c, filename)
+            && append_api_string(payload, &mut c, filename)
             && write_bytes(payload, &mut c, br#""}}"#);
-        if !ok3 { break; }
+        if !ok3 { return write_error("get_pages", "internal_error", "overflow"); }
         page_idx += 1;
     }
 
@@ -732,7 +828,6 @@ fn run_get_filters(_req: &[u8]) -> u32 {
 fn run_get_manga_list(req: &[u8]) -> u32 {
     // Extract filter parameters from request
     let status = extract_json_string(req, b"status").unwrap_or(b"all");
-    let content_rating = extract_json_string(req, b"contentRating").unwrap_or(b"all");
     let demographic = extract_json_string(req, b"demographic").unwrap_or(b"all");
     let listing_id = extract_json_string(req, b"listingId").unwrap_or(b"listing:popular");
     let requested_order = extract_json_string(req, b"order").unwrap_or(b"relevance");
@@ -745,13 +840,11 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     } else {
         b"followedCount"
     };
-    let page_bytes = extract_json_number(req, b"page");
-    let page_num = if let Some(pb) = page_bytes {
-        let mut n = 0usize;
-        for &b in pb { n = n * 10 + (b - b'0') as usize; }
-        if n == 0 { 1 } else { n }
-    } else { 1 };
-    let offset_val = (page_num - 1) * 20;
+    let page_num = koma_source_sdk::json_utils::request_page_number(req);
+    let offset_val = match (page_num - 1).checked_mul(20) {
+        Some(offset) => offset,
+        None => return write_error("get_manga_list", "invalid_request", "invalid page"),
+    };
 
     // Build URL: /manga?limit=20&offset=N&includes[]=cover_art + optional filters
     let url_buf = scratch_a();
@@ -767,15 +860,8 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
             && write_bytes(url_buf, &mut url_cursor, status);
         if !ok2 { return write_error("get_manga_list", "internal_error", "url overflow"); }
     }
-    // Append contentRating filter
-    if content_rating != b"all" {
-        let ok2 = write_bytes(url_buf, &mut url_cursor, b"&contentRating%5B%5D=")
-            && write_bytes(url_buf, &mut url_cursor, content_rating);
-        if !ok2 { return write_error("get_manga_list", "internal_error", "url overflow"); }
-    } else {
-        // Default: include safe + suggestive
-        let ok2 = write_bytes(url_buf, &mut url_cursor, b"&contentRating%5B%5D=safe&contentRating%5B%5D=suggestive");
-        if !ok2 { return write_error("get_manga_list", "internal_error", "url overflow"); }
+    if !write_bytes(url_buf, &mut url_cursor, content_rating_query(req, true)) {
+        return write_error("get_manga_list", "internal_error", "url overflow");
     }
     // Append demographic filter
     if demographic != b"all" {
@@ -797,14 +883,13 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     };
 
     // Parse total from response for hasMore
-    let total = extract_json_number(api_json, b"total")
-        .and_then(|t| {
-            let mut n = 0usize;
-            for &b in t { n = n * 10 + (b - b'0') as usize; }
-            Some(n)
-        })
-        .unwrap_or(0);
-    let has_more = offset_val + 20 < total;
+    let total = match api_number(api_json, b"total")
+        .and_then(|bytes| core::str::from_utf8(bytes).ok())
+        .and_then(|text| text.parse::<usize>().ok()) {
+        Some(total) => total,
+        None => return write_error("get_manga_list", "parse_error", "invalid pagination total"),
+    };
+    let has_more = offset_val.saturating_add(20) < total;
 
     let payload = payload_buf();
     let mut c = 0usize;
@@ -812,7 +897,7 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
         return write_error("get_manga_list", "internal_error", "overflow");
     }
 
-    let mut iter = match JsonArrayIter::new(api_json, b"data") {
+    let mut iter = match api_array(api_json, b"data") {
         Some(it) => it,
         None => return write_error("get_manga_list", "parse_error", "no data"),
     };
@@ -820,42 +905,46 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     let mut written = 0usize;
     while let Some(obj) = iter.next_object() {
         if written >= 20 { break; }
-        let id = match extract_json_string(obj, b"id") {
+        let id = match api_string(obj, b"id") {
             Some(v) => v,
             None => continue,
         };
         let title = manga_title(obj);
-        let st = extract_json_string(obj, b"status").unwrap_or(b"unknown");
+        let st = api_string(api_attributes(obj), b"status").unwrap_or(b"unknown");
         let cover_fn = extract_cover_filename(obj);
 
         if written > 0 {
-            if !write_bytes(payload, &mut c, b",") { break; }
+            if !write_bytes(payload, &mut c, b",") { return write_error("get_manga_list", "internal_error", "overflow"); }
         }
         let ok = write_bytes(payload, &mut c, br#"{"id":"mdx:"#)
-            && append_json_escaped(payload, &mut c, id)
+            && append_api_string(payload, &mut c, id)
             && write_bytes(payload, &mut c, br#"","title":""#)
-            && append_json_escaped(payload, &mut c, title)
+            && append_api_string(payload, &mut c, title)
             && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":""#)
             && write_bytes(payload, &mut c, COVERS_BASE)
-            && append_json_escaped(payload, &mut c, id)
+            && append_api_string(payload, &mut c, id)
             && write_bytes(payload, &mut c, b"/");
-        if !ok { break; }
+        if !ok { return write_error("get_manga_list", "internal_error", "overflow"); }
         if let Some(cfn) = cover_fn {
-            if !append_json_escaped(payload, &mut c, cfn) { break; }
+            if !append_api_string(payload, &mut c, cfn) { return write_error("get_manga_list", "internal_error", "overflow"); }
         } else {
-            if !write_bytes(payload, &mut c, b"none.jpg") { break; }
+            if !write_bytes(payload, &mut c, b"none.jpg") { return write_error("get_manga_list", "internal_error", "overflow"); }
         }
         let ok2 = write_bytes(payload, &mut c, br#""},"authors":[],"status":""#)
-            && append_json_escaped(payload, &mut c, st)
+            && append_api_string(payload, &mut c, st)
             && write_bytes(payload, &mut c, br#"","contentRating":"unknown","sourceTags":["mangadex"]}"#);
-        if !ok2 { break; }
+        if !ok2 { return write_error("get_manga_list", "internal_error", "overflow"); }
         written += 1;
     }
 
-    // Close items array and add pagination info
-    let ok_close = write_bytes(payload, &mut c, br#"],"page":{"nextCursor":""#)
-        && write_usize(payload, &mut c, page_num + 1)
-        && write_bytes(payload, &mut c, br#"","hasMore":"#);
+    // A terminal page must not advertise another cursor.
+    let ok_close = write_bytes(payload, &mut c, br#"],"page":{"nextCursor":"#)
+        && if has_more {
+            write_bytes(payload, &mut c, b"\"")
+                && write_usize(payload, &mut c, page_num + 1)
+                && write_bytes(payload, &mut c, b"\"")
+        } else { write_bytes(payload, &mut c, b"null") }
+        && write_bytes(payload, &mut c, br#","hasMore":"#);
     if !ok_close { return write_error("get_manga_list", "internal_error", "overflow"); }
     if has_more {
         if !write_bytes(payload, &mut c, b"true}}") {
@@ -890,10 +979,10 @@ fn run_image_request(req: &[u8]) -> u32 {
 
 // --- get_home: multi-section home page ---
 
-fn run_get_home(_req: &[u8]) -> u32 {
-    let url_popular = b"https://api.mangadex.org/manga?limit=10&includes%5B%5D=cover_art&order%5BfollowedCount%5D=desc&hasAvailableChapters=true&contentRating%5B%5D=safe&contentRating%5B%5D=suggestive";
-    let url_latest = b"https://api.mangadex.org/manga?limit=10&includes%5B%5D=cover_art&order%5BlatestUploadedChapter%5D=desc&hasAvailableChapters=true&contentRating%5B%5D=safe&contentRating%5B%5D=suggestive";
-    let url_top_rated = b"https://api.mangadex.org/manga?limit=10&includes%5B%5D=cover_art&order%5Brating%5D=desc&hasAvailableChapters=true&contentRating%5B%5D=safe&contentRating%5B%5D=suggestive";
+fn run_get_home(req: &[u8]) -> u32 {
+    let url_popular = b"https://api.mangadex.org/manga?limit=10&includes%5B%5D=cover_art&order%5BfollowedCount%5D=desc&hasAvailableChapters=true";
+    let url_latest = b"https://api.mangadex.org/manga?limit=10&includes%5B%5D=cover_art&order%5BlatestUploadedChapter%5D=desc&hasAvailableChapters=true";
+    let url_top_rated = b"https://api.mangadex.org/manga?limit=10&includes%5B%5D=cover_art&order%5Brating%5D=desc&hasAvailableChapters=true";
 
     let payload = payload_buf();
     let mut c = 0usize;
@@ -902,29 +991,48 @@ fn run_get_home(_req: &[u8]) -> u32 {
     }
 
     // Fetch and emit each section
-    let sections: [(&[u8], &[u8]); 3] = [
-        (b"Popular New Titles" as &[u8], url_popular as &[u8]),
-        (b"Recently Updated" as &[u8], url_latest as &[u8]),
-        (b"Top Rated" as &[u8], url_top_rated as &[u8]),
+    let sections: [(&[u8], &[u8], &[u8]); 3] = [
+        (b"listing:popular", b"Popular New Titles", url_popular),
+        (b"listing:latest", b"Recently Updated", url_latest),
+        (b"listing:top_rated", b"Top Rated", url_top_rated),
     ];
 
     let mut section_idx = 0usize;
-    for (section_title, url) in sections.iter() {
+    for (section_id, section_title, url) in sections.iter() {
         if section_idx > 0 {
-            if !write_bytes(payload, &mut c, b",") { break; }
+            if !write_bytes(payload, &mut c, b",") { return write_error("get_home", "internal_error", "overflow"); }
         }
-        let ok = write_bytes(payload, &mut c, br#"{"title":""#)
+        let ok = write_bytes(payload, &mut c, br#"{"id":""#)
+            && append_json_escaped(payload, &mut c, section_id)
+            && write_bytes(payload, &mut c, br#"","kind":"mangaList","title":""#)
             && append_json_escaped(payload, &mut c, section_title)
             && write_bytes(payload, &mut c, br#"","items":["#);
-        if !ok { break; }
+        if !ok { return write_error("get_home", "internal_error", "overflow"); }
 
-        // Fetch this section's data
-        if let Ok(api_json) = fetch_json(url) {
-            if let Some(mut iter) = JsonArrayIter::new(api_json, b"data") {
+        // The homepage has no per-list filter, so use the saved default set.
+        let url_buf = scratch_a();
+        let mut url_len = 0usize;
+        if !(write_bytes(url_buf, &mut url_len, url)
+            && write_bytes(url_buf, &mut url_len, content_rating_query(req, false))) {
+            return write_error("get_home", "internal_error", "url overflow");
+        }
+        let section_url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_len) };
+        let api_json = match fetch_json(section_url) {
+            Ok(value) => value,
+            Err(error) => {
+                let (code, message) = fetch_error_code(error);
+                return write_error("get_home", code, message);
+            }
+        };
+        let mut iter = match api_array(api_json, b"data") {
+            Some(iter) => iter,
+            None => return write_error("get_home", "parse_error", "no data array"),
+        };
+        {
                 let mut item_count = 0usize;
                 while let Some(obj) = iter.next_object() {
                     if item_count >= 10 { break; }
-                    let id = match extract_json_string(obj, b"id") {
+                    let id = match api_string(obj, b"id") {
                         Some(v) => v,
                         None => continue,
                     };
@@ -932,29 +1040,28 @@ fn run_get_home(_req: &[u8]) -> u32 {
                     let cover_fn = extract_cover_filename(obj);
 
                     if item_count > 0 {
-                        if !write_bytes(payload, &mut c, b",") { break; }
+                        if !write_bytes(payload, &mut c, b",") { return write_error("get_home", "internal_error", "overflow"); }
                     }
                     let ok2 = write_bytes(payload, &mut c, br#"{"id":"mdx:"#)
-                        && append_json_escaped(payload, &mut c, id)
+                        && append_api_string(payload, &mut c, id)
                         && write_bytes(payload, &mut c, br#"","title":""#)
-                        && append_json_escaped(payload, &mut c, title)
+                        && append_api_string(payload, &mut c, title)
                         && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":""#)
                         && write_bytes(payload, &mut c, COVERS_BASE)
-                        && append_json_escaped(payload, &mut c, id)
+                        && append_api_string(payload, &mut c, id)
                         && write_bytes(payload, &mut c, b"/");
-                    if !ok2 { break; }
+                    if !ok2 { return write_error("get_home", "internal_error", "overflow"); }
                     if let Some(cfn) = cover_fn {
-                        if !append_json_escaped(payload, &mut c, cfn) { break; }
+                        if !append_api_string(payload, &mut c, cfn) { return write_error("get_home", "internal_error", "overflow"); }
                     } else {
-                        if !write_bytes(payload, &mut c, b"none.jpg") { break; }
+                        if !write_bytes(payload, &mut c, b"none.jpg") { return write_error("get_home", "internal_error", "overflow"); }
                     }
-                    if !write_bytes(payload, &mut c, br#""}}"#) { break; }
+                    if !write_bytes(payload, &mut c, br#""}}"#) { return write_error("get_home", "internal_error", "overflow"); }
                     item_count += 1;
                 }
-            }
         }
 
-        if !write_bytes(payload, &mut c, b"]}") { break; }
+        if !write_bytes(payload, &mut c, b"]}") { return write_error("get_home", "internal_error", "overflow"); }
         section_idx += 1;
     }
 
