@@ -8,10 +8,24 @@ use koma_source_sdk::host::{
 };
 use koma_source_sdk::json_utils::{
     append_json_escaped, contains_bytes, extract_json_number, extract_json_string, find_subslice,
-    write_bytes, write_url_encoded, write_usize,
+    json_object_member, request_page_number, write_bytes, write_url_encoded, write_usize,
 };
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
-use koma_source_sdk::{FetchError, build_get_request, fetch_error_code, parse_status_code};
+use koma_source_sdk::{build_get_request, parse_status_code};
+
+#[derive(Copy, Clone)]
+enum FetchError { Network, NotFound, RateLimit, PermissionDenied, ClientError, ServerError }
+
+fn fetch_error_code(error: FetchError) -> (&'static str, &'static str) {
+    match error {
+        FetchError::Network => ("network_error", "connection or timeout failure"),
+        FetchError::NotFound => ("not_found", "resource not found"),
+        FetchError::RateLimit => ("rate_limited", "rate limited by server"),
+        FetchError::PermissionDenied => ("permission_denied", "source requires access verification"),
+        FetchError::ClientError => ("client_error", "client error (4xx)"),
+        FetchError::ServerError => ("server_error", "server error (5xx)"),
+    }
+}
 
 // Additional host import not yet in SDK
 #[link(wasm_import_module = "koma_host")]
@@ -56,7 +70,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "online.baozimh.koma",
     name: "包子漫畫 (Baozimh)",
-    version: "0.1.0",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -96,20 +110,21 @@ fn fetch_html(url_bytes: &[u8]) -> Result<usize, FetchError> {
     }
     if transport_failed { return Err(FetchError::Network); }
     let resp = &http_out()[..resp_len];
+    // Host ok describes transport success, including HTTP refusal responses.
+    let status = extract_json_number(resp, b"status")
+        .or_else(|| extract_json_number(resp, b"statusCode"))
+        .map(parse_status_code).unwrap_or(0);
+    match status {
+        401 | 403 => return Err(FetchError::PermissionDenied),
+        404 => return Err(FetchError::NotFound),
+        429 => return Err(FetchError::RateLimit),
+        400..=499 => return Err(FetchError::ClientError),
+        500..=599 => return Err(FetchError::ServerError),
+        200..=299 => {},
+        _ => return Err(FetchError::Network),
+    }
     if !contains_bytes(resp, br#""ok":true"#) {
-        log_info(b"baozimh: http response not ok");
-        let err = if let Some(code_bytes) = extract_json_number(resp, b"statusCode") {
-            match parse_status_code(code_bytes) {
-                404 => FetchError::NotFound,
-                429 => FetchError::RateLimit,
-                400..=499 => FetchError::ClientError,
-                500..=599 => FetchError::ServerError,
-                _ => FetchError::Network,
-            }
-        } else {
-            FetchError::Network
-        };
-        return Err(err);
+        return Err(FetchError::Network);
     }
     let body_marker = b"\"bodyText\":\"";
     let body_start_idx = find_subslice(resp, body_marker).ok_or(FetchError::Network)? + body_marker.len();
@@ -214,6 +229,18 @@ fn attr_into<'a>(
 fn text_into<'a>(desc: HtmlDescriptor, out: &'a mut [u8]) -> Option<&'a [u8]> {
     let len = html_text(desc, out).ok()?;
     Some(&out[..len])
+}
+
+// A tag is complete only when Text did not fill its actual output buffer.
+// Preserve the previous tag-specific ASCII whitespace trimming exactly.
+fn detail_tag_text<'a>(descriptor: HtmlDescriptor, output: &'a mut [u8]) -> Result<&'a [u8], ()> {
+    let len = html_text(descriptor, output).map_err(|_| ())?;
+    if len >= output.len() { return Err(()); }
+    let mut start = 0;
+    let mut end = len;
+    while start < end && matches!(output[start], b' ' | b'\n' | b'\r' | b'\t') { start += 1; }
+    while end > start && matches!(output[end - 1], b' ' | b'\n' | b'\r' | b'\t') { end -= 1; }
+    Ok(&output[start..end])
 }
 
 fn slug_from_comic_path(path: &[u8], out: &mut [u8]) -> Option<usize> {
@@ -437,47 +464,37 @@ fn run_get_manga(req: &[u8]) -> u32 {
             }
         }
     }
-    // Extract tags (span.tag): [0]=status, [1]=region, [2+]=genre tags
-    let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
-    let tag_count = html_select_all(document.0.raw(), b"span.tag", select_buf);
-    let tag_max = if tag_count > 0 { (tag_count as usize).min(20) } else { 0 };
-
-    // Read all tag texts into a stack buffer
-    let mut tag_texts: [[u8; 64]; 20] = [[0u8; 64]; 20];
-    let mut tag_lens: [usize; 20] = [0; 20];
-    for ti in 0..tag_max {
-        let off = ti * 4;
-        if off + 4 > select_buf.len() { break; }
-        let td = i32::from_le_bytes([select_buf[off], select_buf[off+1], select_buf[off+2], select_buf[off+3]]);
-        if td < 0 { continue; }
-        let hd: HtmlDescriptor = unsafe { core::mem::transmute(td) };
-        let len = html_text(hd, &mut tag_texts[ti]).unwrap_or(0);
-        // Trim leading/trailing whitespace
-        let mut start = 0;
-        let mut end = len;
-        while start < end && (tag_texts[ti][start] == b' ' || tag_texts[ti][start] == b'\n' || tag_texts[ti][start] == b'\r' || tag_texts[ti][start] == b'\t') { start += 1; }
-        while end > start && (tag_texts[ti][end-1] == b' ' || tag_texts[ti][end-1] == b'\n' || tag_texts[ti][end-1] == b'\r' || tag_texts[ti][end-1] == b'\t') { end -= 1; }
-        if start > 0 && end > start {
-            // Shift trimmed content to beginning
-            let trimmed_len = end - start;
-            let mut k = 0;
-            while k < trimmed_len { tag_texts[ti][k] = tag_texts[ti][start + k]; k += 1; }
-            tag_lens[ti] = trimmed_len;
-        } else {
-            tag_lens[ti] = end - start;
-        }
-        let _ = html_close(hd);
-    }
-
-    // Determine status from first tag
-    let status_bytes = if tag_lens[0] > 0 { &tag_texts[0][..tag_lens[0]] } else { b"unknown" as &[u8] };
-    let status_str: &[u8] = if status_bytes == "連載中".as_bytes() || status_bytes == "连载中".as_bytes() {
-        b"ongoing"
-    } else if status_bytes == "已完結".as_bytes() || status_bytes == "已完结".as_bytes() {
-        b"completed"
-    } else {
-        b"unknown"
+    // Preserve the existing [0]=status, [1]=region, [2+]=genre contract,
+    // but allocate/own all matching descriptors rather than silently taking 20.
+    let tag_count = html_select_all(document.0.raw(), b"span.tag", &mut scratch_a()[..0]);
+    if tag_count < 0 { return write_error("get_manga", "parse_error", "tag selection failed"); }
+    let total = tag_count as usize;
+    let descriptor_bytes = match total.checked_mul(4) {
+        Some(n) if n <= body_buf().len() => n,
+        _ => return write_error("get_manga", "source_error", "tags exceed current descriptor capacity"),
     };
+    let handles = &mut body_buf()[..descriptor_bytes];
+    let selected = if total == 0 { 0 } else {
+        html_select_all(document.0.raw(), b"span.tag", handles)
+    };
+    if selected < 0 { return write_error("get_manga", "parse_error", "tag selection failed"); }
+    let tags = PageDescriptors { bytes: handles, count: (selected as usize).min(total) };
+    if selected as usize != total {
+        return write_error("get_manga", "parse_error", "tag selection changed");
+    }
+    let status_str: &[u8] = if total > 0 {
+        let descriptor = match tags.get(0) {
+            Some(handle) => handle,
+            None => return write_error("get_manga", "parse_error", "invalid tag descriptor"),
+        };
+        let text = match detail_tag_text(descriptor, &mut http_out()[..NATIVE_RESULT_CAP]) {
+            Ok(text) => text,
+            Err(()) => return write_error("get_manga", "parse_error", "tag text unavailable or incomplete"),
+        };
+        if text == "連載中".as_bytes() || text == "连载中".as_bytes() { b"ongoing" }
+        else if text == "已完結".as_bytes() || text == "已完结".as_bytes() { b"completed" }
+        else { b"unknown" }
+    } else { b"unknown" };
 
     // Write: ],"artists":[],"status":"...","contentRating":"unknown","language":"zh-Hant","tags":[
     let ok3 = write_bytes(payload, &mut c, br#"],"artists":[],"status":""#)
@@ -487,17 +504,26 @@ fn run_get_manga(req: &[u8]) -> u32 {
         return write_error("get_manga", "internal_error", "payload overflow");
     }
 
-    // Write genre tags (skip [0]=status, [1]=region, start from [2])
+    // Stream all genre texts within the existing complete-response budget.
     let mut tag_written = 0usize;
-    for ti in 2..tag_max {
-        if tag_lens[ti] == 0 { continue; }
-        if tag_written > 0 {
-            if !write_bytes(payload, &mut c, b",") { break; }
+    for ti in 2..total {
+        let descriptor = match tags.get(ti) {
+            Some(handle) => handle,
+            None => return write_error("get_manga", "parse_error", "invalid tag descriptor"),
+        };
+        let text = match detail_tag_text(descriptor, &mut http_out()[..NATIVE_RESULT_CAP]) {
+            Ok(text) => text,
+            Err(()) => return write_error("get_manga", "parse_error", "tag text unavailable or incomplete"),
+        };
+        if text.is_empty() { continue; }
+        if tag_written > 0 && !write_bytes(payload, &mut c, b",") {
+            return write_error("get_manga", "internal_error", "payload overflow");
         }
-        let ok4 = write_bytes(payload, &mut c, br#"""#)
-            && append_json_escaped(payload, &mut c, &tag_texts[ti][..tag_lens[ti]])
-            && write_bytes(payload, &mut c, br#"""#);
-        if !ok4 { break; }
+        if !(write_bytes(payload, &mut c, br#"""#)
+            && append_json_escaped(payload, &mut c, text)
+            && write_bytes(payload, &mut c, br#"""#)) {
+            return write_error("get_manga", "internal_error", "payload overflow");
+        }
         tag_written += 1;
     }
 
@@ -511,7 +537,15 @@ fn run_get_manga(req: &[u8]) -> u32 {
         return write_error("get_manga", "internal_error", "payload overflow");
     }
 
-    write_success_payload("get_manga", c)
+    let result = write_success_payload("get_manga", c);
+    if result == 0 { return write_error("get_manga", "internal_error", "response overflow"); }
+    let envelope_len = unsafe {
+        core::ptr::read_unaligned((result as *const u8).add(8).cast::<u32>())
+    };
+    if envelope_len as usize > NATIVE_RESULT_CAP {
+        return write_error("get_manga", "source_error", "detail cannot fit current response capacity");
+    }
+    result
 }
 
 fn run_get_chapters(req: &[u8]) -> u32 {
@@ -546,12 +580,30 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         Err(_) => return write_error("get_chapters", "parse_error", "html_parse failed"),
     };
 
-    let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
-    // Baozimh site layout changed: chapters are now bare a.comics-chapters__item
-    // elements inside .l-box divs, no longer wrapped in #chapter-items or
-    // #chapters_other_list containers.
-    let count1 = html_select_all(document.0.raw(), b"a.comics-chapters__item", select_buf);
-    let total_items = if count1 > 0 { count1 as usize } else { 0 };
+    // Same production SelectAll ownership contract as the pages consumer.
+    let count = html_select_all(document.0.raw(), b"a.comics-chapters__item", &mut scratch_a()[..0]);
+    if count < 0 {
+        return write_error("get_chapters", "parse_error", "chapter selection failed");
+    }
+    let total_items = count as usize;
+    let descriptor_bytes = match total_items.checked_mul(4) {
+        Some(bytes) if bytes <= BODY_CAP => bytes,
+        _ => return write_error("get_chapters", "source_error", "chapters cannot fit current response capacity"),
+    };
+    let handles = &mut body_buf()[..descriptor_bytes];
+    let selected = if total_items == 0 { 0 } else {
+        html_select_all(document.0.raw(), b"a.comics-chapters__item", handles)
+    };
+    if selected < 0 {
+        return write_error("get_chapters", "parse_error", "chapter selection failed");
+    }
+    let descriptors = PageDescriptors {
+        bytes: handles,
+        count: (selected as usize).min(descriptor_bytes / 4),
+    };
+    if selected as usize != total_items {
+        return write_error("get_chapters", "parse_error", "chapter selection changed");
+    }
 
     let payload = payload_buf();
     let mut c = 0usize;
@@ -562,14 +614,10 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     let mut written = 0usize;
 
     for i in 0..total_items {
-        let offset = i * 4;
-        if offset + 4 > select_buf.len() { break; }
-        let desc = i32::from_le_bytes([
-            select_buf[offset], select_buf[offset+1], select_buf[offset+2], select_buf[offset+3],
-        ]);
-        if desc < 0 { continue; }
-
-        let hd: HtmlDescriptor = unsafe { core::mem::transmute(desc) };
+        let hd = match descriptors.get(i) {
+            Some(value) => value,
+            None => return write_error("get_chapters", "parse_error", "missing chapter descriptor"),
+        };
         let mut title_buf = [0u8; 256];
         let title = text_into(hd, &mut title_buf).map(trim_ascii);
         let mut href_buf = [0u8; 256];
@@ -584,7 +632,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         let slot = chapter_slot.unwrap_or(b"0");
 
         if written > 0 {
-            if !write_bytes(payload, &mut c, b",") { break; }
+            if !write_bytes(payload, &mut c, b",") { return write_error("get_chapters", "internal_error", "payload overflow"); }
         }
         let ok = write_bytes(payload, &mut c, br#"{"id":"chapter:"#)
             && append_json_escaped(payload, &mut c, slug)
@@ -596,16 +644,69 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             && append_json_escaped(payload, &mut c, title.unwrap_or(b"Chapter"))
             && write_bytes(payload, &mut c, br#"","chapterNumber":""#)
             && append_json_escaped(payload, &mut c, slot)
-            && write_bytes(payload, &mut c, br#"","volumeNumber":null,"language":"zh-Hant","publishedAt":null,"updatedAt":null,"pageCount":null}"#);
-        if !ok { break; }
+            && write_bytes(payload, &mut c, br#"","volumeNumber":null,"publishedAt":null,"updatedAt":null,"pageCount":null}"#);
+        if !ok { return write_error("get_chapters", "internal_error", "payload overflow"); }
         written += 1;
-        let _ = html_close(hd);
     }
 
     if !write_bytes(payload, &mut c, br#"],"page":{"nextCursor":null,"hasMore":false}}"#) {
         return write_error("get_chapters", "internal_error", "payload overflow");
     }
-    write_success_payload("get_chapters", c)
+    let result = write_success_payload("get_chapters", c);
+    if result == 0 { return write_error("get_chapters", "internal_error", "response overflow"); }
+    let envelope_len = unsafe {
+        core::ptr::read_unaligned((result as *const u8).add(8).cast::<u32>())
+    };
+    if envelope_len as usize > NATIVE_RESULT_CAP {
+        return write_error("get_chapters", "source_error", "chapters cannot fit current response capacity");
+    }
+    result
+}
+
+// Own exactly the child handles actually written by SelectAll, including
+// unconsumed entries when the operation must return early. The root outlives it.
+struct PageDescriptors<'a> {
+    bytes: &'a [u8],
+    count: usize,
+}
+
+impl PageDescriptors<'_> {
+    fn get(&self, index: usize) -> Option<HtmlDescriptor> {
+        if index >= self.count { return None; }
+        let offset = index * 4;
+        let raw = i32::from_le_bytes([
+            self.bytes[offset], self.bytes[offset + 1],
+            self.bytes[offset + 2], self.bytes[offset + 3],
+        ]);
+        if raw < 0 { return None; }
+        Some(unsafe { core::mem::transmute(raw) })
+    }
+}
+
+impl Drop for PageDescriptors<'_> {
+    fn drop(&mut self) {
+        for index in 0..self.count {
+            if let Some(handle) = self.get(index) {
+                let _ = html_close(handle);
+            }
+        }
+    }
+}
+
+// Current Native ReadEnvelope limits the complete JSON envelope, not a URI.
+const NATIVE_RESULT_CAP: usize = 1024 * 1024;
+
+fn write_page_ordinal(dst: &mut [u8], cursor: &mut usize, ordinal: usize) -> bool {
+    if ordinal >= 10000 {
+        return write_usize(dst, cursor, ordinal);
+    }
+    let digits = [
+        b'0' + ((ordinal / 1000) % 10) as u8,
+        b'0' + ((ordinal / 100) % 10) as u8,
+        b'0' + ((ordinal / 10) % 10) as u8,
+        b'0' + (ordinal % 10) as u8,
+    ];
+    write_bytes(dst, cursor, &digits)
 }
 
 fn run_get_pages(req: &[u8]) -> u32 {
@@ -648,8 +749,35 @@ fn run_get_pages(req: &[u8]) -> u32 {
         Ok(d) => OwnedDescriptor(d),
         Err(_) => return write_error("get_pages", "parse_error", "html_parse failed"),
     };
-    let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
-    let count = html_select_all(document.0.raw(), b"amp-img.comic-contain__item", select_buf);
+    // The count-only pass allocates no child handles. Native SelectAll returns
+    // the full count even when the caller provides zero output capacity.
+    let count = html_select_all(document.0.raw(), b"amp-img.comic-contain__item", &mut scratch_a()[..0]);
+    if count < 0 {
+        return write_error("get_pages", "parse_error", "image selection failed");
+    }
+    let total = count as usize;
+    let descriptor_bytes = match total.checked_mul(4) {
+        Some(bytes) if bytes <= BODY_CAP => bytes,
+        _ => return write_error("get_pages", "source_error", "chapter cannot fit current response capacity"),
+    };
+    // Lexbor owns its DOM/attribute storage after parsing; the original HTML
+    // body is no longer needed. Reuse it, without adding a fixed page limit.
+    let handles = &mut body_buf()[..descriptor_bytes];
+    let selected = if total == 0 { 0 } else {
+        html_select_all(document.0.raw(), b"amp-img.comic-contain__item", handles)
+    };
+    if selected < 0 {
+        // Native SelectAll error paths allocate no descriptors.
+        return write_error("get_pages", "parse_error", "image selection failed");
+    }
+    let descriptors = PageDescriptors {
+        bytes: handles,
+        // Only these entries were written/allocated by the actual second call.
+        count: (selected as usize).min(descriptor_bytes / 4),
+    };
+    if selected as usize != total {
+        return write_error("get_pages", "parse_error", "image selection changed");
+    }
 
     let payload = payload_buf();
     let mut c = 0usize;
@@ -662,123 +790,70 @@ fn run_get_pages(req: &[u8]) -> u32 {
         return write_error("get_pages", "internal_error", "payload overflow");
     }
 
-    let max_items = if count > 0 { count as usize } else { 0 };
-    let max_items = if max_items > 500 { 500 } else { max_items };
     let mut written = 0usize;
 
-    for i in 0..max_items {
-        let offset = i * 4;
-        if offset + 4 > select_buf.len() { break; }
-        let desc = i32::from_le_bytes([
-            select_buf[offset], select_buf[offset+1], select_buf[offset+2], select_buf[offset+3],
-        ]);
-        if desc < 0 { continue; }
-
-        let hd: HtmlDescriptor = unsafe { core::mem::transmute(desc) };
-        let mut src_buf = [0u8; 512];
-        if let Some(img_src) = attr_into(hd, b"src", &mut src_buf) {
+    for i in 0..total {
+        let hd = match descriptors.get(i) {
+            Some(value) => value,
+            None => return write_error("get_pages", "parse_error", "missing image descriptor"),
+        };
+        // The old HTTP envelope has been consumed; reuse that full buffer.
+        let img_src = match attr_into(hd, b"src", &mut http_out()[..NATIVE_RESULT_CAP]) {
+            Some(value) => value,
+            None => return write_error("get_pages", "parse_error", "missing image src"),
+        };
+        if img_src.len() == NATIVE_RESULT_CAP {
+            // Attr reports copied bytes, not original length. A saturated 1MiB
+            // URI cannot fit the same-sized complete result envelope.
+            return write_error("get_pages", "source_error", "image URI cannot fit current response capacity");
+        }
+        {
             if written > 0 {
-                if !write_bytes(payload, &mut c, b",") { break; }
+                if !write_bytes(payload, &mut c, b",") {
+                    return write_error("get_pages", "internal_error", "payload overflow");
+                }
             }
-            // Build index as 4-digit string
-            let mut idx_buf = [0u8; 4];
-            let idx_val = written as u32;
-            idx_buf[0] = b'0' + ((idx_val / 1000) % 10) as u8;
-            idx_buf[1] = b'0' + ((idx_val / 100) % 10) as u8;
-            idx_buf[2] = b'0' + ((idx_val / 10) % 10) as u8;
-            idx_buf[3] = b'0' + (idx_val % 10) as u8;
-
             let ok2 = write_bytes(payload, &mut c, br#"{"id":"page:"#)
                 && append_json_escaped(payload, &mut c, slug)
                 && write_bytes(payload, &mut c, b":")
                 && append_json_escaped(payload, &mut c, slot)
                 && write_bytes(payload, &mut c, b":")
-                && write_bytes(payload, &mut c, &idx_buf)
+                && write_page_ordinal(payload, &mut c, written)
                 && write_bytes(payload, &mut c, br#"","index":"#)
                 && write_usize(payload, &mut c, written)
                 && write_bytes(payload, &mut c, br#","image":{"kind":"url","url":""#)
                 && append_json_escaped(payload, &mut c, img_src)
                 && write_bytes(payload, &mut c, br#""}}"#);
-            if !ok2 { break; }
+            if !ok2 {
+                return write_error("get_pages", "internal_error", "payload overflow");
+            }
             written += 1;
         }
-        let _ = html_close(hd);
     }
 
     if !write_bytes(payload, &mut c, b"]}") {
         return write_error("get_pages", "internal_error", "payload overflow");
     }
-    write_success_payload("get_pages", c)
+    let result = write_success_payload("get_pages", c);
+    if result == 0 {
+        return write_error("get_pages", "internal_error", "response overflow");
+    }
+    // The ABI header length is the full JSON envelope (excluding the 16-byte
+    // header), not just data. Match the current Native ReadEnvelope boundary.
+    let envelope_len = unsafe {
+        core::ptr::read_unaligned((result as *const u8).add(8).cast::<u32>())
+    };
+    if envelope_len as usize > NATIVE_RESULT_CAP {
+        return write_error("get_pages", "source_error", "chapter cannot fit current response capacity");
+    }
+    result
 }
 
-fn run_get_listings(req: &[u8]) -> u32 {
-    // URL: /classify (popular, default page 1)
-    let url = b"https://www.baozimh.com/classify";
-
-    let html_len = match fetch_html(url) {
-        Ok(len) => len,
-        Err(e) => { let (c, m) = fetch_error_code(e); return write_error("get_listings", c, m); }
-    };
-    let html_bytes = &body_buf()[..html_len];
-
-    let document = match html_parse(html_bytes) {
-        Ok(d) => OwnedDescriptor(d),
-        Err(_) => return write_error("get_listings", "parse_error", "html_parse failed"),
-    };
-
-    let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
-    let count = html_select_all(document.0.raw(), b"a.comics-card__poster", select_buf);
-
-    let payload = payload_buf();
-    let mut c = 0usize;
-
-    if !write_bytes(payload, &mut c, br#"{"items":["#) {
-        return write_error("get_listings", "internal_error", "payload overflow");
-    }
-
-    let max_items = if count > 0 { (count as usize).min(500) } else { 0 };
-    let mut written = 0usize;
-
-    for i in 0..max_items {
-        let offset = i * 4;
-        if offset + 4 > select_buf.len() { break; }
-        let desc = i32::from_le_bytes([
-            select_buf[offset], select_buf[offset+1], select_buf[offset+2], select_buf[offset+3],
-        ]);
-        if desc < 0 { continue; }
-
-        let hd: HtmlDescriptor = unsafe { core::mem::transmute(desc) };
-        let scratch_href = scratch_a();
-        let scratch_title = scratch_b();
-        let href_bytes = attr_into(hd, b"href", scratch_href);
-        let title_bytes = attr_into(hd, b"title", scratch_title);
-
-        if let (Some(href), Some(title)) = (href_bytes, title_bytes) {
-            let mut slug_buf = [0u8; 128];
-            if let Some(slug_len) = slug_from_comic_path(href, &mut slug_buf) {
-                let slug = &slug_buf[..slug_len];
-                if written > 0 {
-                    if !write_bytes(payload, &mut c, b",") { break; }
-                }
-                let ok = write_bytes(payload, &mut c, br#"{"id":"manga:"#)
-                    && append_json_escaped(payload, &mut c, slug)
-                    && write_bytes(payload, &mut c, br#"","title":""#)
-                    && append_json_escaped(payload, &mut c, title)
-                    && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":"https://static-tw.baozimh.com/cover/"#)
-                    && append_json_escaped(payload, &mut c, slug)
-                    && write_bytes(payload, &mut c, br#".jpg"},"authors":[],"status":"unknown","contentRating":"unknown","sourceTags":["baozimh"]}"#);
-                if !ok { break; }
-                written += 1;
-            }
-        }
-        let _ = html_close(hd);
-    }
-
-    if !write_bytes(payload, &mut c, br#"],"page":{"nextCursor":null,"hasMore":false}}"#) {
-        return write_error("get_listings", "internal_error", "payload overflow");
-    }
-
-    write_success_payload("get_listings", c)
+fn run_get_listings(_req: &[u8]) -> u32 {
+    // Listing descriptors are local metadata, not the first network result page.
+    let listings = r#"{"listings":[{"id":"popular","name":"熱門","kind":"popular"}]}"#.as_bytes();
+    payload_buf()[..listings.len()].copy_from_slice(listings);
+    write_success_payload("get_listings", listings.len())
 }
 
 fn run_get_filters(_req: &[u8]) -> u32 {
@@ -798,20 +873,25 @@ fn run_get_filters(_req: &[u8]) -> u32 {
 }
 
 fn run_get_manga_list(req: &[u8]) -> u32 {
-    // Extract filter values from request JSON
-    let region = extract_json_string(req, b"region").unwrap_or(b"all");
-    let state = extract_json_string(req, b"state").unwrap_or(b"all");
-    let manga_type = extract_json_string(req, b"type").unwrap_or(b"all");
-    let page_bytes = extract_json_number(req, b"page");
-    let page_num = if let Some(pb) = page_bytes {
-        let mut n = 0usize;
-        for &b in pb {
-            n = n * 10 + (b - b'0') as usize;
-        }
-        if n == 0 { 1 } else { n }
-    } else {
-        1
-    };
+    // Do not confuse the envelope's type=request with the manga genre filter.
+    let args = json_object_member(req, b"args").unwrap_or(req);
+    let filters = json_object_member(args, b"filters").unwrap_or(args);
+    let settings = json_object_member(req, b"settings").unwrap_or(b"{}");
+    let region_filter = extract_json_string(filters, b"region").unwrap_or(b"all");
+    let state_filter = extract_json_string(filters, b"state").unwrap_or(b"all");
+    let region_default = extract_json_string(settings, b"defaultRegion").unwrap_or(b"all");
+    let state_default = extract_json_string(settings, b"defaultState").unwrap_or(b"all");
+    let region = if region_filter == b"all" {
+        match region_default { b"cn" | b"jp" | b"kr" | b"en" => region_default, _ => b"all" }
+    } else { region_filter };
+    let state = if state_filter == b"all" {
+        match state_default { b"serial" | b"pub" => state_default, _ => b"all" }
+    } else { state_filter };
+    let manga_type = extract_json_string(filters, b"type").unwrap_or(b"all");
+    let page_num = request_page_number(req);
+    if page_num > 1000 {
+        return write_error("get_manga_list", "invalid_request", "page limit");
+    }
 
     // Build URL: /classify?type=X&region=Y&state=Z&filter=*&page=N
     let url_buf = scratch_a();
@@ -889,14 +969,20 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
         let _ = html_close(hd);
     }
 
-    // hasMore: true if we got a full page (36+)
-    let has_more = if written >= 36 { b"true" as &[u8] } else { b"false" as &[u8] };
-    let ok2 = write_bytes(payload, &mut c, br#"],"page":{"nextCursor":""#)
-        && write_usize(payload, &mut c, page_num + 1)
-        && write_bytes(payload, &mut c, br#"","hasMore":"#)
-        && write_bytes(payload, &mut c, has_more)
-        && write_bytes(payload, &mut c, b"}}");
-    if !ok2 {
+    // A terminal page must not advertise a cursor: the App treats any cursor
+    // as a next page even when hasMore is false.
+    let has_more = written >= 36;
+    if !write_bytes(payload, &mut c, br#"],"page":{"nextCursor":"#) {
+        return write_error("get_manga_list", "internal_error", "payload overflow");
+    }
+    let ok = if has_more {
+        write_bytes(payload, &mut c, b"\"")
+            && write_usize(payload, &mut c, page_num + 1)
+            && write_bytes(payload, &mut c, br#"","hasMore":true}}"#)
+    } else {
+        write_bytes(payload, &mut c, br#"null,"hasMore":false}}"#)
+    };
+    if !ok {
         return write_error("get_manga_list", "internal_error", "payload overflow");
     }
 
@@ -908,7 +994,7 @@ fn run_modify_image_request(req: &[u8]) -> u32 {
     // Just extract the URL and return an unmodified request
     let url = match extract_json_string(req, b"url") {
         Some(u) => u,
-        None => return write_error("modify_image_request", "invalid_request", "missing url"),
+        None => return write_error("get_image_request", "invalid_request", "missing url"),
     };
 
     let payload = payload_buf();
@@ -917,39 +1003,65 @@ fn run_modify_image_request(req: &[u8]) -> u32 {
         && append_json_escaped(payload, &mut c, url)
         && write_bytes(payload, &mut c, br#"","headers":{}}"#);
     if !ok {
-        return write_error("modify_image_request", "internal_error", "payload overflow");
+        return write_error("get_image_request", "internal_error", "payload overflow");
     }
-    write_success_payload("modify_image_request", c)
+    write_success_payload("get_image_request", c)
 }
 
 // --- get_home: multi-section home page ---
 // Uses /classify with different filters to build sections, avoiding the heavy homepage HTML.
 
-fn parse_cards_into_section(payload: &mut [u8], c: &mut usize, section_title: &[u8], url: &[u8], max_items: usize) -> bool {
-    let ok = write_bytes(payload, c, br#"{"title":""#)
+enum HomeSectionError {
+    Fetch(FetchError),
+    Parse,
+    Selection,
+    Overflow,
+}
+
+fn write_home_section_error(error: HomeSectionError) -> u32 {
+    match error {
+        HomeSectionError::Fetch(error) => {
+            let (code, message) = fetch_error_code(error);
+            write_error("get_home", code, message)
+        }
+        HomeSectionError::Parse => write_error("get_home", "parse_error", "html_parse failed"),
+        HomeSectionError::Selection => write_error("get_home", "parse_error", "card selection failed"),
+        HomeSectionError::Overflow => write_error("get_home", "internal_error", "overflow"),
+    }
+}
+
+fn parse_cards_into_section(payload: &mut [u8], c: &mut usize, section_id: &[u8], section_title: &[u8], url: &[u8], max_items: usize) -> Result<(), HomeSectionError> {
+    let ok = write_bytes(payload, c, br#"{"id":""#)
+        && append_json_escaped(payload, c, section_id)
+        && write_bytes(payload, c, br#"","title":""#)
         && append_json_escaped(payload, c, section_title)
         && write_bytes(payload, c, br#"","items":["#);
-    if !ok { return false; }
+    if !ok { return Err(HomeSectionError::Overflow); }
 
     let mut item_count = 0usize;
 
-    if let Ok(html_len) = fetch_html(url) {
-        let html_bytes = &body_buf()[..html_len];
-        if let Ok(doc_desc) = html_parse(html_bytes) {
+    let html_len = fetch_html(url).map_err(HomeSectionError::Fetch)?;
+    let html_bytes = &body_buf()[..html_len];
+    let doc_desc = html_parse(html_bytes).map_err(|_| HomeSectionError::Parse)?;
+    {
             let doc = OwnedDescriptor(doc_desc);
             let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
-            let count = html_select_all(doc.0.raw(), b"a.comics-card__poster", select_buf);
-            let real_max = if count > 0 { (count as usize).min(max_items) } else { 0 };
+            // Home deliberately returns only the existing summary size. Ask the
+            // host to allocate only those handles, and own every written handle
+            // through all normal and error exits before closing the document.
+            let descriptor_bytes = max_items.checked_mul(4)
+                .filter(|bytes| *bytes <= select_buf.len())
+                .ok_or(HomeSectionError::Overflow)?;
+            let count = html_select_all(doc.0.raw(), b"a.comics-card__poster",
+                &mut select_buf[..descriptor_bytes]);
+            if count < 0 { return Err(HomeSectionError::Selection); }
+            let descriptors = PageDescriptors {
+                bytes: &select_buf[..descriptor_bytes],
+                count: (count as usize).min(max_items),
+            };
 
-            for i in 0..real_max {
-                let offset = i * 4;
-                if offset + 4 > select_buf.len() { break; }
-                let desc = i32::from_le_bytes([
-                    select_buf[offset], select_buf[offset+1], select_buf[offset+2], select_buf[offset+3],
-                ]);
-                if desc < 0 { continue; }
-
-                let hd: HtmlDescriptor = unsafe { core::mem::transmute(desc) };
+            for i in 0..descriptors.count {
+                let hd = descriptors.get(i).ok_or(HomeSectionError::Selection)?;
                 let scratch_href = scratch_a();
                 let scratch_title = scratch_b();
                 let href_bytes = attr_into(hd, b"href", scratch_href);
@@ -960,7 +1072,7 @@ fn parse_cards_into_section(payload: &mut [u8], c: &mut usize, section_title: &[
                     if let Some(slug_len) = slug_from_comic_path(href, &mut slug_buf) {
                         let slug = &slug_buf[..slug_len];
                         if item_count > 0 {
-                            if !write_bytes(payload, c, b",") { break; }
+                            if !write_bytes(payload, c, b",") { return Err(HomeSectionError::Overflow); }
                         }
                         let ok2 = write_bytes(payload, c, br#"{"id":"manga:"#)
                             && append_json_escaped(payload, c, slug)
@@ -969,16 +1081,14 @@ fn parse_cards_into_section(payload: &mut [u8], c: &mut usize, section_title: &[
                             && write_bytes(payload, c, br#"","cover":{"kind":"url","url":"https://static-tw.baozimh.com/cover/"#)
                             && append_json_escaped(payload, c, slug)
                             && write_bytes(payload, c, br#".jpg"}}"#);
-                        if !ok2 { break; }
+                        if !ok2 { return Err(HomeSectionError::Overflow); }
                         item_count += 1;
                     }
                 }
-                let _ = html_close(hd);
             }
-        }
     }
 
-    write_bytes(payload, c, b"]}")
+    write_bytes(payload, c, b"]}").then_some(()).ok_or(HomeSectionError::Overflow)
 }
 
 fn run_get_home(_req: &[u8]) -> u32 {
@@ -989,40 +1099,40 @@ fn run_get_home(_req: &[u8]) -> u32 {
     }
 
     // Section 1: 熱門 (default classify page)
-    if !parse_cards_into_section(payload, &mut c,
-        "熱門漫畫".as_bytes(),
+    if let Err(error) = parse_cards_into_section(payload, &mut c,
+        b"home:popular", "熱門漫畫".as_bytes(),
         b"https://www.baozimh.com/classify", 12) {
-        return write_error("get_home", "internal_error", "overflow");
+        return write_home_section_error(error);
     }
 
     // Section 2: 國漫推薦
     if !write_bytes(payload, &mut c, b",") {
         return write_error("get_home", "internal_error", "overflow");
     }
-    if !parse_cards_into_section(payload, &mut c,
-        "國漫推薦".as_bytes(),
+    if let Err(error) = parse_cards_into_section(payload, &mut c,
+        b"home:cn", "國漫推薦".as_bytes(),
         b"https://www.baozimh.com/classify?type=all&region=cn", 12) {
-        return write_error("get_home", "internal_error", "overflow");
+        return write_home_section_error(error);
     }
 
     // Section 3: 日本漫畫
     if !write_bytes(payload, &mut c, b",") {
         return write_error("get_home", "internal_error", "overflow");
     }
-    if !parse_cards_into_section(payload, &mut c,
-        "日本漫畫".as_bytes(),
+    if let Err(error) = parse_cards_into_section(payload, &mut c,
+        b"home:jp", "日本漫畫".as_bytes(),
         b"https://www.baozimh.com/classify?type=all&region=jp", 12) {
-        return write_error("get_home", "internal_error", "overflow");
+        return write_home_section_error(error);
     }
 
     // Section 4: 韓國漫畫
     if !write_bytes(payload, &mut c, b",") {
         return write_error("get_home", "internal_error", "overflow");
     }
-    if !parse_cards_into_section(payload, &mut c,
-        "韓國漫畫".as_bytes(),
+    if let Err(error) = parse_cards_into_section(payload, &mut c,
+        b"home:kr", "韓國漫畫".as_bytes(),
         b"https://www.baozimh.com/classify?type=all&region=kr", 12) {
-        return write_error("get_home", "internal_error", "overflow");
+        return write_home_section_error(error);
     }
 
     if !write_bytes(payload, &mut c, b"]}") {
@@ -1128,10 +1238,10 @@ pub extern "C" fn koma_source_get_pages(req_ptr: u32, req_len: u32) -> u32 {
 
 #[no_mangle]
 pub extern "C" fn koma_source_get_listings(req_ptr: u32, req_len: u32) -> u32 {
-    let req = unsafe { core::slice::from_raw_parts(req_ptr as *const u8, req_len as usize) };
-    if !contains_bytes(req, br#""operation":"get_listings""#) {
-        return write_error("get_listings", "unexpected_operation", "expected get_listings");
-    }
+    let req = match read_request(req_ptr, req_len) {
+        Some(r) => r,
+        None => return write_error("get_listings", "invalid_request", "empty request"),
+    };
     run_get_listings(req)
 }
 
@@ -1159,7 +1269,7 @@ pub extern "C" fn koma_source_get_filters(req_ptr: u32, req_len: u32) -> u32 {
 pub extern "C" fn koma_source_get_image_request(req_ptr: u32, req_len: u32) -> u32 {
     let req = match read_request(req_ptr, req_len) {
         Some(r) => r,
-        None => return write_error("modify_image_request", "invalid_request", "empty request"),
+        None => return write_error("get_image_request", "invalid_request", "empty request"),
     };
     log_info(b"baozimh modify_image_request");
     run_modify_image_request(req)
