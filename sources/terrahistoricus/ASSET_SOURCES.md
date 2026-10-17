@@ -1,19 +1,9 @@
-# TerraHistoricus asset source
+# Source identity asset
 
-## `icon.png`
+`icon.ico` is the actual image resource obtained once from `https://web.hycdn.cn/comic/site/favicon.ico`.
 
-- **Purpose:** Package-owned identity icon for the TerraHistoricus source only.
-  It is not a manga cover, a generic category icon, or reusable product
-  branding.
-- **Official source:** `https://web.hycdn.cn/comic/site/favicon.ico`
-- **Provenance:** The official TerraHistoricus site
-  `https://comic.hypergryph.com/` declares this file as its shortcut icon.
-- **Retrieved:** 2026-08-14.
-- **Processing:** Extracted the official 64×64 ICO frame with Pillow and
-  composited its transparent pixels onto black so the favicon's original white
-  mark remains visible on Koma's white source-list surface; no artwork was
-  redrawn or altered.
-- **Packaged SHA-256:**
-  `30304600cd01a8c923e20ea06251577965da90702f59835eb48cf95b10e5c8cc`
-- **Rights note:** The mark remains the property of its owner and is included
-  solely to identify this user-selected source.
+Official site declared shortcut icon, originalICO with64/32/24/16 frames; preserved transparent white-tree artwork. Replaces earlier sourcePNG that composited transparency onto black.
+
+SHA256 `b0e493e82918f22edc4ff8349bef98ac2c3d99a672d9764b3f3acc922d7416bd`, 32988 bytes. Full artwork was viewed; no added plate, outside mask, shadow, cropping, resizing or reencoding is present in this candidate. Small-icon clarity and App rendering remain unaccepted until ordinary Native review; App's existing display clipping must remain.
+
+Original HTTP headers, request, response bytes and metrics: `/private/tmp/koma-source-icon-integrity-20261017/terra`. Authoritative icon-only candidate and unchanged-WASM comparison: `/private/tmp/koma-source-icon-integrity-20261017/candidates/terra`. Existing parser, stable identities, version and all prior manifest fields are preserved; new manifest.icon names the actual root asset. Old delivery packages remain unchanged.
