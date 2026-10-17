@@ -30,7 +30,7 @@ static mut GQL_BODY_BUF: [u8; GQL_BODY_CAP] = [0; GQL_BODY_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.komiic.koma",
     name: "Komiic",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -456,8 +456,13 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     run_popular_list("get_manga_list", req)
 }
 
-fn run_get_listings(req: &[u8]) -> u32 {
-    run_popular_list("get_listings", req)
+fn run_get_listings(_req: &[u8]) -> u32 {
+    let payload = payload_buf();
+    let mut c = 0usize;
+    if !write_bytes(payload, &mut c, br#"{"listings":[{"id":"popular","name":"Popular"}]}"#) {
+        return write_error("get_listings", "internal_error", "overflow");
+    }
+    write_success_payload("get_listings", c)
 }
 
 fn run_get_home(_req: &[u8]) -> u32 {
