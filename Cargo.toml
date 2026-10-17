@@ -4,6 +4,7 @@ members = [
   "sources/comicfury-zh",
   "sources/xkcd-zh",
   "sources/weicomic-ronshaonien",
+  "sources/dbmultiverse-zh",
   "sdk",
   "sources/baozimh",
   "sources/bh3",
