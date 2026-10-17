@@ -36,6 +36,7 @@ comicfury-zh|comicfury-zh|true|0.1.0
 xkcd-zh|xkcd-zh|false|0.1.0
 weicomic-ronshaonien|weicomic-ronshaonien|false|0.1.1
 dbmultiverse-zh|dbmultiverse-zh|false|0.1.0
+bns-zh-hant|bns-zh-hant|false|0.1.1
 baozimh|baozimh|false|0.1.0
 mangadex|mangadex|true|0.1.0
 mangabz|mangabz|false|0.1.0
