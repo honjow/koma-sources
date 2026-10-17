@@ -23,6 +23,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SOURCES_DIR="$SCRIPT_DIR/sources"
 OUTPUT_DIR="$SCRIPT_DIR/dist"
+RUNNER_FROM_ENV="${DEV_RUNNER:-}"
 DEV_RUNNER="${DEV_RUNNER:-$SCRIPT_DIR/target/release/koma-source-dev}"
 ICON_VALIDATOR="$SCRIPT_DIR/scripts/validate-source-icon.py"
 RELEASE_ICON_DIR="$OUTPUT_DIR/release-icons"
@@ -117,17 +118,14 @@ done
 log() { echo "$@" >&2; }
 
 validate_selected_source_icons() {
-  local name crate_dir icon_path
+  local name crate_dir
+  if ! command -v python3 >/dev/null 2>&1; then
+    log "ERROR: python3 and Pillow are required to validate source icons"
+    return 1
+  fi
   for name in $(selected_source_names); do
     crate_dir="$(source_crate_dir "$name")"
-    icon_path="$SOURCES_DIR/$crate_dir/icon.png"
-    if [[ -e "$icon_path" || -L "$icon_path" ]]; then
-      if ! command -v python3 >/dev/null 2>&1; then
-        log "ERROR: python3 is required only when packaging a source with icon.png"
-        return 1
-      fi
-      python3 "$ICON_VALIDATOR" --icon "$icon_path"
-    fi
+    python3 "$ICON_VALIDATOR" --source-dir "$SOURCES_DIR/$crate_dir" >&2
   done
 }
 
@@ -196,6 +194,12 @@ build_source() {
   nsfw="${nsfw:-false}"
   min_app_version="$(source_min_app_version "$name")"
   
+  local localized_metadata
+  localized_metadata="$(python3 "$SCRIPT_DIR/scripts/read-source-localized-metadata.py" "$src_path/metadata.json")"
+
+  local icon_name
+  icon_name="$(python3 "$ICON_VALIDATOR" --source-dir "$src_path" --print-name)"
+
   # Create manifest.json
   local pkg_dir="$OUTPUT_DIR/pkg/$name"
   mkdir -p "$pkg_dir"
@@ -210,25 +214,23 @@ build_source() {
     --arg description "$src_desc" \
     --arg contentRating "$src_content_rating" \
     --arg minAppVersion "$min_app_version" \
-    '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, minAppVersion: $minAppVersion}' \
+    --arg icon "$icon_name" \
+    --argjson localizedMetadata "$localized_metadata" \
+    '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, minAppVersion: $minAppVersion, icon: $icon} + $localizedMetadata' \
     > "$pkg_dir/manifest.json"
 
   # Copy wasm
   cp "$wasm_file" "$pkg_dir/source.wasm"
   
-  # Copy icon if exists
-  if [[ -f "$src_path/icon.png" ]]; then
-    cp "$src_path/icon.png" "$pkg_dir/icon.png"
-  fi
+  # Required identity asset; preserve the actual filename and original bytes.
+  cp "$src_path/$icon_name" "$pkg_dir/$icon_name"
+  python3 "$ICON_VALIDATOR" --package-dir "$pkg_dir" >&2
 
   # Package as .koma (zip)
   local koma_file="$OUTPUT_DIR/sources/$name/${name}-${src_version}.koma"
   mkdir -p "$(dirname "$koma_file")"
   rm -f "$koma_file"
-  local package_entries=(manifest.json source.wasm)
-  if [[ -f "$pkg_dir/icon.png" ]]; then
-    package_entries+=(icon.png)
-  fi
+  local package_entries=(manifest.json source.wasm "$icon_name")
   (cd "$pkg_dir" && zip -q "$koma_file" "${package_entries[@]}")
   
   local size
@@ -239,19 +241,18 @@ build_source() {
   # document. A tagged GitHub Release has a flat asset namespace instead, so
   # publish a unique filename and keep the index reference relative to its
   # own release download directory.
-  local icon_path=""
-  if [[ -f "$pkg_dir/icon.png" ]]; then
-    if [[ -n "$VERSION_TAG" ]]; then
-      local release_icon_name="${name}-icon.png"
-      mkdir -p "$RELEASE_ICON_DIR"
-      cp "$pkg_dir/icon.png" "$RELEASE_ICON_DIR/$release_icon_name"
-      icon_path="$release_icon_name"
-    else
-      icon_path="sources/$name/icon.png"
-      cp "$pkg_dir/icon.png" "$OUTPUT_DIR/sources/$name/icon.png"
-    fi
+  local icon_path
+  if [[ -n "$VERSION_TAG" ]]; then
+    local release_icon_name="${name}-${icon_name}"
+    mkdir -p "$RELEASE_ICON_DIR"
+    cp "$pkg_dir/$icon_name" "$RELEASE_ICON_DIR/$release_icon_name"
+    icon_path="$release_icon_name"
+  else
+    icon_path="sources/$name/$icon_name"
+    cp "$pkg_dir/$icon_name" "$OUTPUT_DIR/sources/$name/$icon_name"
   fi
-  
+  cmp -s "$pkg_dir/$icon_name" "$src_path/$icon_name"
+
   # Determine pkg download URL/path
   local pkg_filename="${name}-${src_version}.koma"
   local pkg_url
@@ -279,7 +280,8 @@ build_source() {
     --arg pkg "$pkg_url" \
     --arg icon "$icon_path" \
     --arg minAppVersion "$min_app_version" \
-    '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, pkg: $pkg, icon: $icon, minAppVersion: $minAppVersion}'
+    --argjson localizedMetadata "$localized_metadata" \
+    '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, pkg: $pkg, icon: $icon, minAppVersion: $minAppVersion} + $localizedMetadata'
 }
 
 validate_index_packages() {
@@ -331,17 +333,19 @@ validate_index_icons() {
 
   while IFS= read -r icon_path; do
     if [[ -z "$icon_path" || "$icon_path" == "null" ]]; then
+      log "ERROR: index entry requires a non-empty icon"
+      failures=$((failures + 1))
       continue
     fi
     if [[ -n "$VERSION_TAG" ]]; then
-      if [[ "$icon_path" == */* || "$icon_path" != *-icon.png ]]; then
-        log "ERROR: release icon path must be a flat unique PNG asset: $icon_path"
+      if [[ ! "$icon_path" =~ ^[a-zA-Z0-9_-]+-icon\.(png|jpg|jpeg|gif|webp|ico)$ ]]; then
+        log "ERROR: release icon path must be a flat unique image asset: $icon_path"
         failures=$((failures + 1))
         continue
       fi
       expected_path="$RELEASE_ICON_DIR/$icon_path"
     else
-      if [[ "$icon_path" != sources/*/icon.png ]]; then
+      if [[ ! "$icon_path" =~ ^sources/[a-zA-Z0-9_-]+/icon\.(png|jpg|jpeg|gif|webp|ico)$ ]]; then
         log "ERROR: static index icon path is invalid: $icon_path"
         failures=$((failures + 1))
         continue
@@ -350,6 +354,8 @@ validate_index_icons() {
     fi
     if [[ ! -f "$expected_path" ]]; then
       log "ERROR: index icon path does not exist in build output: $icon_path"
+      failures=$((failures + 1))
+    elif ! python3 "$ICON_VALIDATOR" --icon "$expected_path" >&2; then
       failures=$((failures + 1))
     fi
   done < <(jq -r '.[].icon' "$index_file")
@@ -362,8 +368,14 @@ validate_index_icons() {
 }
 
 # Main
-log "▸ Building dev runner..."
-cargo build --release -p koma-source-dev 2>&1 | tail -1 >&2
+if [[ -n "$RUNNER_FROM_ENV" ]]; then
+  if [[ ! -f "$DEV_RUNNER" || ! -x "$DEV_RUNNER" ]]; then
+    log "ERROR: supplied DEV_RUNNER is not an executable file: $DEV_RUNNER"; exit 1
+  fi
+else
+  log "▸ Building dev runner..."
+  cargo build --release -p koma-source-dev 2>&1 | tail -1 >&2
+fi
 
 log "▸ Building all WASM sources..."
 CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS="${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS:+$CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS }-C target-feature=-reference-types -C link-arg=--strip-all" \

@@ -30,7 +30,7 @@ bash build.sh --source mysource
 ## Requirements
 
 - **Rust** with `wasm32-unknown-unknown` target (`rustup target add wasm32-unknown-unknown`)
-- **jq** and **zip** for packaging (install via your package manager)
+- **jq**, **zip**, and **Python 3 with Pillow** for packaging and actual icon decoding
 
 ## Source Code Rules
 
@@ -77,9 +77,16 @@ The CI pipeline also runs `test-all` on `example-demo` (the only source with a p
 A `.koma` package is a zip archive containing:
 
 ```
-manifest.json    — SourceInfo metadata + capabilities
+manifest.json    — Package metadata, including required root icon filename
 source.wasm      — Compiled WASM module
+icon.<format>    — Exactly one required local PNG/JPEG/GIF/WebP/ICO identity asset
 ```
+
+SDK `SourceInfo` describes runtime source metadata; it is not a file container
+and does not own or embed the icon. The production manifest and package builder
+require the file resource separately. See `docs/WRITING_A_SOURCE.md` for genuine
+asset provenance and removal of added backing/masks/shadows; App display clipping
+remains independent.
 
 The `build.sh` script handles packaging automatically. You can also distribute sources individually — users place `.koma` files in their Koma source directory.
 

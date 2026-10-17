@@ -93,13 +93,22 @@ Each source is distributed as a `.koma` file (zip archive) containing:
 |------|----------|-------------|
 | `manifest.json` | ✓ | Source metadata (id, name, version, lang, author, description, contentRating, minAppVersion) |
 | `source.wasm` | ✓ | Compiled WASM module |
-| `icon.png` | | Package-owned source identity icon (256×256 recommended) |
+| `icon.png/jpg/jpeg/gif/webp/ico` (exactly one) | ✓ | Required source identity asset; manifest.icon is its root filename |
 
-When present, `icon.png` must be a regular root file no larger than 1 MiB and
-between 1 and 1024 px on each side. Koma accepts standard non-interlaced PNG:
-8-bit indexed palette, or 8-/16-bit grayscale, RGB, grayscale-with-alpha, and
-RGBA. `build.sh` validates this before compiling a package; the app validates
-and decodes it again before exposing it in the installed source list.
+Every new production package requires exactly one regular local root image, at most
+1 MiB and 1,048,576 decoded pixels in total. Its extension must match the actual
+PNG, JPEG, GIF, WebP or ICO data. Python 3 with Pillow is required by `build.sh`;
+validation decodes the asset before compilation and checks the packaged copy and
+index resource. Missing, empty, unreadable, duplicate or mismatched icons stop
+packaging; no placeholder is generated.
+
+Use a suitable real official identity asset. Do not leave added backing plates,
+external masks or shadows in the artwork. Secondary processing is allowed to
+remove those defects while preserving the real identity; keep provenance and
+before/after evidence. Prefer a suitable official original over an unsuitable
+ported icon. The App's existing rounded display clipping is a separate layer
+and must remain. New production requirements do not remove old installed sources
+or invalidate old backups automatically.
 
 ## Release
 
@@ -141,7 +150,7 @@ Requirements:
       "contentRating": "safe",
       "minAppVersion": "0.1.0",
       "pkg": "mysource-0.1.0.koma",
-      "icon": ""
+      "icon": "mysource-icon.png"
     }
   ]
 }
@@ -149,8 +158,10 @@ Requirements:
 
 `pkg` is the package URL Koma downloads. `minAppVersion` is a required
 canonical `MAJOR.MINOR.PATCH` value for generated sources and is checked before
-installation. `icon` is optional and, when present, must match the packaged
-root `icon.png` asset.
+installation. Every generated index entry requires a non-empty `icon` reference
+to the actual published asset with the same extension and bytes as the package
+root image. `manifest.icon` records only that root filename (for example
+`icon.gif`); the index reference is relative to its own distribution directory.
 
 ## Current Sources (20)
 

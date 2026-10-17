@@ -64,3 +64,5 @@ echo "Next steps:"
 echo "  1. Edit sources/$NAME/src/lib.rs — implement your operations"
 echo "  2. cargo build --release --target wasm32-unknown-unknown -p $CRATE_NAME"
 echo "  3. ./target/release/koma-source-dev test-all target/wasm32-unknown-unknown/release/${CRATE_NAME}.wasm"
+
+echo "  Required before packaging: add one genuine local icon.png/jpg/jpeg/gif/webp/ico; no placeholder is supplied."

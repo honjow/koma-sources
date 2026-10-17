@@ -314,6 +314,12 @@ Use `.wasm` files, NOT `.koma` zip packages.
 
 ## Distribution
 
-`.koma` zip = `manifest.json` + `source.wasm` + optional root `icon.png`.
-`build.sh` validates an icon before packaging; it is the source identity asset,
-not a manga cover.
+`.koma` zip = `manifest.json` + `source.wasm` + exactly one required local root
+`icon.png/jpg/jpeg/gif/webp/ico`. `manifest.icon` must name that resource; the
+index must publish the same bytes/extension. `build.sh` with Python Pillow
+rejects missing/empty/invalid/duplicate assets before compiling (1 MiB and
+1,048,576 total decoded pixels). Use real identity artwork without added plates,
+external masks or shadows; secondary cleanup may preserve the genuine identity.
+Keep asset provenance and before/after evidence. App rounded display clipping is
+independent and must remain. This production rule does not delete old installs
+or backups.

@@ -2,8 +2,13 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Koma Source Manifest",
   "type": "object",
-  "required": ["id", "name", "version", "lang"],
+  "required": ["id", "name", "version", "lang", "icon"],
   "properties": {
+    "icon": {
+      "type": "string",
+      "enum": ["icon.png", "icon.jpg", "icon.jpeg", "icon.gif", "icon.webp", "icon.ico"],
+      "description": "Required local root identity asset; exactly one must exist and match this filename."
+    },
     "id": { "type": "string", "description": "Unique source identifier (e.g. baozimh, mangadex)" },
     "name": { "type": "string", "description": "Human-readable display name" },
     "version": { "type": "string", "description": "Semver version string" },

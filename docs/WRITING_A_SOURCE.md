@@ -17,7 +17,7 @@ cd koma-sources
 # 4. `--scaffold` already adds name|crate_dir|false|0.1.0 to SOURCE_ENTRIES
 #    and adds the crate to workspace Cargo.toml; raise minAppVersion only when needed.
 
-# 6. Optional: add `sources/mysource/icon.png`
+# 6. Add exactly one real local source icon: icon.png/jpg/jpeg/gif/webp/ico
 # 7. Build
 ./build.sh --source mysource
 
@@ -26,9 +26,19 @@ cd koma-sources
   target/wasm32-unknown-unknown/release/koma_mysource_source.wasm
 ```
 
-`icon.png` is a package-owned source identity asset, not a manga cover. It
-must be a regular root PNG within the package icon limits documented in the
-repository README; `build.sh` validates it before packaging.
+A source identity icon is required, not a manga cover or placeholder. Add exactly
+one regular local `icon.png`, `icon.jpg`, `icon.jpeg`, `icon.gif`, `icon.webp` or
+`icon.ico`. `build.sh` fails before compilation if the resource is missing,
+empty, undecodable, duplicated, larger than 1 MiB or more than 1,048,576 total
+pixels. Install Python 3 and Pillow for actual decoding. New manifests require
+`icon` to equal the root filename; generated indexes must publish its actual
+bytes using the same extension.
+
+素材制作规范：优先合适的真实官网身份原图，不得留下额外底板、外部遮罩或
+阴影；允许为移除这些缺陷而二次处理不合适的移植素材，但必须保留真实身份及
+出处、处理前后证据。不能用占位、仓库星标或别站标识补缺。App 原有圆角显示
+裁剪属于独立层，必须保留；源资源要求不能被误用来取消它。新生产包要求不
+自动卸载旧设备来源，也不删除旧备份。
 
 ## Architecture
 
@@ -525,7 +535,7 @@ When writing Chinese text to JSON output, use `append_json_escaped` — it handl
 ./build.sh --source foo # Build single source
 ```
 
-Output: `dist/sources/<name>/<name>-<version>.koma` (zip with `manifest.json`, `source.wasm`, and optional package-owned `icon.png`). The generated manifest carries `author`, `description`, and `contentRating` from `SOURCE_INFO`; its `minAppVersion` comes from that source's `SOURCE_ENTRIES` row. Keep these source-level fields accurate because Koma preserves them in the installed source details. `minAppVersion` must use canonical `MAJOR.MINOR.PATCH` text, for example `0.1.0`.
+Output: `dist/sources/<name>/<name>-<version>.koma` (zip with `manifest.json`, `source.wasm`, and exactly one required package-owned root icon). The generated manifest carries `author`, `description`, and `contentRating` from `SOURCE_INFO`; its `minAppVersion` comes from that source's `SOURCE_ENTRIES` row. Keep these source-level fields accurate because Koma preserves them in the installed source details. `minAppVersion` must use canonical `MAJOR.MINOR.PATCH` text, for example `0.1.0`.
 
 ### Third-party source repos
 
@@ -551,7 +561,7 @@ The `index.json` format:
       "contentRating": "safe",
       "minAppVersion": "0.1.0",
       "pkg": "mysource-0.1.0.koma",
-      "icon": ""
+      "icon": "sources/mysource/icon.png"
     }
   ]
 }

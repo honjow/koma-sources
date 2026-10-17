@@ -205,3 +205,5 @@ echo "Next steps:"
 echo "  1. Edit sources/$NAME/src/lib.rs and replace BASE_URL plus the unimplemented operations."
 echo "  2. Build it: cargo build --release --target wasm32-unknown-unknown -p $CRATE_NAME"
 echo "  3. Test it with the dev runner once implemented."
+
+echo "  Required before packaging: add one genuine local icon.png/jpg/jpeg/gif/webp/ico; no placeholder is supplied."
