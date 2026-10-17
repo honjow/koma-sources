@@ -1907,19 +1907,22 @@ pub fn decode_json_body_into(
     resp: &[u8],
     dst: &mut [u8],
 ) -> core::result::Result<usize, FetchError> {
+    // `ok` describes transport completion; HTTP failures can still have ok=true.
+    // Prefer the current host field while accepting the legacy statusCode alias.
+    if let Some(code_bytes) = json_utils::extract_json_number(resp, b"status")
+        .or_else(|| json_utils::extract_json_number(resp, b"statusCode"))
+    {
+        match parse_status_code(code_bytes) {
+            200..=299 => {},
+            404 => return Err(FetchError::NotFound),
+            429 => return Err(FetchError::RateLimit),
+            400..=499 => return Err(FetchError::ClientError),
+            500..=599 => return Err(FetchError::ServerError),
+            _ => return Err(FetchError::Network),
+        }
+    }
     if !json_utils::contains_bytes(resp, br#""ok":true"#) {
-        let err = if let Some(code_bytes) = json_utils::extract_json_number(resp, b"statusCode") {
-            match parse_status_code(code_bytes) {
-                404 => FetchError::NotFound,
-                429 => FetchError::RateLimit,
-                400..=499 => FetchError::ClientError,
-                500..=599 => FetchError::ServerError,
-                _ => FetchError::Network,
-            }
-        } else {
-            FetchError::Network
-        };
-        return Err(err);
+        return Err(FetchError::Network);
     }
 
     let marker = b"\"bodyText\":\"";

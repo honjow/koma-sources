@@ -475,7 +475,22 @@ const LABEL_LATEST: &[u8] = &[0xe6, 0x9c, 0x80, 0xe6, 0x96, 0xb0];
 Always check return values of `write_bytes` / `append_json_escaped`. They return `false` when the buffer is full.
 
 ### HTTP response format
-The host writes the full HTTP response (status line + headers + body) to `http_out`. Use `decode_json_body` or `decode_json_body_into` to strip headers and get just the body.
+The host writes a JSON envelope to `http_out`, not a raw HTTP status line or headers:
+
+```json
+{"ok":true,"status":200,"bodyText":"response body","networkPerformed":true}
+```
+
+`ok` means the transport completed; an HTTP 404 or 503 can also have `ok:true`.
+`decode_json_body` / `decode_json_body_into` check HTTP status before decoding
+`bodyText`. The official field is `status`; `statusCode` is accepted as a legacy
+alias, with `status` taking priority if both are present. HTTP 2xx continues to
+body decoding, 404/429/other 4xx/5xx uses the existing `FetchError` categories,
+and other status codes (including 3xx) produce `FetchError::Network`; the helper
+does not follow redirects or retry. Transport `ok:false` produces an error.
+Missing both status fields retains the legacy behavior: `ok:true` decodes the
+body, and `ok:false` is a network error. This compatibility case is not proof of
+HTTP success. Successful body string decoding and resource budgets are unchanged.
 
 ### HTML descriptor leaks
 Always call `host::html_close(doc)` when done with a parsed document. The host has limited descriptor slots.
