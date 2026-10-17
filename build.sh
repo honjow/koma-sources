@@ -33,6 +33,7 @@ RELEASE_PACKAGE_DIR="$OUTPUT_DIR/release-packages"
 # Keep this Bash 3 compatible for macOS /bin/bash.
 SOURCE_ENTRIES='
 comicfury-zh|comicfury-zh|true|0.1.0
+xkcd-zh|xkcd-zh|false|0.1.0
 baozimh|baozimh|false|0.1.0
 mangadex|mangadex|true|0.1.0
 mangabz|mangabz|false|0.1.0
