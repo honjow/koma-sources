@@ -41,7 +41,7 @@ jobs:
           for dir in sources/*/; do
             name=$(basename "$dir")
             [ -f "$dir/Cargo.toml" ] || continue
-            crate="koma_${name}_source"
+            crate=$(sed -n 's/^name *= *"\([^"]*\)"/\1/p' "${dir}Cargo.toml" | head -1)
             echo "::group::Build $crate"
             cargo build --release --target wasm32-unknown-unknown -p "$crate" 2>&1
             echo "::endgroup::"
