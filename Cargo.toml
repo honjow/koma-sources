@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+  "sources/people2-marked-zh-hant",
   "sources/fjumonkey-zh-hant",
   "sources/immark-zh-hant",
   "sources/mixflavor-life-zh-hant",
