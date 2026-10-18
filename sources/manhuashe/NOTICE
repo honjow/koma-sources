@@ -1,0 +1,5 @@
+Manhuashe public HTML contract derived from Keiyoushi extensions-source, Apache-2.0.
+Reference revision: 10f06eb833af5990bc5470c84c5e93edc159ad4e
+Original file: src/zh/manhuashe/src/eu/kanade/tachiyomi/extension/zh/manhuashe/Manhuashe.kt
+https://github.com/keiyoushi/extensions-source
+Koma adapter changes: bounded source-only Rust implementation, ABI/paging/metadata corrections.
