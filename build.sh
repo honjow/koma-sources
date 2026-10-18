@@ -56,7 +56,7 @@ zerobyw|zerobyw|true|0.1.0
 manhuashe|manhuashe|false|0.1.0
 dongmanmanhua|dongmanmanhua|false|0.1.0
 manhuawu|manhuawu|false|0.1.0
-iqiyi|iqiyi|false|0.1.0
+iqiyi|iqiyi|false|0.1.1
 jiuermanhua|jiuermanhua|false|0.1.0
 zazhimi|zazhimi|false|0.1.0
 mh1234|mh1234|false|0.1.0
