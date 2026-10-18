@@ -7,7 +7,7 @@ use koma_source_sdk::host::{
 };
 use koma_source_sdk::json_utils::{
     append_json_escaped, append_json_unescaped_then_escaped, extract_json_number,
-    extract_json_string, find_subslice, write_bytes, write_url_encoded, write_usize,
+    extract_json_string, find_subslice, request_page_number, write_bytes, write_url_encoded, write_usize,
 };
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{build_get_request, decode_json_body_into, fetch_error_code, FetchError};
@@ -51,20 +51,20 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.manhuadui.koma",
     name: "优酷漫画",
-    version: "0.1.0",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "优酷漫画 HTML scraping source.",
+    description: "优酷漫画 public search and listings; detail and reading unavailable in the current host path.",
     content_rating: "nsfw",
 };
 
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
-    manga_detail: true,
-    chapters: true,
-    pages: true,
-    listings: false,
+    manga_detail: false,
+    chapters: false,
+    pages: false,
+    listings: true,
     manga_list: true,
     home: false,
     filters: false,
@@ -98,11 +98,89 @@ fn parse_usize(bytes: &[u8]) -> Option<usize> {
     }
 }
 
-fn fetch_body(url: &[u8]) -> Result<usize, FetchError> {
-    let req_len = build_get_request(http_req_buf(), url, None, &[]).ok_or(FetchError::Network)?;
-    let resp_len =
-        http_request(&http_req_buf()[..req_len], http_out()).map_err(|_| FetchError::Network)?;
-    decode_json_body_into(&http_out()[..resp_len], body_buf())
+// Fixed diagnostic fields only: never emit URLs, queries, headers or body contents.
+fn diagnostic_error(stage: &[u8], code: &str) {
+    let mut out = [0u8; 160];
+    let mut c = 0;
+    if write_bytes(&mut out, &mut c, b"manhuadui stage=")
+        && write_bytes(&mut out, &mut c, stage)
+        && write_bytes(&mut out, &mut c, b" code=")
+        && write_bytes(&mut out, &mut c, code.as_bytes()) {
+        host::log_info(&out[..c]);
+    }
+}
+
+fn fetch_body(url: &[u8]) -> Result<usize, (&'static str, &'static str)> {
+    host::log_info(b"manhuadui stage=fetch_begin");
+    let req_len = match build_get_request(http_req_buf(), url, None, &[]) {
+        Some(n) => n,
+        None => {
+            diagnostic_error(b"request_build", "network_error");
+            return Err(fetch_error_code(FetchError::Network));
+        }
+    };
+    let resp_len = match http_request(&http_req_buf()[..req_len], http_out()) {
+        Ok(n) => n,
+        Err(e) => {
+            let result = match e {
+                -1 => "return_-1",
+                -2 => "return_-2",
+                -3 => "return_-3",
+                _ => "return_other",
+            };
+            diagnostic_error(b"http_return", result);
+            diagnostic_error(b"http_request", "network_error");
+            return Err(fetch_error_code(FetchError::Network));
+        }
+    };
+    let response = unsafe { core::slice::from_raw_parts(HTTP_OUT.as_ptr(), resp_len) };
+    let status = extract_json_number(response, b"status")
+        .or_else(|| extract_json_number(response, b"statusCode"))
+        .map(koma_source_sdk::parse_status_code).unwrap_or(0);
+    let mut status_log = [0u8; 64];
+    let mut c = 0;
+    if write_bytes(&mut status_log, &mut c, b"manhuadui stage=http_response status=")
+        && write_usize(&mut status_log, &mut c, status as usize) {
+        host::log_info(&status_log[..c]);
+    }
+    // Whitelist fixed transport codes; an arbitrary host string must not reach logs.
+    if status == 0 {
+        let code = match extract_json_string(response, b"code") {
+            Some(b"transport_unavailable") => "transport_unavailable",
+            Some(b"invalid_response") => "invalid_response",
+            Some(b"transport_invalid_response") => "transport_invalid_response",
+            Some(b"invalid_request") => "invalid_request",
+            Some(b"request_too_large") => "request_too_large",
+            Some(b"timeout") => "timeout",
+            Some(b"network_error") => "network_error",
+            _ => "unknown",
+        };
+        diagnostic_error(b"transport_envelope", code);
+    }
+    let error = match status {
+        200..=299 => None,
+        401 | 403 => Some(("permission_denied", "source denied this public request")),
+        404 => Some(fetch_error_code(FetchError::NotFound)),
+        429 => Some(fetch_error_code(FetchError::RateLimit)),
+        400..=499 => Some(fetch_error_code(FetchError::ClientError)),
+        500..=599 => Some(fetch_error_code(FetchError::ServerError)),
+        _ => Some(fetch_error_code(FetchError::Network)),
+    };
+    if let Some(e) = error {
+        diagnostic_error(b"http_status", e.0);
+        return Err(e);
+    }
+    match decode_json_body_into(response, body_buf()) {
+        Ok(n) => {
+            host::log_info(b"manhuadui stage=body_decode_ok");
+            Ok(n)
+        }
+        Err(e) => {
+            let error = fetch_error_code(e);
+            diagnostic_error(b"body_decode", error.0);
+            Err(error)
+        }
+    }
 }
 
 struct OwnedDescriptor(host::HtmlDescriptor);
@@ -233,10 +311,14 @@ fn write_manga_item(
         && write_bytes(payload, c, br#""},"authors":[],"status":"unknown","contentRating":"nsfw","description":"","sourceTags":["manhuadui"]}"#)
 }
 
-fn parse_list(html: &[u8]) -> u32 {
+fn parse_list(html: &[u8], operation: &str, page: usize) -> u32 {
+    host::log_info(b"manhuadui stage=parse_list_begin");
     let document = match html_parse(html) {
         Ok(d) => OwnedDescriptor(d),
-        Err(_) => return write_error("parse", "parse_error", "html_parse failed"),
+        Err(_) => {
+            diagnostic_error(b"list_html_parse", "parse_error");
+            return write_error(operation, "parse_error", "html_parse failed");
+        },
     };
 
     let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
@@ -245,7 +327,8 @@ fn parse_list(html: &[u8]) -> u32 {
     let payload = payload_buf();
     let mut c = 0usize;
     if !write_bytes(payload, &mut c, br#"{"items":["#) {
-        return write_error("parse", "internal_error", "payload overflow");
+        diagnostic_error(b"list_payload", "internal_error");
+        return write_error(operation, "internal_error", "payload overflow");
     }
 
     let total = if count > 0 { count as usize } else { 0 };
@@ -331,9 +414,15 @@ fn parse_list(html: &[u8]) -> u32 {
         let _ = html_close(item_desc);
     }
 
+    let has_more = written > 0 && html_select(document.0, b".pagination .next:not(.disabled) > a").map(|d| {
+        let _ = html_close(d);
+        true
+    }).unwrap_or(false);
     if !write_bytes(payload, &mut c, br#"],"page":{"nextCursor":"#)
-        || !if written > 0 {
-            write_bytes(payload, &mut c, b"\"next\"")
+        || !if has_more {
+            write_bytes(payload, &mut c, b"\"")
+                && write_usize(payload, &mut c, page.saturating_add(1))
+                && write_bytes(payload, &mut c, b"\"")
         } else {
             write_bytes(payload, &mut c, b"null")
         }
@@ -341,7 +430,7 @@ fn parse_list(html: &[u8]) -> u32 {
         || !write_bytes(
             payload,
             &mut c,
-            if written > 0 {
+            if has_more {
                 b"true" as &[u8]
             } else {
                 b"false" as &[u8]
@@ -349,20 +438,20 @@ fn parse_list(html: &[u8]) -> u32 {
         )
         || !write_bytes(payload, &mut c, b"}}")
     {
-        return write_error("parse", "internal_error", "payload overflow");
+        diagnostic_error(b"list_payload", "internal_error");
+        return write_error(operation, "internal_error", "payload overflow");
     }
 
-    write_success_payload("parse", c)
+    host::log_info(b"manhuadui stage=parse_list_ok");
+    write_success_payload(operation, c)
 }
 
 fn run_search(req: &[u8]) -> u32 {
     let query = match extract_json_string(req, b"query") {
         Some(q) => q,
-        None => return write_error("search", "invalid_request", "missing query"),
+        None => { diagnostic_error(b"search_request", "invalid_request"); return write_error("search", "invalid_request", "missing query"); },
     };
-    let page = extract_json_number(req, b"page")
-        .and_then(parse_usize)
-        .unwrap_or(1);
+    let page = request_page_number(req);
 
     let url_buf = scratch_a();
     let mut c = 0usize;
@@ -372,6 +461,7 @@ fn run_search(req: &[u8]) -> u32 {
         && write_bytes(url_buf, &mut c, b"&page=")
         && write_usize(url_buf, &mut c, page))
     {
+        diagnostic_error(b"search_url", "internal_error");
         return write_error("search", "internal_error", "url overflow");
     }
     let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), c) };
@@ -379,18 +469,16 @@ fn run_search(req: &[u8]) -> u32 {
     let html_len = match fetch_body(url) {
         Ok(n) => n,
         Err(e) => {
-            let (code, message) = fetch_error_code(e);
+            let (code, message) = e;
             return write_error("search", code, message);
         }
     };
     let html = unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), html_len) };
-    parse_list(html)
+    parse_list(html, "search", page)
 }
 
 fn run_get_manga_list(req: &[u8]) -> u32 {
-    let page = extract_json_number(req, b"page")
-        .and_then(parse_usize)
-        .unwrap_or(1);
+    let page = request_page_number(req);
 
     let url_buf = scratch_a();
     let mut c = 0usize;
@@ -398,6 +486,7 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
         && write_bytes(url_buf, &mut c, b"/list/click/?page=")
         && write_usize(url_buf, &mut c, page))
     {
+        diagnostic_error(b"list_url", "internal_error");
         return write_error("get_manga_list", "internal_error", "url overflow");
     }
     let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), c) };
@@ -405,12 +494,12 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     let html_len = match fetch_body(url) {
         Ok(n) => n,
         Err(e) => {
-            let (code, message) = fetch_error_code(e);
+            let (code, message) = e;
             return write_error("get_manga_list", code, message);
         }
     };
     let html = unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), html_len) };
-    parse_list(html)
+    parse_list(html, "get_manga_list", page)
 }
 
 fn select_text<'a>(
@@ -454,7 +543,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
     let html_len = match fetch_body(url) {
         Ok(n) => n,
         Err(e) => {
-            let (code, message) = fetch_error_code(e);
+            let (code, message) = e;
             return write_error("get_manga", code, message);
         }
     };
@@ -584,7 +673,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     let html_len = match fetch_body(url) {
         Ok(n) => n,
         Err(e) => {
-            let (code, message) = fetch_error_code(e);
+            let (code, message) = e;
             return write_error("get_chapters", code, message);
         }
     };
@@ -767,7 +856,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
     let config_len = match fetch_body(config_url) {
         Ok(n) => n,
         Err(e) => {
-            let (code, message) = fetch_error_code(e);
+            let (code, message) = e;
             return write_error("get_pages", code, message);
         }
     };
@@ -789,7 +878,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
     let html_len = match fetch_body(url) {
         Ok(n) => n,
         Err(e) => {
-            let (code, message) = fetch_error_code(e);
+            let (code, message) = e;
             return write_error("get_pages", code, message);
         }
     };
@@ -852,7 +941,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
 }
 
 fn run_get_listings(_req: &[u8]) -> u32 {
-    response_buffer().write_success("get_listings", br#"{"listings":[]}"#)
+    response_buffer().write_success("get_listings", r#"{"listings":[{"id":"popular","name":"热门","kind":"popular"}]}"#.as_bytes())
 }
 
 fn run_get_home(_req: &[u8]) -> u32 {
