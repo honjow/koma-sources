@@ -1,2 +1,6 @@
 Adapted from Keiyoushi src/all/xkcd/Xkcd.kt and build.gradle.kts at 1319949ca9bc456908196e3ba2d104e94182c5d6, Apache-2.0.
-Chinese upstream entity 8162821425156695837. xkcd / Randall Munroe and translations retain their respective rights. Source icon reused from that fixed extension revision; no brand endorsement.
+Chinese upstream entity 8162821425156695837. xkcd / Randall Munroe and translations retain their respective rights. The prior icon was reused from that fixed extension revision; no brand endorsement.
+
+Version0.1.3 replaces only the old launcher plate/shadow with a transparent
+derived curve asset. The original extension PNG and officially declared
+favicon are preserved; see ASSET_SOURCES.md. This is not an official vector.
