@@ -19,3 +19,7 @@ This accepts only the named public path. Search remains disabled; latest listing
 The complete original 49780a37 business implementation, crate identity/version, and localized names remain byte-for-byte. The current canonical SDK and standard build generate a new WASM; this does not inherit the historical Native acceptance. The historical App index fallback above is a dated observation, not a present consumer requirement.
 
 Root icon.ico is the unprocessed site-declared 32px original; ASSET_SOURCES.md records the URL, declaration and SHA. The production build validates the required icon and exports its actual filename. Small-slot legibility and current-WASM Native paths remain unverified. No new upstream requests, image processing, parser changes or device work are part of this candidate.
+
+## 0.1.1 transport classification (isolated candidate)
+
+Only a formal host ok:false/error.code=network_error envelope with neither status nor statusCode, or an HTTP host ABI failure, is reported as network_error. Unknown/invalid statuses and all existing HTTP non-2xx classifications remain explicit failures. Existing success parsing, complete-body checks, UA, timeout, TLS and SDK are unchanged. The first current-standard Native popular attempt failed at TLS (CURL35/RespCode0/zero bytes); no detail/body/download/cold result was reached, and this classification change does not repair or prove the remote connection. Controlled envelopes are not the original Native callback input.

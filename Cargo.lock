@@ -1380,7 +1380,7 @@ dependencies = [
 
 [[package]]
 name = "koma_sixmh_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "aes",
  "cbc",

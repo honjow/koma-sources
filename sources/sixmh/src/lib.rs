@@ -8,7 +8,7 @@ const BASE: &[u8] = b"https://www.liumanhua.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.sixmh.koma",
     name: "六漫画",
-    version: "0.1.0",
+    version: "0.1.1",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -439,6 +439,7 @@ fn diagnostic_error(op: &str, code: &str) {
     };
     let known_code = match code {
         "cancelled" => b"cancelled".as_slice(),
+        "network_error" => b"network_error",
         "not_found" => b"not_found",
         "rate_limited" => b"rate_limited",
         "permission_denied" => b"permission_denied",
@@ -472,6 +473,17 @@ fn fetch_body(path: &[u8]) -> Result<usize, &'static str> {
         return Err("HTTP response may be truncated");
     }
     let response = &http_out()[..size];
+    // A formal transport failure has no HTTP response status. Do not classify
+    // malformed/unknown HTTP statuses or other host errors as this known case.
+    if json_object_member(response, b"status").is_none()
+        && json_object_member(response, b"statusCode").is_none()
+        && json_object_member(response, b"ok") == Some(b"false".as_slice())
+        && json_object_member(response, b"error")
+            .and_then(|error| json_object_member(error, b"code"))
+            == Some(br#""network_error""#.as_slice())
+    {
+        return Err("network request failed");
+    }
     let status = json_object_member(response, b"status")
         .or_else(|| json_object_member(response, b"statusCode"))
         .map(koma_source_sdk::parse_status_code)
@@ -508,6 +520,7 @@ fn error(op: &str, e: &str) -> u32 {
     };
     let message = core::str::from_utf8(&diagnostic[..n]).unwrap_or(e);
     let code = match e {
+        "network request failed" => "network_error",
         "cancelled" => "cancelled",
         "not found" => "not_found",
         "rate limited" => "rate_limited",
