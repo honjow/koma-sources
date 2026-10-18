@@ -1184,7 +1184,7 @@ dependencies = [
 
 [[package]]
 name = "koma_comicabc_source"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1317,7 +1317,7 @@ dependencies = [
 
 [[package]]
 name = "koma_mangabz_source"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1435,7 +1435,7 @@ dependencies = [
 
 [[package]]
 name = "koma_zaimanhua_source"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "koma_source_sdk",
 ]

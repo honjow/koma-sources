@@ -23,7 +23,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mangabz.koma",
     name: "Mangabz",
-    version: "0.1.5",
+    version: "0.1.6",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
