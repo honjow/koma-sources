@@ -1,3 +1,42 @@
+# ZaiManhua official512 identity asset
+
+`icon.png` is the original512x512 blue “再” identity PNG included in the
+official Android APK2.3.8 at member
+`assets/flutter_assets/assets/images/logo.png`.
+SHA256:83f71197b0af34ca7717bbffa0b4228597a32c47622100accafb1b1fb07ef7c9.
+
+Provenance: official https://www.zaimanhua.com/ links /app/index.html;
+that page declares the public config endpoint
+https://v4api.zaimanhua.com/app/v1/config/common whose apk_url is
+https://apk.zaimanhua.com/apks/default/2.3.8.apk. HTTP range reads retained
+the ZIP directory and this PNG only, verified by local header/size/CRC.
+The linked official /app/ios_app.html also directly displays the same blue
+identity at https://images.zaimanhua.com/default/app-icon.png (108px).
+No APK code was executed/installed. The PNG is not redrawn, upscaled, cropped,
+masked or reencoded; its original flat white canvas remains, without added
+outer plate, shadow or rounded-frame artwork. App clipping stays unchanged.
+
+The user's current2026-10-18 correction explicitly permits an official
+recognized identity even when it differs from the former green swirl.
+The earlier same-shape-only restriction was the assistant's excess constraint.
+This is not claimed to recover the green mark. Version0.1.6 enables normal
+indexed update/icon-cache refresh; parser and all other source behavior stay.
+
+Exact source chain/parent responses and narrow change review:
+/private/tmp/koma-zai016-official-icon-20261018/REPORT.md.
+Original extraction/CRC:
+/private/tmp/koma-zai-official-apk-assets-20261018/original-logo-receipt.json.
+Device237 ordinary index015/016 -> upgrade1 -> installed016/index016 was
+observed. Root reviewed the actual installed row and Browse row. Four physical
+entities, other43 source objects/relative order and four original data/index
+preference hashes are exact. Original shelf/PID/window/power restored; owned
+index removed and service stopped; lease released. No new content/cold claim.
+Receipt:/private/tmp/koma-zai016-official-icon-20261018/native-receipt.json.
+
+## Prior green64 recovery and rejected redraw history
+
+The following records the previous0.1.5 state and remains historical evidence:
+
 # ZaiManhua package assets
 
 `icon.png` is the original 64 x 64 PNG conversion of the official mobile
