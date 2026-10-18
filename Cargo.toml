@@ -43,5 +43,6 @@ members = [
   "sources/webtoons",
   "sources/lol-zh",
   "sources/honorofkings-zh",
+  "sources/pgr-zh",
   "tools/koma-source-dev",
 ]
