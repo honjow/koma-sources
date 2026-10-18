@@ -10,6 +10,7 @@ members = [
   "sources/dbmultiverse-zh",
   "sources/bns-zh-hant",
   "sdk",
+  "sources/onmyoji-zh",
   "sources/genshin-zh",
   "sources/fgo-zh",
   "sources/magireco-zh",

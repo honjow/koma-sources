@@ -1402,6 +1402,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_onmyoji_zh_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
 name = "koma_source_sdk"
 version = "0.2.0"
 
