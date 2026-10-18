@@ -44,5 +44,6 @@ members = [
   "sources/lol-zh",
   "sources/honorofkings-zh",
   "sources/pgr-zh",
+  "sources/mangapluscreators-en",
   "tools/koma-source-dev",
 ]

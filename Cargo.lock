@@ -1330,6 +1330,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_mangapluscreators_en_source"
+version = "0.1.2"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
 name = "koma_manhuadui_source"
 version = "0.1.2"
 dependencies = [
