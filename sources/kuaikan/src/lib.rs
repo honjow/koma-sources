@@ -8,7 +8,7 @@ use koma_source_sdk::{fetch_error_code, FetchError};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.kuaikan.koma",
     name: "快看漫画",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
