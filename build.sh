@@ -204,7 +204,7 @@ build_source() {
   src_version=$(echo "$info" | jq -r '.data.sourceInfo.version')
   src_lang=$(echo "$info" | jq -r '.data.sourceInfo.language')
   src_author=$(echo "$info" | jq -r '.data.sourceInfo.author')
-  src_desc=$(echo "$info" | jq -r '.data.sourceInfo.description')
+  src_desc=$(echo "$info" | jq -r '.data.sourceInfo.description | if . == null then "" else . end')
   src_content_rating=$(echo "$info" | jq -r '.data.sourceInfo.contentRating')
   
   local nsfw min_app_version
