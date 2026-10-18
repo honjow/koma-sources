@@ -1,3 +1,22 @@
-# Existing Comic Fury identity asset
+# ComicFury identity, backing cleanup
 
-Retains the already reviewed/Native-bound original icon.png, SHA256 8a5d98c0ad140f9906a2f9bd0f8213b0f5ab79aa28ccd1ac8d558a9ea14f495e (3090B). Historical provenance: Keiyoushi extensions-source commit 1319949ca9bc456908196e3ba2d104e94182c5d6, src/all/comicfury/res/mipmap-xhdpi/ic_launcher.png, Git blob 1e2eaf52780f83330ec0809f70db12b434f2aa3c. Reference: https://github.com/keiyoushi/extensions-source/blob/1319949ca9bc456908196e3ba2d104e94182c5d6/src/all/comicfury/res/mipmap-xhdpi/ic_launcher.png . Original NOTICE/LICENSE remain source members; icon-provenance.json is retained only as the historical evidence file at /Users/honjow/git/Koma-sources-comicfury-zh-20261011/.hermes-artifacts/comicfury-zh-20261011/icon-provenance.json, not a package or newcanonical source member; no claim it was newly fetched from the website. No cropping, masking, resizing or substitution in this integration. Source identity/rights remain as NOTICE describes; no affiliation asserted. App display clipping is independent and remains. Historical acceptance is only the named route; this standard build is not a new visual acceptance.
+Official https://comicfury.com/ declares /site.webmanifest, which names
+/android-chrome-192x192.png. Retrieved original is 5413B, SHA256
+00182a3c81c053dffc784758b78ab6c706ddcce87f306bea4a861499ef7fb518.
+The independent official /apple-touch-icon.png uses the same mascot.
+identity.original.png preserves the retrieved192px bytes unchanged.
+
+identity.derived.svg is a derived native straight-polygon reconstruction,
+NOT an official original vector. It keeps the black mascot and two white
+eyes/four white teeth and removes only flat green backing. icon.png is its
+512x512 transparent sharp/librsvg render; no board/shadow/mask is added.
+No change to App icon slot, display clipping, names, identities or provider.
+Original material, exact geometry, rejected imagegen cutout, history and
+ordinary Native acceptance are recorded at
+/private/tmp/koma-comicfury-official-clean-20261018/.
+
+This supersedes only the prior96px Keiyoushi launcher image. Its provenance
+remains fixed extensions-source1319949ca9bc456908196e3ba2d104e94182c5d6,
+path src/all/comicfury/res/mipmap-xhdpi/ic_launcher.png, SHA256
+8a5d98c0ad140f9906a2f9bd0f8213b0f5ab79aa28ccd1ac8d558a9ea14f495e.
+Original NOTICE/LICENSE and source ownership remain. No affiliation asserted.
