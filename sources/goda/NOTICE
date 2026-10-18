@@ -1,0 +1,8 @@
+Adapted public contract from Keiyoushi extensions-source, Apache License 2.0.
+Fixed revision 1319949ca9bc456908196e3ba2d104e94182c5d6.
+Leaf src/zh/baozimhorg/.../GoDaManhua.kt and Dto.kt; parent lib-multisrc/goda/.../GoDa.kt; core KeiSource/OkHttp/Json/Jsoup.
+Icon v0.1.1 is the unmodified original declared by https://godamanga.com/ (redirect https://m.g-mh.org/): https://m.g-mh.org/assets/images/Logo.png.
+SHA256 9e3f21fa92cf88a09ead5fb8760e2f4f1878df13fe17f10cc654403b2c41d016; 256x256 RGBA, 18310 bytes.
+Website artwork rights remain with its owner; the code license is not an artwork licensing claim.
+The prior v0.1.0 framework icon and accepted package remain preserved. The baozimh.org bun icon was not applied.
+Icon identifies the source brand; no endorsement asserted. Repository Apache-2.0 license preserved in LICENSE.

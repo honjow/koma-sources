@@ -1,0 +1,7 @@
+# GoDa original G asset and historical correction
+
+Current icon.png is the exact unprocessed original declared by the user-supplied https://godamanga.com/ route redirect to https://m.g-mh.org/ ; that site explicitly references https://m.g-mh.org/assets/images/Logo.png . Original declaration/final URL/200 image/png and publication https://n.telltome.net/ distinction between 包子主站baozimh.org and G站m.g-mh.org are preserved in Koma .hermes-artifacts/20261005-production/source-icons-goda011-brand-correction-20261011/{visual-scope.json,goda-declared-logo-binding.json,native-asset-acceptance.json}. These are historical evidence locations, not additional package members.
+
+Original PNG256×256RGBA,18310B, SHA256 9e3f21fa92cf88a09ead5fb8760e2f4f1878df13fe17f10cc654403b2c41d016. No cropping, redrawing, resizing, color change, added backing/shadow/mask. App display radius7/30vp is independent and remains unchanged. Original artwork rights remain with its owner; Apache code license does not assert artwork ownership.
+
+Historical 0.1.0 framework icon4edb29f4 from Keiyoushi GoDa mipmap and original accepted package remain at the original owner/receipt. The later proposed baozimh bun logo was rejected and not applied. This proposal uses neither. Do not call baozimh.org the current GoDa brand homepage; source runtime's inherited request backend remains separately unchanged. Original G0.1.1 was finite Native/cold accepted; this new standard compilation is not an additional Native or whole-source acceptance.
