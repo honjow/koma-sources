@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+  "sources/mycomic",
   "sources/cmanhua",
   "sources/tipo-ipmini-zh-hant",
   "sources/webtoons_zh_hant",

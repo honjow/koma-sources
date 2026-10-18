@@ -1,0 +1,10 @@
+[package]
+name = "koma_mycomic_source"
+version = "0.1.1"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+koma_source_sdk = { path = "../../sdk" }
