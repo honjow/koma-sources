@@ -1204,6 +1204,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_bluearchive_zh_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
 name = "koma_dm5_source"
 version = "0.1.17"
 dependencies = [
