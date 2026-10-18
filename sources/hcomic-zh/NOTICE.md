@@ -1,0 +1,2 @@
+# Provenance
+Fixed Keiyoushi primary1319949ca9bc456908196e3ba2d104e94182c5d6, src/zh/hcomic/HComic.kt/Utils.kt/Filters.kt/build.gradle.kts contracts; see retained primary-binding.json. Apache-2.0 license accompanies source. Historical asset evidence, not included in this business-only recovery: official original https://h-comic.com/logo.png is declared by the active img on canonical homepage, no encoding or pixel changes. PNG SHA256 985a75f72e483da0d8cbae10c22b4f926c87936e05f207202e65f0e21093899d,800×600RGBA8,53589B. No cover/body image was fetched or embedded.
