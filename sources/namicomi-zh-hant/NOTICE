@@ -1,0 +1,8 @@
+NamiComi Traditional Chinese Koma adaptation, 2026, Koma contributors.
+Public contract adapted from Keiyoushi extensions-source, Apache License 2.0, revision 1319949ca9bc456908196e3ba2d104e94182c5d6:
+src/all/namicomi/{build.gradle.kts,src/eu/kanade/tachiyomi/extension/all/namicomi/NamiComi.kt,Filters.kt,dto/*.kt}
+core/src/main/kotlin/keiyoushi/{source/KeiSource.kt,network/OkHttp.kt,utils/Json.kt}.
+Historical 0.1.0 icon: fixed Keiyoushi src/all/namicomi/res/mipmap-xhdpi/ic_launcher.png, SHA256 8ac4eabf1a2a0d59d57b650e75e926171d31e237fc44d370dfd9aa3ce1a3b4bb.
+Current 0.1.1 icon.png: 192x192 transparent rendering of the official NamiComi inline SVG declared by https://namicomi.com/en in img alt="NamiComi"; original SVG SHA256 174263901610820502049a384355bc1ff5b2f710095490e1401caf108df87a6c; PNG SHA256 81d5b709697ea05dd80e1eea5c745bb1a36a583a0df7c9642eb119e7f93dcf35. It replaces the historical launcher asset; no generated redrawing is claimed.
+Brand attribution only, no endorsement or trademark rights asserted.
+Modified independent Rust source: bounded JSON, normalized Chinese description key, explicit available-Chinese search, anonymous accessibility check and Koma ABI. No account/premium/challenge bypass.
