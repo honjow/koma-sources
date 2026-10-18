@@ -10,7 +10,7 @@ const BASE: &[u8] = b"https://baozimh.org";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "org.goda.koma",
     name: "GoDa漫画",
-    version: "0.1.1",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -1072,14 +1072,10 @@ fn pages(r: &[u8]) -> Result<usize, &'static str> {
         let _ = order; // API order is data, never a host index or sort key.
         let mut ub = [0; 4096];
         let original = decoded(v, b"url", &mut ub)?;
-        if !original.starts_with(b"/scomic/") || !valid_path(original) {
+        // The identity-checked chapter API owns this root-relative asset path.
+        // Do not infer its storage prefix or folder name from the manga slug.
+        if !original.starts_with(b"/") || !valid_path(original) {
             return Err("invalid image URL");
-        };
-        let image_tail = original
-            .strip_prefix(b"/scomic/")
-            .ok_or("invalid image URL")?;
-        if image_tail.split(|c| *c == b'/').next() != Some(manga_slug) {
-            return Err("image manga slug mismatch");
         };
         let mut abs = [0; 4096];
         let mut c = 0;
