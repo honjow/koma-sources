@@ -1421,6 +1421,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_pixiv_zh_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
 name = "koma_sixmh_source"
 version = "0.1.1"
 dependencies = [
