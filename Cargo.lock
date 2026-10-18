@@ -1218,6 +1218,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_dota2_zh_source"
+version = "0.1.1"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
 name = "koma_example_demo_source"
 version = "0.1.0"
 dependencies = [
