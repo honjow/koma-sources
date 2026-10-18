@@ -34,6 +34,7 @@ RELEASE_PACKAGE_DIR="$OUTPUT_DIR/release-packages"
 SOURCE_ENTRIES='
 namicomi-zh-hans|namicomi-zh-hans|false|0.1.0
 namicomi-zh-hant|namicomi-zh-hant|false|0.1.0
+soc-zh|soc-zh|false|0.1.1
 guazimanhua|guazimanhua|false|0.1.0
 pixiv-zh|pixiv-zh|true|0.1.0
 mangaball-zh|mangaball-zh|true|0.1.0
