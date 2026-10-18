@@ -32,6 +32,7 @@ RELEASE_PACKAGE_DIR="$OUTPUT_DIR/release-packages"
 # Source registry: source name | crate directory | nsfw | minimum Koma version.
 # Keep this Bash 3 compatible for macOS /bin/bash.
 SOURCE_ENTRIES='
+xcomic-zh-hant|xcomic-zh-hant|true|0.1.0
 bluearchive-zh|bluearchive-zh|false|0.1.1
 dota2-zh|dota2-zh|false|0.1.1
 majsoul-zh|majsoul-zh|false|0.1.1
