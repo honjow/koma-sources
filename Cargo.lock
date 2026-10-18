@@ -3484,3 +3484,17 @@ dependencies = [
  "cc",
  "pkg-config",
 ]
+
+[[package]]
+name = "koma_mangadex_zh_hans_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_mangadex_zh_hant_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]

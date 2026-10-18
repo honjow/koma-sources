@@ -64,4 +64,6 @@ members = [
   "sources/pgr-zh",
   "sources/mangapluscreators-en",
   "tools/koma-source-dev",
+  "sources/mangadex-zh-hans",
+  "sources/mangadex-zh-hant",
 ]
