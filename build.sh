@@ -32,6 +32,9 @@ RELEASE_PACKAGE_DIR="$OUTPUT_DIR/release-packages"
 # Source registry: source name | crate directory | nsfw | minimum Koma version.
 # Keep this Bash 3 compatible for macOS /bin/bash.
 SOURCE_ENTRIES='
+hko-weather-family-zh-hant|hko-weather-family-zh-hant|false|0.1.1
+scitechvista-zh-hant|scitechvista-zh-hant|false|0.1.1
+protectors-zh|protectors-zh|false|0.1.1
 namicomi-zh-hans|namicomi-zh-hans|false|0.1.0
 namicomi-zh-hant|namicomi-zh-hant|false|0.1.0
 soc-zh|soc-zh|false|0.1.1

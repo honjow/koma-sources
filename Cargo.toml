@@ -1,6 +1,9 @@
 [workspace]
 resolver = "2"
 members = [
+  "sources/hko-weather-family-zh-hant",
+    "sources/scitechvista-zh-hant",
+    "sources/protectors-zh",
   "sources/namicomi-zh-hans",
   "sources/namicomi-zh-hant",
   "sources/soc-zh",

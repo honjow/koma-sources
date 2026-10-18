@@ -1288,6 +1288,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_hko_weather_family_zh_hant_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
 name = "koma_honorofkings_zh_source"
 version = "0.1.0"
 dependencies = [
@@ -1443,6 +1450,20 @@ dependencies = [
 
 [[package]]
 name = "koma_pixiv_zh_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_protectors_zh_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_scitechvista_zh_hant_source"
 version = "0.1.0"
 dependencies = [
  "koma_source_sdk",
