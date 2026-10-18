@@ -1,46 +1,34 @@
-# ZaiManhua source identity asset
+# ZaiManhua package assets
 
-The packaged `icon.png` is a 512 x 512 render of the source-referenced cubic
-reconstruction in `artwork/identity.svg`. This is a derived redraw made after
-the user's low-resolution icon feedback and explicit request for 2D redrawing;
-it is not an official SVG or a recovered high-resolution master.
+`icon.png` is the original 64 x 64 PNG conversion of the official mobile
+favicon. SHA-256: `c6bd82f469c6a94dda39d41de4c967116d9723bb44c30ea867d1ba980d95009e`.
+Source: `https://m.zaimanhua.com/assets/favicon-BL04EiLw.ico`.
+It is low resolution; no claim of high-resolution restoration is made.
 
-Reference: the existing official favicon conversion (64 x 64 PNG SHA-256
-`c6bd82f469c6a94dda39d41de4c967116d9723bb44c30ea867d1ba980d95009e`).
-The current official mobile HTML again explicitly declares
-`https://m.zaimanhua.com/assets/favicon-BL04EiLw.ico`; the 2026-10-18 response
-is an ICO with only a 64 x 64 frame, SHA-256
-`6efa6b120a48e291e3b453c2e2f1ea759bbe5752963e812e94972272e77e59c6`.
-The separately declared header wordmark was inspected and not substituted.
+## Rejected redraw and recovery
 
-The reconstruction retains the original three colors and silhouette. Cubic
-curves regularize subpixel raster contour noise; no new backing, shadow,
-font, text, extra symbol or mask was added. The source's ambiguous subpixel
-edge geometry is reconstructed, not claimed pixel-identical. Original colors
-are RGB (173,199,125), (77,142,118), (12,90,100). SVG renders through sharp to
-a transparent PNG; packaged PNG SHA-256:
-`698c361d3bbca4f9ca352f599c4dfa6745b35523e25deabe64eb20f30a0d2530`.
+The 512px redraw added in a47543d and delivered locally with version 0.1.5
+was rejected after the user's 2026-10-18 jagged-curve feedback. Its hundreds
+of short cubic segments retained raster sampling/blur artifacts instead of
+recovering the intended smooth geometry. The earlier visual-acceptance
+claim is withdrawn; package-hash and data-preservation evidence does not
+establish acceptable artwork quality. The defective SVG is removed from
+the source tree and remains available in Git history and local evidence.
 
-Use this asset only for ZaiManhua source identity; never as a manga cover or another source's brand.
+This correction restores only the original icon. Source ID, manifest,
+WASM behavior and current version remain unchanged. No new backing,
+shadow, mask, App dimensions, layout, corner radius or interpolation.
+The separate MangaBZ and ComicABC official originals are unaffected.
 
-Device 237: ordinary 0.1.4 local icon-only update and source-management list
-appearance reviewed. Current installed archive/manifest/WASM/icon hashes
-match the candidate, while manifest and WASM bytes retain the previous
-standard package. Library, Session and Queue bytes remain unchanged; other
-43 source objects keep all fields. Ordinary import moves the updated source
-to the tail. Original library, PID, power and owned-file cleanup verified.
-No App dimensions, radius, layout or interpolation change. Native proof:
-`/private/tmp/koma-icon-current-audit-20261018/hd-update/zaimanhua-native-receipt.json`.
-Other consumers, dark mode, cold start and source-content quality are outside
-this finite icon acceptance.
-
-## Versioned delivery
-
-Version 0.1.5 now carries this same icon through the existing ordinary index
-update route. Device 237 loaded an owned three-source index, showed the three
-new versions as updatable, then completed its existing batch update. All 12
-installed package/manifest/WASM/icon hashes matched the standard packages;
-Library, Session, Queue and source-index preference hashes were preserved.
-The owned index was removed through UI and the server stopped. This is
-finite local index-update acceptance, not remote publication or renewed
-source-content/cold-start acceptance. Receipt: `/private/tmp/koma-icon-current-audit-20261018/version-delivery/native-receipt.json`.
+A fresh geometry candidate must distinguish true contours from sampling
+uncertainty and be reviewed at native and enlarged sizes before adoption.
+The temporary hand-adjusted draft was also rejected and never packaged.
+Investigation and retained candidates:
+`/private/tmp/koma-icon-geometry-correction-20261018/REPORT.md`.
+Device237 ordinary local import restored these original bytes at0.1.5.
+All four installed entities match; current manifest/WASM are unchanged.
+Library, Session and Queue hashes are unchanged, and other43source objects
+keep all fields and relative order; ordinary import moves ZaiManhua to the
+tail. Original library/PID/power and owned-file cleanup were verified.
+Recovery receipt: `/private/tmp/koma-icon-geometry-correction-20261018/native-receipt.json`.
+This is a recovery of identity fidelity;64px clarity remains unresolved.
