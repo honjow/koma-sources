@@ -33,3 +33,14 @@ No App dimensions, radius, layout or interpolation change. Native proof:
 `/private/tmp/koma-icon-current-audit-20261018/hd-update/zaimanhua-native-receipt.json`.
 Other consumers, dark mode, cold start and source-content quality are outside
 this finite icon acceptance.
+
+## Versioned delivery
+
+Version 0.1.5 now carries this same icon through the existing ordinary index
+update route. Device 237 loaded an owned three-source index, showed the three
+new versions as updatable, then completed its existing batch update. All 12
+installed package/manifest/WASM/icon hashes matched the standard packages;
+Library, Session, Queue and source-index preference hashes were preserved.
+The owned index was removed through UI and the server stopped. This is
+finite local index-update acceptance, not remote publication or renewed
+source-content/cold-start acceptance. Receipt: `/private/tmp/koma-icon-current-audit-20261018/version-delivery/native-receipt.json`.
