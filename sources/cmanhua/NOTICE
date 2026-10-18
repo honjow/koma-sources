@@ -1,0 +1,22 @@
+CManhua source for Koma, 2026.
+
+Public source HTTP routes, ASP.NET postback mapping and HTML selectors were
+informed by Keiyoushi extensions-source CManhua:
+https://github.com/keiyoushi/extensions-source/tree/05c19676fd9870109557536d6e8646dd4a96bba0/src/zh/cmanhua
+Upstream license: Apache License 2.0 (included in LICENSE).
+
+Rewritten in no_std Rust for the Koma source ABI. Normal Koma client headers,
+source-local bounded HTML data extraction, opaque public postback cursors,
+complete chapter-range checks and full stable topic/chapter/page IDs are used.
+No JavaScript execution, platform icon or manga content is included. The official source identity image is described below.
+
+Official source identity image: cmanhua.com website logo. The public homepage
+header/footer declare /Assets/images/logo_200x200-removebg-preview.png.
+Original 410x409 RGBA PNG is retained in the 0.1.1 evidence packet. Original SHA256:
+99404b8cf634f2154e61ddf7fa10aa3e4d1bb3b45f3db7ddc905ac2899bef59a.
+Homepage SHA256:
+03dd476d73f8dcf5f89062b745797c061b79dd9107893cc30c5bb2b7336ad708.
+This identifies the site's current brand; source name remains CManhua.
+No endorsement or additional trademark license is asserted.
+
+User-authorized 0.1.2 icon processing: deterministic alpha>0 bounding rectangle (95, 99, 312, 316), output (217, 217). All kept RGBA pixels are identical to the original rectangle, and only all-transparent outer rows/columns are removed. No drawing, scaling, mask, background or shadow. Cropped PNG SHA256: 620a4aa6747758b8e12b83cf8ff7407dbb56b9ddba1e117aa47add573c81c89e.

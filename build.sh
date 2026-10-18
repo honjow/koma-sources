@@ -32,6 +32,7 @@ RELEASE_PACKAGE_DIR="$OUTPUT_DIR/release-packages"
 # Source registry: source name | crate directory | nsfw | minimum Koma version.
 # Keep this Bash 3 compatible for macOS /bin/bash.
 SOURCE_ENTRIES='
+cmanhua|cmanhua|true|0.1.0
 mangadex-zh-hant|mangadex-zh-hant|true|0.1.0
 mangadex-zh-hans|mangadex-zh-hans|true|0.1.0
 tipo-ipmini-zh-hant|tipo-ipmini-zh-hant|false|0.1.1
