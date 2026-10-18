@@ -22,6 +22,21 @@
     "description": { "type": "string" },
     "author": { "type": "string" },
     "contentRating": { "type": "string", "description": "Source-wide content rating" },
-    "homepage": { "type": "string" }
+    "homepage": { "type": "string" },
+    "localizedNames": {
+      "type": "object",
+      "maxProperties": 16,
+      "propertyNames": {
+        "type": "string",
+        "maxLength": 63,
+        "pattern": "^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8}){0,5}$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      },
+      "description": "Optional locale-to-display-name map. Packaging also enforces case-insensitive key uniqueness, trimmed names, no U+0000..001F/U+007F, and at most 128 UTF-16 code units. Empty maps are preserved."
+    }
   }
 }

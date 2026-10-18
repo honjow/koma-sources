@@ -163,6 +163,36 @@ to the actual published asset with the same extension and bytes as the package
 root image. `manifest.icon` records only that root filename (for example
 `icon.gif`); the index reference is relative to its own distribution directory.
 
+Generated index entries include `sha256`, the lowercase SHA-256 digest of the
+final `.koma` archive downloaded from `pkg`. Koma can compare downloaded archive
+bytes with that digest before installation. This package checksum is distinct
+from the installed WASM payload hash and from a signature: it detects a mismatch
+against the index, and does not authenticate the source publisher or establish
+trust in an unsigned index.
+
+### Localized source display names
+
+A source may provide `sources/<source>/metadata.json`. The production packager
+extracts only its `localizedNames` object and copies the validated object into
+both `manifest.json` and its index entry. Unrelated top-level metadata is ignored
+and never merged into either output. This file is build input, not an extra
+`.koma` archive member. Without this key, the existing package fields are kept;
+an explicitly empty `localizedNames` object is preserved as an empty object.
+
+Locale keys follow `^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8}){0,5}$`, are at most 63
+characters, and must be unique ignoring case. There may be at most 16 entries.
+Names must be nonempty trimmed strings, at most 128 UTF-16 code units, valid
+Unicode, and contain no U+0000 through U+001F or U+007F characters. Invalid values
+of this known field fail extraction. The JSON reader currently uses standard
+`json.loads` duplicate-key handling; the old helper's duplicate-key rejection is
+not claimed by the current production entry point.
+
+`name` remains the canonical fallback. `lang` describes source content, not the
+interface locale. Localized names do not change source identity, version,
+ratings, capabilities or language. SDK `SourceInfo`, `get_source_info` and WASM
+behavior remain separate. The schema's string limit counts Unicode code points;
+the production helper also checks the exact UTF-16 length limit.
+
 ## Current Sources (20)
 
 | Source | Type | Status | Notes |
