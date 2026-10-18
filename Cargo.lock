@@ -1183,6 +1183,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_cartoon18_zh_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
 name = "koma_comicabc_source"
 version = "0.1.10"
 dependencies = [
@@ -1470,6 +1477,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_simplyhentai_zh_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
 name = "koma_sixmh_source"
 version = "0.1.1"
 dependencies = [
@@ -1511,6 +1525,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_tipo_ipmini_zh_hant_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
 name = "koma_tongli_source"
 version = "0.1.0"
 dependencies = [
@@ -1520,6 +1541,13 @@ dependencies = [
 [[package]]
 name = "koma_webtoons_source"
 version = "0.1.4"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_webtoons_zh_hant_source"
+version = "0.1.1"
 dependencies = [
  "koma_source_sdk",
 ]

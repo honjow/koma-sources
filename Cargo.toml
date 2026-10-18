@@ -1,6 +1,10 @@
 [workspace]
 resolver = "2"
 members = [
+  "sources/tipo-ipmini-zh-hant",
+  "sources/webtoons_zh_hant",
+  "sources/simplyhentai-zh",
+  "sources/cartoon18-zh",
   "sources/hko-weather-family-zh-hant",
     "sources/scitechvista-zh-hant",
     "sources/protectors-zh",

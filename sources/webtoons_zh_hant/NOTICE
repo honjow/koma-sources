@@ -1,0 +1,9 @@
+WEBTOON Traditional Chinese source
+
+Parsing/protocol reference: Keiyoushi extensions-source Webtoons.kt, Dto.kt, Filters.kt
+https://github.com/keiyoushi/extensions-source/tree/10f06eb833af5990bc5470c84c5e93edc159ad4e/src/all/webtoons
+Copyright Keiyoushi contributors and original Tachiyomi extension contributors.
+Licensed under Apache License 2.0, reproduced in LICENSE-APACHE-2.0.
+Koma implementation is a separate Rust host-ABI adapter; no Android framework or image assets are copied.
+Local bounded source helpers are adapted from the Koma Manhuawu source-only implementation.
+WEBTOON brand/content rights remain with their respective owners. No content or icon is packaged.
