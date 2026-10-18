@@ -1,0 +1,12 @@
+Kuaikan source for Koma, 2026.
+
+The public HTTP route and metadata mapping were informed by Keiyoushi extensions-source:
+https://github.com/keiyoushi/extensions-source/tree/89fb80b7e6/src/zh/kuaikanmanhua
+Upstream license: Apache License 2.0 (included in LICENSE).
+
+This implementation is rewritten in no_std Rust for the Koma source ABI.
+It replaces upstream QuickJS execution with a bounded data-only Nuxt decoder,
+uses current comics metadata, retains full topic/chapter/page identity and
+refreshes public free-chapter signed image requests. It does not copy manga
+content. The separately obtained official source identity image currently
+included is documented in ASSET_SOURCES.md.
