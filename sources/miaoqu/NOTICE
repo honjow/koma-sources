@@ -1,0 +1,8 @@
+Miaoqu Koma adaptation, 2026, Koma contributors.
+Adapted public contract from Keiyoushi extensions-source under Apache License 2.0, revision 1319949ca9bc456908196e3ba2d104e94182c5d6:
+src/zh/miaoqu/src/eu/kanade/tachiyomi/extension/zh/miaoqu/Miaoqu.kt
+src/zh/miaoqu/build.gradle.kts
+lib-multisrc/mccms/{MCCMSWeb.kt,MCCMSConfig.kt,MCCMSFilters.kt,Intl.kt} (under src/eu/kanade/tachiyomi/multisrc/mccms)
+core/src/main/kotlin/keiyoushi/{source/KeiSource.kt,network/OkHttp.kt}
+Historical asset record, not included in this business-only recovery: the old icon is the exact fixed primary src/zh/miaoqu/res/mipmap-xhdpi/ic_launcher.png; Git blob and SHA bound in artifact icon-binding.json. Brand identifies the site; no trademark endorsement/license beyond customary attribution is asserted.
+Modified independent Rust WASM adaptation: bounded HTML/JSON/Base64/XOR, Koma ABI and localized metadata; no upstream application code/runtime copied.
