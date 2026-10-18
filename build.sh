@@ -193,7 +193,10 @@ build_source() {
 
   # Extract source info via dev runner
   local info
-  info=$("$DEV_RUNNER" info "$wasm_file" 2>/dev/null)
+  if ! info=$("$DEV_RUNNER" info "$wasm_file" 2>/dev/null); then
+    log "ERROR: source metadata extraction failed for $name"
+    return 1
+  fi
   
   local src_id src_name src_version src_lang src_author src_desc src_content_rating
   src_id=$(echo "$info" | jq -r '.data.sourceInfo.id')
