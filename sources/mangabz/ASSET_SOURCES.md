@@ -1,9 +1,9 @@
-# Source identity asset
+# MangaBZ source identity asset
 
-`icon.png` is the actual image resource obtained once from `https://www.mangabz.com/favicon.ico`.
+`icon.png` is the 76 x 76 standalone BZ symbol cropped from the retained official header image obtained from `https://css.mangabz.com/v202609180933/mangabz/images/logo_mangabz.png`. The original request receipt is `/private/tmp/koma-source-icon-integrity-20261017/mangabz/request.json`; its actual URL is authoritative if the documented endpoint changes.
 
-Same-origin browser conventional favicon, HTTP200 actualPNG16x16. Retained HTML does not explicitly declare favicon; redBZ matches retained official header logo. Filename follows actualPNG encoding without changing bytes.
+Original header SHA-256: `d327c5b05b554dba07dcd77de80af755f6b4fd175d6c3afaff68307076606805`. Crop uses source rectangle [1,2,77,78), excluding only the neighboring wordmark and transparent margin. No rescaling, redrawing, added plate, shadow or masking. The output PNG SHA-256 is `94c05673d268d6f5460c5994cd2f06a73bed1c48e9ed8af71581862898168b26`.
 
-SHA256 `2190dfc3d139824b09afea0aa962b2502027d2341b77d9b7316cc48972ccad98`, 3403 bytes. Full artwork was viewed; no added plate, outside mask, shadow, cropping, resizing or reencoding is present in this candidate. Small-icon clarity and App rendering remain unaccepted until ordinary Native review; App's existing display clipping must remain.
+Replaces the former 16 x 16 same-origin favicon (`2190dfc3d139824b09afea0aa962b2502027d2341b77d9b7316cc48972ccad98`) following the user's current low-resolution feedback. The 76px source is a resolution improvement, not an official vector or recovered high-resolution master. Automatic vector and generated redraw candidates changed the original geometry and were not adopted.
 
-Original HTTP headers, request, response bytes and metrics: `/private/tmp/koma-source-icon-integrity-20261017/mangabz-favicon`. Authoritative icon-only candidate and unchanged-WASM comparison: `/private/tmp/koma-source-icon-integrity-20261017/candidates/mangabz`. Existing parser, stable identities, version and all prior manifest fields are preserved; new manifest.icon names the actual root asset. Old delivery packages remain unchanged.
+Device 237: ordinary local import of the icon-only 0.1.5 package, installed icon/manifest/WASM/archive hashes verified; source-management list appearance reviewed. Manifest and WASM remain byte-identical to the previously installed package. App icon size, fit and clipping unchanged. Scope and data evidence: `/private/tmp/koma-icon-current-audit-20261018/hd-update/native-receipt.json`. No source-content, all-view, download or cold-start reacceptance is claimed.

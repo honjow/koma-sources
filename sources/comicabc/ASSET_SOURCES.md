@@ -1,9 +1,7 @@
-# Source identity asset
+# ComicABC source identity asset
 
-`icon.png` is the actual image resource obtained once from `https://www.8comic.com/favicon-32x32.png`.
+`icon.png` is the unmodified 180 x 180 PNG obtained from the actual source origin `https://www.8comic.com/apple-touch-icon.png`, replacing its former 32 x 32 favicon after the user's current low-resolution feedback. The original request, HTTP200 response and pixels are retained in `/private/tmp/koma-source-icon-integrity-20261017/comicabc/`. This provenance records the same-origin Apple touch URL and does not claim an unverified HTML declaration.
 
-Explicit rel=icon sizes32 in retained original h-1 HTML lines12; direct HTTP200 PNG32x32.
+PNG SHA-256: `e69e6a8ccb99032ef6debe2f170af1ef5e3a89b70576be199e646fd550955688` (27758 bytes). The original blue ray pattern and white 8 remain; no drawing, scaling, external backing, shadow or mask was added. The prior 32px favicon hash was `68c8132cd9587a25732dcdfc6acd1863f463be980055c7feb0945ae2a812a221`. The unrelated 440 x 100 header wordmark was not substituted.
 
-SHA256 `68c8132cd9587a25732dcdfc6acd1863f463be980055c7feb0945ae2a812a221`, 2048 bytes. Full artwork was viewed; no added plate, outside mask, shadow, cropping, resizing or reencoding is present in this candidate. Small-icon clarity and App rendering remain unaccepted until ordinary Native review; App's existing display clipping must remain.
-
-Original HTTP headers, request, response bytes and metrics: `/private/tmp/koma-source-icon-integrity-20261017/comicabc-favicon32`. Authoritative icon-only candidate and unchanged-WASM comparison: `/private/tmp/koma-source-icon-integrity-20261017/candidates/comicabc`. Existing parser, stable identities, version and all prior manifest fields are preserved; new manifest.icon names the actual root asset. Old delivery packages remain unchanged.
+Device 237: ordinary local import of the icon-only 0.1.9 package, installed icon/manifest/WASM/archive hashes verified; source-management list appearance reviewed. Manifest and WASM remain byte-identical to the previously installed package. App icon size, fit and clipping unchanged. Scope and data evidence: `/private/tmp/koma-icon-current-audit-20261018/hd-update/native-receipt.json`. No source-content, all-view, download or cold-start reacceptance is claimed.
