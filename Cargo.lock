@@ -1101,6 +1101,7 @@ dependencies = [
  "anyhow",
  "axum",
  "clap",
+ "getrandom 0.2.17",
  "mime_guess",
  "scraper",
  "serde",

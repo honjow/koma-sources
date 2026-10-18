@@ -296,6 +296,48 @@ fn instantiate_source(wasm_path: &Path) -> Result<(Store<HostState>, Instance)> 
 }
 
 fn register_host_imports(linker: &mut Linker<HostState>) -> Result<()> {
+    // Existing source ABI: exact little-endian epoch milliseconds, no fallback.
+    linker.func_wrap("koma_host", "unix_time_ms", |mut caller: Caller<'_, HostState>, out_ptr: i32, out_cap: i32| -> i32 {
+        if out_cap != 8 { return -1; }
+        let memory = match caller.get_export("memory").and_then(|e| e.into_memory()) {
+            Some(memory) => memory,
+            None => return -1,
+        };
+        let start = out_ptr as u32 as usize;
+        let end = match start.checked_add(8) {
+            Some(end) if end <= memory.data_size(&caller) => end,
+            _ => return -1,
+        };
+        let millis = match std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
+            Ok(duration) => match u64::try_from(duration.as_millis()) {
+                Ok(millis) if millis != 0 => millis,
+                _ => return -2,
+            },
+            Err(_) => return -2,
+        };
+        memory.data_mut(&mut caller)[start..end].copy_from_slice(&millis.to_le_bytes());
+        8
+    })?;
+
+    // Use OS entropy, bounded by the same 256-byte ABI as the App host.
+    linker.func_wrap("koma_host", "random_bytes", |mut caller: Caller<'_, HostState>, out_ptr: i32, out_cap: i32| -> i32 {
+        if !(1..=256).contains(&out_cap) { return -1; }
+        let memory = match caller.get_export("memory").and_then(|e| e.into_memory()) {
+            Some(memory) => memory,
+            None => return -1,
+        };
+        let start = out_ptr as u32 as usize;
+        let count = out_cap as usize;
+        let end = match start.checked_add(count) {
+            Some(end) if end <= memory.data_size(&caller) => end,
+            _ => return -1,
+        };
+        let mut bytes = [0_u8; 256];
+        if getrandom::getrandom(&mut bytes[..count]).is_err() { return -2; }
+        memory.data_mut(&mut caller)[start..end].copy_from_slice(&bytes[..count]);
+        out_cap
+    })?;
+
     // koma_host.log
     linker.func_wrap("koma_host", "log", |mut caller: Caller<'_, HostState>, level: i32, ptr: i32, len: i32| {
         let memory = caller.get_export("memory").and_then(|e| e.into_memory());
