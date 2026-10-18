@@ -32,6 +32,7 @@ RELEASE_PACKAGE_DIR="$OUTPUT_DIR/release-packages"
 # Source registry: source name | crate directory | nsfw | minimum Koma version.
 # Keep this Bash 3 compatible for macOS /bin/bash.
 SOURCE_ENTRIES='
+guazimanhua|guazimanhua|false|0.1.0
 pixiv-zh|pixiv-zh|true|0.1.0
 mangaball-zh|mangaball-zh|true|0.1.0
 xcomic-zh-hant|xcomic-zh-hant|true|0.1.0

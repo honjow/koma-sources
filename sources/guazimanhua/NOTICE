@@ -1,0 +1,6 @@
+Guazimanhua source adapter, copyright 2026 Koma contributors.
+The HTML selectors, route conventions and desktop User-Agent are adapted from:
+Keiyoushi extensions-source, src/zh/guazimanhua (Apache License 2.0).
+https://github.com/keiyoushi/extensions-source/tree/main/src/zh/guazimanhua
+Original notices remain governed by the included Apache-2.0 license.
+This package does not redistribute manga content. Its logo is a rasterization of the official website CSS identity mark; provenance and the bounded original adoption are documented in ASSET_SOURCES.md.
