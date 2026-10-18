@@ -279,6 +279,28 @@ build_source() {
   size=$(stat -c%s "$koma_file" 2>/dev/null || stat -f%z "$koma_file")
   log "  ✓ ${name}-${src_version}.koma ($(numfmt --to=iec "$size" 2>/dev/null || echo "${size}B"))"
   
+  # Keep code attribution alongside the importable allowlisted package.
+  # These files never become extra .koma entries; the delivery ZIP is an
+  # archival/distribution artifact, not an App-import format.
+  local license_name delivery_file
+  local license_entries=()
+  for license_name in LICENSE LICENSE-APACHE-2.0 NOTICE NOTICE.md; do
+    if [[ -f "$src_path/$license_name" && ! -L "$src_path/$license_name" ]]; then
+      cp "$src_path/$license_name" "$OUTPUT_DIR/sources/$name/$license_name" || return 1
+      license_entries+=("$license_name")
+    fi
+  done
+  if [[ "${#license_entries[@]}" -gt 0 ]]; then
+    delivery_file="$OUTPUT_DIR/sources/$name/${name}-${src_version}-delivery.zip"
+    (cd "$OUTPUT_DIR/sources/$name" && zip -q "$delivery_file" \
+      "${name}-${src_version}.koma" "${license_entries[@]}") || return 1
+    if [[ -n "$VERSION_TAG" ]]; then
+      mkdir -p "$RELEASE_PACKAGE_DIR" || return 1
+      cp "$delivery_file" "$RELEASE_PACKAGE_DIR/$(basename "$delivery_file")" || return 1
+    fi
+    log "  ✓ ${name}-${src_version}-delivery.zip (package + code attribution)"
+  fi
+
   # Local/static indexes serve their package identity asset beneath the index
   # document. A tagged GitHub Release has a flat asset namespace instead, so
   # publish a unique filename and keep the index reference relative to its
@@ -309,6 +331,18 @@ build_source() {
     pkg_url="sources/${name}/${pkg_filename}"
   fi
 
+  # Hash the final importable archive, independently of its WASM payload hash.
+  local package_sha256
+  if command -v sha256sum >/dev/null 2>&1; then
+    package_sha256=$(sha256sum "$koma_file" | cut -d ' ' -f 1)
+  else
+    package_sha256=$(shasum -a 256 "$koma_file" | cut -d ' ' -f 1)
+  fi
+  if [[ ! "$package_sha256" =~ ^[0-9a-f]{64}$ ]]; then
+    log "ERROR: cannot compute package SHA-256 for $name"
+    return 1
+  fi
+
   # Output index entry JSON to stdout (only line on stdout)
   jq -n \
     --arg id "$src_id" \
@@ -320,10 +354,11 @@ build_source() {
     --arg description "$src_desc" \
     --arg contentRating "$src_content_rating" \
     --arg pkg "$pkg_url" \
+    --arg sha256 "$package_sha256" \
     --arg icon "$icon_path" \
     --arg minAppVersion "$min_app_version" \
     --argjson localizedMetadata "$localized_metadata" \
-    '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, pkg: $pkg, icon: $icon, minAppVersion: $minAppVersion} + $localizedMetadata'
+    '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, pkg: $pkg, sha256: $sha256, icon: $icon, minAppVersion: $minAppVersion} + $localizedMetadata'
 }
 
 validate_index_packages() {
@@ -419,14 +454,31 @@ else
   cargo build --release -p koma-source-dev 2>&1 | tail -1 >&2
 fi
 
-log "▸ Building all WASM sources..."
-CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS="${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS:+$CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS }-C target-feature=-reference-types -C link-arg=--strip-all" \
-cargo build --release --target wasm32-unknown-unknown \
-  $(for name in $(selected_source_names); do
-    dir="$(source_crate_dir "$name")"
-    crate=$(grep '^name' "$SOURCES_DIR/$dir/Cargo.toml" | head -1 | sed 's/.*= *"\(.*\)"/\1/')
-    echo "-p $crate"
-  done) 2>&1 | tail -1 >&2
+log "▸ Building selected WASM sources..."
+# Preserve current Kuaikan and all ordinary source build profiles.
+# Only CManhua retains its original source-specific 256 KiB stack budget.
+ordinary_crates=()
+large_stack_crates=()
+for name in $(selected_source_names); do
+  dir="$(source_crate_dir "$name")"
+  crate=$(grep '^name' "$SOURCES_DIR/$dir/Cargo.toml" | head -1 | sed 's/.*= *"\(.*\)"/\1/')
+  if [[ "$name" == "cmanhua" ]]; then
+    large_stack_crates+=("$crate")
+  else
+    ordinary_crates+=(-p "$crate")
+  fi
+done
+if [[ "${#ordinary_crates[@]}" -gt 0 ]]; then
+  CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS="${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS:+$CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS }-C target-feature=-reference-types -C link-arg=--strip-all" \
+  cargo build --release --target wasm32-unknown-unknown "${ordinary_crates[@]}" 2>&1 | tail -1 >&2
+fi
+if [[ "${#large_stack_crates[@]}" -gt 0 ]]; then
+  for crate in "${large_stack_crates[@]}"; do
+  CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS="${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS:+$CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS }-C target-feature=-reference-types -C link-arg=--strip-all" \
+  cargo rustc --release --target wasm32-unknown-unknown -p "$crate" -- \
+    -C link-arg=-z -C link-arg=stack-size=262144 2>&1 | tail -1 >&2
+  done
+fi
 
 rm -rf "$OUTPUT_DIR"
 mkdir -p "$OUTPUT_DIR/sources"

@@ -54,6 +54,7 @@ jobs:
           files: |
             dist/index.json
             dist/release-packages/*.koma
+            dist/release-packages/*-delivery.zip
             dist/release-icons/*
             target/release/koma-source-dev
           generate_release_notes: true
