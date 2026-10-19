@@ -2,9 +2,11 @@ BH3 source contract adapted from Keiyoushi extensions-source BH3.kt/Dto.kt/build
 Revision 10f06eb833af5990bc5470c84c5e93edc159ad4e. Apache License 2.0.
 Koma bounded HTTP/JSON/HTML implementation uses existing local source-owned patterns.
 
-Package icon.png is the unmodified Keiyoushi repository PNG at
+Historical package icon.png was the unmodified Keiyoushi repository PNG at
 src/zh/bh3/res/mipmap-xxhdpi/ic_launcher.png, fixed revision
 10f06eb833af5990bc5470c84c5e93edc159ad4e. Repository Apache-2.0 notice applies;
 original brand artwork attribution retained, no independent trademark license claimed.
 Git blob0031d22ddc54d85ddb74bda5b70a22ce12d7d003; SHA256
 b4fba93867cd887bc0301ab516c7f80cf8faa18cea227fd51481b3c4c1ca81ba.
+
+Current icon.png is the unmodified official 119x119 PNG declared by the BH3 site favicon chain, retrieved from https://bh3.mihoyo.com/favicon.ico; despite its URL suffix, the original entity is PNG. SHA256 010b7376dd307a4bc7fe09c9d8f9bae58be27c48cf5ecbd1d2bfc785610097f0. This supersedes the historical port-reference icon above without changing its provenance or license attribution. See ASSET_SOURCES.md for the official declaration chain and preserved earlier assets.
