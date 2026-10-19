@@ -1,4 +1,4 @@
 XCOMIC Koma source: independent modified adaptation of Keiyoushi extensions-source, Apache-2.0.
 Fixed primary 1319949ca9bc456908196e3ba2d104e94182c5d6: XCOMIC.kt, Queries.kt, Dto.kt, Filters.kt.
-Official icon copied byte-for-byte from src/all/xcomic/res/mipmap-xxxhdpi/ic_launcher.png, Git blob 7e70247a2191d6a00135605d784a679409094934, SHA256337a7c924fdf7afa325906c7cd6c8042a0387d2a0875e4c369b369e338223390.
+The historical candidate packaged the Keiyoushi reference icon from src/all/xcomic/res/mipmap-xxxhdpi/ic_launcher.png, Git blob 7e70247a2191d6a00135605d784a679409094934, SHA256337a7c924fdf7afa325906c7cd6c8042a0387d2a0875e4c369b369e338223390. That asset is not included in the current business-only source recovery; icon suitability and standard-package registration remain pending. This reference provenance does not independently establish website approval.
 All original license notices retained in LICENSE. JSON bounded parsing adapted from existing Koma NamiComi source.
