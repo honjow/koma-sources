@@ -5,7 +5,7 @@ extern crate koma_source_sdk;
 use koma_source_sdk::host::{self, http_request, log_info};
 use koma_source_sdk::json_utils::{
     append_json_escaped, append_json_unescaped_then_escaped, contains_bytes, find_subslice,
-    write_bytes, write_url_encoded, write_usize,
+    request_page_number, write_bytes, write_url_encoded, write_usize,
 };
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{FetchError, build_get_request, build_post_request, fetch_error_code};
@@ -36,12 +36,12 @@ static mut AUTH_TOKEN_LEN: usize = 0;
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.manhuaren.koma",
     name: "漫画人",
-    version: "0.1.0",
+    version: "0.1.1",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
     description: "漫画人 (manhuaren.com) API source.",
-    content_rating: "safe",
+    content_rating: "unknown",
 };
 
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
@@ -51,7 +51,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     pages: true,
     listings: true,
     manga_list: true,
-    home: true,
+    home: false,
     filters: true,
     settings: false,
     image_request: true,
@@ -433,6 +433,19 @@ fn fetch_json(url: &[u8]) -> Result<&'static [u8], FetchError> {
         return Err(FetchError::Network);
     }
     let resp = &http_out()[..resp_len];
+    let status = extract_json_number(resp, b"status")
+        .or_else(|| extract_json_number(resp, b"statusCode"))
+        .map(koma_source_sdk::parse_status_code).unwrap_or(0);
+    match status {
+        404 => return Err(FetchError::NotFound),
+        429 => return Err(FetchError::RateLimit),
+        400..=499 => return Err(FetchError::ClientError),
+        500..=599 => return Err(FetchError::ServerError),
+        200..=299 => {},
+        _ => return Err(FetchError::Network),
+    }
+    if !contains_bytes(resp, br#""ok":true"#) { return Err(FetchError::Network); }
+
     // Manhuaren API uses {"response":{...}} for success, {"errorResponse":{...}} for error
     if contains_bytes(resp, br#""errorResponse""#) {
         return Err(FetchError::ClientError);
@@ -878,7 +891,7 @@ fn write_manga_item(payload: &mut [u8], c: &mut usize, obj: &[u8]) -> bool {
         && write_bytes(
             payload,
             c,
-            br#"","contentRating":"safe","sourceTags":["manhuaren""#,
+            br#"","contentRating":"unknown","sourceTags":["manhuaren""#,
         )
         && if theme.is_empty() {
             true
@@ -893,15 +906,16 @@ fn write_manga_items_from_array(
     api_json: &[u8],
     key_a: &[u8],
     key_b: Option<&[u8]>,
+    page: usize,
 ) -> u32 {
-    log_info(b"manhuaren api_json start");
-    log_info(&api_json[..api_json.len().min(200)]);
-    log_info(b"manhuaren api_json end");
     if response_has_error(api_json) {
+        if extract_json_number(api_json, b"code") == Some(b"40011" as &[u8]) {
+            return write_error(operation, "permission_denied", "source requires an anonymous session");
+        }
         return write_error(
             operation,
             "source_error",
-            "server returned errorResponse; configure userId/token",
+            "source returned errorResponse",
         );
     }
     let payload = payload_buf();
@@ -926,28 +940,24 @@ fn write_manga_items_from_array(
             written += 1;
         }
     }
-    if !write_bytes(payload, &mut c, br#"],"page":{"nextCursor":""#)
-        || !write_usize(payload, &mut c, PAGE_SIZE)
-        || !write_bytes(payload, &mut c, br#"","hasMore":"#)
-    {
+    let has_more = written >= PAGE_SIZE;
+    if !write_bytes(payload, &mut c, br#"],"page":{"nextCursor":"#) {
         return write_error(operation, "internal_error", "overflow");
     }
-    if written == 0 {
-        if !write_bytes(payload, &mut c, b"false}}") {
-            return write_error(operation, "internal_error", "overflow");
-        }
-    } else if !write_bytes(payload, &mut c, b"true}}") {
-        return write_error(operation, "internal_error", "overflow");
-    }
+    let ok = if has_more {
+        write_bytes(payload, &mut c, b"\"")
+            && write_usize(payload, &mut c, page + 1)
+            && write_bytes(payload, &mut c, br#"","hasMore":true}}"#)
+    } else {
+        write_bytes(payload, &mut c, br#"null,"hasMore":false}}"#)
+    };
+    if !ok { return write_error(operation, "internal_error", "overflow"); }
     write_success_payload(operation, c)
 }
 
 fn run_search(req: &[u8]) -> u32 {
     let query = extract_json_string(req, b"query").unwrap_or(b"");
-    let page = extract_json_number(req, b"page")
-        .map(parse_usize)
-        .unwrap_or(1)
-        .max(1);
+    let page = request_page_number(req);
     let start = (page - 1) * PAGE_SIZE;
     let mut start_buf = [0u8; 20];
     let mut limit_buf = [0u8; 20];
@@ -981,7 +991,7 @@ fn run_search(req: &[u8]) -> u32 {
             return write_error("search", c, m);
         }
     };
-    write_manga_items_from_array("search", api_json, b"result", Some(b"mangas"))
+    write_manga_items_from_array("search", api_json, b"result", Some(b"mangas"), page)
 }
 
 fn run_get_manga(req: &[u8]) -> u32 {
@@ -1072,7 +1082,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
         && write_bytes(
             payload,
             &mut c,
-            br#"","contentRating":"safe","language":"zh","tags":["#,
+            br#"","contentRating":"unknown","language":"zh","tags":["#,
         )
         && write_tags(payload, &mut c, theme)
         && write_bytes(payload, &mut c, br#"],"links":[{"kind":"source","url":""#)
@@ -1434,11 +1444,13 @@ fn run_category_list(
             return write_error(operation, c, m);
         }
     };
-    write_manga_items_from_array(operation, api_json, b"mangas", None)
+    write_manga_items_from_array(operation, api_json, b"mangas", None, page)
 }
 
 fn run_get_listings(_req: &[u8]) -> u32 {
-    run_category_list("get_listings", b"0", b"0", b"0", 1)
+    let b = r#"{"listings":[{"id":"popular","name":"熱門","kind":"popular"}]}"#.as_bytes();
+    payload_buf()[..b.len()].copy_from_slice(b);
+    write_success_payload("get_listings", b.len())
 }
 
 fn append_home_section(payload: &mut [u8], c: &mut usize, title: &[u8], sort: &[u8]) -> bool {
@@ -1503,11 +1515,7 @@ fn append_home_section(payload: &mut [u8], c: &mut usize, title: &[u8], sort: &[
 }
 
 fn run_get_manga_list(req: &[u8]) -> u32 {
-    let page = extract_json_number(req, b"page")
-        .map(parse_usize)
-        .or_else(|| extract_json_string(req, b"cursor").map(parse_usize))
-        .unwrap_or(1)
-        .max(1);
+    let page = request_page_number(req);
     let sort = extract_json_string(req, b"sort").unwrap_or(b"0");
     let sub_type = extract_json_string(req, b"subCategoryType").unwrap_or(b"0");
     let sub_id = extract_json_string(req, b"subCategoryId")
