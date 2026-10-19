@@ -5,7 +5,7 @@ extern crate koma_source_sdk;
 use koma_source_sdk::host::{self, http_request, log_info};
 use koma_source_sdk::json_utils::{
     append_json_escaped, contains_bytes, extract_json_number, extract_json_string, find_subslice,
-    write_bytes, write_url_encoded, write_usize,
+    write_bytes, write_url_encoded, write_usize, json_object_member, append_json_unescaped_then_escaped,
 };
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{FetchError, fetch_error_code};
@@ -23,7 +23,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.happymh.koma",
     name: "Happy漫画",
-    version: "0.1.0",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -44,6 +44,33 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     image_request: true,
     credentials: true,
 };
+
+
+// Request-scoped setting only; use the existing SDK JSON decoding/escaping path.
+// HTTP header validity remains the existing Host/platform responsibility.
+fn requested_user_agent(req: &[u8]) -> Option<&[u8]> {
+    let settings = json_object_member(req, b"settings").unwrap_or(b"{}");
+    extract_json_string(settings, b"customUserAgent").filter(|value| !value.is_empty())
+}
+
+fn fetch_get_config(req: &[u8], url: &[u8], referer: Option<&[u8]>) -> Result<usize, FetchError> {
+    let ua = match requested_user_agent(req) { Some(v) => v, None => return fetch_get(url, referer) };
+    let dst = http_req_buf();
+    let mut c = 0usize;
+    let mut ok = write_bytes(dst, &mut c, br#"{"version":1,"method":"GET","url":""#)
+        && append_json_escaped(dst, &mut c, url)
+        && write_bytes(dst, &mut c, br#"","headers":{"User-Agent":""#)
+        && append_json_unescaped_then_escaped(dst, &mut c, ua)
+        && write_bytes(dst, &mut c, b"\"");
+    if let Some(r) = referer {
+        ok = ok && write_bytes(dst, &mut c, br#","Referer":""#)
+            && append_json_escaped(dst, &mut c, r) && write_bytes(dst, &mut c, b"\"");
+    }
+    ok = ok && write_bytes(dst, &mut c, br#"},"timeoutMs":15000,"responseKind":"bodyText"}"#);
+    if !ok { return Err(FetchError::Network); }
+    let n = http_request(&http_req_buf()[..c], http_out()).map_err(|_| FetchError::Network)?;
+    decode_json_body(&http_out()[..n])
+}
 
 fn write_headers(
     dst: &mut [u8],
@@ -86,6 +113,7 @@ fn write_headers(
 }
 
 fn build_post_form_request(
+    req: &[u8],
     dst: &mut [u8],
     url: &[u8],
     referer: &[u8],
@@ -94,7 +122,13 @@ fn build_post_form_request(
     let mut c = 0usize;
     write_bytes(dst, &mut c, br#"{"version":1,"method":"POST","url":""#).then_some(())?;
     append_json_escaped(dst, &mut c, url).then_some(())?;
-    write_bytes(dst, &mut c, br#"","headers":{"Accept":"application/json, text/plain, */*","User-Agent":"Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36","Content-Type":"application/x-www-form-urlencoded","Referer":""#).then_some(())?;
+    write_bytes(dst, &mut c, br#"","headers":{"Accept":"application/json, text/plain, */*","User-Agent":""#).then_some(())?;
+    if let Some(ua) = requested_user_agent(req) {
+        append_json_unescaped_then_escaped(dst, &mut c, ua).then_some(())?;
+    } else {
+        write_bytes(dst, &mut c, b"Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36").then_some(())?;
+    }
+    write_bytes(dst, &mut c, br#"","Content-Type":"application/x-www-form-urlencoded","Referer":""#).then_some(())?;
     append_json_escaped(dst, &mut c, referer).then_some(())?;
     write_bytes(dst, &mut c, br#""},"bodyBase64":""#).then_some(())?;
     append_json_escaped(dst, &mut c, body).then_some(())?;
@@ -130,9 +164,9 @@ fn fetch_with_request(req_len: usize, label: &[u8]) -> Result<usize, FetchError>
     decode_json_body(&http_out()[..resp_len])
 }
 
-fn fetch_post_form(url: &[u8], referer: &[u8], body: &[u8]) -> Result<usize, FetchError> {
+fn fetch_post_form(req: &[u8], url: &[u8], referer: &[u8], body: &[u8]) -> Result<usize, FetchError> {
     let req_len =
-        build_post_form_request(http_req_buf(), url, referer, body).ok_or(FetchError::Network)?;
+        build_post_form_request(req, http_req_buf(), url, referer, body).ok_or(FetchError::Network)?;
     fetch_with_request(req_len, b"happymh: http transport error, retrying")
 }
 
@@ -538,6 +572,7 @@ fn build_index_url(
 }
 
 fn fetch_index(
+    req: &[u8],
     operation: &str,
     page: usize,
     order: &[u8],
@@ -554,7 +589,7 @@ fn fetch_index(
     let url = unsafe {
         core::slice::from_raw_parts(core::ptr::addr_of!(SCRATCH_A).cast::<u8>(), url_len)
     };
-    let html_len = match fetch_get(url, Some(b"https://m.happymh.com/latest")) {
+    let html_len = match fetch_get_config(req, url, Some(b"https://m.happymh.com/latest")) {
         Ok(n) => n,
         Err(e) => {
             let (c, m) = fetch_error_code(e);
@@ -573,6 +608,7 @@ fn run_search(req: &[u8]) -> u32 {
         let audience = extract_json_string(req, b"audience").unwrap_or(b"");
         let status = extract_json_string(req, b"series_status").unwrap_or(b"-1");
         return fetch_index(
+            req,
             "search",
             page,
             b"last_date",
@@ -607,12 +643,16 @@ fn run_search(req: &[u8]) -> u32 {
     }
     let url =
         unsafe { core::slice::from_raw_parts(core::ptr::addr_of!(SCRATCH_A).cast::<u8>(), uc) };
-    let mut len = match fetch_get(url, Some(b"https://m.happymh.com/tgsearch")) {
+    let mut len = match fetch_get_config(req, url, Some(b"https://m.happymh.com/tgsearch")) {
         Ok(n) => n,
-        Err(_) => 0,
+        Err(e) => {
+            let (code, message) = fetch_error_code(e);
+            return write_error("search", code, message);
+        }
     };
     if len == 0 || is_verification_page(body_slice(len)) {
         len = match fetch_post_form(
+            req,
             b"https://m.happymh.com/v2.0/apis/manga/ssearch",
             b"https://m.happymh.com/sssearch",
             body_bytes,
@@ -630,6 +670,7 @@ fn run_search(req: &[u8]) -> u32 {
 fn run_get_listings(req: &[u8]) -> u32 {
     let page = request_page(req);
     fetch_index(
+        req,
         "get_listings",
         page,
         b"views",
@@ -654,6 +695,7 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     let audience = extract_json_string(req, b"audience").unwrap_or(b"");
     let status = extract_json_string(req, b"series_status").unwrap_or(b"-1");
     fetch_index(
+        req,
         "get_manga_list",
         page,
         order,
@@ -684,7 +726,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
     }
     let url =
         unsafe { core::slice::from_raw_parts(core::ptr::addr_of!(SCRATCH_A).cast::<u8>(), uc) };
-    let html_len = match fetch_get(url, None) {
+    let html_len = match fetch_get_config(req, url, None) {
         Ok(n) => n,
         Err(e) => {
             let (c, m) = fetch_error_code(e);
@@ -790,7 +832,7 @@ fn write_genre_tags(html: &[u8], payload: &mut [u8], c: &mut usize) -> bool {
     true
 }
 
-fn fetch_chapter_page(code: &[u8], page: usize) -> Result<usize, FetchError> {
+fn fetch_chapter_page(req: &[u8], code: &[u8], page: usize) -> Result<usize, FetchError> {
     let id = b"1740000000000";
     let url_buf = scratch_a();
     let mut c = 0usize;
@@ -806,7 +848,7 @@ fn fetch_chapter_page(code: &[u8], page: usize) -> Result<usize, FetchError> {
     }
     let url =
         unsafe { core::slice::from_raw_parts(core::ptr::addr_of!(SCRATCH_A).cast::<u8>(), c) };
-    fetch_get(url, Some(BASE_URL))
+    fetch_get_config(req, url, Some(BASE_URL))
 }
 
 fn run_get_chapters(req: &[u8]) -> u32 {
@@ -828,12 +870,9 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     let mut written = 0usize;
     let mut page = 1usize;
     while page <= 100 {
-        let len = match fetch_chapter_page(code, page) {
+        let len = match fetch_chapter_page(req, code, page) {
             Ok(n) => n,
             Err(e) => {
-                if written > 0 {
-                    break;
-                }
                 let (ec, m) = fetch_error_code(e);
                 return write_error("get_chapters", ec, m);
             }
@@ -841,11 +880,11 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         let json = body_slice(len);
         let data = match extract_object_for_key(json, b"data") {
             Some(v) => v,
-            None => break,
+            None => return write_error("get_chapters", "parse_error", "missing data"),
         };
         let items = match extract_array_for_key(data, b"items") {
             Some(v) => v,
-            None => break,
+            None => return write_error("get_chapters", "parse_error", "missing items"),
         };
         let mut pos = 0usize;
         let mut page_items = 0usize;
@@ -857,7 +896,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             let title = extract_json_string(obj, b"chapterName").unwrap_or(b"Chapter");
             let order = extract_json_number(obj, b"order").unwrap_or(cid);
             if written > 0 && !write_bytes(payload, &mut c, b",") {
-                break;
+                return write_error("get_chapters", "internal_error", "payload overflow");
             }
             let ok = write_bytes(payload, &mut c, br#"{"id":"chapter:"#)
                 && append_json_escaped(payload, &mut c, code)
@@ -881,10 +920,16 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         let is_end_num = extract_json_number(data, b"isEnd")
             .map(|v| parse_usize(v, 0))
             .unwrap_or(0);
-        if is_end_num == 1 || page_items == 0 {
+        if is_end_num == 1 {
             break;
         }
+        if page_items == 0 {
+            return write_error("get_chapters", "parse_error", "incomplete chapter page");
+        }
         page += 1;
+    }
+    if page > 100 {
+        return write_error("get_chapters", "source_error", "chapter catalogue incomplete");
     }
 
     if !write_bytes(
@@ -937,7 +982,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
     let referer = unsafe {
         core::slice::from_raw_parts(core::ptr::addr_of!(SCRATCH_B).cast::<u8>(), ref_len)
     };
-    let len = match fetch_get(url, Some(referer)) {
+    let len = match fetch_get_config(req, url, Some(referer)) {
         Ok(n) => n,
         Err(e) => {
             let (c, m) = fetch_error_code(e);
@@ -1025,8 +1070,14 @@ fn run_get_image_request(req: &[u8]) -> u32 {
         && write_bytes(
             payload,
             &mut c,
-            br#"","headers":{"Referer":"https://m.happymh.com/"}}"#,
+            br#"","headers":{"Referer":"https://m.happymh.com/""#,
         );
+    let ok = ok && match requested_user_agent(req) {
+        Some(ua) => write_bytes(payload, &mut c, br#","User-Agent":""#)
+            && append_json_unescaped_then_escaped(payload, &mut c, ua)
+            && write_bytes(payload, &mut c, b"\""),
+        _ => true,
+    } && write_bytes(payload, &mut c, b"}}");
     if !ok {
         return write_error("get_image_request", "internal_error", "payload overflow");
     }
