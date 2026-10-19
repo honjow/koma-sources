@@ -32,3 +32,7 @@ get_image_request只接受精確 `https://www.laya.url.tw/comic/data/` 下當前
 Root在197觀察0.1.0封面與首正文原圖下載為HTTP500/537字節；目錄metadata為200/51139字節，WASM圖片計畫已成功，因此不是已證實的pageId/owner拒絕。Root另一次正常Host GET使用原Referer及既有Mac Firefox UA取得535730原JPEG字節且SHA精確。這只能支持「圖片請求頭差異需實機驗證」假設，不能證明500原因或本候選已修好；Mac UA與SDK Windows UA亦不是同一字串。
 
 0.1.1僅讓imageRequest.headers同時明確帶出 `User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0`，其字節與現有SDK build_get_request metadata預設UA一致；原Referer不變。URI/ID/目錄解析、80現行條目、切片、正文、capabilities、無icon合同及所有拒絕邊界均不變。source/crate/manifest/index版本步進0.1.1，最低App版本註冊原已0.1.1不變。不使用任意自造身份、憑據或挑戰繞過，不改App/SDK/HTTP guard。Root後續197一次對應普通圖片路徑驗證之前，本候選未Native驗收；舊0.1.0完整樹/包/原失敗保持。
+
+## 当前图标格式合同补齐（2026-10-20）
+
+当前标准打包与校验已支持 JPEG，取代上文历史“只接受可选 PNG”造成的无图标限制。本次官网漫画艺廊 head 仍明确声明 `rel=shortcut icon href=ico.ico`；从 `https://www.laya.url.tw/comic/ico.ico` 取得的原件实际为64×64 RGB JPEG、13240字节，作为 `icon.jpg` 原样纳入，不冒名ICO/PNG、不转码、缩放、描摹、加底或遮罩。已目视为网站声明的《医院也疯狂》角色标识，不使用宽版白字横标或他站标识。64像素仍存在分辨率限制，不能称高清完成；当前197安装及普通源管理/Browse实际显示由root另验收，源码校验不代替实机。原漫画请求、版本、身份和阅读业务均保持。
