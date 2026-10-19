@@ -1,0 +1,9 @@
+Independent Koma source implementation. Protocol reference only:
+Keiyoushi/extensions-source at 1319949ca9bc456908196e3ba2d104e94182c5d6,
+NHentai.xxx entity 560822675588930101, published v1.6.11 and warning 3.
+The NHentai leaf, GalleryAdults parent and DTO reference are under Apache-2.0;
+no upstream source code, manga artwork, cookies or credentials is bundled.
+The icon is the canonical site-declared favicon; it remains its provider asset.
+This package does not establish affiliation, content ownership or usage ranking.
+
+Current recovery note: the favicon description above is historical original-asset provenance. The asset remains in the original owner and is not included in this business-only proposal; current small-slot suitability and any standard-package registration require separate Root review.

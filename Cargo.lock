@@ -3596,3 +3596,10 @@ version = "0.1.2"
 dependencies = [
  "koma_source_sdk",
 ]
+
+[[package]]
+name = "koma_nhentaixxx_zh_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
