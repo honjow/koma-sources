@@ -1,67 +1,20 @@
 #![no_std]
-
-extern crate koma_source_sdk;
-
-use koma_source_sdk::host::{
-    html_attr, html_close, html_parse, html_text, http_request, log_info, HtmlDescriptor,
+use koma_source_sdk::{
+    host,
+    json_utils::*,
+    source::{SourceCapabilities, SourceInfo},
 };
-use koma_source_sdk::json_utils::{
-    append_json_escaped, contains_bytes, extract_json_number, extract_json_string, find_subslice,
-    write_bytes, write_url_encoded, write_usize,
-};
-use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
-use koma_source_sdk::{FetchError, build_get_request, fetch_error_code, parse_status_code};
-
-#[link(wasm_import_module = "koma_host")]
-extern "C" {
-    #[link_name = "html_select_all"]
-    fn koma_host_html_select_all(
-        descriptor: i32,
-        selector_ptr: *const u8,
-        selector_len: u32,
-        out_ptr: *mut u8,
-        out_cap: u32,
-    ) -> i32;
-}
-
-fn html_select_all(descriptor: i32, selector: &[u8], out: &mut [u8]) -> i32 {
-    unsafe {
-        koma_host_html_select_all(
-            descriptor,
-            selector.as_ptr(),
-            selector.len() as u32,
-            out.as_mut_ptr(),
-            out.len() as u32,
-        )
-    }
-}
-
-const BASE_URL: &[u8] = b"https://www.manhuagui.com";
-const MOBILE_URL: &[u8] = b"https://m.manhuagui.com";
-const IMAGE_CDN: &[u8] = b"https://i.hamreus.com";
-koma_source_sdk::koma_source_buffers! {
-    payload: 1024 * 1024,
-    http_out: 2 * 1024 * 1024,
-    body: 2 * 1024 * 1024,
-    http_req: 2048,
-    scratch: 8192,
-}
-koma_source_sdk::koma_source_helpers!();
-const SELECT_CAP: usize = 16000;
-
-static mut SELECT_ALL_BUF: [u8; SELECT_CAP] = [0; SELECT_CAP];
-
+const BASE: &[u8] = b"https://www.manhuagui.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.manhuagui.koma",
     name: "Manhuagui",
-    version: "0.1.0",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "漫画柜 HTML scraping source.",
+    description: "漫画柜普通公开 HTML 适配；不支持成人隐藏目录或挑战。",
     content_rating: "nsfw",
 };
-
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -69,1155 +22,1131 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     pages: true,
     listings: true,
     manga_list: true,
+    image_request: true,
     home: false,
     filters: false,
     settings: false,
-    credentials: true,
-    image_request: false,
+    credentials: false,
 };
-
-
-fn select_buf() -> &'static mut [u8] {
-    unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) }
+koma_source_sdk::koma_source_buffers! { payload:1024*1024,http_out:5*1024*1024,body:2*1024*1024,http_req:16*1024,scratch:512*1024, }
+koma_source_sdk::koma_source_helpers!();
+// Existing host ABI, already exported by the native and development runtimes.
+#[link(wasm_import_module = "koma_host")]
+extern "C" {
+    #[link_name = "html_select_all"]
+    fn select_all(desc: i32, selector: *const u8, len: u32, out: *mut i32, cap: u32) -> i32;
 }
-
-fn fetch_body(url: &[u8], referer: Option<&[u8]>) -> Result<usize, FetchError> {
-    let req_len =
-        build_get_request(http_req_buf(), url, referer, &[]).ok_or(FetchError::Network)?;
-    let mut resp_len = 0usize;
-    let mut failed = true;
-    for attempt in 0..3u8 {
-        match http_request(&http_req_buf()[..req_len], http_out()) {
-            Ok(n) => {
-                resp_len = n;
-                failed = false;
-                break;
-            }
-            Err(_) => {
-                if attempt < 2 {
-                    log_info(b"manhuagui: http transport error, retrying");
-                }
-            }
-        }
-    }
-    if failed {
-        return Err(FetchError::Network);
-    }
-    let resp = &http_out()[..resp_len];
-    if !contains_bytes(resp, br#""ok":true"#) {
-        let err = if let Some(code_bytes) = extract_json_number(resp, b"statusCode") {
-            match parse_status_code(code_bytes) {
-                404 => FetchError::NotFound,
-                429 => FetchError::RateLimit,
-                400..=499 => FetchError::ClientError,
-                500..=599 => FetchError::ServerError,
-                _ => FetchError::Network,
-            }
-        } else {
-            FetchError::Network
-        };
-        return Err(err);
-    }
-    decode_body_text(resp)
-}
-
-fn hex_value(b: u8) -> Option<u32> {
-    match b {
-        b'0'..=b'9' => Some((b - b'0') as u32),
-        b'a'..=b'f' => Some((b - b'a' + 10) as u32),
-        b'A'..=b'F' => Some((b - b'A' + 10) as u32),
-        _ => None,
-    }
-}
-
-fn write_utf8(dst: &mut [u8], c: &mut usize, code: u32) -> bool {
-    if code < 0x80 {
-        if *c >= dst.len() {
-            return false;
-        }
-        dst[*c] = code as u8;
-        *c += 1;
-    } else if code < 0x800 {
-        if *c + 2 > dst.len() {
-            return false;
-        }
-        dst[*c] = 0xC0 | (code >> 6) as u8;
-        dst[*c + 1] = 0x80 | (code & 0x3F) as u8;
-        *c += 2;
-    } else {
-        if *c + 3 > dst.len() {
-            return false;
-        }
-        dst[*c] = 0xE0 | (code >> 12) as u8;
-        dst[*c + 1] = 0x80 | ((code >> 6) & 0x3F) as u8;
-        dst[*c + 2] = 0x80 | (code & 0x3F) as u8;
-        *c += 3;
-    }
-    true
-}
-
-fn decode_body_text(resp: &[u8]) -> Result<usize, FetchError> {
-    let marker = b"\"bodyText\":\"";
-    let mut i = find_subslice(resp, marker).ok_or(FetchError::Network)? + marker.len();
-    let dst = body_buf();
-    let mut out = 0usize;
-    while i < resp.len() {
-        let b = resp[i];
-        if b == b'\\' && i + 1 < resp.len() {
-            let next = resp[i + 1];
-            match next {
-                b'"' => {
-                    if out >= dst.len() {
-                        return Err(FetchError::Network);
-                    }
-                    dst[out] = b'"';
-                    out += 1;
-                    i += 2;
-                }
-                b'\\' => {
-                    if out >= dst.len() {
-                        return Err(FetchError::Network);
-                    }
-                    dst[out] = b'\\';
-                    out += 1;
-                    i += 2;
-                }
-                b'/' => {
-                    if out >= dst.len() {
-                        return Err(FetchError::Network);
-                    }
-                    dst[out] = b'/';
-                    out += 1;
-                    i += 2;
-                }
-                b'n' | b'r' | b't' => {
-                    if out >= dst.len() {
-                        return Err(FetchError::Network);
-                    }
-                    dst[out] = if next == b'n' {
-                        b'\n'
-                    } else if next == b'r' {
-                        b'\r'
-                    } else {
-                        b'\t'
-                    };
-                    out += 1;
-                    i += 2;
-                }
-                b'u' => {
-                    if i + 5 >= resp.len() {
-                        return Err(FetchError::Network);
-                    }
-                    let mut code = 0u32;
-                    let mut k = 0usize;
-                    while k < 4 {
-                        code =
-                            (code << 4) | hex_value(resp[i + 2 + k]).ok_or(FetchError::Network)?;
-                        k += 1;
-                    }
-                    if !write_utf8(dst, &mut out, code) {
-                        return Err(FetchError::Network);
-                    }
-                    i += 6;
-                }
-                _ => {
-                    if out >= dst.len() {
-                        return Err(FetchError::Network);
-                    }
-                    dst[out] = next;
-                    out += 1;
-                    i += 2;
-                }
-            }
-            continue;
-        }
-        if b == b'"' {
-            return Ok(out);
-        }
-        if out >= dst.len() {
-            return Err(FetchError::Network);
-        }
-        dst[out] = b;
-        out += 1;
-        i += 1;
-    }
-    Err(FetchError::Network)
-}
-
-struct OwnedDescriptor(HtmlDescriptor);
-impl Drop for OwnedDescriptor {
+struct Node(host::HtmlDescriptor);
+impl Drop for Node {
     fn drop(&mut self) {
-        let _ = html_close(self.0);
+        let _ = host::html_close(self.0);
     }
 }
-
-fn attr_into<'a>(desc: HtmlDescriptor, name: &[u8], out: &'a mut [u8]) -> Option<&'a [u8]> {
-    let len = html_attr(desc, name, out).ok()?;
-    Some(&out[..len])
+impl Node {
+    fn parse(b: &[u8]) -> Result<Self, &'static str> {
+        host::html_parse(b).map(Self).map_err(|_| "invalid HTML")
+    }
+    fn select(&self, s: &[u8]) -> Result<Self, &'static str> {
+        host::html_select(self.0, s)
+            .map(Self)
+            .map_err(|_| "required HTML node missing")
+    }
+    fn attr<'a>(&self, k: &[u8], out: &'a mut [u8]) -> Result<&'a [u8], &'static str> {
+        let n = host::html_attr(self.0, k, out).map_err(|_| "HTML attribute overflow")?;
+        if n >= out.len() {
+            return Err("HTML attribute may be truncated");
+        };
+        Ok(&out[..n])
+    }
+    fn optional_attr<'a>(
+        &self,
+        k: &[u8],
+        out: &'a mut [u8],
+    ) -> Result<Option<&'a [u8]>, &'static str> {
+        match host::html_attr(self.0, k, out) {
+            Err(-1) => Ok(None),
+            Err(_) => Err("HTML attribute overflow"),
+            Ok(n) if n >= out.len() => Err("HTML attribute may be truncated"),
+            Ok(0) => Ok(None),
+            Ok(n) => Ok(Some(&out[..n])),
+        }
+    }
+    fn text<'a>(&self, out: &'a mut [u8]) -> Result<&'a [u8], &'static str> {
+        let n = host::html_text(self.0, out).map_err(|_| "HTML text overflow")?;
+        if n >= out.len() {
+            return Err("HTML text may be truncated");
+        };
+        Ok(trim_ascii(&out[..n]))
+    }
 }
-fn text_into<'a>(desc: HtmlDescriptor, out: &'a mut [u8]) -> Option<&'a [u8]> {
-    let len = html_text(desc, out).ok()?;
-    Some(&out[..len])
+struct Nodes {
+    ids: [i32; 2048],
+    n: usize,
 }
-
-fn parse_usize(bytes: &[u8]) -> Option<usize> {
+impl Nodes {
+    fn get(root: &Node, s: &[u8]) -> Result<Self, &'static str> {
+        let mut v = Self {
+            ids: [0; 2048],
+            n: 0,
+        };
+        let n = unsafe {
+            select_all(
+                root.0.raw(),
+                s.as_ptr(),
+                s.len() as u32,
+                v.ids.as_mut_ptr(),
+                (v.ids.len() * 4) as u32,
+            )
+        };
+        if n < 0 {
+            return Err("HTML selection failed");
+        };
+        v.n = (n as usize).min(v.ids.len());
+        if n as usize > v.ids.len() {
+            return Err("too many HTML nodes");
+        };
+        Ok(v)
+    }
+    fn at(&self, i: usize) -> Node {
+        Node(host::HtmlDescriptor::from_raw(self.ids[i]))
+    }
+}
+impl Drop for Nodes {
+    fn drop(&mut self) {
+        for &id in &self.ids[..self.n] {
+            let _ = host::html_close(host::HtmlDescriptor::from_raw(id));
+        }
+    }
+}
+// A borrowed selected node must not be closed twice: at() transfers no ownership.
+fn selected(nodes: &Nodes, i: usize) -> core::mem::ManuallyDrop<Node> {
+    core::mem::ManuallyDrop::new(nodes.at(i))
+}
+fn bytes(b: &mut [u8], n: &mut usize, s: &[u8]) -> Result<(), &'static str> {
+    if write_bytes(b, n, s) {
+        Ok(())
+    } else {
+        Err("payload overflow")
+    }
+}
+fn q(b: &mut [u8], n: &mut usize, s: &[u8]) -> Result<(), &'static str> {
+    bytes(b, n, b"\"")?;
+    if !append_json_escaped(b, n, s) {
+        return Err("payload overflow");
+    };
+    bytes(b, n, b"\"")
+}
+fn number(s: &[u8]) -> Option<usize> {
+    if s.is_empty() {
+        return None;
+    };
     let mut n = 0usize;
-    let mut any = false;
-    for &b in bytes {
-        if b < b'0' || b > b'9' {
+    for &c in s {
+        if !c.is_ascii_digit() {
             return None;
-        }
-        n = n * 10 + (b - b'0') as usize;
-        any = true;
-    }
-    if any {
-        Some(n)
-    } else {
-        None
-    }
-}
-
-fn page_from_request(req: &[u8]) -> usize {
-    extract_json_number(req, b"page")
-        .and_then(parse_usize)
-        .unwrap_or(1)
-        .max(1)
-}
-
-fn manga_slug_from_href<'a>(href: &'a [u8], out: &'a mut [u8]) -> Option<&'a [u8]> {
-    let marker = b"/comic/";
-    let start = if let Some(p) = find_subslice(href, marker) {
-        p + 1
-    } else if href.starts_with(b"comic/") {
-        0
-    } else {
-        return None;
-    };
-    let mut i = start;
-    let mut len = 0usize;
-    while i < href.len() {
-        let b = href[i];
-        if b == b'?' || b == b'#' {
-            break;
-        }
-        if b == b'/' {
-            if i > start + 5 {
-                if len >= out.len() {
-                    return None;
-                }
-                out[len] = b;
-                len += 1;
-                break;
-            }
-        }
-        if len >= out.len() {
-            return None;
-        }
-        out[len] = b;
-        len += 1;
-        i += 1;
-    }
-    if len > 0 && out[len - 1] == b'/' {
-        len -= 1;
-    }
-    if len == 0 {
-        None
-    } else {
-        Some(&out[..len])
-    }
-}
-
-fn normalize_manga_id<'a>(manga_id: &'a [u8]) -> Option<&'a [u8]> {
-    if manga_id.starts_with(b"manga:") {
-        Some(&manga_id[6..])
-    } else if manga_id.starts_with(b"comic/") {
-        Some(manga_id)
-    } else if manga_id.iter().all(|b| *b >= b'0' && *b <= b'9') {
-        Some(manga_id)
-    } else {
-        None
-    }
-}
-
-fn write_abs_url(dst: &mut [u8], c: &mut usize, url: &[u8], default_base: &[u8]) -> bool {
-    if url.starts_with(b"//") {
-        write_bytes(dst, c, b"https:") && append_json_escaped(dst, c, url)
-    } else if url.starts_with(b"http://") || url.starts_with(b"https://") {
-        append_json_escaped(dst, c, url)
-    } else if url.starts_with(b"/") {
-        write_bytes(dst, c, default_base) && append_json_escaped(dst, c, url)
-    } else {
-        write_bytes(dst, c, default_base)
-            && write_bytes(dst, c, b"/")
-            && append_json_escaped(dst, c, url)
-    }
-}
-
-fn write_card(payload: &mut [u8], c: &mut usize, id: &[u8], title: &[u8], cover: &[u8]) -> bool {
-    write_bytes(payload, c, br#"{"id":""#)
-        && append_json_escaped(payload, c, id)
-        && write_bytes(payload, c, br#"","title":""#)
-        && append_json_escaped(payload, c, trim_ascii(title))
-        && write_bytes(payload, c, br#"","cover":{"kind":"url","url":""#)
-        && write_abs_url(payload, c, cover, BASE_URL)
-        && write_bytes(payload, c, br#""},"authors":[],"status":"unknown","contentRating":"nsfw","description":"","sourceTags":["manhuagui"]}"#)
-}
-
-fn run_search(req: &[u8]) -> u32 {
-    let query = extract_json_string(req, b"query").unwrap_or(b"");
-    if query.is_empty() {
-        return run_get_manga_list(req);
-    }
-    let page = page_from_request(req);
-    let mut u = 0usize;
-    let url_buf = scratch_a();
-    if !(write_bytes(url_buf, &mut u, BASE_URL)
-        && write_bytes(url_buf, &mut u, b"/s/")
-        && write_url_encoded(url_buf, &mut u, query)
-        && write_bytes(url_buf, &mut u, b"_p")
-        && write_usize(url_buf, &mut u, page)
-        && write_bytes(url_buf, &mut u, b".html"))
-    {
-        return write_error("search", "internal_error", "url overflow");
-    }
-    let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), u) };
-    parse_manga_cards_from_url("search", url, b"div.book-result > ul > li", true)
-}
-
-fn run_get_manga_list(req: &[u8]) -> u32 {
-    let page = page_from_request(req);
-    let mut u = 0usize;
-    let url_buf = scratch_a();
-    if !(write_bytes(url_buf, &mut u, BASE_URL)
-        && write_bytes(url_buf, &mut u, b"/list/view_p")
-        && write_usize(url_buf, &mut u, page)
-        && write_bytes(url_buf, &mut u, b".html"))
-    {
-        return write_error("get_manga_list", "internal_error", "url overflow");
-    }
-    let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), u) };
-    parse_manga_cards_from_url("get_manga_list", url, b"ul#contList > li", false)
-}
-
-fn run_get_listings(_req: &[u8]) -> u32 {
-    let payload = payload_buf();
-    let mut c = 0usize;
-    let ok = write_bytes(payload, &mut c, br#"{"listings":[{"id":"popular","title":"Popular","supportsLatest":false,"filters":[]}],"defaultListingId":"popular"}"#);
-    if !ok {
-        return write_error("get_listings", "internal_error", "payload overflow");
-    }
-    write_success_payload("get_listings", c)
-}
-
-fn parse_manga_cards_from_url(
-    operation: &str,
-    url: &[u8],
-    li_selector: &[u8],
-    is_search: bool,
-) -> u32 {
-    let html_len = match fetch_body(url, None) {
-        Ok(n) => n,
-        Err(e) => {
-            let (c, m) = fetch_error_code(e);
-            return write_error(operation, c, m);
-        }
-    };
-    let html = unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), html_len) };
-    let document = match html_parse(html) {
-        Ok(d) => OwnedDescriptor(d),
-        Err(_) => return write_error(operation, "parse_error", "html_parse failed"),
-    };
-    let selects = select_buf();
-    let count = html_select_all(document.0.raw(), li_selector, selects);
-    let max_items = if count > 0 {
-        (count as usize).min(100)
-    } else {
-        0
-    };
-    let payload = payload_buf();
-    let mut c = 0usize;
-    if !write_bytes(payload, &mut c, br#"{"items":["#) {
-        return write_error(operation, "internal_error", "payload overflow");
-    }
-    let mut written = 0usize;
-    for i in 0..max_items {
-        let off = i * 4;
-        if off + 4 > selects.len() {
-            break;
-        }
-        let raw = i32::from_le_bytes([
-            selects[off],
-            selects[off + 1],
-            selects[off + 2],
-            selects[off + 3],
-        ]);
-        if raw <= 0 {
-            continue;
-        }
-        let li: HtmlDescriptor = unsafe { core::mem::transmute(raw) };
-        let mut href_buf = [0u8; 256];
-        let mut title_buf = [0u8; 256];
-        let mut cover_buf = [0u8; 512];
-        let mut id_buf = [0u8; 64];
-        let link_selector = if is_search {
-            b"dl > dt > a" as &[u8]
-        } else {
-            b"a.bcover" as &[u8]
         };
-        let link = koma_source_sdk::host::html_select(li, link_selector).ok();
-        let image = koma_source_sdk::host::html_select(li, b"img").ok();
-        let mut href = None;
-        let mut title = None;
-        if let Some(a) = link {
-            href = attr_into(a, b"href", &mut href_buf);
-            title = if is_search {
-                text_into(a, &mut title_buf)
-            } else {
-                match attr_into(a, b"title", &mut title_buf) {
-                    Some(v) => Some(v),
-                    None => text_into(a, &mut title_buf),
+        n = n.checked_mul(10)?.checked_add((c - b'0') as usize)?;
+    }
+    Some(n)
+}
+fn ws(s: &[u8], mut p: usize) -> usize {
+    while p < s.len() && s[p].is_ascii_whitespace() {
+        p += 1
+    }
+    p
+}
+fn json_string_end(s: &[u8], p: usize) -> Option<usize> {
+    if s.get(p) != Some(&b'"') {
+        return None;
+    };
+    let mut i = p + 1;
+    while i < s.len() {
+        match s[i] {
+            b'"' => return Some(i + 1),
+            0..=31 => return None,
+            b'\\' => {
+                i += 1;
+                match *s.get(i)? {
+                    b'"' | b'\\' | b'/' | b'b' | b'f' | b'n' | b'r' | b't' => {}
+                    b'u' => {
+                        hex4(s.get(i + 1..i + 5)?)?;
+                        i += 4;
+                    }
+                    _ => return None,
                 }
-            };
-            let _ = html_close(a);
-        }
-        let cover = if let Some(img) = image {
-            let src = match attr_into(img, b"src", &mut cover_buf) {
-                Some(v) => Some(v),
-                None => attr_into(img, b"data-src", &mut cover_buf),
-            };
-            let _ = html_close(img);
-            src
-        } else {
-            None
-        };
-        if let (Some(h), Some(t)) = (href, title) {
-            if let Some(id) = manga_slug_from_href(h, &mut id_buf) {
-                if written > 0 && !write_bytes(payload, &mut c, b",") {
-                    let _ = html_close(li);
-                    break;
-                }
-                if !write_card(payload, &mut c, id, t, cover.unwrap_or(b"")) {
-                    let _ = html_close(li);
-                    break;
-                }
-                written += 1;
             }
+            _ => {}
         }
-        let _ = html_close(li);
-    }
-    let has_more = written > 0
-        && (contains_bytes(html, b"_p")
-            || contains_bytes(html, "下一页".as_bytes())
-            || contains_bytes(html, b"next"));
-    let ok = write_bytes(payload, &mut c, br#"],"page":{"nextCursor":"#)
-        && if has_more {
-            write_bytes(payload, &mut c, b"\"next\"")
-        } else {
-            write_bytes(payload, &mut c, b"null")
-        }
-        && write_bytes(payload, &mut c, br#","hasMore":"#)
-        && write_bytes(payload, &mut c, if has_more { b"true" } else { b"false" })
-        && write_bytes(payload, &mut c, b"}}");
-    if !ok {
-        return write_error(operation, "internal_error", "payload overflow");
-    }
-    write_success_payload(operation, c)
-}
-
-fn build_mobile_manga_url(id: &[u8], out: &mut [u8]) -> Option<usize> {
-    let mut u = 0usize;
-    write_bytes(out, &mut u, MOBILE_URL).then_some(())?;
-    if id.starts_with(b"comic/") {
-        write_bytes(out, &mut u, b"/").then_some(())?;
-        write_bytes(out, &mut u, id).then_some(())?;
-    } else {
-        write_bytes(out, &mut u, b"/comic/").then_some(())?;
-        write_bytes(out, &mut u, id).then_some(())?;
-    }
-    if !out[..u].ends_with(b"/") {
-        write_bytes(out, &mut u, b"/").then_some(())?;
-    }
-    Some(u)
-}
-
-fn extract_attr_after<'a>(html: &'a [u8], marker: &[u8], attr: &[u8]) -> Option<&'a [u8]> {
-    let p = find_subslice(html, marker)?;
-    let start = find_back(html, p, b'<').unwrap_or(p);
-    let end = find_subslice(&html[p..], b">")? + p + 1;
-    attr_value(&html[start..end], attr)
-}
-
-fn attr_value<'a>(tag: &'a [u8], attr: &[u8]) -> Option<&'a [u8]> {
-    let pos = find_subslice(tag, attr)?;
-    let mut i = pos + attr.len();
-    while i < tag.len() && matches!(tag[i], b' ' | b'\t' | b'\n' | b'\r') {
         i += 1;
-    }
-    if i >= tag.len() || tag[i] != b'=' {
-        return None;
-    }
-    i += 1;
-    while i < tag.len() && matches!(tag[i], b' ' | b'\t' | b'\n' | b'\r') {
-        i += 1;
-    }
-    if i >= tag.len() {
-        return None;
-    }
-    let quote = tag[i];
-    if quote != b'"' && quote != b'\'' {
-        return None;
-    }
-    i += 1;
-    let start = i;
-    while i < tag.len() && tag[i] != quote {
-        i += 1;
-    }
-    if i >= tag.len() {
-        None
-    } else {
-        Some(&tag[start..i])
-    }
-}
-
-fn find_back(bytes: &[u8], mut pos: usize, needle: u8) -> Option<usize> {
-    while pos > 0 {
-        if bytes[pos] == needle {
-            return Some(pos);
-        }
-        pos -= 1;
     }
     None
 }
-
-fn strip_tags_to<'a>(src: &[u8], out: &'a mut [u8]) -> &'a [u8] {
-    let mut c = 0usize;
-    let mut in_tag = false;
-    let mut entity = false;
-    for &b in src {
-        if b == b'<' {
-            in_tag = true;
-            continue;
-        }
-        if b == b'>' {
-            in_tag = false;
-            continue;
-        }
-        if in_tag {
-            continue;
-        }
-        if b == b'&' {
-            entity = true;
-            if c < out.len() {
-                out[c] = b' ';
-                c += 1;
-            }
-            continue;
-        }
-        if entity {
-            if b == b';' {
-                entity = false;
-            }
-            continue;
-        }
-        if c < out.len() {
-            out[c] = b;
-            c += 1;
-        }
-    }
-    trim_ascii(&out[..c])
-}
-
-fn extract_between_text<'a>(
-    html: &[u8],
-    marker: &[u8],
-    end_marker: &[u8],
-    out: &'a mut [u8],
-) -> Option<&'a [u8]> {
-    let p = find_subslice(html, marker)?;
-    let gt = find_subslice(&html[p..], b">")? + p + 1;
-    let end = find_subslice(&html[gt..], end_marker)
-        .map(|v| gt + v)
-        .unwrap_or(html.len());
-    Some(strip_tags_to(&html[gt..end], out))
-}
-
-fn extract_label_link_text<'a>(html: &[u8], label: &[u8], out: &'a mut [u8]) -> Option<&'a [u8]> {
-    let p = find_subslice(html, label)?;
-    let end = find_subslice(&html[p..], b"</span>")
-        .map(|v| p + v)
-        .unwrap_or((p + 500).min(html.len()));
-    let slice = &html[p..end];
-    let a = find_subslice(slice, b"<a")?;
-    let gt = find_subslice(&slice[a..], b">")? + a + 1;
-    let close = find_subslice(&slice[gt..], b"</a>")
-        .map(|v| gt + v)
-        .unwrap_or(slice.len());
-    Some(strip_tags_to(&slice[gt..close], out))
-}
-
-fn run_get_manga(req: &[u8]) -> u32 {
-    let manga_id = match extract_json_string(req, b"mangaId") {
-        Some(v) => v,
-        None => return write_error("get_manga", "invalid_request", "missing mangaId"),
-    };
-    let id = match normalize_manga_id(manga_id) {
-        Some(v) => v,
-        None => return write_error("get_manga", "invalid_request", "unexpected mangaId"),
-    };
-    let url_len = match build_mobile_manga_url(id, scratch_a()) {
-        Some(n) => n,
-        None => return write_error("get_manga", "internal_error", "url overflow"),
-    };
-    let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_len) };
-    let html_len = match fetch_body(url, None) {
-        Ok(n) => n,
-        Err(e) => {
-            let (c, m) = fetch_error_code(e);
-            return write_error("get_manga", c, m);
-        }
-    };
-    let html = unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), html_len) };
-    let mut title_buf = [0u8; 256];
-    let mut desc_buf = [0u8; 4096];
-    let mut author_buf = [0u8; 256];
-    let mut genre_buf = [0u8; 256];
-    let title =
-        extract_between_text(html, b"class=\"book-title\"", b"</h1>", &mut title_buf).unwrap_or(id);
-    let desc =
-        extract_between_text(html, b"id=\"intro-all\"", b"</div>", &mut desc_buf).unwrap_or(b"");
-    let author = extract_label_link_text(html, "漫画作者".as_bytes(), &mut author_buf);
-    let genre = extract_label_link_text(html, "漫画剧情".as_bytes(), &mut genre_buf);
-    let cover = extract_attr_after(html, b"class=\"hcover\"", b"src").unwrap_or(b"");
-    let status = if contains_bytes(html, "已完结".as_bytes())
-        || contains_bytes(html, "已完結".as_bytes())
-    {
-        b"completed" as &[u8]
-    } else if contains_bytes(html, "连载中".as_bytes()) || contains_bytes(html, "連載中".as_bytes())
-    {
-        b"ongoing" as &[u8]
-    } else {
-        b"unknown" as &[u8]
-    };
-    let payload = payload_buf();
-    let mut c = 0usize;
-    let ok = write_bytes(payload, &mut c, br#"{"manga":{"id":""#)
-        && append_json_escaped(payload, &mut c, id)
-        && write_bytes(payload, &mut c, br#"","title":""#)
-        && append_json_escaped(payload, &mut c, title)
-        && write_bytes(
-            payload,
-            &mut c,
-            br#"","alternateTitles":[],"description":""#,
-        )
-        && append_json_escaped(payload, &mut c, desc)
-        && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":""#)
-        && write_abs_url(payload, &mut c, cover, BASE_URL)
-        && write_bytes(payload, &mut c, br#""},"authors":["#);
-    if !ok {
-        return write_error("get_manga", "internal_error", "payload overflow");
-    }
-    if let Some(a) = author {
-        if !a.is_empty()
-            && !(write_bytes(payload, &mut c, b"\"")
-                && append_json_escaped(payload, &mut c, a)
-                && write_bytes(payload, &mut c, b"\""))
-        {
-            return write_error("get_manga", "internal_error", "payload overflow");
-        }
-    }
-    let ok = write_bytes(payload, &mut c, br#"],"artists":[],"status":""#)
-        && write_bytes(payload, &mut c, status)
-        && write_bytes(
-            payload,
-            &mut c,
-            br#"","contentRating":"nsfw","language":"zh","tags":["#,
-        );
-    if !ok {
-        return write_error("get_manga", "internal_error", "payload overflow");
-    }
-    if let Some(g) = genre {
-        if !g.is_empty()
-            && !(write_bytes(payload, &mut c, b"\"")
-                && append_json_escaped(payload, &mut c, g)
-                && write_bytes(payload, &mut c, b"\""))
-        {
-            return write_error("get_manga", "internal_error", "payload overflow");
-        }
-    }
-    let ok = write_bytes(payload, &mut c, br#"],"links":[{"kind":"source","url":""#)
-        && append_json_escaped(payload, &mut c, url)
-        && write_bytes(payload, &mut c, br#""}]}}"#);
-    if !ok {
-        return write_error("get_manga", "internal_error", "payload overflow");
-    }
-    write_success_payload("get_manga", c)
-}
-
-fn chapter_url_from_href<'a>(href: &'a [u8], out: &'a mut [u8]) -> Option<&'a [u8]> {
-    let mut c = 0usize;
-    if href.starts_with(b"http://") || href.starts_with(b"https://") {
-        write_bytes(out, &mut c, href).then_some(())?;
-    } else if href.starts_with(b"/") {
-        write_bytes(out, &mut c, BASE_URL).then_some(())?;
-        write_bytes(out, &mut c, href).then_some(())?;
-    } else {
-        write_bytes(out, &mut c, BASE_URL).then_some(())?;
-        write_bytes(out, &mut c, b"/").then_some(())?;
-        write_bytes(out, &mut c, href).then_some(())?;
-    }
-    Some(&out[..c])
-}
-
-fn first_number(bytes: &[u8]) -> Option<&[u8]> {
-    let mut i = 0usize;
-    while i < bytes.len() && !(bytes[i] >= b'0' && bytes[i] <= b'9') {
-        i += 1;
-    }
-    if i >= bytes.len() {
+fn json_value_end(s: &[u8], p: usize, depth: usize) -> Option<usize> {
+    if depth > 32 {
         return None;
-    }
-    let start = i;
-    while i < bytes.len() && ((bytes[i] >= b'0' && bytes[i] <= b'9') || bytes[i] == b'.') {
-        i += 1;
-    }
-    Some(&bytes[start..i])
-}
-
-fn run_get_chapters(req: &[u8]) -> u32 {
-    let manga_id = match extract_json_string(req, b"mangaId") {
-        Some(v) => v,
-        None => return write_error("get_chapters", "invalid_request", "missing mangaId"),
     };
-    let id = match normalize_manga_id(manga_id) {
-        Some(v) => v,
-        None => return write_error("get_chapters", "invalid_request", "unexpected mangaId"),
-    };
-    let url_len = match build_mobile_manga_url(id, scratch_a()) {
-        Some(n) => n,
-        None => return write_error("get_chapters", "internal_error", "url overflow"),
-    };
-    let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_len) };
-    let html_len = match fetch_body(url, None) {
-        Ok(n) => n,
-        Err(e) => {
-            let (c, m) = fetch_error_code(e);
-            return write_error("get_chapters", c, m);
-        }
-    };
-    let html = unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), html_len) };
-    let document = match html_parse(html) {
-        Ok(d) => OwnedDescriptor(d),
-        Err(_) => return write_error("get_chapters", "parse_error", "html_parse failed"),
-    };
-    let selects = select_buf();
-    let count = html_select_all(
-        document.0.raw(),
-        b"[id^=chapter-list-] li > a.status0",
-        selects,
-    );
-    let max_items = if count > 0 {
-        (count as usize).min(1000)
-    } else {
-        0
-    };
-    let payload = payload_buf();
-    let mut c = 0usize;
-    if !write_bytes(payload, &mut c, br#"{"items":["#) {
-        return write_error("get_chapters", "internal_error", "payload overflow");
-    }
-    let mut written = 0usize;
-    for i in 0..max_items {
-        let off = i * 4;
-        if off + 4 > selects.len() {
-            break;
-        }
-        let raw = i32::from_le_bytes([
-            selects[off],
-            selects[off + 1],
-            selects[off + 2],
-            selects[off + 3],
-        ]);
-        if raw <= 0 {
-            continue;
-        }
-        let a: HtmlDescriptor = unsafe { core::mem::transmute(raw) };
-        let mut href_buf = [0u8; 256];
-        let mut title_buf = [0u8; 256];
-        let mut abs_buf = [0u8; 512];
-        let href = attr_into(a, b"href", &mut href_buf);
-        let title = match attr_into(a, b"title", &mut title_buf) {
-            Some(v) => Some(v),
-            None => text_into(a, &mut title_buf),
-        };
-        if let (Some(h), Some(t)) = (href, title) {
-            if let Some(ch_url) = chapter_url_from_href(h, &mut abs_buf) {
-                if written > 0 && !write_bytes(payload, &mut c, b",") {
-                    let _ = html_close(a);
-                    break;
+    let p = ws(s, p);
+    match *s.get(p)? {
+        b'"' => json_string_end(s, p),
+        b'{' | b'[' => {
+            let object = s[p] == b'{';
+            let close = if object { b'}' } else { b']' };
+            let mut i = ws(s, p + 1);
+            if s.get(i) == Some(&close) {
+                return Some(i + 1);
+            };
+            loop {
+                if object {
+                    i = json_string_end(s, i)?;
+                    i = ws(s, i);
+                    if s.get(i) != Some(&b':') {
+                        return None;
+                    };
+                    i = ws(s, i + 1)
                 }
-                let ok = write_bytes(payload, &mut c, br#"{"id":""#)
-                    && append_json_escaped(payload, &mut c, ch_url)
-                    && write_bytes(payload, &mut c, br#"","mangaId":""#)
-                    && append_json_escaped(payload, &mut c, id)
-                    && write_bytes(payload, &mut c, br#"","title":""#)
-                    && append_json_escaped(payload, &mut c, trim_ascii(t))
-                    && write_bytes(payload, &mut c, br#"","chapterNumber":""#)
-                    && append_json_escaped(payload, &mut c, first_number(t).unwrap_or(b""))
-                    && write_bytes(payload, &mut c, br#"","volumeNumber":null,"language":"zh","publishedAt":null,"updatedAt":null,"pageCount":null}"#);
-                if !ok {
-                    let _ = html_close(a);
-                    break;
-                }
-                written += 1;
+                i = json_value_end(s, i, depth + 1)?;
+                i = ws(s, i);
+                if s.get(i) == Some(&close) {
+                    return Some(i + 1);
+                };
+                if s.get(i) != Some(&b',') {
+                    return None;
+                };
+                i = ws(s, i + 1);
             }
         }
-        let _ = html_close(a);
+        b't' => {
+            if s.get(p..p + 4) == Some(b"true") {
+                Some(p + 4)
+            } else {
+                None
+            }
+        }
+        b'f' => {
+            if s.get(p..p + 5) == Some(b"false") {
+                Some(p + 5)
+            } else {
+                None
+            }
+        }
+        b'n' => {
+            if s.get(p..p + 4) == Some(b"null") {
+                Some(p + 4)
+            } else {
+                None
+            }
+        }
+        b'-' | b'0'..=b'9' => {
+            let mut i = p;
+            if s[i] == b'-' {
+                i += 1
+            };
+            if s.get(i) == Some(&b'0') {
+                i += 1
+            } else {
+                if !matches!(s.get(i), Some(b'1'..=b'9')) {
+                    return None;
+                };
+                while s.get(i).map(|c| c.is_ascii_digit()).unwrap_or(false) {
+                    i += 1
+                }
+            }
+            if s.get(i) == Some(&b'.') {
+                i += 1;
+                let start = i;
+                while s.get(i).map(|c| c.is_ascii_digit()).unwrap_or(false) {
+                    i += 1
+                }
+                if i == start {
+                    return None;
+                }
+            }
+            if matches!(s.get(i), Some(b'e' | b'E')) {
+                i += 1;
+                if matches!(s.get(i), Some(b'+' | b'-')) {
+                    i += 1
+                };
+                let start = i;
+                while s.get(i).map(|c| c.is_ascii_digit()).unwrap_or(false) {
+                    i += 1
+                }
+                if i == start {
+                    return None;
+                }
+            }
+            Some(i)
+        }
+        _ => None,
     }
-    if contains_bytes(html, b"__VIEWSTATE") && !contains_bytes(html, b"status0") {
-        log_info(b"manhuagui: encrypted/R18 chapter data present; credentials may be required");
+}
+fn args(r: &[u8]) -> &[u8] {
+    json_object_member(r, b"args").unwrap_or(r)
+}
+fn page(r: &[u8]) -> Result<usize, &'static str> {
+    let a = args(r);
+    let raw = match json_object_member(a, b"page") {
+        None => return Ok(1),
+        Some(v) => v,
+    };
+    let v = if raw.first() == Some(&b'{') {
+        json_object_member(raw, b"cursor").unwrap_or(b"null")
+    } else {
+        raw
+    };
+    if v == b"null" {
+        return Ok(1);
+    };
+    let v = if v.first() == Some(&b'"') && v.last() == Some(&b'"') {
+        &v[1..v.len() - 1]
+    } else {
+        v
+    };
+    number(v).filter(|n| *n > 0).ok_or("invalid page cursor")
+}
+fn string<'a>(obj: &'a [u8], key: &[u8]) -> Option<&'a [u8]> {
+    let v = json_object_member(obj, key)?;
+    if v.len() < 2 || v[0] != b'"' || *v.last()? != b'"' {
+        None
+    } else {
+        Some(&v[1..v.len() - 1])
     }
-    if !write_bytes(
-        payload,
-        &mut c,
-        br#"],"page":{"nextCursor":null,"hasMore":false}}"#,
-    ) {
-        return write_error("get_chapters", "internal_error", "payload overflow");
+}
+fn hex4(s: &[u8]) -> Option<u32> {
+    if s.len() != 4 {
+        return None;
+    };
+    let mut n = 0;
+    for &c in s {
+        n = n * 16
+            + match c {
+                b'0'..=b'9' => (c - b'0') as u32,
+                b'a'..=b'f' => (c - b'a' + 10) as u32,
+                b'A'..=b'F' => (c - b'A' + 10) as u32,
+                _ => return None,
+            };
     }
-    write_success_payload("get_chapters", c)
+    Some(n)
+}
+fn unescape<'a>(s: &[u8], out: &'a mut [u8]) -> Result<&'a [u8], &'static str> {
+    let mut i = 0;
+    let mut n = 0;
+    while i < s.len() {
+        let c = s[i];
+        i += 1;
+        if c != b'\\' {
+            if c < 32 || c == b'"' {
+                return Err("invalid JSON string");
+            };
+            bytes(out, &mut n, &[c])?;
+            continue;
+        }
+        let c = *s.get(i).ok_or("invalid JSON escape")?;
+        i += 1;
+        let c = match c {
+            b'"' => b'"',
+            b'\\' => b'\\',
+            b'/' => b'/',
+            b'n' => b'\n',
+            b'r' => b'\r',
+            b't' => b'\t',
+            b'b' => 8,
+            b'f' => 12,
+            b'u' => {
+                let mut cp = hex4(s.get(i..i + 4).ok_or("invalid unicode escape")?)
+                    .ok_or("invalid unicode escape")?;
+                i += 4;
+                if (0xd800..=0xdbff).contains(&cp) {
+                    if s.get(i..i + 2) != Some(b"\\u") {
+                        return Err("invalid unicode pair");
+                    };
+                    i += 2;
+                    let low = hex4(s.get(i..i + 4).ok_or("invalid unicode pair")?)
+                        .ok_or("invalid unicode pair")?;
+                    i += 4;
+                    if !(0xdc00..=0xdfff).contains(&low) {
+                        return Err("invalid unicode pair");
+                    };
+                    cp = 0x10000 + ((cp - 0xd800) << 10) + (low - 0xdc00)
+                } else if (0xdc00..=0xdfff).contains(&cp) {
+                    return Err("invalid unicode pair");
+                };
+                let ch = char::from_u32(cp).ok_or("invalid unicode scalar")?;
+                let mut tmp = [0; 4];
+                bytes(out, &mut n, ch.encode_utf8(&mut tmp).as_bytes())?;
+                continue;
+            }
+            _ => return Err("invalid JSON escape"),
+        };
+        bytes(out, &mut n, &[c])?;
+    }
+    core::str::from_utf8(&out[..n]).map_err(|_| "invalid UTF8")?;
+    Ok(&out[..n])
 }
 
-fn unescape_js_to<'a>(src: &[u8], out: &'a mut [u8]) -> &'a [u8] {
-    let mut i = 0usize;
-    let mut c = 0usize;
-    while i < src.len() && c < out.len() {
-        if src[i] == b'\\' && i + 1 < src.len() {
-            match src[i + 1] {
-                b'"' | b'\'' | b'\\' | b'/' => {
-                    out[c] = src[i + 1];
-                    c += 1;
-                    i += 2;
+fn absolute<'a>(u: &[u8], out: &'a mut [u8]) -> Result<&'a [u8], &'static str> {
+    let mut n = 0;
+    if u.starts_with(b"https://") {
+        bytes(out, &mut n, u)?
+    } else if u.starts_with(b"//") {
+        bytes(out, &mut n, b"https:")?;
+        bytes(out, &mut n, u)?
+    } else if u.starts_with(b"/") {
+        bytes(out, &mut n, BASE)?;
+        bytes(out, &mut n, u)?
+    } else {
+        return Err("invalid public URL");
+    };
+    let s = &out[..n];
+    let tail = s.strip_prefix(b"https://").ok_or("invalid public URL")?;
+    let host = tail
+        .split(|c| matches!(c, b'/' | b'?' | b'#'))
+        .next()
+        .ok_or("invalid public URL")?;
+    if host.is_empty()
+        || host
+            .iter()
+            .any(|c| !c.is_ascii_alphanumeric() && !matches!(c, b'.' | b'-' | b':'))
+        || host.starts_with(b".")
+        || host.ends_with(b".")
+    {
+        return Err("invalid public URL");
+    };
+    if s.iter()
+        .any(|c| c.is_ascii_control() || matches!(c, b' ' | b'\\' | b'"'))
+    {
+        return Err("invalid public URL");
+    };
+    Ok(s)
+}
+// Only finite stages, known operation/code labels and the numeric HTTP status are logged.
+// URLs, request arguments, titles, headers and response data never enter diagnostics.
+fn diagnostic_status(status: u16) {
+    let mut b = [0; 48];
+    let mut n = 0;
+    let _ = write_bytes(&mut b, &mut n, b"manhuagui fetch http_status=");
+    let _ = write_usize(&mut b, &mut n, status as usize);
+    host::log_info(&b[..n]);
+}
+fn diagnostic_error(op: &str, code: &str) {
+    let known_op = match op {
+        "search" => b"search".as_slice(),
+        "get_manga_list" => b"get_manga_list",
+        "get_manga" => b"get_manga",
+        "get_chapters" => b"get_chapters",
+        "get_pages" => b"get_pages",
+        "get_image_request" => b"get_image_request",
+        _ => b"unknown",
+    };
+    let known_code = match code {
+        "cancelled" => b"cancelled".as_slice(),
+        "network_error" => b"network_error",
+        "timeout" => b"timeout",
+        "not_found" => b"not_found",
+        "rate_limited" => b"rate_limited",
+        "permission_denied" => b"permission_denied",
+        "authentication_required" => b"authentication_required",
+        "not_implemented" => b"not_implemented",
+        _ => b"source_error",
+    };
+    let mut b = [0; 128];
+    let mut n = 0;
+    let _ = write_bytes(&mut b, &mut n, b"manhuagui error op=");
+    let _ = write_bytes(&mut b, &mut n, known_op);
+    let _ = write_bytes(&mut b, &mut n, b" code=");
+    let _ = write_bytes(&mut b, &mut n, known_code);
+    host::log_info(&b[..n]);
+}
+static mut LAST_HTTP_STATUS: u16 = 0;
+fn fetch_body(path: &[u8]) -> Result<usize, &'static str> {
+    unsafe { LAST_HTTP_STATUS = 0 };
+    host::log_info(b"manhuagui fetch stage=enter");
+    if host::check_cancel() {
+        return Err("cancelled");
+    };
+    let mut url = [0; 8192];
+    let u = absolute(path, &mut url)?;
+    let b = http_req_buf();
+    let n = pc_request(b, u)?;
+    host::log_info(b"manhuagui fetch stage=request_ready");
+    let size = host::http_request(&b[..n], http_out()).map_err(|_| "network request failed")?;
+    host::log_info(b"manhuagui fetch stage=http_return");
+    if size >= http_out().len() {
+        return Err("HTTP response may be truncated");
+    }
+    let response = &http_out()[..size];
+    let status = json_object_member(response, b"status")
+        .or_else(|| json_object_member(response, b"statusCode"))
+        .map(koma_source_sdk::parse_status_code)
+        .unwrap_or(0);
+    if let Some(e) = transport::failed(response, status) {
+        host::log_info(b"manhuagui fetch stage=transport_failed");
+        return Err(e);
+    }
+    unsafe { LAST_HTTP_STATUS = status };
+    diagnostic_status(status);
+    if let Some(e) = transport::http_error(status) {
+        return Err(e);
+    }
+    let n = koma_source_sdk::decode_json_body_into(response, body_buf())
+        .map_err(|_| "invalid HTTP body")?;
+    if n >= body_buf().len() {
+        return Err("HTTP body may be truncated");
+    }
+    host::log_info(b"manhuagui fetch stage=body_ready");
+    Ok(n)
+}
+fn error(op: &str, e: &str) -> u32 {
+    let mut diagnostic = [0; 192];
+    let mut n = 0;
+    let _ = write_bytes(&mut diagnostic, &mut n, e.as_bytes());
+    let status = unsafe { LAST_HTTP_STATUS };
+    if status > 0 {
+        let _ = write_bytes(&mut diagnostic, &mut n, b" (HTTP ");
+        let _ = write_usize(&mut diagnostic, &mut n, status as usize);
+        let _ = write_bytes(&mut diagnostic, &mut n, b")");
+    };
+    let message = core::str::from_utf8(&diagnostic[..n]).unwrap_or(e);
+    let code = match e {
+        "cancelled" => "cancelled",
+        "request timed out" => "timeout",
+        "network request failed"
+        | "transport unavailable"
+        | "transport rejected"
+        | "invalid transport response" => "network_error",
+        "not found" => "not_found",
+        "rate limited" => "rate_limited",
+        "public request rejected" | "hidden or adult content unsupported" => "permission_denied",
+        "authentication required" => "authentication_required",
+        "captcha unsupported" => "permission_denied",
+        "public comic unavailable" => "not_found",
+        _ => "source_error",
+    };
+    diagnostic_error(op, code);
+    write_error(op, code, message)
+}
+fn execute(op: &str, result: Result<usize, &'static str>) -> u32 {
+    match result {
+        Ok(n) => write_success_payload(op, n),
+        Err(e) => error(op, e),
+    }
+}
+
+const UA:&[u8]=b"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
+const LANGUAGE: &[u8] = b"zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7";
+fn headers(b: &mut [u8], n: &mut usize) -> Result<(), &'static str> {
+    bytes(b, n, b"{\"User-Agent\":")?;
+    q(b, n, UA)?;
+    bytes(b, n, b",\"Accept-Language\":")?;
+    q(b, n, LANGUAGE)?;
+    bytes(
+        b,
+        n,
+        b",\"Referer\":\"https://www.manhuagui.com/\",\"Origin\":\"https://www.manhuagui.com\"}",
+    )
+}
+fn pc_request(b: &mut [u8], u: &[u8]) -> Result<usize, &'static str> {
+    let mut n = 0;
+    bytes(b, &mut n, b"{\"version\":1,\"method\":\"GET\",\"url\":")?;
+    q(b, &mut n, u)?;
+    bytes(b, &mut n, b",\"headers\":")?;
+    headers(b, &mut n)?;
+    bytes(
+        b,
+        &mut n,
+        b",\"timeoutMs\":15000,\"responseKind\":\"bodyText\"}",
+    )?;
+    Ok(n)
+}
+fn positive(s: &[u8]) -> bool {
+    !s.is_empty() && s[0] != b'0' && number(s).is_some()
+}
+fn book_id<'a>(s: &'a [u8]) -> Result<&'a [u8], &'static str> {
+    let s = s.strip_prefix(b"manga:").unwrap_or(s);
+    let s = s.strip_prefix(b"comic/").unwrap_or(s);
+    let s = s.strip_suffix(b"/").unwrap_or(s);
+    if !positive(s) {
+        return Err("invalid manga ID");
+    };
+    Ok(s)
+}
+fn manga_id(r: &[u8]) -> Result<&[u8], &'static str> {
+    book_id(
+        string(args(r), b"mangaId")
+            .or_else(|| string(args(r), b"id"))
+            .ok_or("missing manga ID")?,
+    )
+}
+fn canonical_path(s: &[u8]) -> Result<&[u8], &'static str> {
+    let p = s.strip_prefix(BASE).unwrap_or(s);
+    if !p.starts_with(b"/")
+        || p.starts_with(b"//")
+        || p.len() > 4096
+        || p.iter()
+            .any(|c| c.is_ascii_control() || matches!(c, b' ' | b'\\' | b'"' | b'\'' | b'?' | b'#'))
+        || p.split(|c| *c == b'/').any(|s| s == b"." || s == b"..")
+    {
+        return Err("invalid canonical path");
+    };
+    Ok(p)
+}
+fn href_id(h: &[u8]) -> Result<&[u8], &'static str> {
+    book_id(
+        canonical_path(h)?
+            .strip_prefix(b"/comic/")
+            .ok_or("invalid manga href")?,
+    )
+}
+fn chapter_path(h: &[u8]) -> Result<&[u8], &'static str> {
+    let p = canonical_path(h)?;
+    let rest = p.strip_prefix(b"/comic/").ok_or("invalid chapter path")?;
+    let slash = rest
+        .iter()
+        .position(|c| *c == b'/')
+        .ok_or("invalid chapter path")?;
+    if !positive(&rest[..slash])
+        || !positive(
+            rest[slash + 1..]
+                .strip_suffix(b".html")
+                .ok_or("invalid chapter suffix")?,
+        )
+    {
+        return Err("invalid chapter path");
+    };
+    Ok(p)
+}
+fn qbook(b: &mut [u8], n: &mut usize, id: &[u8]) -> Result<(), &'static str> {
+    bytes(b, n, b"\"comic/")?;
+    bytes(b, n, id)?;
+    bytes(b, n, b"\"")
+}
+fn fetch_doc(p: &[u8]) -> Result<Node, &'static str> {
+    let n = fetch_body(p)?;
+    let root = Node::parse(&body_buf()[..n])?;
+    // Explicitly refuse visibility/access gates; never decode hidden catalogue or set cookies.
+    if root.select(b"#__VIEWSTATE, #erroraudit_show").is_ok() {
+        return Err("hidden or adult content unsupported");
+    }
+    host::log_info(b"manhuagui fetch stage=html_ready");
+    Ok(root)
+}
+fn manga_doc(id: &[u8]) -> Result<Node, &'static str> {
+    let mut p = [0; 256];
+    let mut n = 0;
+    bytes(&mut p, &mut n, b"/comic/")?;
+    bytes(&mut p, &mut n, id)?;
+    bytes(&mut p, &mut n, b"/")?;
+    fetch_doc(&p[..n])
+}
+fn image_url<'a>(node: &Node, out: &'a mut [u8]) -> Result<&'a [u8], &'static str> {
+    let mut a = [0; 8192];
+    if let Some(v) = node.optional_attr(b"src", &mut a)? {
+        absolute(v, out)
+    } else {
+        absolute(node.attr(b"data-src", &mut a)?, out)
+    }
+}
+fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
+    let p = page(r)?;
+    if p > 1_000_000 {
+        return Err("invalid page cursor");
+    };
+    let mut route = [0; 8192];
+    let mut len = 0;
+    if search {
+        let raw = string(args(r), b"query").ok_or("missing query")?;
+        let mut decoded = [0; 4096];
+        let v = unescape(raw, &mut decoded)?;
+        if trim_ascii(v).is_empty() {
+            return Err("empty text search unsupported");
+        };
+        bytes(&mut route, &mut len, b"/s/")?;
+        if !write_url_encoded(&mut route, &mut len, v) {
+            return Err("query overflow");
+        };
+        bytes(&mut route, &mut len, b"_p")?
+    } else {
+        bytes(
+            &mut route,
+            &mut len,
+            match string(args(r), b"listingId").unwrap_or(b"popular") {
+                b"popular" => b"/list/view_p",
+                b"latest" => b"/list/update_p",
+                _ => return Err("unknown listing"),
+            },
+        )?
+    }
+    if !write_usize(&mut route, &mut len, p) {
+        return Err("page overflow");
+    };
+    bytes(&mut route, &mut len, b".html")?;
+    let root = fetch_doc(&route[..len])?;
+    let selector = if search {
+        b"div.book-result > ul > li".as_slice()
+    } else {
+        b"ul#contList > li"
+    };
+    let _owner = root.select(if search {
+        b"div.book-result".as_slice()
+    } else {
+        b"ul#contList"
+    })?;
+    let cards = Nodes::get(&root, selector)?;
+    let next = root.select(b"span.current + a").ok();
+    if cards.n == 0 && next.is_some() {
+        return Err("empty page has next cursor");
+    }
+    let mut target = None;
+    if let Some(a) = next {
+        let mut h = [0; 8192];
+        let h = canonical_path(a.attr(b"href", &mut h)?)?;
+        let marker = h
+            .windows(2)
+            .rposition(|w| w == b"_p")
+            .ok_or("invalid next page path")?;
+        let nr = h[marker + 2..]
+            .strip_suffix(b".html")
+            .and_then(number)
+            .ok_or("invalid next page cursor")?;
+        if &h[..marker + 2]
+            != route[..len]
+                .split_at(
+                    route[..len]
+                        .windows(2)
+                        .rposition(|w| w == b"_p")
+                        .ok_or("invalid list path")?
+                        + 2,
+                )
+                .0
+            || nr != p.checked_add(1).ok_or("page overflow")?
+        {
+            return Err("unexpected next page URL");
+        };
+        target = Some(nr)
+    }
+    let b = payload_buf();
+    let mut n = 0;
+    bytes(b, &mut n, b"{\"items\":[")?;
+    for i in 0..cards.n {
+        let card = selected(&cards, i);
+        let a = card.select(if search {
+            b"div.book-detail dl > dt > a".as_slice()
+        } else {
+            b"a.bcover"
+        })?;
+        let mut h = [0; 8192];
+        let id = href_id(a.attr(b"href", &mut h)?)?;
+        let mut text = [0; 16384];
+        let title = a.attr(b"title", &mut text)?;
+        if trim_ascii(title).is_empty() {
+            return Err("manga title missing");
+        }
+        let img = card.select(if search {
+            b"div.book-cover > a.bcover > img".as_slice()
+        } else {
+            b"a.bcover img"
+        })?;
+        let mut cover = [0; 8192];
+        let cover = image_url(&img, &mut cover)?;
+        if i > 0 {
+            bytes(b, &mut n, b",")?
+        }
+        bytes(b, &mut n, b"{\"id\":")?;
+        qbook(b, &mut n, id)?;
+        bytes(b, &mut n, b",\"title\":")?;
+        q(b, &mut n, title)?;
+        bytes(b, &mut n, b",\"cover\":{\"kind\":\"url\",\"url\":")?;
+        q(b, &mut n, cover)?;
+        bytes(b, &mut n, b"},\"contentRating\":\"unknown\"}")?;
+    }
+    bytes(b, &mut n, b"],\"page\":{\"nextCursor\":")?;
+    if let Some(t) = target {
+        bytes(b, &mut n, b"\"")?;
+        if !write_usize(b, &mut n, t) {
+            return Err("payload overflow");
+        };
+        bytes(b, &mut n, b"\",\"hasMore\":true}}")?
+    } else {
+        bytes(b, &mut n, b"null,\"hasMore\":false}}")?
+    };
+    Ok(n)
+}
+fn labels(
+    root: &Node,
+    b: &mut [u8],
+    n: &mut usize,
+    label1: &[u8],
+    label2: &[u8],
+) -> Result<(), &'static str> {
+    let spans = Nodes::get(root, b"span")?;
+    let mut text = [0; 16384];
+    let mut found = false;
+    let mut count = 0;
+    for i in 0..spans.n {
+        let span = selected(&spans, i);
+        let t = span.text(&mut text)?;
+        if find_subslice(t, label1).is_none() && find_subslice(t, label2).is_none() {
+            continue;
+        }
+        if found {
+            return Err("ambiguous manga metadata label");
+        };
+        found = true;
+        let links = Nodes::get(&span, b"a")?;
+        for j in 0..links.n {
+            let t = selected(&links, j).text(&mut text)?;
+            if t.is_empty() {
+                continue;
+            };
+            if count > 0 {
+                bytes(b, n, b",")?
+            };
+            q(b, n, t)?;
+            count += 1;
+        }
+    }
+    Ok(())
+}
+fn detail(r: &[u8]) -> Result<usize, &'static str> {
+    let id = manga_id(r)?;
+    let root = manga_doc(id)?;
+    let mut text = [0; 32768];
+    let title = root
+        .select(b"div.book-title > h1:nth-child(1)")?
+        .text(&mut text)?;
+    if title.is_empty() {
+        return Err("manga title missing");
+    }
+    let b = payload_buf();
+    let mut n = 0;
+    bytes(b, &mut n, b"{\"manga\":{\"id\":")?;
+    qbook(b, &mut n, id)?;
+    bytes(b, &mut n, b",\"title\":")?;
+    q(b, &mut n, title)?;
+    bytes(b, &mut n, b",\"contentRating\":\"unknown\",\"cover\":")?;
+    if let Ok(img) = root.select(b"p.hcover > img") {
+        let mut u = [0; 8192];
+        let u = image_url(&img, &mut u)?;
+        bytes(b, &mut n, b"{\"kind\":\"url\",\"url\":")?;
+        q(b, &mut n, u)?;
+        bytes(b, &mut n, b"}")?
+    } else {
+        bytes(b, &mut n, b"null")?
+    }
+    bytes(b, &mut n, b",\"authors\":[")?;
+    labels(
+        &root,
+        b,
+        &mut n,
+        "漫画作者".as_bytes(),
+        "漫畫作者".as_bytes(),
+    )?;
+    bytes(b, &mut n, b"],\"tags\":[")?;
+    labels(
+        &root,
+        b,
+        &mut n,
+        "漫画剧情".as_bytes(),
+        "漫畫劇情".as_bytes(),
+    )?;
+    bytes(b, &mut n, b"],\"summary\":")?;
+    if let Ok(s) = root.select(b"div#intro-all") {
+        q(b, &mut n, s.text(&mut text)?)?
+    } else {
+        q(b, &mut n, b"")?
+    }
+    bytes(b, &mut n, b",\"status\":")?;
+    let status =
+        if let Ok(s) = root.select(b"div.book-detail > ul.detail-list > li.status > span > span") {
+            match s.text(&mut text)? {
+                v if v == "连载中".as_bytes() || v == "連載中".as_bytes() => {
+                    b"ongoing".as_slice()
                 }
-                b'n' | b'r' | b't' => {
-                    out[c] = if src[i + 1] == b'n' {
-                        b'\n'
-                    } else if src[i + 1] == b'r' {
-                        b'\r'
-                    } else {
-                        b'\t'
-                    };
-                    c += 1;
-                    i += 2;
-                }
-                b'x' if i + 3 < src.len() => {
-                    if let (Some(a), Some(b)) = (hex_value(src[i + 2]), hex_value(src[i + 3])) {
-                        out[c] = ((a << 4) | b) as u8;
-                        c += 1;
-                        i += 4;
-                    } else {
-                        out[c] = src[i];
-                        c += 1;
-                        i += 1;
-                    }
-                }
-                b'u' if i + 5 < src.len() => {
-                    let mut code = 0u32;
-                    let mut ok = true;
-                    let mut k = 0usize;
-                    while k < 4 {
-                        if let Some(v) = hex_value(src[i + 2 + k]) {
-                            code = (code << 4) | v;
-                        } else {
-                            ok = false;
-                            break;
-                        }
-                        k += 1;
-                    }
-                    if ok && write_utf8(out, &mut c, code) {
-                        i += 6;
-                    } else {
-                        out[c] = src[i];
-                        c += 1;
-                        i += 1;
-                    }
-                }
-                _ => {
-                    out[c] = src[i + 1];
-                    c += 1;
-                    i += 2;
-                }
+                v if v == "已完结".as_bytes() || v == "已完結".as_bytes() => b"completed",
+                _ => b"unknown",
             }
         } else {
-            out[c] = src[i];
-            c += 1;
-            i += 1;
+            b"unknown"
+        };
+    q(b, &mut n, status)?;
+    bytes(b, &mut n, b"}}")?;
+    Ok(n)
+}
+fn chapters(r: &[u8]) -> Result<usize, &'static str> {
+    let id = manga_id(r)?;
+    let root = manga_doc(id)?;
+    let sections = Nodes::get(&root, b"[id^=chapter-list-]")?;
+    if sections.n == 0 {
+        return Err("chapter structure missing");
+    }
+    let b = payload_buf();
+    let mut n = 0;
+    let mut count = 0;
+    bytes(b, &mut n, b"{\"chapters\":[")?;
+    for si in 0..sections.n {
+        let uls = Nodes::get(&selected(&sections, si), b"ul")?;
+        if uls.n == 0 {
+            return Err("chapter group structure missing");
+        }
+        for ui in (0..uls.n).rev() {
+            let links = Nodes::get(&selected(&uls, ui), b"li > a.status0")?;
+            for j in 0..links.n {
+                if count >= 8192 {
+                    return Err("chapter count overflow");
+                };
+                let a = selected(&links, j);
+                let mut h = [0; 8192];
+                let cp = chapter_path(a.attr(b"href", &mut h)?)?;
+                let rest = &cp[b"/comic/".len()..];
+                if !rest.starts_with(id) || rest.get(id.len()) != Some(&b'/') {
+                    return Err("chapter manga mismatch");
+                }
+                let mut title = [0; 16384];
+                let t = if a
+                    .optional_attr(b"title", &mut title)?
+                    .is_some_and(|t| !t.is_empty())
+                {
+                    a.attr(b"title", &mut title)?
+                } else {
+                    a.select(b"span")?.text(&mut title)?
+                };
+                if t.is_empty() {
+                    return Err("chapter title missing");
+                }
+                if count > 0 {
+                    bytes(b, &mut n, b",")?
+                }
+                bytes(b, &mut n, b"{\"id\":\"")?;
+                bytes(b, &mut n, BASE)?;
+                bytes(b, &mut n, cp)?;
+                bytes(b, &mut n, b"\",\"mangaId\":")?;
+                qbook(b, &mut n, id)?;
+                bytes(b, &mut n, b",\"title\":")?;
+                q(b, &mut n, t)?;
+                bytes(b, &mut n, b",\"index\":")?;
+                if !write_usize(b, &mut n, count) {
+                    return Err("payload overflow");
+                };
+                bytes(
+                    b,
+                    &mut n,
+                    b",\"chapterNumber\":null,\"updatedAt\":null,\"scanlator\":null}",
+                )?;
+                count += 1;
+            }
         }
     }
-    &out[..c]
-}
-
-fn find_json_value_end(bytes: &[u8], start: usize) -> usize {
-    let mut i = start;
-    let mut in_str = false;
-    let mut esc = false;
-    let mut depth = 0i32;
-    while i < bytes.len() {
-        let b = bytes[i];
-        if in_str {
-            if esc {
-                esc = false;
-            } else if b == b'\\' {
-                esc = true;
-            } else if b == b'"' {
-                in_str = false;
-            }
-        } else if b == b'"' {
-            in_str = true;
-        } else if b == b'[' || b == b'{' {
-            depth += 1;
-        } else if b == b']' || b == b'}' {
-            depth -= 1;
-            if depth <= 0 {
-                return i + 1;
-            }
-        } else if b == b';' && depth <= 0 {
-            return i;
-        }
-        i += 1;
-    }
-    bytes.len()
-}
-
-fn find_img_json(html: &[u8]) -> Option<&[u8]> {
-    let marker = b"\"files\"";
-    let files = find_subslice(html, marker)?;
-    let mut start = files;
-    while start > 0 && html[start] != b'{' {
-        start -= 1;
-    }
-    if html[start] != b'{' {
-        return None;
-    }
-    let end = find_json_value_end(html, start);
-    Some(&html[start..end])
-}
-
-fn extract_json_array<'a>(json: &'a [u8], key: &[u8]) -> Option<&'a [u8]> {
-    let p = find_subslice(json, key)?;
-    let mut i = p + key.len();
-    while i < json.len() && json[i] != b'[' {
-        i += 1;
-    }
-    if i >= json.len() {
-        return None;
-    }
-    let start = i;
-    let end = find_json_value_end(json, start);
-    Some(&json[start..end])
-}
-
-fn extract_sl_value<'a>(json: &'a [u8], key: &[u8]) -> Option<&'a [u8]> {
-    let sl = find_subslice(json, b"\"sl\"")?;
-    let part = &json[sl..];
-    if key == b"e" {
-        extract_json_number(part, b"e")
-    } else {
-        extract_json_string(part, key)
-    }
-}
-
-fn run_get_pages(req: &[u8]) -> u32 {
-    let chapter_id = match extract_json_string(req, b"chapterId") {
-        Some(v) => v,
-        None => return write_error("get_pages", "invalid_request", "missing chapterId"),
+    if count == 0 {
+        return Err("public chapter list empty");
     };
-    let mut u = 0usize;
-    let url_buf = scratch_a();
-    if chapter_id.starts_with(b"http://") || chapter_id.starts_with(b"https://") {
-        if !write_bytes(url_buf, &mut u, chapter_id) {
-            return write_error("get_pages", "internal_error", "url overflow");
+    bytes(b, &mut n, b"]}")?;
+    Ok(n)
+}
+mod lz;
+mod packed;
+mod transport;
+fn unique<'a>(obj: &'a [u8], key: &[u8]) -> Result<&'a [u8], &'static str> {
+    let mut p = ws(obj, 0);
+    if obj.get(p) != Some(&b'{') {
+        return Err("metadata must be object");
+    };
+    p = ws(obj, p + 1);
+    let mut found = None;
+    while obj.get(p) != Some(&b'}') {
+        let end = json_string_end(obj, p).ok_or("invalid metadata key")?;
+        let mut decoded = [0; 256];
+        let k = unescape(&obj[p + 1..end - 1], &mut decoded)?;
+        p = ws(obj, end);
+        if obj.get(p) != Some(&b':') {
+            return Err("invalid metadata separator");
+        };
+        p = ws(obj, p + 1);
+        let end = json_value_end(obj, p, 0).ok_or("invalid metadata value")?;
+        if k == key {
+            if found.is_some() {
+                return Err("ambiguous metadata key");
+            };
+            found = Some(&obj[p..end])
+        };
+        p = ws(obj, end);
+        if obj.get(p) == Some(&b',') {
+            p = ws(obj, p + 1)
+        } else if obj.get(p) != Some(&b'}') {
+            return Err("invalid metadata object");
         }
-    } else if chapter_id.starts_with(b"/") {
-        if !(write_bytes(url_buf, &mut u, BASE_URL) && write_bytes(url_buf, &mut u, chapter_id)) {
-            return write_error("get_pages", "internal_error", "url overflow");
-        }
-    } else {
-        if !(write_bytes(url_buf, &mut u, BASE_URL)
-            && write_bytes(url_buf, &mut u, b"/")
-            && write_bytes(url_buf, &mut u, chapter_id))
+    }
+    if ws(obj, p + 1) != obj.len() {
+        return Err("metadata trailing data");
+    };
+    found.ok_or("required metadata field missing")
+}
+fn strvalue<'a>(v: &[u8], out: &'a mut [u8]) -> Result<&'a [u8], &'static str> {
+    if v.first() != Some(&b'"') || json_string_end(v, 0) != Some(v.len()) {
+        return Err("metadata string expected");
+    };
+    unescape(&v[1..v.len() - 1], out)
+}
+fn pages(r: &[u8]) -> Result<usize, &'static str> {
+    let raw = string(args(r), b"chapterId").ok_or("missing chapter ID")?;
+    let cp = chapter_path(raw)?;
+    let n = fetch_body(cp)?;
+    let root = Node::parse(&body_buf()[..n])?;
+    if root.select(b"#__VIEWSTATE, #erroraudit_show").is_ok() {
+        return Err("hidden or adult content unsupported");
+    };
+    drop(root);
+    let n = packed::unpack(&body_buf()[..n], scratch_b())?;
+    let data = &scratch_b()[..n];
+    let start = data
+        .iter()
+        .position(|v| *v == b'{')
+        .ok_or("Comic JSON missing")?;
+    let end = json_value_end(data, start, 0).ok_or("invalid complete Comic JSON")?;
+    if data[end..].contains(&b'{') {
+        return Err("ambiguous Comic JSON");
+    };
+    let obj = &data[start..end];
+    let files = trim_ascii(unique(obj, b"files")?);
+    if files.first() != Some(&b'[') || files.last() != Some(&b']') {
+        return Err("files must be array");
+    };
+    let mut pathbuf = [0; 8192];
+    let path = strvalue(unique(obj, b"path")?, &mut pathbuf)?;
+    if !path.starts_with(b"/")
+        || path.contains(&b'?')
+        || path.contains(&b'#')
+        || path.split(|c| *c == b'/').any(|s| s == b"." || s == b"..")
+    {
+        return Err("invalid image path");
+    }
+    let sl = unique(obj, b"sl")?;
+    let e = unique(sl, b"e")?;
+    if !e.is_empty() && e.iter().any(|c| !c.is_ascii_digit()) {
+        return Err("invalid image e parameter");
+    };
+    let mut m = [0; 8192];
+    let m = strvalue(unique(sl, b"m")?, &mut m)?;
+    let b = payload_buf();
+    let mut n = 0;
+    let mut pos = ws(files, 1);
+    let mut index = 0;
+    bytes(b, &mut n, b"{\"pages\":[")?;
+    while files.get(pos) != Some(&b']') {
+        if index >= 2048 {
+            return Err("page count overflow");
+        };
+        let end = json_string_end(files, pos).ok_or("file must be string")?;
+        let mut decoded = [0; 8192];
+        let file = unescape(&files[pos + 1..end - 1], &mut decoded)?;
+        if file.is_empty()
+            || file.starts_with(b"/")
+            || file.contains(&b'?')
+            || file.contains(&b'#')
+            || file.split(|c| *c == b'/').any(|s| s == b"." || s == b"..")
         {
-            return write_error("get_pages", "internal_error", "url overflow");
+            return Err("invalid image file");
         }
-    }
-    let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), u) };
-    let html_len = match fetch_body(url, Some(BASE_URL)) {
-        Ok(n) => n,
-        Err(e) => {
-            let (c, m) = fetch_error_code(e);
-            return write_error("get_pages", c, m);
+        let mut url = [0; 16384];
+        let mut len = 0;
+        bytes(&mut url, &mut len, b"https://i.hamreus.com")?;
+        bytes(&mut url, &mut len, path)?;
+        bytes(&mut url, &mut len, file)?;
+        bytes(&mut url, &mut len, b"?e=")?;
+        bytes(&mut url, &mut len, e)?;
+        bytes(&mut url, &mut len, b"&m=")?;
+        if !write_url_encoded(&mut url, &mut len, m) {
+            return Err("image parameter overflow");
+        };
+        let mut checked = [0; 16384];
+        let image = absolute(&url[..len], &mut checked)?;
+        if index > 0 {
+            bytes(b, &mut n, b",")?
         }
-    };
-    let html = unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), html_len) };
-    let decoded_ptr;
-    let decoded_len;
-    {
-        let decoded = unescape_js_to(html, scratch_b());
-        decoded_len = decoded.len();
-        decoded_ptr = decoded.as_ptr();
-    }
-    let decoded = unsafe { core::slice::from_raw_parts(decoded_ptr, decoded_len) };
-    let img_json = find_img_json(decoded).or_else(|| find_img_json(html));
-    let json = match img_json {
-        Some(v) => v,
-        None => return write_error("get_pages", "parse_error", "image data not found"),
-    };
-    let files = match extract_json_array(json, b"\"files\"") {
-        Some(v) => v,
-        None => return write_error("get_pages", "parse_error", "files not found"),
-    };
-    let path = extract_json_string(json, b"path").unwrap_or(b"");
-    let e = extract_sl_value(json, b"e").unwrap_or(b"");
-    let m = extract_sl_value(json, b"m").unwrap_or(b"");
-    let payload = payload_buf();
-    let mut c = 0usize;
-    if !(write_bytes(payload, &mut c, br#"{"chapterId":""#)
-        && append_json_escaped(payload, &mut c, chapter_id)
-        && write_bytes(payload, &mut c, br#"","pages":["#))
-    {
-        return write_error("get_pages", "internal_error", "payload overflow");
-    }
-    let mut i = 0usize;
-    let mut index = 0usize;
-    while i < files.len() {
-        if files[i] != b'"' {
-            i += 1;
-            continue;
-        }
-        i += 1;
-        let start = i;
-        let mut esc = false;
-        while i < files.len() {
-            if esc {
-                esc = false;
-            } else if files[i] == b'\\' {
-                esc = true;
-            } else if files[i] == b'"' {
-                break;
-            }
-            i += 1;
-        }
-        if i >= files.len() {
-            break;
-        }
-        let file = &files[start..i];
-        if index > 0 && !write_bytes(payload, &mut c, b",") {
-            break;
-        }
-        let ok = write_bytes(payload, &mut c, br#"{"id":"page:"#)
-            && append_json_escaped(payload, &mut c, chapter_id)
-            && write_bytes(payload, &mut c, b":")
-            && write_usize(payload, &mut c, index)
-            && write_bytes(payload, &mut c, br#"","index":"#)
-            && write_usize(payload, &mut c, index)
-            && write_bytes(payload, &mut c, br#","image":{"kind":"url","url":""#)
-            && write_bytes(payload, &mut c, IMAGE_CDN)
-            && append_json_escaped(payload, &mut c, path)
-            && append_json_escaped(payload, &mut c, file);
-        if !ok {
-            break;
-        }
-        if !e.is_empty() || !m.is_empty() {
-            if !(write_bytes(payload, &mut c, b"?e=")
-                && append_json_escaped(payload, &mut c, e)
-                && write_bytes(payload, &mut c, b"&m=")
-                && append_json_escaped(payload, &mut c, m))
-            {
-                break;
-            }
-        }
-        if !write_bytes(payload, &mut c, br#""}}"#) {
-            break;
-        }
+        bytes(b, &mut n, b"{\"id\":\"page:")?;
+        bytes(b, &mut n, BASE)?;
+        bytes(b, &mut n, cp)?;
+        bytes(b, &mut n, b":")?;
+        if !write_usize(b, &mut n, index) {
+            return Err("payload overflow");
+        };
+        bytes(b, &mut n, b"\",\"index\":")?;
+        if !write_usize(b, &mut n, index) {
+            return Err("payload overflow");
+        };
+        bytes(b, &mut n, b",\"image\":{\"kind\":\"url\",\"url\":")?;
+        q(b, &mut n, image)?;
+        bytes(b, &mut n, b"}}")?;
         index += 1;
-        i += 1;
-        if index >= 500 {
-            break;
+        pos = ws(files, end);
+        if files.get(pos) == Some(&b',') {
+            pos = ws(files, pos + 1);
+            if files.get(pos) == Some(&b']') {
+                return Err("trailing file comma");
+            }
+        } else if files.get(pos) != Some(&b']') {
+            return Err("invalid file separator");
         }
     }
     if index == 0 {
-        return write_error("get_pages", "parse_error", "no pages extracted");
-    }
-    if !write_bytes(payload, &mut c, b"]}") {
-        return write_error("get_pages", "internal_error", "payload overflow");
-    }
-    write_success_payload("get_pages", c)
-}
-
-#[no_mangle]
-pub extern "C" fn koma_source_info() -> u32 {
-    response_buffer().write_source_metadata(&SOURCE_INFO, &SOURCE_CAPS)
-}
-
-#[no_mangle]
-pub extern "C" fn koma_source_search(req_ptr: u32, req_len: u32) -> u32 {
-    let req = match read_request(req_ptr, req_len) {
-        Some(r) => r,
-        None => return write_error("search", "invalid_request", "empty request"),
+        return Err("public image list empty");
     };
-    log_info(b"manhuagui search");
-    run_search(req)
-}
-
-#[no_mangle]
-pub extern "C" fn koma_source_get_manga(req_ptr: u32, req_len: u32) -> u32 {
-    let req = match read_request(req_ptr, req_len) {
-        Some(r) => r,
-        None => return write_error("get_manga", "invalid_request", "empty request"),
+    if ws(files, pos + 1) != files.len() {
+        return Err("file array trailing data");
     };
-    log_info(b"manhuagui get_manga");
-    run_get_manga(req)
+    bytes(b, &mut n, b"]}")?;
+    host::log_info(b"manhuagui pages stage=payload_ready");
+    Ok(n)
 }
-
-#[no_mangle]
-pub extern "C" fn koma_source_get_chapters(req_ptr: u32, req_len: u32) -> u32 {
-    let req = match read_request(req_ptr, req_len) {
-        Some(r) => r,
-        None => return write_error("get_chapters", "invalid_request", "empty request"),
-    };
-    log_info(b"manhuagui get_chapters");
-    run_get_chapters(req)
+fn image_request(r: &[u8]) -> Result<usize, &'static str> {
+    let raw = string(args(r), b"url").ok_or("missing image URL")?;
+    let mut decoded = [0; 16384];
+    let u = unescape(raw, &mut decoded)?;
+    let mut checked = [0; 16384];
+    let u = absolute(u, &mut checked)?;
+    let b = payload_buf();
+    let mut n = 0;
+    bytes(b, &mut n, b"{\"url\":")?;
+    q(b, &mut n, u)?;
+    bytes(b, &mut n, b",\"headers\":")?;
+    headers(b, &mut n)?;
+    bytes(b, &mut n, b"}")?;
+    Ok(n)
 }
-
-#[no_mangle]
-pub extern "C" fn koma_source_get_pages(req_ptr: u32, req_len: u32) -> u32 {
-    let req = match read_request(req_ptr, req_len) {
-        Some(r) => r,
-        None => return write_error("get_pages", "invalid_request", "empty request"),
-    };
-    log_info(b"manhuagui get_pages");
-    run_get_pages(req)
+fn run_search(r: &[u8]) -> u32 {
+    unsafe { LAST_HTTP_STATUS = 0 };
+    execute("search", list(r, true))
 }
-
-#[no_mangle]
-pub extern "C" fn koma_source_get_listings(req_ptr: u32, req_len: u32) -> u32 {
-    let req = match read_request(req_ptr, req_len) {
-        Some(r) => r,
-        None => return write_error("get_listings", "invalid_request", "empty request"),
-    };
-    log_info(b"manhuagui get_listings");
-    run_get_listings(req)
+fn run_get_manga_list(r: &[u8]) -> u32 {
+    unsafe { LAST_HTTP_STATUS = 0 };
+    execute("get_manga_list", list(r, false))
 }
-
-#[no_mangle]
-pub extern "C" fn koma_source_get_manga_list(req_ptr: u32, req_len: u32) -> u32 {
-    let req = match read_request(req_ptr, req_len) {
-        Some(r) => r,
-        None => return write_error("get_manga_list", "invalid_request", "empty request"),
-    };
-    log_info(b"manhuagui get_manga_list");
-    run_get_manga_list(req)
+fn run_get_manga(r: &[u8]) -> u32 {
+    unsafe { LAST_HTTP_STATUS = 0 };
+    execute("get_manga", detail(r))
 }
-
-#[no_mangle]
-pub extern "C" fn koma_source_free(result_ptr: u32) {
-    response_buffer().free(result_ptr)
+fn run_get_chapters(r: &[u8]) -> u32 {
+    unsafe { LAST_HTTP_STATUS = 0 };
+    execute("get_chapters", chapters(r))
 }
+fn run_get_pages(r: &[u8]) -> u32 {
+    unsafe { LAST_HTTP_STATUS = 0 };
+    execute("get_pages", pages(r))
+}
+fn run_get_image_request(r: &[u8]) -> u32 {
+    unsafe { LAST_HTTP_STATUS = 0 };
+    execute("get_image_request", image_request(r))
+}
+fn run_get_listings(_: &[u8]) -> u32 {
+    let data=r#"{"listings":[{"id":"popular","name":"热门","supportsPaging":true},{"id":"latest","name":"最近更新","supportsPaging":true}]}"#.as_bytes();
+    payload_buf()[..data.len()].copy_from_slice(data);
+    write_success_payload("get_listings", data.len())
+}
+fn run_get_home(_: &[u8]) -> u32 {
+    write_error("get_home", "not_implemented", "not supported")
+}
+fn run_get_filters(_: &[u8]) -> u32 {
+    write_error("get_filters", "not_implemented", "not supported")
+}
+fn run_get_settings(_: &[u8]) -> u32 {
+    write_error("get_settings", "not_implemented", "not supported")
+}
+koma_source_sdk::koma_source_exports!("manhuagui");
