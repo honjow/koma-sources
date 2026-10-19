@@ -11,3 +11,7 @@ The existing ABI cannot express upstream cross-call main-site 10 requests/10 sec
 Source version is 0.1.2; minimum App version remains 0.1.0 (registry fourth field). These are independent. The previous candidate incorrectly required App 0.1.1; root observed native install_blocked/app_version_unsupported on App0.1.0 at17:04:49 and17:05:52, with no package request. Root owns that physical failure evidence. No App check/version/SDK change is needed.
 
 0.1.2 adds finite top-level failed-host-envelope classification only when no valid numeric HTTP status is present. Root observed 0.1.1 canonical popular timeout at17:14:58→17:15:13, status0 and no HTTP response/body. Network failures and native timeout now remain network_error/timeout with fixed privacy-safe messages. Existing numeric status/statusCode exchanges, including ok:false, retain HTTP2xx/403/429 behavior; no retry or request contract change.
+
+## Source identity resource (2026-10-20)
+
+`icon.ico` is the unmodified same-origin conventional favicon retrieved from `https://www.manhuagui.com/favicon.ico` (318 bytes, actual ICO 16×16). It fills the missing package identity resource without adding a plate, mask, shadow, rescaling or redrawing. The normal homepage request did not provide a readable logo declaration in this check; this is a same-origin favicon, not a claim of a larger official master. Its low resolution remains an open quality limitation, and no current App/device visual acceptance is claimed. Trademark rights remain with the original owner. No manga content or source behavior is changed.
