@@ -197,6 +197,9 @@ the production helper also checks the exact UTF-16 length limit.
 
 | Source | Type | Status | Notes |
 |--------|------|--------|-------|
+| guazimanhua | HTML | Retained | Current source 0.1.2; finite named evidence only; see source implementation and retained provenance |
+| kuaikan | HTML/JSON | Retained | Current source 0.1.4; public free content only; locked chapters refused; see source implementation and retained contract |
+| cmanhua | HTML | Retained | Current source 0.1.2; existing identity asset kept; site/body acceptance limited to recorded paths |
 | example-demo | JSON API | ✅ Demo | Minimal working example for learning |
 | baozimh | HTML | ✅ Full | 包子漫画 |
 | mangadex | JSON API | ✅ Full | MangaDex |
