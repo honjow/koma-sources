@@ -10,7 +10,7 @@ const BASE: &[u8] = b"https://comicfury.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.comicfury.zh.koma",
     name: "Comic Fury",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -690,6 +690,19 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
     let doc = fetch(BASE, &p[..pn])?;
     let cards = Nodes::get(&doc, b"div.webcomic-result")?;
     if cards.n == 0 {
+        if search {
+            let empty = Nodes::get(&doc, b"form.search-wrap div.search-results > div.search-error")?;
+            if empty.n == 1 {
+                let mut text = [0u8; 512];
+                let message = selected(&empty, 0).text(&mut text)?;
+                if trim_ascii(message) == b"There were no results for your search!" {
+                    let b = payload_buf();
+                    let mut n = 0;
+                    bytes(b, &mut n, b"{\"items\":[],\"page\":{\"nextCursor\":null,\"hasMore\":false}}")?;
+                    return Ok(n);
+                }
+            }
+        }
         return Err("empty listing");
     }
     let b = payload_buf();
