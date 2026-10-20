@@ -1,4 +1,4 @@
-# 幻塔官方中文漫画 0.1.0
+# 幻塔官方中文漫画 0.1.1
 
 来源为 `https://ht.wanmei.com/videostation/cartoon/index.html` 的独立漫画栏目。原站将漫画与视频、壁纸分开；本源只读取漫画，不涉及登录预约、验证码、视频、壁纸或同人动态。作者、正式评级和真实使用率没有足够依据，均保持 unknown；SourceInfo.author 的 Koma 指源开发者。
 
@@ -20,9 +20,11 @@ SDK普通metadata请求使用其原User-Agent与官网BASE Referer，不修改SD
 
 ## 原件、图标与验证
 
+图标更新（0.1.1）：原漫画栏目链接官网 https://ht.wanmei.com/ ，官网声明 https://static.games.wanmei.com/public/commonData/gamesData/gameDownload/ht-gameDownload.js ，其iOS地址为 https://apps.apple.com/cn/app/id1522617722 。该官方应用页srcset明确声明 https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/9c/e4/51/9ce4514d-aaa0-5f5f-2cbd-121018e2f786/Placeholder.mill/400x400Icon.ApSiOS01-75.webp 。采用完整400×400 WebP原件；原角色、完美标识及透明圆角外形保持，未裁切、补角、放大或新增遮罩/底板/阴影，App列表容器保持原样。该图是官方应用身份，不冒充漫画栏目独立徽标；设备呈现另验。
+
 原件目录 `/private/tmp/koma-huanta-zh-public-contract-20261015` 保留6份一次匿名GET的完整body/headers/receipt与原字节父切片：两页目录、首详情、官网CSS、完整首JPEG、原logo。目录16条身份/标题/封面由生产WASM与原件逐项比较；已核首详情《试用体验》及1696×5173完整四格，其余15详情/正文实体未读取，不能称16篇正文已接受。
 
-`icon.png` 是官网 `inside210630.css` 的 `.top_logo` 明确声明 `https://ht.wanmei.com/images/web2010/logo.png` 原PNG，198×131 RGBA，32671字节，SHA256 `1aa99e6438f774c9ae2f84eb97b9f198a207d1a68b9faf9f6b8239de2a2e6073`。未裁切、缩放、转码、加透明底、底板、遮罩或阴影。原白字在浅底低对比，小图标槽显示尚未Native验收。
+历史0.1.0原候选 `icon.png` 是官网 `inside210630.css` 的 `.top_logo` 明确声明 `https://ht.wanmei.com/images/web2010/logo.png` 原PNG，198×131 RGBA，32671字节，SHA256 `1aa99e6438f774c9ae2f84eb97b9f198a207d1a68b9faf9f6b8239de2a2e6073`。未裁切、缩放、转码、加透明底、底板、遮罩或阴影。原白字在浅底低对比，小图标槽显示尚未Native验收。
 
 真实详情img重复alt属性；独立当前生产C++ HtmlHost/Lexbor探针在原HTML中返回第一项“试用体验”，正常关闭描述符；源不靠任一alt取得身份。attr查询一律presence-qualified，根与选择结果均关闭。使用未改App html_host.cpp/.h和1057份Lexbor指纹、独立只读原HTTP桥、生产WASM/Wasmtime做原目录→首详情→章节→页→图片计划回放，合成畸形HTML与非法请求单独标明，并完整核ABI和operation end的0存活描述符。离线Host不是197/WAMR，不是正文网络/下载/cold/全源验收。
 

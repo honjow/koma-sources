@@ -5,7 +5,7 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.huanta.zh.koma",
     name: "幻塔官方中文漫画",
-    version: "0.1.0",
+    version: "0.1.1",
     api_version: "0.2",
     language: "zh",
     author: "Koma",

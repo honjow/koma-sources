@@ -3,7 +3,7 @@ use koma_source_sdk::json_utils::*;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
- id:"com.people2.pixnet.marked.zh-hant.koma", name:"人2 漫畫標記圖文", version:"0.1.0", api_version:"0.2", language:"zh-Hant", author:"Koma",
+ id:"com.people2.pixnet.marked.zh-hant.koma", name:"人2 漫畫標記圖文", version:"0.1.1", api_version:"0.2", language:"zh-Hant", author:"Koma",
     description:"收錄人2生活欄目中，作者圖片文字明確標記漫畫的圖文。依原分頁瀏覽，只提供靜態圖與可見附文，影音不承載並保留原嵌入地址。未標記文章不納入；作品評級尚未確認。", content_rating:"unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
