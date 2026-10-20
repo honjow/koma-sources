@@ -10,7 +10,7 @@ type E = &'static str;
 type R<T> = Result<T, E>;
 const MAX: usize = 1048576;
 const WEB: &[u8] = b"https://www.jjmhw2.top";
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.mangaxiaosi.zh.koma",name:"Manga Xiao Si",version:"0.1.1",api_version:"0.2",language:"zh",author:"Koma",description:"Manga Xiao Si published finite rank and query catalogue. Per-work rating, picture availability and usage unknown.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.mangaxiaosi.zh.koma",name:"Manga Xiao Si",version:"0.1.3",api_version:"0.2",language:"zh",author:"Koma",description:"Manga Xiao Si published finite rank and query catalogue. Per-work rating, picture availability and usage unknown.",content_rating:"nsfw"};
 #[allow(dead_code)]
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
@@ -521,6 +521,7 @@ fn work(r: &[u8]) -> R<&[u8]> {
 fn image_path(v: &[u8]) -> R<&[u8]> {
     let p = v
         .strip_prefix(b"https://www.jjmhw9.top/static/upload/book/")
+        .or_else(|| v.strip_prefix(b"https://www.jjmhw10.top/static/upload/book/"))
         .ok_or("image host")?;
     if p.is_empty()
         || p.len() > 900
@@ -636,7 +637,8 @@ fn list(r: &[u8], search: bool) -> R<usize> {
         let sections = All::new(doc.0, b".mh-list.col3.top-cat > li")?;
         for i in 0..sections.len {
             let mut b = [0; 256];
-            if title(sections.at(i), b".title", &mut b)? == "人气榜".as_bytes() {
+            let name = title(sections.at(i), b".title", &mut b)?;
+            if name == "人气榜".as_bytes() || name == "总榜".as_bytes() {
                 if section.is_some() {
                     return Err("ambiguous rank");
                 };
@@ -952,10 +954,9 @@ fn image_request(r: &[u8]) -> R<usize> {
             return Err("page index capacity");
         };
         let mut b = [0; 1024];
-        if url
+        if image_path(url)?
             != make(
                 &[
-                    b"https://www.jjmhw9.top/static/upload/book/",
                     w,
                     b"/",
                     c,
@@ -968,7 +969,6 @@ fn image_request(r: &[u8]) -> R<usize> {
         {
             return Err("image ownership");
         };
-        image_path(url)?;
     }
     let out = payload_buf();
     let mut n = 0;
