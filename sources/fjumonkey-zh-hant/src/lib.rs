@@ -3,7 +3,7 @@ use koma_source_sdk::json_utils::*;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
- id:"com.fjumonkey.pixnet.zh-hant.koma", name:"輔大猴・四格漫畫", version:"0.1.0", api_version:"0.2", language:"zh-Hant", author:"Koma",
+ id:"com.fjumonkey.pixnet.zh-hant.koma", name:"輔大猴・四格漫畫", version:"0.1.1", api_version:"0.2", language:"zh-Hant", author:"Koma",
  description:"收錄輔大猴作者部落格「[專欄]四格漫畫」的漫畫，依原欄目分頁瀏覽。每篇獨立閱讀，作品評級尚未確認。", content_rating:"unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
