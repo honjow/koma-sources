@@ -16,3 +16,7 @@ No-clear cold PID40136→42019 preserved all four JSON states byte for byte. Ori
 ## Current source-only recovery boundary
 
 This recovery preserves the original business, identity and metadata with the current canonical SDK. It does not register standard packaging or add an icon. Historical artwork/API/Native results above retain their named version and path only; no new request, compile, package or device acceptance is claimed by this proposal. Original candidate wrappers and source/asset evidence remain preserved outside this production closure.
+
+## Current icon provenance baseline
+
+The current official desktop header directly declares the unmodified280×95 PNG now retained as icon.png; ASSET_SOURCES.md records its exact parent and URL. This corrects the earlier source-only omission without changing the0.1.0 provider/version or standard registration. The official mobile mark is also horizontal and the square footer image is a QR code, so neither is misrepresented as a superior standalone icon. Small-slot suitability and current ordinary device delivery remain OPEN; this is not source/content acceptance.
