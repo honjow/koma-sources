@@ -1359,7 +1359,7 @@ dependencies = [
 
 [[package]]
 name = "koma_mangaball_zh_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "koma_source_sdk",
 ]
