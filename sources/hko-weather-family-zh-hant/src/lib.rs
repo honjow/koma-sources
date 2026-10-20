@@ -5,7 +5,7 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hko.weatherfamily.zh-hant.koma",
     name: "天氣家族漫畫廊・精選六期",
-    version: "0.1.1", api_version: "0.2", language: "zh-Hant", author: "Koma",
+    version: "0.1.2", api_version: "0.2", language: "zh-Hant", author: "Koma",
     description: "香港天文台《談天說地》天氣家族漫畫廊，精選第77至82期。較早PDF及其他期刊不收錄，作品評級尚未確認。",
     content_rating: "unknown",
 };

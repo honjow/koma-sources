@@ -1,4 +1,4 @@
-# 天氣家族漫畫廊・精選六期（繁中）0.1.1
+# 天氣家族漫畫廊・精選六期（繁中）0.1.2
 
 香港天文台《談天說地》「天氣家族」漫畫廊的獨立圖片源，**僅精選第77至82期六篇**，每期一個獨立閱讀單元，不是全檔案。SourceInfo.author 的 Koma 是源開發者；六篇原文均標「編劇：黃婷婷」，authors 保留黃婷婷、description 明說編劇；繪者、正式評級、狀態與 usage 未知，不冒稱全部創作者。
 
@@ -20,7 +20,7 @@ MID `hkofamily:zh-hant:issue:82`、CID `hkofamilyread:zh-hant:issue:82`、PID `h
 
 ## 原圖標
 
-原頁head聲明 `/js/menu.js`。2026-10-20 Root重新讀取官方 `https://www.hko.gov.hk/js/menu.js`，HTTP 200；`myLogo()` 明確將中文首頁的 `logo_hko_index_c.png` 與內頁的 `logo_hko_inside_c.png` 分列。本版 `icon.png` 採用已取得並親看的完整官方首頁原件 `https://www.hko.gov.hk/images/logo_hko_index_c.png`（451×140 RGBA），取代182×40的內頁原件。依使用者「優先原始資源、官方認可標識」要求改善清晰度；沒有裁切獨立徽標、重繪、轉碼、縮放、加底／遮罩／陰影。完整橫字標在小槽仍可能難辨，不以像素尺寸或構建稱視覺通過；App普通源包管理與瀏覽行的呈現另驗。
+2026-10-20 Root重新讀取官方 `https://www.hko.gov.hk/js/menu.js`，其導航明確連到天文台發布的 Google Play「我的天文台」頁（`hko.MyObservatory_v1_0`）；該頁 `itemprop=image` 的2x srcset聲明完整480×480 PNG：`https://play-lh.googleusercontent.com/Fvp7BdDnGAk6W8YC_vngzpoAeBs5-WJ-vpisjf1fJwlYgenlvdCdCox6w5v-ftbaOGjHZE2o1ITn1xdC3gLH19c=w480-h960`。本版採用該獨立藍白天文台標識完整原件，取代小槽內無法辨讀的451×140官方橫字標；這是官網明確連結的官方應用標識，不稱網站favicon。依使用者「優先原始資源、官方認可標識」要求；沒有裁切、重繪、轉碼、縮放或新增底板／遮罩／陰影，白色方畫布是官方原件自身內容。App圖標槽、Contain及布局保持。197經普通文件選擇器導入0.1.2，源包管理與Browse兩行均已由Root目視：藍白獨立標識可辨，原橫標小槽文字過小問題在這兩處關閉；不擴大為全源／正文／下載／cold驗收。
 
 ## 回放、成本與未驗範圍
 
