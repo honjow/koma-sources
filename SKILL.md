@@ -320,7 +320,6 @@ index must publish the same bytes/extension. `build.sh` with Python Pillow
 rejects missing/empty/invalid/duplicate assets before compiling (1 MiB and
 1,048,576 total decoded pixels). Use real identity artwork without added plates,
 external masks or shadows; secondary cleanup may preserve the genuine identity.
-Keep asset provenance and before/after evidence. Source identity artwork must
-not receive App-added rounded clipping, masks, plates or shadows; preserve its
-original canvas and the existing icon slot/layout. This rule does not delete old
-installs or backups.
+Keep asset provenance and before/after evidence. App rounded display clipping is
+independent and must remain. This production rule does not delete old installs
+or backups.

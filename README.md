@@ -106,9 +106,9 @@ Use a suitable real official identity asset. Do not leave added backing plates,
 external masks or shadows in the artwork. Secondary processing is allowed to
 remove those defects while preserving the real identity; keep provenance and
 before/after evidence. Prefer a suitable official original over an unsuitable
-ported icon. Do not apply rounded clipping to source artwork in the App; preserve
-the existing icon slot and layout. New production requirements do not remove old
-installed sources or invalidate old backups automatically.
+ported icon. The App's existing rounded display clipping is a separate layer
+and must remain. New production requirements do not remove old installed sources
+or invalidate old backups automatically.
 
 ## Release
 

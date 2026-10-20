@@ -9,7 +9,7 @@ as the logo sprite, with an 80 by 80 viewport at x=1688, y=969.
 its geometry and #00DC64 color. Its viewport reproduces that website window.
 `icon.png` directly rasterizes this vector to a transparent 192 by 192 PNG.
 No launcher plate, shadow, rounded mask, or new brand artwork is added.
-The App controls display dimensions; it must not add a mask.
+The app owns display dimensions and rounded clipping.
 
 This is website-published WEBTOON brand artwork used only for source identity.
 The implementation license does not grant ownership of the brand or its art.
