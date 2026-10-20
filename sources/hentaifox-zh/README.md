@@ -1,4 +1,4 @@
-Current source-only recovery: preserve the original 0.1.0 business and metadata. Current standard packaging is not registered and no icon is included. Historical 197 installation/no-clear cold evidence exists separately; site reading/download and current-SDK/current-App Native remain unaccepted. Original documentation follows unchanged as history.
+The business-only recovery preserved the original 0.1.0 business and metadata without an icon. On 2026-10-20 the retained installed-package 16x16 official favicon PNG was restored to this primary source tree under the current icon-resource task. It matches the original format/dimensions/length declared in NOTICE and was not resized, repainted, cropped or masked. It remains too low-resolution for the quality goal. Standard packaging is not registered; historical 197 installation/no-clear cold evidence remains separate, and source reading/download/current-SDK Native remain unaccepted. Original documentation follows as history.
 
 # HentaiFox Chinese
 
