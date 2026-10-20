@@ -6,6 +6,16 @@
 
 019仅省略没有上游证据的章节language，不推断正文语言；其完整继承018句柄释放、017记录页数读取、016字段完整性与原015半话数、动态角色读取等已审业务。不补未知编码/不扩大身份范围，不重验冻结正常矩阵。
 
+## 2026-10-21 ComicABC 0.1.10 / 237 具名接续
+
+当前237注册项实际读回 `com.comicabc.koma` / `manifestVersion=0.1.10`。沿普通源内搜索“最弱的劍鬥士”的唯一结果进入原30513，详情标题“被稱為最弱的劍鬥士用游戲知識開無雙 -在女尊男卑的鬥技場中一路發跡”，目录6/6章。
+
+原第01話已显示“已下载”；普通打开真实正文为2/62，仅证明现有下载正文可读，本次没有触发新get_pages，不冒旧0.1.0第1章失败被当前在线复验。原第5話普通打开真实首图1/24，但本次仅get_image_request，页列表已有缓存，不计新get_pages通过。
+
+同目录自然未下载的第4話，04:58:15真实日志为 `comicabc get_pages` / `pages manga=30513 chapter=4`，随后实际显示第4話首图及1/27；通过的是此章当前在线页列表与首图，不以HTTP200替代图片可读，不外推其余26页、全源、下载或cold。随后普通返回目录→原第5話→返回详情，继续阅读已实际恢复第5話第1/24页，再Back回原搜索页。未删下载/缓存或清数据；最终AWAKE / OverrideTimeout10000ms读回，释放原237租约。
+
+原件均沿Koma既有 `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/`：`comicabc010-ch01reader30513237-003`（下载正文原图/日志）、`comicabc010-ch05online30513237-003`（缓存首图/日志）、`comicabc010-ch04online30513237-003`（在线get_pages日志/真实首图）、`comicabc010-progress-restored30513237-003`（恢复5話1/24原图）、`comicabc010-sourceversion237-003`（当前版本回执）、`comicabc010-session-restored237-003`（返回原搜索/超时恢复）。所有回执 `artifactHashesEnabled=false`。本次无业务、版本、图标或App样式改动，未构建、未重新打包。
+
 历史实现/验收记录（以下原owner全文保留；其中旧“当前/未部署”只按对应历史版本解释，不作本轮结论）：
 
 # 無限動漫 / ComicABC 0.1.2
