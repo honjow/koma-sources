@@ -13,7 +13,7 @@ const WEB: &[u8] = b"https://hentaifox.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hentaifox.zh.koma",
     name: "HentaiFox",
-    version: "0.1.0",
+    version: "0.1.1",
     api_version: "0.2",
     language: "zh",
     author: "Koma",

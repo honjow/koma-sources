@@ -6,6 +6,10 @@ Independent com.hentaifox.zh.koma 0.1.0 / API 0.2 / zh. minAppVersion 0.1.1. NSF
 
 Supports published Chinese popular list, normalized basic search, gallery detail, one unnumbered album chapter, strict static ordered page descriptors and source-owned image requests. No latest, settings, accounts, favorites, sidebar POST, CSRF, scripts, retries or cross-language fallback. Missing/malformed descriptor JSON fails; no thumbnails-loader fallback or dummy pages. All source HTML and JSON stay below existing 1MiB host boundary.
 
-Retained contract: popular 20 declared-Chinese cards and actual next P2 (P2 unrequested), Kurenai search 3 raw cards / 1 Chinese card, Master Piece search genuine 0 results, gallery 75170 static JSON keys 1..203, first reader descriptor matching derived first URL. No manga image bytes requested. Native installation, covers, reading, downloads, pagination and official icon appearance remain unverified.
+Retained contract: popular 20 declared-Chinese cards and actual next P2 (P2 unrequested), Kurenai search 3 raw cards / 1 Chinese card, Master Piece search genuine 0 results, gallery 75170 static JSON keys 1..203, first reader descriptor matching derived first URL. No manga image bytes requested. Covers, reading, downloads and pagination remain unverified; current icon installation and appearance are recorded below.
 
-Official favicon original bytes retained; 16x16 PNG, no image treatment.
+Historical 0.1.0 used the unmodified official 16x16 PNG favicon. Current icon is the restoration described below.
+
+## 0.1.1 identity restoration
+
+Icon-only high-resolution restoration based on the official tiny H/fox identity and a clearer matching third-party reference; see NOTICE for exact provenance. Generated artwork is not an official high-resolution original or a pure vector. Package version changes only to deliver the new icon; provider operations and App clipping/slot/order remain unchanged. Device197 ALN-AL80, portrait 1260×2720: ordinary local import of 0.1.1 succeeded; Root inspected the new H/fox mark in both package management and Browse. The identity is clear in the existing small slot; 79 enabled sources and the surrounding order remain. Evidence: Koma `.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/source-icons/hentaifox011-manager-and-browse-001/manager.png` and `hentaifox011-browse-visible-003/browse.png`. This accepts only these two icon consumers, not source reading/download availability.
