@@ -10,7 +10,7 @@ use koma_source_sdk::json_utils::{
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{FetchError, fetch_error_code};
 
-const BASE_URL: &[u8] = b"https://beta.noyteam.online";
+const BASE_URL: &[u8] = b"https://noymanga.com";
 const IMG_BASE: &[u8] = b"https://img.noymanga.com/";
 koma_source_sdk::koma_source_buffers! {
     payload: 1024 * 1024,
@@ -24,7 +24,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.noyacg.koma",
     name: "NoyAcg",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -60,7 +60,7 @@ fn build_headers(dst: &mut [u8], c: &mut usize, form: bool) -> bool {
     if !write_bytes(
         dst,
         c,
-        br#"","headers":{"Accept":"application/json, text/plain, */*","User-Agent":"Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36","referer":"https://beta.noyteam.online/","allow-adult":"both""#,
+        br#"","headers":{"Accept":"application/json, text/plain, */*","User-Agent":"Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36","referer":"https://noymanga.com/","allow-adult":"both""#,
     ) {
         return false;
     }
@@ -778,10 +778,10 @@ fn run_get_pages(req: &[u8]) -> u32 {
     write_success_payload("get_pages", c)
 }
 
-fn run_get_listings(req: &[u8]) -> u32 {
-    let page = request_page(req);
-    let typ = extract_json_string(req, b"type").unwrap_or(b"day");
-    fetch_leaderboard("get_listings", page, typ)
+fn run_get_listings(_req: &[u8]) -> u32 {
+    const LISTINGS: &str = r#"{"listings":[{"id":"popular","name":"热门","kind":"popular"},{"id":"latest","name":"最新","kind":"latest"}]}"#;
+    payload_buf()[..LISTINGS.len()].copy_from_slice(LISTINGS.as_bytes());
+    write_success_payload("get_listings", LISTINGS.len())
 }
 
 fn run_get_manga_list(req: &[u8]) -> u32 {
