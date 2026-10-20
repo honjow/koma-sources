@@ -9,4 +9,4 @@ Official original145x56RGBA header logo is preserved. Source-only productionWASM
 
 ## Source-tree recovery boundary
 
-The original implementation and its dated stage notes above are preserved. This recovery uses the current canonical SDK and does not add artwork, standard-package registration or new HTTP/native acceptance. Original named runtime evidence remains separately bound to its original version and package.
+The original implementation and dated stage notes above remain preserved. The business-only recovery used the current canonical SDK without artwork. On 2026-10-20 the existing installed-package official icon was restored to this primary source tree; the original declared provenance above remains, with no new network request, image processing, hash check, version change or business change. Standard-package registration and new HTTP/native acceptance remain separate. Low resolution or narrow wordmark suitability is still OPEN.

@@ -53,4 +53,4 @@ resize, shadow or mask was added. The original ICO remains retained locally.
 
 ## Current source-only recovery boundary
 
-This recovery preserves the original business, identity and metadata with the current canonical SDK. It does not register standard packaging or add an icon. Historical artwork/API/Native results above retain their named version and path only; no new request, compile, package or device acceptance is claimed by this proposal. Original candidate wrappers and source/asset evidence remain preserved outside this production closure.
+The business-only recovery preserved the original business, identity and metadata with the current canonical SDK, without an icon or standard-package registration. On 2026-10-20 the existing installed-package 32x32 PNG was restored to this primary source tree. It is the historical lossless PNG conversion of the official ICO described above, not original ICO bytes. No new network request, image processing, hash check, version or business change, compile, package or device acceptance is claimed. Low resolution remains OPEN; the other historical artwork/API/Native boundaries above remain separate.
