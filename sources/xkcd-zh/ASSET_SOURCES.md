@@ -1,25 +1,25 @@
-# xkcd identity, external backing cleanup
+# xkcd official account identity resource
 
-The original96px extension PNG remains identity.original.png, SHA256
-af54452ef43503c5d08363ae37bf6b2602e6aeb2960a525fb4470ddbfcb82478.
-Original fixed Keiyoushi provenance is recorded in NOTICE.
+Version 0.1.4 uses the complete 1000×1000 WebP avatar currently declared by
+Randall Munroe's official xkcd.com Bluesky account. Provenance observed 2026-10-20:
 
-Official https://xkcd.com/ declares /s/919f27.ico. The Chinese provider
-https://xkcd.tw/ declares /img/favicon.ico. Both retrieved originals have
-the same2166B SHA256 c28f469c450e9ab2b86ea47038d2b324c6ad3b1e9a4bd8960da13214afd0ca38,
-retained in identity.favicon.original.ico. They corroborate the two-person
-identity but their16/32px frame/backing is not used as the displayed icon.
-The existing direct-ICO candidate remains rejected, not silently reopened.
+- https://xkcd.com/ directly links https://store.xkcd.com/ in #xkcdNews.
+- The store Organization.sameAs explicitly declares https://bsky.app/profile/xkcd.com.
+- That profile and its anonymous public profile response agree on handle xkcd.com,
+  displayName Randall Munroe and did:plc:cz73r7iyiqn26upot4jtjdhk.
+- The public profile declares the exact avatar URI:
+  https://cdn.bsky.app/img/avatar/plain/did:plc:cz73r7iyiqn26upot4jtjdhk/bafkreibandvfr3i2qpwbuzfwcw26px2wfh2vkrgtbr2neiof4muzca2h2i
+- The original response is HTTP200, 12440 bytes, WebP, 1000×1000.
 
-identity.derived.svg is a derived2D curve model, NOT an original official
-vector. It preserves the curved trapezoidal left head, rounded rectangular
-right head, hand/limb relationships and source-canvas positions. Curves and
-stroke centerlines describe intended geometry rather than blurred pixel
-steps. icon.png is its512x512 transparent librsvg render; no external white
-plate, shadow, mask, new text or App slot/clip change.
+This is the author's official account avatar, not a claimed original publication
+logo or vector. icon.webp retains the complete source image and its original
+white canvas without cropping, tracing, recoloring, shadow or added backing/mask.
+The separately found official shop header logo is a 400×356 transparent black
+XKCD/five-character mark; it is not the active asset because dark slots need
+contrast without inventing a background for that file.
 
-An imagegen alternative changed head shape and stroke weight and was rejected;
-it is not in this package. Current original-first evidence, history, candidate
-review, standard comparison and finite Native receipt remain at
-/private/tmp/koma-xkcd-transparency-20261019/.
-Brand/icon rights remain with their holders; no affiliation asserted.
+This replaces the displayed derived two-person asset from 0.1.3. The prior
+extension PNG, officially declared favicon and derived SVG remain historical
+source material; the rejected direct-ICO/imagegen candidates are not restored.
+App slot size, rounded presentation, ordering and all provider behavior remain.
+Brand/art rights remain with their holders; no affiliation is asserted.
