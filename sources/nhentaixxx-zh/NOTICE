@@ -3,7 +3,7 @@ Keiyoushi/extensions-source at 1319949ca9bc456908196e3ba2d104e94182c5d6,
 NHentai.xxx entity 560822675588930101, published v1.6.11 and warning 3.
 The NHentai leaf, GalleryAdults parent and DTO reference are under Apache-2.0;
 no upstream source code, manga artwork, cookies or credentials is bundled.
-The icon is the canonical site-declared favicon; it remains its provider asset.
+The original icon was the canonical site-declared favicon; its historical provenance remains below.
 This package does not establish affiliation, content ownership or usage ranking.
 
-Current recovery note: the favicon description above is historical original-asset provenance. The asset remains in the original owner and is not included in this business-only proposal; current small-slot suitability and any standard-package registration require separate Root review.
+Current recovery note: the original official 32px favicon was restored to this primary tree after the historical business-only recovery. The current 0.1.2 icon is a Koma Bézier restoration of the same white n/red-wing mark on its own original #223445 deep-blue canvas. It is not an official vector original. Keiyoushi's 192px GalleryAdults shared-theme icon supplied a clearer structural reference; its additional gradient plate and long shadow are not reproduced. The failed uncommitted 0.1.1 transparent candidate and the current pending Native boundary are described in README.
