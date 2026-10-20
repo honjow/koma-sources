@@ -28,10 +28,14 @@ koma_source_sdk::koma_source_buffers! {
 }
 koma_source_sdk::koma_source_helpers!();
 
+// icon.jpg: unmodified 600x600 TongLiComic publisher profile JPEG.
+// Official account declared by https://www.tongli.com.tw/Epaper_PreView.aspx?E=20240531113412
+// and linked back to tongli.com.tw by https://www.facebook.com/TongLiComic .
+// Preserve original artwork and canvas; no crop, repaint, added mask, shadow or background.
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.tongli.koma",
     name: "東立",
-    version: "0.1.0",
+    version: "0.1.1",
     api_version: "0.2",
     language: "zh",
     author: "Koma",

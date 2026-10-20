@@ -1408,7 +1408,7 @@ dependencies = [
 
 [[package]]
 name = "koma_manhuashe_source"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1443,7 +1443,7 @@ dependencies = [
 
 [[package]]
 name = "koma_noyacg_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1471,7 +1471,7 @@ dependencies = [
 
 [[package]]
 name = "koma_scitechvista_zh_hant_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1554,14 +1554,14 @@ dependencies = [
 
 [[package]]
 name = "koma_tipo_ipmini_zh_hant_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_tongli_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "koma_source_sdk",
 ]

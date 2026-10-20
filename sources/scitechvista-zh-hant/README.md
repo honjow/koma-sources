@@ -20,7 +20,7 @@
 
 ## 原圖標與巨大CMYK首圖
 
-`icon.png` 保持原詳情head `rel=icon` 指向 `https://scitechvista.nat.gov.tw/images/favicon.ico` 的542原字節，SHA256 `731674b17b7000fed26867e417318d4172cc73b923a38e43dd0bf219d7bfd0c5`。URL及MIME叫ICO，但實際簽名字節是PNG、16×16 RGBA，直接保存為包規定icon.png；沒有轉碼、縮放、裁切、改色、遮罩、加底或陰影。原V字favicon小槽清晰度未實機驗收。
+历史0.1.0的 `icon.png` 保持原詳情head `rel=icon` 指向 `https://scitechvista.nat.gov.tw/images/favicon.ico` 的542原字節，SHA256 `731674b17b7000fed26867e417318d4172cc73b923a38e43dd0bf219d7bfd0c5`。URL及MIME叫ICO，但實際簽名字節是PNG、16×16 RGBA，直接保存為包規定icon.png；沒有轉碼、縮放、裁切、改色、遮罩、加底或陰影。原V字favicon小槽清晰度未實機驗收。
 
 首篇《幽冥六劍客： 蚊子讓你又癢又腫的秘密》，蕭楷諺／桃園市立桃園國民中學，107/12/25，原文明示2018全國科普漫畫大賽銀獎、學生組四格。唯一完整原JPEG `https://scitechvista.nat.gov.tw/FileDownload/Article/20181225165123000000637.jpg` 是3276×14174、CMYK、28,793,918字節，SHA256 `12fb3f0f5e39b35cdd7129bf9d8e665e8881da0417001062d7eb6febb8a33656`。未轉RGB、縮小或切圖，未新增網路重抓。約46.4MP的Native解碼、記憶體、顏色、下載成本仍未知；本機圖片查看不能替代197。原包不含漫畫圖片。
 
@@ -33,3 +33,5 @@
 成本是源Host callback數而非實機網路測量：首頁1GET；後續Browse各2GET（首頁+所需實際頁）；作品身份按真目錄逐頁找，首屏作品1GET、第2頁作品2GET…第6頁作品6GET，找到即停。首篇詳情／章／頁／正文計畫各1目錄+1詳情（160,237原metadata字節）；首屏封面各1GET，缺pageId的cover為排除歧義讀6頁。無共享cache或憑舊get_pages信任外部圖片URI假設。SDK metadata正常UA/目錄Referer由離線橋核字段；最初原公開GET為Mac Firefox且無Referer，離線回放不證明SDK UA/Referer已在197通過。
 
 其餘27詳情／正文實體（含頁數/格式）、Native Cpp/WAMR集成、CMYK實際呈現、其他布局/圖標槽、下載/cold、並發速度與未來目錄變更未驗收。Root負責全差異審查及197串行普通導入、真5→28分頁、首篇完整原圖、下載與cold；build或Host成功不提前稱Native PASS。沒有App/Kit/SDK/舊源/WIP/設備/IDE/簽名操作，未提交/推送/發布。
+
+图标更新（0.1.1，2026-10-20）：官网 https://scitechvista.nat.gov.tw/ 的 follow-fixed-fb 明确链接 https://www.facebook.com/scitechvista/ ，该官方账号标题「科技大觀園 | Taipei」及简介声明Q博。采用其准确og:image完整720×720 JPEG（39742字节），Q博角色与原环保科技图形/浅色画布保持；未提取旧V、裁切、重绘或新增底板/阴影/遮罩，App容器保持原样。Root已审完整原图；两处小槽实际对比另验，不以分辨率代替通过。

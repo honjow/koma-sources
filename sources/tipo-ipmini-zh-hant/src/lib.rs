@@ -5,7 +5,7 @@ use koma_source_sdk::{build_get_request, build_post_request, decode_json_body_in
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.tipo.ipmini.zh-hant.koma",
     name: "IP手札mini! 官方直達專欄",
-    version: "0.1.0",
+    version: "0.1.1",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
