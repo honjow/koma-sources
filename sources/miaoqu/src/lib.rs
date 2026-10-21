@@ -10,7 +10,7 @@ const BASE: &[u8] = b"https://www.miaoqumh.org";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.miaoqu.koma",
     name: "喵趣漫画",
-    version: "0.1.0",
+    version: "0.1.1",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -874,7 +874,13 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
     let description = root.select(b".text")?.text(&mut text)?;
     bytes(&mut summary, &mut sn, description)?;
     q(b, &mut n, &summary[..sn])?;
-    bytes(b, &mut n, b"}}")?;
+    let mut page_url = [0; 2048];
+    let mut page_len = 0;
+    bytes(&mut page_url, &mut page_len, MOBILE)?;
+    bytes(&mut page_url, &mut page_len, detail_path(s, &mut path)?)?;
+    bytes(b, &mut n, b",\"links\":[{\"kind\":\"source\",\"url\":")?;
+    q(b, &mut n, &page_url[..page_len])?;
+    bytes(b, &mut n, b"}]}}")?;
     Ok(n)
 }
 fn explicit_chapter_number(title: &[u8]) -> Option<usize> {
