@@ -86,6 +86,8 @@ negative records reject. This is host metadata evidence only; Native0.1.4
 reading, images, download and cold acceptance remain OPEN. Original0.1.3
 failures and its old named15059 acceptance remain separate facts.
 
+后继原件明确取代上段的历史OPEN：`comicabc-six-historical-parents-2-nested-full-tree-preserved.tar.gz` 内 `comicabc-six-historical-parents-2/tree/native-receipt.json` / `result.json` 记录0.1.4时237已有限接受9154/ch1的P1/P2（71页计划）与16264/ch1的中文分格P1/橙色题图P2（20页计划）；后者《妖精的尾巴 百年任務》单章20/20下载及不清数据cold继续P2也已接受。原20张不等于逐张视觉或断网验收。归档现位于Koma `.hermes-artifacts/recovery-20261019/`，本轮只读原回执，不新解包/计算摘要/请求或重验16264。两具名旧失败按这些有限范围冻结；下面0.1.10的9154记录仅为当前图片消费者补证，不能称首次修复旧失败，也不补称新Native在线页计划通过。
+
 ## 0.1.5 明确半话章号
 
 原17224目录可见标题明确“第114.5話”“第149.5話”，旧版从路由数字前缀输出114/149。此版仅在原标题整体为`第<同身份整数>.<小数>話`或`<同身份整数>.<小数>話`时保留该原十进制字符串为chapterNumber；不从e或任何字母后缀推算。原标题、所有ID、原DOM顺序/sequenceIndex及正文解析均保持。
@@ -103,3 +105,14 @@ failures and its old named15059 acceptance remain separate facts.
 ## 2026-10-17 required identity resource
 
 The new icon-only candidate uses the genuine local resource documented in ASSET_SOURCES.md. The earlier optional-PNG/no-icon package description remains historical evidence, not the current production resource rule. Manifest.icon names the actual root file; WASM, version, stable identities and parser behavior are unchanged. Old frozen packages remain separate. Native icon display has not been accepted; App rounded clipping remains.
+
+
+## 237 0.1.10 / 9154 第1話有限接续（2026-10-22）
+
+只接上述9154第1章旧record-schema失败，不重跑30513或把旧159话日文反例当同章。当前实际WASM SourceInfo0.1.10对原`comicabc:chapter:9154:1`一次Host get_pages成功返回71页；同实体一次get_manga给出《終結的熾天使》/鏡貴也,山本大和。CLI未输出原HTTP状态或完整HTML，不补称HTTP200。未修改源码、版本、图标或封包。
+
+237现装仍0.1.10；Manager直达独立搜索准确题名一次→同作159/159章，原进度为159话2/29。临时升序普通选择1話实际恢复既有2/71，真实彩色题图含繁中标题及日文书名；普通前页到1/71，亲看繁中三格叙事正文。自然Back详情显示1話1/71。当前有界进程日志保留get_image_request、ReaderImage display_ready/display_complete及缓存命中，但没有保到该章新get_pages记录；不据缺日志断言没有调用，也不将Host71页计划或实机图可读冒作新Native在线解析/首取通过。其他69页/全章语言/下载/cold均未验。
+
+经普通“重置”恢复全部/默认话数降序；仅为恢复原进度重开159话，未翻页，Back详情及普通历史均为原159话2/29，不计新增159话验收。最后Browse55、完整registry与本轮前相同，原10000ms/AWAKE读回并释放dfc078d6；无传包、下载、私有状态写回或受拒请求重试。
+
+原件：Koma `.hvigor/outputs/user-flow-audit/comicabc010-9154-{ch1-pages,detail}-host.{json,stderr.log}`；既有设备分区`device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/comicabc010-9154-body237-001/`的`chapter1-first.png`（实际P2）、`chapter1-page1.png`、`chapter1-page1-chrome.png`、`chapter1-progress-return.png`、`original159-progress-restored.png`、`history-final.png`及`browse-final.png`；日志`comicabc010-9154-current-log237-001/run-metadata.json`，恢复`comicabc010-9154-restored237-001/run-metadata.json`。
