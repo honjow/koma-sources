@@ -1,6 +1,6 @@
 # Source identity asset
 
-`icon.ico` is the actual image resource obtained once from `https://www.weicomic.com/favicon.ico`.
+`official-favicon-original.ico` (formerly `icon.ico`) is the actual image resource obtained once from `https://www.weicomic.com/favicon.ico`.
 
 Same-origin browser conventional favicon, HTTP200 ICO16x16 whiteW/blue identity. Retained homepage lacks explicit faviconlink; keep that declaration boundary. Do not substitute the unsuitable1026x102 seasonal banner.
 
@@ -9,3 +9,7 @@ SHA256 `72243a050c3fd8a26b74ef44d43552076400c5cbfdb851980cf217325ee93fb8`, 1150 
 Original HTTP headers, request, response bytes and metrics: `/private/tmp/koma-source-icon-integrity-20261017/weicomic-favicon`. Authoritative icon-only candidate and unchanged-WASM comparison: `/private/tmp/koma-source-icon-integrity-20261017/candidates/weicomic`. Existing parser, stable identities, version and all prior manifest fields are preserved; new manifest.icon names the actual root asset. Old delivery packages remain unchanged.
 
 2026-10-22 new public identity lead: the channel https://www.youtube.com/channel/UC_Xudo_cSbUb6ZRKTJpOq9g identifies itself as 創意漫畫大亂鬥 / @weicomic; one ordinary anonymous Host GET returned200 after the web reader reported Cache miss. Its description was empty and no source-site backlink was found. The exact declared900px avatar returned200 (JPEG54052B); Root viewed `Koma/.hvigor/outputs/user-flow-audit/weicomic-youtube-avatar-original.jpg`: it is the 第一屆未來盃 event graphic, not the platform brand. Not adopted or cropped; channel ownership remains unproved. The old homepage403 and blockedFacebook URL were not requested. Existing16px asset/version remain unchanged.
+
+## 0.1.2 reconstructed low-resolution identity
+
+The original16px same-site favicon is a blue field/white serif W with a separate short underline; it differs from the bold sans-serif W in the seasonal banner. The retained tiny raster remained visibly coarse, and the new official-avatar lead was an unrelated event mark. Under the user-authorized2D low-resolution reconstruction scope, Root reviewed and accepted one512×512 RGB candidate: locally installed Times New Roman Regular outlines, white W/underline at the original approximate proportions and dominant blue RGB21/131/255. It does not trace enlarged pixel stair-steps, add shadows/masks or claim the exact original font or an official high-resolution asset. Original blue background is retained as the existing identity, not a new backing. `icon.png` contains that accepted candidate; the original ICO remains byte-preserved under its provenance filename and is excluded from the three-member package. App30vp/R7 and all source business behavior remain unchanged. Device237 ordinary010→012 import subsequently showed the icon clearly in full Manager/Browse screens;58 source ID/enabled entries remained ordered identically. Original Browse group and10000ms/AWAKE were restored, the owned transfer removed and lease released. Named icon-only evidence is in Koma `category-membership/weicomic012-icon-awake237-001` and `weicomic012-icon-restored237-001`; no reading/provider acceptance is added.

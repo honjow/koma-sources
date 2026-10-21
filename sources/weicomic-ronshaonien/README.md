@@ -1,4 +1,4 @@
-# 創漫繁中・隆少年 0.1.1 候选
+# 創漫繁中・隆少年 0.1.2
 
 只处理同一既有隆少年完整阅读单元，按当前官网XML頁元素顺序完整消费；保原MID/CID及ordinal PageID，不扩作品、不补印刷页、不猜图片。移除固定30/NAMES/RAW/ORIGINAL逐样本锁与256B页URI槽。先完整校验XML才返回目录或正文图片计划；借用当次body，不在借用期间再fetch，不保存跨operation缓存。正文请求URI保存受原1MiB请求ABI限制，get_pages输出受原payload预算限制，容量不足整次失败。
 
@@ -46,3 +46,7 @@ Overwatch繁中PDF分支与探測機首图522原失败保持，不重试或换�
 ## 2026-10-17 required identity resource
 
 The new icon-only candidate uses the genuine local resource documented in ASSET_SOURCES.md. The earlier optional-PNG/no-icon package description remains historical evidence, not the current production resource rule. Manifest.icon names the actual root file; WASM, version, stable identities and parser behavior are unchanged. Old frozen packages remain separate. Native icon display has not been accepted; App rounded clipping remains.
+
+## 0.1.2 图标重建交付
+
+原同站16px蓝底白色衬线W/短横低清，季节横幅为另一无衬线字形，不能截banner首W替换。本会话用户允许低清2D重建，Root亲审唯一512px候选后采用本机Times New Roman Regular平滑字形、原主蓝RGB21/131/255及白W/短横近似比例；不描像素锯齿、不加阴影/遮罩，不称官方高清原件或原字体精确复原。来源原ICO以official-favicon-original.ico原字节保留，新icon.png为唯一包图。Cargo/lock原010与SOURCE_INFO原011统一为012，业务源码仅version变化；App30vp/R7/排序及请求、身份、章节保持。原正文具名边界不重验；2026-10-22设备237普通本地选择器010→012更新成功；管理/Browse完整屏均显示清晰蓝底白衬线W/短横与v0.1.2，管理仍启用。58项sourceId/enabled逐项同序，原Browse喵趣组、原10000ms/AWAKE已恢复，只清本人传包并释租，不请求正文。原图在Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/weicomic012-icon-awake237-001/{manager-weicomic012.png,browse-weicomic012.png,browse-original-restored-final.png}`，registry/电源/清理回执在同分区`weicomic012-icon-restored237-001`；仅证明本次图标两消费者，不冒原字体或源正文通过。

@@ -1582,7 +1582,7 @@ dependencies = [
 
 [[package]]
 name = "koma_weicomic_ronshaonien_source"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "koma_source_sdk",
 ]
