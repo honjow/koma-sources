@@ -70,3 +70,12 @@ favicon (the page separately declares bilibili's favicon). Original SHA256
 bae11a4963c35e401548ace641c64eee3523aaa529147db75eeaf6c6f3a3c1a0.
 No crop, mask, backing, shadow, drawing, resize or reencoding was applied.
 Root must inspect its actual appearance in the existing source-icon slot.
+
+
+## 237 现装0.1.2第4→5章正文与自然续章（2026-10-21）
+
+本轮registry实读 `com.bilibili.fgo.zh.koma` manifestVersion=0.1.2、enabled=true。普通Browse列表为1本《从漫画了解！Fate/Grand Order》，详情实际15/15章，每章1页。原reader已有第1章1/1记录，另有上方旧0.1.0第3章Native证据，因此没有重开这两章；从真实目录选择无现存章记录的第4章。
+
+第4章P1/1实际显示彩色中文正文，“要让从者成为伙伴就必须通过召唤”“召唤又分友情点召唤和圣晶石召唤两种”可读。章末普通右侧下一步直接切换下一张P1/1，可读“FGO的卖点之一是其特有的指令战斗系统”；自然Back后真实reader确认 `fgoch:zh:manga01:5` / `fgopage:zh:manga01:5:0`、pageIndex0、totalPages1、completed=true，第4/5章记录各自然新增。这里只接受当前012这两章各一页及第4→5章普通续章/返回；不称单章P2、全部15章、下载、cold或无缓存在线首取通过。
+
+原件在Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/：fgo012-baseline237-001、fgo012-public-list237-001、fgo012-manga01-detail237-001、fgo012-chapter4-body237-001、fgo012-chapter4-next237-001、fgo012-natural-return237-001、fgo012-session-restored237-001。最终原Browse末端恢复，52项registry及reader偏好XML与本轮基线全bytes同；原17条sourceHistory和58条chapter对象全保持（含第1章），其他书46条progress对象全保持，只有本书当前progress从原第1章自然更新至第5章，两条新chapter记录保留。恢复回执实读AWAKE/OverrideTimeout10000ms，c49ac476已释放；哈希关闭，无清数据/缓存、模式/全局偏好更改、源/App/Kit业务改动、登录或下载。
