@@ -16,7 +16,7 @@ if [[ -n "$_real_home" && -d "$_real_home/.rustup" && -d "$_real_home/.cargo/bin
   export PATH="$_real_home/.cargo/bin:$PATH"
 fi
 unset _real_home
-if ! command -v cargo >/dev/null 2>&1 && [[ -d /opt/homebrew/opt/rustup/bin ]]; then
+if [[ ! -x "${CARGO_HOME:-$HOME/.cargo}/bin/cargo" && -x /opt/homebrew/opt/rustup/bin/cargo ]]; then
   export PATH="/opt/homebrew/opt/rustup/bin:$PATH"
 fi
 
@@ -32,6 +32,27 @@ RELEASE_PACKAGE_DIR="$OUTPUT_DIR/release-packages"
 # Source registry: source name | crate directory | nsfw | minimum Koma version.
 # Keep this Bash 3 compatible for macOS /bin/bash.
 SOURCE_ENTRIES='
+hentaifox-zh|hentaifox-zh|true|0.1.1
+3hentai-zh|3hentai-zh|true|0.1.1
+nnhanman-zh|nnhanman-zh|true|0.1.1
+mangaxiaosi-zh|mangaxiaosi-zh|true|0.1.1
+huanta-zh|huanta-zh|false|0.1.1
+xcomic-zh|xcomic-zh|true|0.1.1
+asmhentai-zh|asmhentai-zh|true|0.1.1
+mh160|mh160|false|0.1.1
+nhentaixxx-zh|nhentaixxx-zh|true|0.1.1
+nhentaito-zh|nhentaito-zh|true|0.1.1
+hcomic-zh|hcomic-zh|true|0.1.1
+miaoqu|miaoqu|false|0.1.1
+ikmmh-zh|ikmmh-zh|true|0.1.1
+hentaihand-zh|hentaihand-zh|true|0.1.1
+laya-zh-hant|laya-zh-hant|false|0.1.1
+people2-marked-zh-hant|people2-marked-zh-hant|false|0.1.1
+fjumonkey-zh-hant|fjumonkey-zh-hant|false|0.1.1
+immark-zh-hant|immark-zh-hant|false|0.1.1
+mixflavor-life-zh-hant|mixflavor-life-zh-hant|false|0.1.1
+mycomic|mycomic|true|0.1.1
+tongli|tongli|false|0.1.1
 oldmasterq-zh-hant|oldmasterq-zh-hant|false|0.1.1
 namepara-zh-hant|namepara-zh-hant|false|0.1.1
 cmanhua|cmanhua|true|0.1.0
@@ -141,6 +162,18 @@ selected_source_names() {
   if [[ -n "$ONLY_SOURCE" ]]; then
     printf '%s\n' "$ONLY_SOURCE"
   else
+    for name in $(source_names); do
+      [[ "$name" == "example-demo" ]] && continue
+      printf '%s\n' "$name"
+    done
+  fi
+}
+
+# Compile the teaching demo as well; only production sources are distributed.
+compiled_source_names() {
+  if [[ -n "$ONLY_SOURCE" ]]; then
+    printf '%s\n' "$ONLY_SOURCE"
+  else
     source_names
   fi
 }
@@ -149,13 +182,19 @@ REPO_URL="${KOMA_REPO_URL:-https://github.com/honjow/koma-sources}"
 
 ONLY_SOURCE=""
 VERSION_TAG=""
+CHECK_REGISTRY=0
+COMPILE_ONLY=0
+PACKAGE_ONLY=0
 SCAFFOLD_NAME=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --compile-only) COMPILE_ONLY=1; shift ;;
+    --package-only) PACKAGE_ONLY=1; shift ;;
+    --check-registry) CHECK_REGISTRY=1; shift ;;
     --source) ONLY_SOURCE="$2"; shift 2 ;;
     --tag) VERSION_TAG="$2"; shift 2 ;;
     --scaffold) SCAFFOLD_NAME="$2"; shift 2 ;;
-    *) shift ;;
+    *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
 done
 
@@ -189,10 +228,35 @@ if [[ -n "$SCAFFOLD_NAME" ]]; then
   exit 0
 fi
 
+# Check the declared registry against Cargo workspace members before any build.
+# Python 3.11+ is provided by CI; no provider network calls are made here.
+REGISTRY_ENTRIES="$SOURCE_ENTRIES" python3 - "$SCRIPT_DIR" <<'PYREG'
+import os, sys, tomllib
+from pathlib import Path
+root = Path(sys.argv[1])
+rows = [r.split('|') for r in os.environ['REGISTRY_ENTRIES'].splitlines() if r]
+if any(len(r) != 4 for r in rows):
+    raise SystemExit('Invalid source registry row')
+workspace = {m for m in tomllib.loads((root/'Cargo.toml').read_text())['workspace']['members'] if m.startswith('sources/')}
+registered = ['sources/' + r[1] for r in rows]
+if len(set(registered)) != len(registered) or len({r[0] for r in rows}) != len(rows):
+    raise SystemExit('Duplicate source registry identity/directory')
+if workspace != set(registered):
+    raise SystemExit('Registry coverage mismatch: missing=' + repr(sorted(workspace-set(registered))) + ' extra=' + repr(sorted(set(registered)-workspace)))
+if any(r[2] not in ('true','false') for r in rows):
+    raise SystemExit('Invalid source nsfw flag')
+print(f'Registry covers {len(workspace)-1} production sources and one teaching demo', file=sys.stderr)
+PYREG
+if [[ "$CHECK_REGISTRY" == 1 ]]; then
+  exit 0
+fi
+if [[ -n "$ONLY_SOURCE" && -z "$(source_crate_dir "$ONLY_SOURCE")" ]]; then
+  log "ERROR: unknown source: $ONLY_SOURCE"; exit 1
+fi
+
 log "▸ Validating source registry..."
 validate_selected_source_registry
-log "▸ Validating source icons..."
-validate_selected_source_icons
+
 
 build_source() {
   local name="$1"
@@ -336,18 +400,8 @@ build_source() {
     pkg_url="sources/${name}/${pkg_filename}"
   fi
 
-  # Hash the final importable archive, independently of its WASM payload hash.
-  local package_sha256
-  if command -v sha256sum >/dev/null 2>&1; then
-    package_sha256=$(sha256sum "$koma_file" | cut -d ' ' -f 1)
-  else
-    package_sha256=$(shasum -a 256 "$koma_file" | cut -d ' ' -f 1)
-  fi
-  if [[ ! "$package_sha256" =~ ^[0-9a-f]{64}$ ]]; then
-    log "ERROR: cannot compute package SHA-256 for $name"
-    return 1
-  fi
-
+  # A digest is optional in Koma's index contract. No hashes are generated in
+  # this distribution path; byte-length/ZIP/image/metadata validation remain.
   # Output index entry JSON to stdout (only line on stdout)
   jq -n \
     --arg id "$src_id" \
@@ -359,11 +413,10 @@ build_source() {
     --arg description "$src_desc" \
     --arg contentRating "$src_content_rating" \
     --arg pkg "$pkg_url" \
-    --arg sha256 "$package_sha256" \
     --arg icon "$icon_path" \
     --arg minAppVersion "$min_app_version" \
     --argjson localizedMetadata "$localized_metadata" \
-    '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, pkg: $pkg, sha256: $sha256, icon: $icon, minAppVersion: $minAppVersion} + $localizedMetadata'
+    '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, pkg: $pkg, icon: $icon, minAppVersion: $minAppVersion} + $localizedMetadata'
 }
 
 validate_index_packages() {
@@ -456,15 +509,16 @@ if [[ -n "$RUNNER_FROM_ENV" ]]; then
   fi
 else
   log "▸ Building dev runner..."
-  cargo build --release -p koma-source-dev 2>&1 | tail -1 >&2
+  cargo build --locked --release -p koma-source-dev >&2
 fi
 
-log "▸ Building selected WASM sources..."
+if [[ "$PACKAGE_ONLY" != 1 ]]; then
+log "▸ Building all selected WASM sources..."
 # Preserve current Kuaikan and all ordinary source build profiles.
 # Only CManhua retains its original source-specific 256 KiB stack budget.
 ordinary_crates=()
 large_stack_crates=()
-for name in $(selected_source_names); do
+for name in $(compiled_source_names); do
   dir="$(source_crate_dir "$name")"
   crate=$(grep '^name' "$SOURCES_DIR/$dir/Cargo.toml" | head -1 | sed 's/.*= *"\(.*\)"/\1/')
   if [[ "$name" == "cmanhua" ]]; then
@@ -475,28 +529,32 @@ for name in $(selected_source_names); do
 done
 if [[ "${#ordinary_crates[@]}" -gt 0 ]]; then
   CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS="${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS:+$CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS }-C target-feature=-reference-types -C link-arg=--strip-all" \
-  cargo build --release --target wasm32-unknown-unknown "${ordinary_crates[@]}" 2>&1 | tail -1 >&2
+  cargo build --locked --release --target wasm32-unknown-unknown "${ordinary_crates[@]}" >&2
 fi
 if [[ "${#large_stack_crates[@]}" -gt 0 ]]; then
   for crate in "${large_stack_crates[@]}"; do
   CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS="${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS:+$CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS }-C target-feature=-reference-types -C link-arg=--strip-all" \
-  cargo rustc --release --target wasm32-unknown-unknown -p "$crate" -- \
-    -C link-arg=-z -C link-arg=stack-size=262144 2>&1 | tail -1 >&2
+  cargo rustc --locked --release --target wasm32-unknown-unknown -p "$crate" -- \
+    -C link-arg=-z -C link-arg=stack-size=262144 >&2
   done
 fi
 
-rm -rf "$OUTPUT_DIR"
+fi
+if [[ "$COMPILE_ONLY" == 1 ]]; then exit 0; fi
+
+log "▸ Validating package identity assets..."
+validate_selected_source_icons
 mkdir -p "$OUTPUT_DIR/sources"
 
 INDEX_ENTRIES=()
 
-for name in $(source_names | sort); do
-  if [[ -n "$ONLY_SOURCE" && "$name" != "$ONLY_SOURCE" ]]; then
-    continue
-  fi
+for name in $(selected_source_names | sort); do
   json=$(build_source "$name")
   INDEX_ENTRIES+=("$json")
 done
+
+# The complete production catalogue is also published for discovery/auditing.
+printf '%s\n' "${INDEX_ENTRIES[@]}" | jq -s 'map(. + {available: true})' > "$OUTPUT_DIR/catalogue.json"
 
 # Generate index.json
 log ""
@@ -505,8 +563,7 @@ printf '%s\n' "${INDEX_ENTRIES[@]}" | jq -s '.' > "$OUTPUT_DIR/index.json"
 count=$(jq 'length' "$OUTPUT_DIR/index.json")
 log "  ✓ index.json ($count sources)"
 
-# Clean up pkg staging
-rm -rf "$OUTPUT_DIR/pkg"
+# Staging is retained; never remove unrelated existing distribution artifacts.
 
 validate_index_packages
 validate_index_icons

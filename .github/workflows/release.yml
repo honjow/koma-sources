@@ -53,6 +53,7 @@ jobs:
           tag_name: ${{ steps.tag.outputs.tag }}
           files: |
             dist/index.json
+            dist/catalogue.json
             dist/release-packages/*.koma
             dist/release-packages/*-delivery.zip
             dist/release-icons/*

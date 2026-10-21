@@ -2,7 +2,7 @@ name: Deploy Docs
 
 on:
   push:
-    branches: [main]
+    branches: [master]
     paths:
       - 'sdk/**'
       - 'docs/**'
@@ -23,7 +23,7 @@ jobs:
 
       - name: Build docs
         run: |
-          cargo doc --no-deps -p koma-source-sdk --target wasm32-unknown-unknown
+          cargo doc --no-deps -p koma_source_sdk --target wasm32-unknown-unknown
           # Add redirect from root to sdk docs
           echo '<meta http-equiv="refresh" content="0;url=koma_source_sdk/index.html">' > target/wasm32-unknown-unknown/doc/index.html
 

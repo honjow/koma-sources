@@ -17,3 +17,7 @@ R1曾新增自定1024/ASCII限制，审查后R2移除；R1完整源码/包/回�
 0.1.2仅修章节目录完整性：后页HTTP/结构失败整体返回错误；空页仅在原数值isEnd=1时为终态，未终态空页明确错误；保留100页预算，耗尽未终结返回未完成错误。请求、条目解析及资源预算不改。所有新增验证为受控生产WASM输入，不代表真实站点可用或当前原站分页兼容。原R2中POST覆盖表述曾有误；独立POST纠证已确认原GET空body才进入POST，旧误报材料保留。
 
 未部署0.1.2搜索错误修订：仅非空搜索首次GET的FetchError立即按原分类返回，不再因该错误请求备用POST。成功响应、200空正文旧分支与其未知上游合同保持；受控Host验证不代表站点可用，遇真实挑战不执行备用端点。独立树保留原SDK和所有旧冻结物，无新网络或Native部署。
+
+## 2026-10-22 temporary wordmark for distribution
+
+Version 0.1.3 adds the user-approved temporary `Happy` wordmark: ordinary Arial Bold text, Koma green `#256E5D`, transparent 512×512 PNG. This is a temporary source-name label, not an official logo; no plate, shadow, mask or borrowed brand. Only the source-info/Cargo version and asset change; requests, identity and provider behavior stay unchanged. Earlier missing-icon statements describe the historical checkpoint. No new website/content acceptance.

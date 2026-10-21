@@ -18,3 +18,7 @@ The original implementation and its dated stage notes above are preserved. This 
 ## 2026-10-21 official identity follow-up
 
 The canonical public homepage `https://xcomic.me/` was requested once through the available web reader and returned `403 Forbidden`. This request yielded no successful parent HTML or official image declaration. No retry, alternate client/domain, challenge handling or artwork substitution followed. The missing official resource remains OPEN; this homepage result does not classify the independent GraphQL endpoint, the Traditional source, or any reading path as failed. No source code, asset, version or package changed.
+
+## 2026-10-22 distribution asset restoration
+
+The current `icon.png` restores the unchanged original from the installed device197 package, received as `xcomic-zh-installed197-icon.png`. This restores the required package asset for remote installation/update; it does not claim a new official high-resolution resource, resolved icon quality, or new provider/content acceptance. Existing plate/shadow/small-slot limitations remain OPEN. No image processing, source identity, request, chapter or App presentation changes. Prior business-only/missing-file statements above describe the earlier recovery checkpoint; the original source documents and notices are retained.

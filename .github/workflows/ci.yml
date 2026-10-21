@@ -1,22 +1,30 @@
-name: CI
+name: Build and publish source library
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
-    branches: [main]
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: sources-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
-
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
-
       - name: Cache cargo
         uses: actions/cache@v4
         with:
@@ -24,37 +32,48 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
-
+          key: ${{ runner.os }}-sources-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-sources-
       - name: Install package tools
-        run: sudo apt-get install -y jq zip python3-pil
-
-      - name: Test source icon production contract
-        run: python3 scripts/test-source-icon-contract.py
-
-      - name: Build dev runner
-        run: cargo build --release -p koma-source-dev
-
-      - name: Build all sources
+        run: sudo apt-get update && sudo apt-get install -y jq zip python3-pil
+      - name: Check complete workspace coverage
+        run: bash build.sh --check-registry
+      - name: Compile all production sources and teaching demo
+        run: bash build.sh --compile-only
+      - name: Check every compiled source metadata (offline)
         run: |
-          for dir in sources/*/; do
-            name=$(basename "$dir")
-            [ -f "$dir/Cargo.toml" ] || continue
-            crate=$(sed -n 's/^name *= *"\([^"]*\)"/\1/p' "${dir}Cargo.toml" | head -1)
-            echo "::group::Build $crate"
-            cargo build --release --target wasm32-unknown-unknown -p "$crate" 2>&1
-            echo "::endgroup::"
+          set -euo pipefail
+          for wasm in target/wasm32-unknown-unknown/release/koma_*_source.wasm; do
+            target/release/koma-source-dev info "$wasm" | jq -e '.data.sourceInfo | (.id | length > 0) and (.version | length > 0)'
           done
-
-      - name: Test example-demo (full chain)
+      - name: Package source library without provider requests
+        run: bash build.sh --package-only --tag "sources-${GITHUB_SHA}"
+      - name: Publication coverage
         run: |
-          DEV=target/release/koma-source-dev
-          WASM=target/wasm32-unknown-unknown/release/koma_example_demo_source.wasm
-          echo "=== Source Info ==="
-          $DEV info "$WASM" 2>/dev/null | head -5
-          echo "=== Full Chain Test ==="
-          $DEV test-all "$WASM"
-
-      - name: Package all sources
-        run: bash build.sh
+          jq -r '"Installable: \([.[] | select(.available)] | length)\nPending identity asset: \([.[] | select(.available == false)] | length)", (.[] | select(.available == false) | "- \(.name) (\(.id)): \(.reason)")' dist/catalogue.json >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source-library-${{ github.sha }}
+          path: |
+            dist/index.json
+            dist/catalogue.json
+            dist/release-packages/*
+            dist/release-icons/*
+          if-no-files-found: error
+      - name: Publish complete release atomically
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: sources-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft' > /tmp/source-release-state; then
+            if [[ "$(cat /tmp/source-release-state)" != true ]]; then
+              echo "This revision is already published; keeping its assets unchanged."
+              exit 0
+            fi
+          else
+            gh release create "$RELEASE_TAG" --draft --target "$GITHUB_SHA" --title "Source library ${GITHUB_SHA:0:8}" --notes "Automatic source library. index.json lists installable packages; catalogue.json records every production source and any missing identity asset. Build success does not certify all provider content."
+          fi
+          gh release upload "$RELEASE_TAG" dist/index.json dist/catalogue.json dist/release-packages/* dist/release-icons/* --clobber
+          gh release edit "$RELEASE_TAG" --draft=false --latest

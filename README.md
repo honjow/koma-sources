@@ -1,8 +1,35 @@
-# Koma Sources
+# Koma 书源库
 
-Source repository for [Koma](https://github.com/honjow/Koma) manga reader.
+为 [Koma 阅读器](https://github.com/honjow/Koma) 提供可独立安装、更新的书源。Koma 不内置书源；请自行添加信任的索引。
 
-## Quick Start
+## 在 Koma 中添加和更新
+
+1. 打开 Koma 的“源包管理”，进入“源索引”，添加下面的持续更新地址。
+2. 加载索引，选择需要的书源并安装。已安装源有新版本时，可在同一索引中更新。
+3. 也可在[最新源库发行版](https://github.com/honjow/koma-sources/releases/latest)下载单个 `.koma`，通过本地文件选择器导入。
+
+```text
+https://github.com/honjow/koma-sources/releases/latest/download/index.json
+```
+
+每次 `master` 更新，GitHub Actions 编译全部生产书源。包、图标和索引上传齐全后，才将这一版公开为最新发行版；构建失败不会替换原可用版本。包地址和图标地址与索引处于同一发行目录。历史发行版保留，可从[发行记录](https://github.com/honjow/koma-sources/releases)选择原版本。
+
+## 当前覆盖与使用边界
+
+- 85 个生产书源全部纳入自动编译；教学用 `example-demo` 单独编译检查，不进入安装索引。
+- [安装索引](https://github.com/honjow/koma-sources/releases/latest/download/index.json)仅列出符合打包合同的源；[完整源目录](https://github.com/honjow/koma-sources/releases/latest/download/catalogue.json)同时列出所有生产源及尚不能发布的具体原因。
+- 85 个生产源均提供必需图标并进入安装索引。IKMMH、HentaiHand、Happy、92 漫画采用用户批准的临时名称字标 `IKM / HH / Happy / 92`：普通粗体、Koma 绿色、透明512px，无底板/阴影/遮罩，不称官方Logo；九儿（92）的资产说明在本条保留。喵趣、HComic、MyComic、XComic 简中和漫画1234 原样补回现存图标；其图标清晰度/外底板问题仍待后续处理。
+- 编译和安装成功不表示站点所有功能均可用。部分源会受站点限制、登录要求或上游变更影响；成人内容源保留分级，具体已验证范围见[各源目录](sources)中的说明。
+
+问题请提交到[源库 Issues](https://github.com/honjow/koma-sources/issues)，附源名、版本、普通操作步骤和错误提示。不要提供账号、Cookie 或令牌。
+
+## 开发
+
+以下为构建、扩展接口和保留的历史实现记录。
+
+
+
+### 本地构建
 
 ```bash
 # Build all sources
@@ -102,7 +129,9 @@ validation decodes the asset before compilation and checks the packaged copy and
 index resource. Missing, empty, unreadable, duplicate or mismatched icons stop
 packaging; no placeholder is generated.
 
-Use a suitable real official identity asset. Do not leave added backing plates,
+Prefer a suitable real official identity asset. Explicitly approved temporary
+source-name wordmarks must be labelled as temporary, never official logos.
+Do not leave added backing plates,
 external masks or shadows in the artwork. Secondary processing is allowed to
 remove those defects while preserving the real identity; keep provenance and
 before/after evidence. Prefer a suitable official original over an unsuitable
@@ -112,8 +141,9 @@ or invalidate old backups automatically.
 
 ## Release
 
-Push a tag `v*` to trigger CI → builds all sources → creates a GitHub Release with:
-- `index.json` — source index with download URLs
+Push to `master` to run the complete build and atomically publish a revision release as latest. A `v*` tag or manual release can also publish a named version with:
+- `index.json` — installable source index with same-directory download URLs
+- `catalogue.json` — every production source, including explicit distribution blockers
 - `*.koma` — packaged sources
 
 Manual: `./build.sh --tag v0.2.0`
@@ -163,12 +193,10 @@ to the actual published asset with the same extension and bytes as the package
 root image. `manifest.icon` records only that root filename (for example
 `icon.gif`); the index reference is relative to its own distribution directory.
 
-Generated index entries include `sha256`, the lowercase SHA-256 digest of the
-final `.koma` archive downloaded from `pkg`. Koma can compare downloaded archive
-bytes with that digest before installation. This package checksum is distinct
-from the installed WASM payload hash and from a signature: it detects a mismatch
-against the index, and does not authenticate the source publisher or establish
-trust in an unsigned index.
+This distribution does not generate package digests. Koma's existing index
+contract accepts an omitted `sha256`; indices that do provide a digest still use
+the App's existing verification path. Package metadata, ZIP entries, required
+identity assets, release paths and minimum App versions remain validated.
 
 ### Localized source display names
 
@@ -193,7 +221,9 @@ ratings, capabilities or language. SDK `SourceInfo`, `get_source_info` and WASM
 behavior remain separate. The schema's string limit counts Unicode code points;
 the production helper also checks the exact UTF-16 length limit.
 
-## Current Sources (20)
+## 保留的历史实现记录
+
+本表是早期实现记录，数量与“Full”仅描述当时实现，不代表当前全部生产源或完整站点验收。当前覆盖以完整源目录为准。
 
 | Source | Type | Status | Notes |
 |--------|------|--------|-------|

@@ -5,3 +5,7 @@
 依据：/private/tmp/koma-shared-sdk-mh1234-webtoon-20261016/ROOT_REVIEW.json（75绑定、200/503受控Host）及/private/tmp/koma-mh1234012-native237-20261016/root-review.json（115绑定、21热门/554目录/538首图1of11有限Native）。不称全源或完整11图/下载/cold通过。
 
 本次只恢复业务源码及对应元数据；原主仓尚无本地 icon.*，没有引入旧96×96底板图、官网1254²棋盘纹素材或已拒生成清理稿。旧候选中“保留已安装图标”的说明不适用于本次恢复；原始候选仍保留在原处。图标质量及标准打包交付保持 OPEN，不以旧有限 Native 功能记录代替图标接受或当前设备验收。
+
+## 2026-10-22 distribution asset restoration
+
+The current `icon.png` restores the unchanged original from the installed device197 package, received as `mh1234-installed197-icon.png`. This restores the required package asset for remote installation/update; it does not claim a new official high-resolution resource, resolved icon quality, or new provider/content acceptance. Existing plate/shadow/small-slot limitations remain OPEN. No image processing, source identity, request, chapter or App presentation changes. Prior business-only/missing-file statements above describe the earlier recovery checkpoint; the original source documents and notices are retained.
