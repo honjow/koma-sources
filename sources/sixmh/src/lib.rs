@@ -531,6 +531,29 @@ fn error(op: &str, e: &str) -> u32 {
         _ => "source_error",
     };
     diagnostic_error(op, code);
+    if op == "get_chapters" {
+        // Only fixed source literals become tokens; never log the raw message.
+        let reason = match e {
+            "HTML selection failed" => b"selection_failed".as_slice(),
+            "too many HTML nodes" => b"node_capacity",
+            "chapter structure missing" => b"chapter_structure_missing",
+            "required HTML node missing" => b"chapter_child_missing",
+            "HTML attribute overflow" => b"href_read_failed",
+            "HTML attribute may be truncated" => b"href_capacity",
+            "invalid canonical path" => b"chapter_path_invalid",
+            "public comic unavailable" => b"public_comic_unavailable",
+            "HTML text overflow" => b"title_read_failed",
+            "HTML text may be truncated" => b"title_capacity",
+            "chapter title missing" => b"chapter_title_missing",
+            "payload overflow" => b"payload_capacity",
+            _ => b"other",
+        };
+        let mut b = [0; 96];
+        let mut n = 0;
+        let _ = write_bytes(&mut b, &mut n, b"sixmh chapters failure=");
+        let _ = write_bytes(&mut b, &mut n, reason);
+        host::log_info(&b[..n]);
+    }
     write_error(op, code, message)
 }
 fn execute(op: &str, result: Result<usize, &'static str>) -> u32 {
