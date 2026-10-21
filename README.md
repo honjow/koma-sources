@@ -199,7 +199,7 @@ the production helper also checks the exact UTF-16 length limit.
 |--------|------|--------|-------|
 | guazimanhua | HTML | Retained | Current source 0.1.2; finite named evidence only; see source implementation and retained provenance |
 | kuaikan | HTML/JSON | Retained | Current source 0.1.4; public free content only; locked chapters refused; see source implementation and retained contract |
-| cmanhua | HTML | Retained | Current source 0.1.2; existing identity asset kept; site/body acceptance limited to recorded paths |
+| cmanhua | HTML | Retained | 0.1.3 webpage-link candidate (original runtime0.1.2/Cargo0.1.0 baseline); existing doupocangqiong detail HTTP200 and canonical match; actual WASM non-links fields/request equal; original icon/256KiB stack retained; no new package/Native. Evidence: Koma `.hvigor/outputs/user-flow-audit/cmanhua013-link-compare-offline.json` |
 | example-demo | JSON API | ✅ Demo | Minimal working example for learning |
 | baozimh | HTML | ✅ Full | 包子漫画 |
 | mangadex | JSON API | ✅ Full | MangaDex |

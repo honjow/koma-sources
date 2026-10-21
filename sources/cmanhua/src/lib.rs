@@ -12,7 +12,7 @@ const BASE: &[u8] = b"https://cmanhua.com";
 const INFO: SourceInfo = SourceInfo {
     id: "com.cmanhua.koma",
     name: "CManhua",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -479,8 +479,10 @@ fn run_get_manga(req: &[u8]) -> u32 {
         && write_bytes(
             b,
             &mut n,
-            br#", "status":"unknown","contentRating":"nsfw"}}"#,
-        );
+            br#", "status":"unknown","contentRating":"nsfw","links":[{"kind":"source","url":"#,
+        )
+        && url_for_manga(s).map(|u| qurl(b, &mut n, u)).unwrap_or(false)
+        && write_bytes(b, &mut n, br#"}]}}"#);
     if !ok {
         return error("get_manga", "payload overflow");
     }
