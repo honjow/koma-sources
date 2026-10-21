@@ -27,3 +27,13 @@ Search 用原客户端两个分支：official 然后 all，span30。保留原顺
 ## R2 转义键反例修正
 
 旧 R1 生产 WASM 对同一 data 对象 `id` 和 `\u0069d` 不同原 bytes 的同义键未拒绝，已保留实际 accepted 反例，不能称其重复键门控完整。R2 仅在对象键完成结构扫描后拒绝任何含 JSON 转义的 key；已知原 schema 的键均为非转义字面键，未知转义 key 失败关闭。正常字符串值的 Unicode/换行/引号转义未变。仅复验同一 synthetic 反例和原真实首章 image owner；零新增远程请求/正文实体，不以此声称 Native。旧 R1 树、包、605绑定材料均保持原样。
+
+## 237 当前 0.1.0 具名原生观察（2026-10-21）
+
+现装源经普通 Browse 列表进入《今天的平安京也很和平》，详情及目录显示 37/37 章；普通打开《内卷的平安京》，亲看真实彩色多格正文 1/6 与 2/6。它实际是六页长条漫画，不能写作单张四格 1/1。当前单页适高显示为窄栏，取得正文不代表该模式阅读体验或整章视觉通过。
+
+后续顺序翻页命令曾推进至第六页，但未逐页做视觉验收；自然 Back 回目录，该章显示已读。自然保存的 reader 记录绑定原 MID `5dafb0b0a14fb93e15d3de51`、CID `60e7b40fcc26f015d1de4766`、章号 37，pageIndex=5 / totalPages=6 / completed=true；此记录不能替代未审各页的可见内容。没有直接编辑持久状态、收藏或下载，也没有改变阅读偏好。
+
+原 Browse 末端已亲看恢复，50 项源 registry 与进入前完整相同（包括 ID、enabled 和顺序），原 OverrideTimeout=10000ms / AWAKE 已读回。原件在 Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/` 的 `onmyoji010-peace-{detail,chapters,involution}237-001`、`onmyoji010-peace-involution-page2-237-001`、`onmyoji010-natural-return237-001` 与 `onmyoji010-session-restored237-002`。只接受具名章首两页及自然返回，不扩大到全部六页、其他作品、下载、冷启动或整源通过。
+
+Root 已亲审本条首两页原图及精确记录；结论仅限上述具名路径，原未闭边界保持。

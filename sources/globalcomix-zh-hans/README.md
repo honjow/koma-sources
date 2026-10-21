@@ -17,3 +17,15 @@
 ## 素材
 
 当前根icon.ico来自官网HTML明确shortcut icon声明，原字节未转码/裁剪/重画。旧96PNG带黑色圆角板，保存在历史owner/010/011旧包，未删除历史证据，不沿用到本候选。官网触屏180PNG仍深实底，不选。来源、HTTP截断边界、SHA与图形身份见ASSET_SOURCES.md。当前小槽适用性仍Native待验；App显示圆角是独立层，本候选不改显示裁剪。
+
+## 237 现装 0.1.1 具名在线观察（2026-10-21）
+
+237 VDE-AL00展开竖屏1320×2120，普通Browse现装行0.1.1，热门19本。原《侯門少爺寵上天》一章/两页已下载，继续阅读仍第2/2页；本次未打开或删除该下载，不能用它关闭旧onlineP2超时边界。
+
+改取列表中《泰坦的餘燼》，普通详情显示Kwame Kosi、1/1章/38页、未下载，源按现有免费release合同允许打开。亲看1/38真实封面及2/38繁中文对话正文；第二图本身是封面与正文的横向构图，在原单页模式中按比例显示，未改偏好或样式。自然Back后新记录绑定comicId=`gc:41899:the-last-vestige-of-titan`、release=`gcr:41899:365554:1f6e566b-48f8-4231-b85b-4176d8f26131`、pageId=`gcp:41899:365554:12806057`、pageIndex=1、totalPages=38、completed=false（comicId在App记录有本源ID前缀）。未下载、收藏、登录、付费或直接编辑持久记录。
+
+原Browse末端完整画面已亲看，50项registry与进入前完整相同，原OverrideTimeout=10000ms/AWAKE读回，原237租约已正常release。只接受现装版本上述具名公开在线首两图与自然返回；未核安装包字节身份，不扩大为当前源码WASM、全38页、下载、cold、其他作品或整源通过。原侯门在线P2问题仍未复验。
+
+原件在Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/` 的`globalcomix011-{browse237-001,popular237-001,houmen-chapters237-001,titan-chapters237-001,titan-first237-001,titan-page2-237-001,titan-natural-return237-001,titan-session-restored237-001}`。回执与原图保留，artifact哈希关闭。
+
+Root 已亲审本条首两页原图及精确记录；结论仅限上述具名路径，原未闭边界保持。
