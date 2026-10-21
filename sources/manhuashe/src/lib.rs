@@ -7,7 +7,7 @@ use koma_source_sdk::{
     source::{SourceCapabilities, SourceInfo},
 };
 const BASE: &[u8] = b"https://www.311s.com";
-const SOURCE_INFO: SourceInfo = SourceInfo { id:"com.manhuashe.koma", name:"漫画社 (Manhuashe)", version:"0.1.3", api_version:"0.2",language:"zh",author:"Koma",description:"Manhuashe public HTML adapter. Upstream MIXED maps conservatively to nsfw; individual works unclassified.",content_rating:"nsfw" };
+const SOURCE_INFO: SourceInfo = SourceInfo { id:"com.manhuashe.koma", name:"漫画社 (Manhuashe)", version:"0.1.4", api_version:"0.2",language:"zh",author:"Koma",description:"Manhuashe public HTML adapter. Upstream MIXED maps conservatively to nsfw; individual works unclassified.",content_rating:"nsfw" };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -854,7 +854,10 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
         &mut n,
         root.select(b"div.comic-description > p")?.text(&mut text)?,
     )?;
-    bytes(b, &mut n, b"}}")?;
+    bytes(b, &mut n, br#","links":[{"kind":"source","url":""#)?;
+    bytes(b, &mut n, BASE)?;
+    bytes(b, &mut n, mp)?;
+    bytes(b, &mut n, br#""}]}}"#)?;
     Ok(n)
 }
 fn chapters(r: &[u8]) -> Result<usize, &'static str> {

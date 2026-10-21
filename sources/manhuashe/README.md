@@ -25,3 +25,17 @@ Official 150×50 JPEG horizontal logo is source-owned artwork, not code licensed
 原件沿 Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/` 的 `manhuashe012-popular-terminal237-001`、`manhuashe012-yirenzhixia-chapters237-001`、`manhuashe012-yirenzhixia766-{first-ready237-001,page2-237-001,natural-return237-001,session-restored237-001}`。最初定位回执误名为manhuashe013-browse237-001，实际界面明确012，保留原名且不据此升级版本。一个日志命令被参数校验阻止，后一次-x/-z组合返回多命令错误，均不算有效日志或产品故障。
 
 Root 已亲审本条首两页原图及精确记录；结论仅限上述具名路径，原未闭边界保持。
+
+
+## 0.1.4 详情来源网页（2026-10-21）
+
+`get_manga` 的实际 `detail` 输出新增 `kind=source` 链接，复用同一 `fetch(mp)` 请求的 `BASE + mp`，其中mp由原网页href身份经manga_path验证。例如已有237正文成功的《一人之下》对应 https://www.311s.com/comic_13871.html；不从App复合ID猜造网址，不填站首页。原244d63b业务及5965937的013图标交付保持，版本013→014只供普通更新；请求、身份、章节、正文、图标和App不动。
+
+按现源Firefox121/Referer/Origin合同对该准确作品页单次Host读取200/175915B，未请求已403首页或处理挑战。原件在Koma `.hvigor/outputs/user-flow-audit/manhuashe014-detail-fixture.html` 与 `manhuashe014-detail-fixture-receipt.json`。013基线WASM逐字节等原正式013包。013/014实际WASM在同一真实HTML上离线详情均成功，除新增links外全部manga字段深比较相同、唯一HTTP请求合同深比较相同；输出为同目录manhuashe013-link-baseline-offline.json和manhuashe014-link-offline.json。离线适配器仅用禁网惰性Chromium DOM查询，不代表生产Lexbor/scraper或Native等价。单源offline/locked构建及真实WASM info014通过，正式dist/sources/manhuashe/manhuashe-0.1.4.koma三成员读回，原013 manifest核心字段保持，补入旧013包漏打的本源既有localizedNames（zh-Hans漫画社、zh-Hant漫畫社），icon.jpg原bytes保持；未运行会清空dist的全量脚本。普通实机结果见下，仅限具名路径，不由Host或离线输出替代。
+
+
+237 VDE-AL00（展开竖屏1320×2120），现装Root指定16289728B/22:29:30 Debug，普通本地选择器012→014更新后重导已补既有中文名的29732B包；服务54包、Browse54已启用可见。当前行实际仍显示“漫画社 (Manhuashe)”v0.1.4，不把manifest含中文名冒运行名称已切换，未改App/源名。《一人之下》两网页菜单可见；仅执行WebView，等待加载完成后显示真实封面、标题、评分9.9与人气171740。自然Back回详情800/800章，原“766反杀・第2/17页”保持，再返回源列表/Browse。未开正文/外部浏览器、未刷新/登录或遇站点拒绝，不扩全源接受；原图标小槽问题仍OPEN。最终10000ms/AWAKE、本人唯一传包不存在均读回，租约释放。
+
+原图在Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/manhuashe014-webview237-004/` 的 `{browse014,both-web-actions,webview-workpage,detail-returned,browse-restored}.png`；最终恢复回执为 `manhuashe014-webview-postflight237-004/run-metadata.json`。`detail-before.png`仍在加载，不作终态；服务54包原图在 `manhuashe014-webview237-002/services54.png`，54启用原布局在 `manhuashe014-webview-postflight237-003/layout.json`。
+
+同版本metadata局部刷新边界：上述重导后旧Browse行仍为raw名称；随后237不清数据冷启（PID8283→stop后空→37211）后，Browse实际恢复“漫画社”v0.1.4，54个已启用保持。仅检查列表，未进入源页或请求站点；这不改变前述网页通过结论，也不证明同进程同版本行会立即刷新。原图/回执沿同一category-membership分区的`manhuashe014-name-cold237-001/{enabled54.png,run-metadata.json}`、`manhuashe014-name-cold237-003/browse-name.png`和`manhuashe014-name-cold-postflight237-003/run-metadata.json`。最终10000ms/AWAKE并释放租约；自动化的不存在scroll调用与重复浏览文本断言失败原件保留，不计产品故障。
