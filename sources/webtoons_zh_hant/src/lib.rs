@@ -11,7 +11,7 @@ const MOBILE: &[u8] = b"https://m.webtoons.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.webtoons.zh-hant.koma",
     name: "WEBTOON (Traditional Chinese)",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma source contributors",
@@ -898,7 +898,9 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
     }
     bytes(b, &mut n, b"],\"cover\":{\"kind\":\"url\",\"url\":")?;
     q(b, &mut n, cover)?;
-    bytes(b, &mut n, b"}}}")?;
+    bytes(b, &mut n, b"},\"links\":[{\"kind\":\"source\",\"url\":")?;
+    q(b, &mut n, manga_url(id, &mut url)?)?;
+    bytes(b, &mut n, b"}]}}")?;
     Ok(n)
 }
 fn integer64(s: &[u8]) -> Result<&[u8], &'static str> {
