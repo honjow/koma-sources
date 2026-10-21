@@ -54,3 +54,10 @@ Root审过分类与版本diff后，仅SixMH Cargo、内嵌SourceInfo及对应loc
 对该热门首个一人之下仅一次普通打开：20:32:53 get_manga/get_chapters均HTTP200，章节准确日志`code=not_found`、`failure=public_comic_unavailable`；实际画面仍为原“详情已加载，但章节加载失败”，阅读/下载灰置。原件`sixmh013-yiren-notfound237-001/{screen.png,run-metadata.json}`。这验证了空目录准确状态分支的真实Native分类，不表示下架内容恢复；未重试、未另开第二个下架ID、未触已403首页或/255429、未改UA/TLS/请求合同。
 
 最后普通Back回原热门列表，再回Browse末端；两处仅本轮013上传路径已删除且读回不存在，10000ms/AWAKE读回、9acb0ad0租约已释放，哈希关闭，原件`sixmh013-session-restored237-001`。首次上传位置未出现在picker，按原回执改用公共Docs/Download后才导入；恢复manifest首轮因不支持allowFailure字段在动作前校验失败，删除该字段后同协议完成，未重导或重复正文。没有私有状态导出、App/样式变更或提交推送。
+
+
+## 0.1.4 webpage-link candidate
+
+`get_manga` declares one `kind=source` link using the same BASE + normalized public detail path as its existing GET. The retained HTTP200 latest-list parent explicitly linked `/620554` (罗梅莉娅战记~伯爵千金，打倒魔王之後发现人类处境实在不妙於是组建军队~). One ordinary anonymous GET with the unchanged PC Firefox150 contract returned HTTP200/29294B at `https://www.liumanhua.com/620554`, without redirect, and the matching work title. No canonical/og:url was present; this link is the successful original detail request URL. Requests, identities, chapter parsing, removed-catalogue classification, images, permissions and icon are unchanged.
+
+Actual 0.1.3 and 0.1.4 WASM replayed the same saved work HTML with network blocked: both succeeded, every non-links manga field and the sole HTTP request were deeply equal. Offline locked single-crate release build passed. No package, index, hashes, device work or reading acceptance is produced by this candidate. Prior `/255429` and homepage403 remain stopped; this work is separate from old 鬼灭 and 水行群侠 reading evidence. Evidence under `Koma/.hvigor/outputs/user-flow-audit/`: `sixmh014-latest-parent{.html,-receipt.json}`, `sixmh014-{detail-once.html,detail-once.json,baseline-offline.json,candidate-offline.json,link-compare-offline.json,build.log}` and `sixmh013-baseline.wasm`.

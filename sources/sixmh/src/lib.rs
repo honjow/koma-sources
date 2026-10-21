@@ -8,7 +8,7 @@ const BASE: &[u8] = b"https://www.liumanhua.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.sixmh.koma",
     name: "六漫画",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -776,7 +776,10 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
     } else {
         q(b, &mut n, b"")?
     }
-    bytes(b, &mut n, b"}}")?;
+    let mut page_url = [0; 8192];
+    bytes(b, &mut n, b",\"links\":[{\"kind\":\"source\",\"url\":")?;
+    q(b, &mut n, absolute(id, &mut page_url)?)?;
+    bytes(b, &mut n, b"}]}}")?;
     Ok(n)
 }
 fn chapters(r: &[u8]) -> Result<usize, &'static str> {
