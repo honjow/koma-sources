@@ -16,3 +16,15 @@ Current production build: `bash build.sh --source dongmanmanhua` from the canoni
 沿列表进入《如出一辙的女儿》（`titleNo=1954`），详情、11 章目录、既有第 1 话 `get_pages` 均为 HTTP 200 / `operation_ok`。普通进入第 1 话后先见声明页 1/176，再用原翻页操作回到原有第 2/176 页，亲看真实漫画正文。返回详情后，进入前/返回后的该 comic 读档片段逐字节相等：同一 comicId、chapterId（episode_no=1）、pageId=page:1、pageIndex=1、totalPages=176、progressRatio、completed=false、updatedAt 与 columnMode=odd_left 全部保持；没有注入或直接写持久状态。仅接受此具名列表→详情→第 1 话正文→返回路径；未验整章读完、其他章、下载、冷启动或所有图片。
 
 原图与原码沿 Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/` 保留：`dongman014-list-result237-001`、`dongman014-detail-ready237-001`、`dongman014-original-progress237-002`（进入前准确进度）、`dongman014-original-reader237-001` / `dongman014-reader-ready237-001`（get_pages）、`dongman014-original-page2-237-001`（真实正文）、`dongman014-return-original-progress237-001`（返回后准确进度）、`dongman014-session-restored237-001`（恢复）。已普通返回原 Browse 末端，49 源 sourceId/enabled 与 `noy013-manager-open237-001` 完全相等；OverrideTimeout 恢复 10000ms 且读回 AWAKE，原租约已释放。本轮未传包/新增下载，Download 读回无本任务遗留的 Noy 包；197 未操作，哈希关闭。
+
+## 0.1.5 详情来源网页
+
+本次仅为get_manga新增kind=source链接，直接复用同次fetch(path)的BASE+path；原manga:路径身份已验证且保持，章节、请求、正文、图标及App均不改。原11be01d输出links空数组，ecee8ed规范化后省略；这些记录未说明有意禁止网页链接，不编造原理由。用户本轮已授权详情网页入口，允许差异只限该字段、交付版本及文档。
+
+父链复用原1954《如出一辙的女儿》真实作品页https://www.dongmanmanhua.cn/SUSPENSE/ruchuyizhedenver/list?title_no=1954的200/117618B原体；只从已有保全包提取至Koma .hvigor/outputs/user-flow-audit/dongman015-detail-fixture.html，原回执为同名前缀detail-fixture-original-receipt.json，未发新请求。原episodeList别名301独立保留，不冒成200。014旧第1话P2正文仅保留上述具名历史边界；015普通观察见下。
+
+单源offline/locked release构建及真实WASM info015通过。同一1954原HTML分别回放当前源码重编译014、保全原正式014与015实际WASM，除新增links外manga字段、唯一HTTP请求均深比较相等；惰性Chromium DOM禁网适配只证明这些离线输出，不冒生产Host/Native等价。输出为Koma同产物分区`dongman014-{link-baseline,formal-original}-offline.json`及`dongman015-link{,-formal-compare}-offline.json`。正式`dist/sources/dongmanmanhua/dongmanmanhua-0.1.5.koma`为26164B三成员包；manifest仅version变更并完整保留既有metadata.json中文名，icon.png与保全原正式014逐字节相等（3558B），不改变图标素材。普通观察只接受下述具名路径。
+
+237 VDE-AL00展开竖屏1320×2120，Root指定Hvigor签名Debug16289681B/23:30:52普通覆盖安装明确成功，未清数据；系统本地picker014→015普通更新后，服务54包、Browse54启用与咚漫015可见，Browse/Manager原紫色标识均亲看。沿原每日连载首项1954《如出一辙的女儿》进入详情，两网页菜单出现；只打开WebView，加载完成后为准确作品网页，真实banner、YIDAHM、评分9.83、简介及章列表可见，同时保留站点青少年模式说明弹层，未点击其按钮。自然Back仍11/11章及“第1话·第2/176页”，再回原列表/Browse。未打开正文/外部浏览器、未刷新/登录或新增下载；未导出全库，不能声称全书籍逐项校验。只本次传包已清理并读回不存在，最终10000ms/AWAKE，租约释放。
+
+原图/回执沿Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/` 的`dongman015-detail237-001/{manager-icon,browse-icon54,services54,detail-before}.png`、`dongman015-webview237-001/{both-web-actions,webview-workpage,detail-returned,browse-restored}.png`及`dongman015-webview-postflight237-001/run-metadata.json`；普通导入成功原图在`dongman015-import237-001/import-success.png`。导入后脚本误在索引弹层找服务行，已自然返回纠正，未重导；原工具失败保留，不计产品故障。

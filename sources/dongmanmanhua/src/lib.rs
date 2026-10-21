@@ -10,7 +10,7 @@ const BASE: &[u8] = b"https://www.dongmanmanhua.cn";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "cn.dongmanmanhua.koma",
     name: "咚漫 (DongmanManhua)",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh-Hans",
     author: "Koma",
@@ -841,8 +841,11 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
     bytes(
         o,
         &mut n,
-        b"},\"contentRating\":\"unknown\",\"language\":\"zh-Hans\"}}",
+        b"},\"contentRating\":\"unknown\",\"language\":\"zh-Hans\",\"links\":[{\"kind\":\"source\",\"url\":\"",
     )?;
+    bytes(o, &mut n, BASE)?;
+    bytes(o, &mut n, path)?;
+    bytes(o, &mut n, b"\"}]}}")?;
     Ok(n)
 }
 fn explicit(t: &[u8]) -> Option<usize> {
