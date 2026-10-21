@@ -20,3 +20,10 @@ This recovery preserves the original business, identity and metadata with the cu
 ## Current icon provenance baseline
 
 The current official desktop header directly declares the unmodified280×95 PNG now retained as icon.png; ASSET_SOURCES.md records its exact parent and URL. This corrects the earlier source-only omission without changing the0.1.0 provider/version or standard registration. The official mobile mark is also horizontal and the square footer image is a QR code, so neither is misrepresented as a superior standalone icon. Small-slot suitability and current ordinary device delivery remain OPEN; this is not source/content acceptance.
+
+
+## 2026-10-21 原首图失败章节的当前父链条件
+
+沿上方197旧首图失败记录，只对当时曾200的准确公开章节 `https://www.mh160mh.com/kanmanhua/12094/43350001.html` 作一次默认匿名Python urllib.request.urlopen GET（timeout20），实际返回 `HTTPError 403: Forbidden`。没有取得新的章节HTML、reader脚本声明或原图URI，不请求图片，不重试、改UA/客户端/域或处理挑战。本次只限制这条准确章节请求，不判定其他章节、独立首页或整站；旧10页计划/首图404绑定不足及当前服务端拒绝原因仍未知，没有依据修改图片域映射或解析。
+
+现有目录path身份、顺序和旧ID保持，本次没有目录、版本、源业务、App或设备改动。Root本轮交接指出同path不同标题不得盲去重；相关原始调查由Root维护，本次没有独立重核，不把该交接或此403冒成目录因果证据。

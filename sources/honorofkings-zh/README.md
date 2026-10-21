@@ -33,3 +33,12 @@ get_image_request每次fresh Module再次1目录JSON GET：严格sourceId（空�
 生产交付WASM每操作新Module，146次有限离线回放：24metadata、4种代表作品get_chapters、53get_pages实际1047输出逐一对原JSON；仅26正文image_request（李信20、镜两章及两连载首/末关键章各一）和2种category封面，均1callback。其它1021正文image_request归属未实际回放，不写成全1047逐图通过。14owner/URI等负例、2错误源ID、3未支持操作、1错误cursor、9明确synthetic上游故障，0远程HTTP/新正文。70既有export ABI边界/envelope拒绝、40init/20alloc检查，输出绑定交付WASM。actual实体仍只原李信第一页633912B中文普通营地正文，其他1046实体未取。
 
 原84合同、13白logo、42App图标材料保持；阴阳师R1 accepted反例/R2已冻结包保持，未动App/Kit/旧源WIP。交付和复核材料 `/private/tmp/koma-honorofkings-zh-implementation-20261014`。Root独立审核精确diff与真实输出后负责197普通安装/阅读/下载/cold，Native仍OPEN。
+
+
+## 237 现装0.1.0李信短篇首两页（2026-10-21）
+
+沿现装包普通Browse进入，首批显示全部漫画20本，不冒全24项遍历。实际《【李信】吾持剑锋，以筑长城》详情1/1章，普通开始阅读进入 `com.tencent.honorofkings.zh.koma:honorofkings:dp:lixin` / `honorofkingschapter:dp:lixin:0`。亲看1/20页营地图景与“听说”，普通右侧翻页后亲看2/20页完整彩色中文对白：“你自愿从长安来守长城？”“犯了什么过失吗？”“与你们无关。”
+
+自然Back后读回pageId=honorofkingspage:dp:lixin:0:1、pageIndex1、totalPages20、completed=false。只接受上述具名短篇前两页及普通返回/自然进度落盘，不冒全20页、其他作品、全目录、下载、cold或无缓存在线首取。未登录、匿名建号、重试、收藏、改模式或更改源/App/Kit代码。
+
+原件在Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/：hok010-public-list237-001、hok010-lixin-{detail,first,second,natural-return}237-001、hok010-session-restored237-001。恢复回执记录原Browse末端及AWAKE/OverrideTimeout10000ms；52项registry全bytes同，原45条progress/17条sourceHistory/56条chapters各对象保持，仅自然新增李信progress/chapter各一条。d6cf003a已释放，全部设备回执关闭哈希，无清数据或缓存。
