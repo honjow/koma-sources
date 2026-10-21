@@ -27,3 +27,7 @@ The current official desktop header directly declares the unmodified280×95 PNG 
 沿上方197旧首图失败记录，只对当时曾200的准确公开章节 `https://www.mh160mh.com/kanmanhua/12094/43350001.html` 作一次默认匿名Python urllib.request.urlopen GET（timeout20），实际返回 `HTTPError 403: Forbidden`。没有取得新的章节HTML、reader脚本声明或原图URI，不请求图片，不重试、改UA/客户端/域或处理挑战。本次只限制这条准确章节请求，不判定其他章节、独立首页或整站；旧10页计划/首图404绑定不足及当前服务端拒绝原因仍未知，没有依据修改图片域映射或解析。
 
 现有目录path身份、顺序和旧ID保持，本次没有目录、版本、源业务、App或设备改动。Root本轮交接指出同path不同标题不得盲去重；相关原始调查由Root维护，本次没有独立重核，不把该交接或此403冒成目录因果证据。
+
+## 0.1.1 完整主字标图标
+
+Root亲看同站官方280×95原件及小槽浅深对照后接受原像素完整红色“漫画160”主字标：只去下方辅助域名及透明余边，190×51、四周8px透明安全边；不截单字、不重排/重绘/放大或换字体。原图保留official-header-logo-original.png，候选为icon.png。Cargo/Info/lock010→011仅资源版本，源身份/请求/章节与App30vp/R7/排序不动。可辨性改善但横长细笔画仍有限，不称全质量通过。旧403/正文边界保持。2026-10-22设备237普通本地010→011更新完成，管理/Browse完整原图均显示整行红主字标及v011，管理仍启用；58项sourceId/enabled逐项同序。原Browse喵趣组、原10000ms/AWAKE恢复，只清本人传包并核不存在，租约释放。证据：Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/mh160011-icon-awake237-001/{manager-mh160011.png,browse-mh160011.png,browse-original-group.png}`，registry/清理/电源回执在同分区`mh160011-icon-restored237-001`（completed，哈希关闭）。仅接受本次完整主标呈现的有限改善，横长细笔画仍OPEN，不冒正文或全源质量通过。
