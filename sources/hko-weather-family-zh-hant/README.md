@@ -29,3 +29,14 @@ MID `hkofamily:zh-hant:issue:82`、CID `hkofamilyread:zh-hant:issue:82`、PID `h
 獨立runner僅回放這六份原HTTP(status/headers/body)，連結未改App C++ HtmlHost/.h及原1057份Lexbor，保原實際Parse/SelectAll/Attr/Text/Close輸入輸出與每操作零句柄。生產WASM核靜態listing、三頁2+2+2、六詳情／章／頁、40原URI圖片計畫、六個App實際MID封面和省略pageId封面、必要非法身份與6個清楚標記合成畸形body，以及既有只讀ABI範圍gate；合成失敗不當實站/Native通過。ABI採現存已接受源的範圍與operation/args前置保護，未修改SDK。
 
 Host成本：get_listings0，browse每頁2 metadata GET，詳情／章／頁各1，封面／正文plan各1；非法語法／host／owner0，合法同目錄但不在當次DOM的URI須1文章GET才拒絕。沒有每次掃25focus、沒有加快取或改App時限。實際NetworkKit對SDK UA/Referer的可達性、10秒範圍延遲、Native、下載／保存／cold、其他27實體、寬圖標可讀性與未來站點變更均未驗；Root全diff/原合同/實際Host審查後串行197普通驗收。不改App/Kit/共同SDK/主源WIP/舊凍結，不設備、提交、推送或發布。
+
+
+## 237 現裝 0.1.2 第81期首兩頁有限結果（2026-10-21）
+
+本輪只接第81期原檔名帶空格/括號的圖片路徑；沒有重驗第82期已下載的13圖。準備時對原準確 `vol81/comics.html` 一次正常匿名GET返回200/13495B，原頁仍明確聲明 `081 (1).png`、`081 (2).png` 等相對圖URI；不猜檔名或新host。既存正式HKO012產品56216B的WASM與現target逐位元組相同，實際source_info讀回 `com.hko.weatherfamily.zh-hant.koma` / `0.1.2`，沒有計算雜湊。
+
+237 VDE-AL00展開豎屏1320×2120，普通本地選擇器首次導入準確HKO012包，回「導入成功」。Browse現有53項之後新增天氣家族012，GUI讀回54個已啟用，新增源在醫院也瘋狂之後末項；未切換其他源啟用或修改索引。沒有匯出私有狀態，因此不把GUI首末段觀察冒作原53項持久內容逐項相同。
+
+普通精選六期列表→第81期 (2021年4月) →一章→開始閱讀，頁計數11。首批1/11與2/11原圖仍是「圖片解碼中」，保留而不當成功；同回執21:42:32/37才分別記錄page1/page2的display_ready/display_complete。後續沒有點重試，等待當前「圖片解碼中」消失後親看兩個不同完整原圖：1/11為太陽與紫色角色、繁中「美麗嘅清風…天係藍色的」；2/11加入雲角色及繁中「雲是白色的」。正常2→1→2後自然Back，詳情出現「繼續閱讀」。當前詳情未顯示章頁文字，沒有把它冒作第2/11的持久資料讀回。此結果只閉同源012第81期兩頁普通顯示/翻頁與返回；其餘9圖、下載、cold、完整六期及無快取首取不據此通過。同會話早前transport/ReaderImage2300028仍獨立保留，不由後來顯示成功抹去或猜原因。
+
+原件在Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/hko012-import237-001/`：`import-actions.json`、`issue81-reader-actions.json`、`issue81-visible-actions.json`、`return-actions.json`及原圖；成功終態為 `issue81-page1-terminal.png`、`issue81-page2-terminal.png`，初始 `issue81-page1.png`/`issue81-page2.png`仍只記等待畫面。原日誌在旁列 `hko012-issue81-reader-log-restored237-001/run-metadata.json`。最終Browse末端、54啟用畫面及HKO012行已保留，本輪唯一傳入產品包已刪/test不存在；`hko012-session-restored237-001`明確讀回AWAKE/OverrideTimeout10000ms後釋放94a5ac1f。未修改源業務/版本/圖標、App或用其他設備，全部本輪artifact雜湊關閉。
