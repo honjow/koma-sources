@@ -10,7 +10,7 @@ const BASE: &[u8] = b"https://globalcomix.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.globalcomix.zh-hans.koma",
     name: "GlobalComix",
-    version: "0.1.1",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -773,6 +773,15 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
     let mut n = 0;
     bytes(out, &mut n, b"{\"manga\":")?;
     emit_manga(o, Some(selected), out, &mut n)?;
+    let mut source_url = [0; 8192];
+    if let Ok(url) = text(o, b"url", &mut source_url) {
+        if url.strip_prefix(b"https://globalcomix.com/c/") == Some(slug) {
+            n -= 1;
+            bytes(out, &mut n, b",\"links\":[{\"kind\":\"source\",\"url\":")?;
+            q(out, &mut n, url)?;
+            bytes(out, &mut n, b"}]}")?;
+        }
+    }
     bytes(out, &mut n, b"}")?;
     Ok(n)
 }

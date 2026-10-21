@@ -35,3 +35,15 @@ Root 已亲审本条首两页原图及精确记录；结论仅限上述具名路
 接续时先核现存回执，确认原 owner 已完成唯一请求，因此没有重复联网。现存 readV2 原体的 payload.results 为 release177649、comic31985、key a658f6d5-2f9e-42fb-a9c8-d824d4cd1c46，is_free=true、premium_only=0；两页均为 cn、同 comic/release 且 is_page_paid=false。pageIndex1 的 pageId7348860 原公开 JPEG 请求返回200、4944829B、0.872秒；本次亲看原件，确为完整中文长条正文，可正常解码。readV2 本身200、21867B。两请求均无Cookie，15秒有界，无重试或登录。
 
 原件为 Koma/.hvigor/outputs/user-flow-audit/globalcomix011-houmen-current-readv2.json、同名前缀 readv2-receipt.json/page2-receipt.json/page2-original.jpg。只证明当前 Host 的准确原第二页可取；不解释历史未关联URL的超时原因，也不将已下载原章的237离线路径冒在线复验。原 Native onlineP2 边界继续OPEN，源实现/版本/资源与设备数据均未改。
+
+## 0.1.2 详情来源网页
+
+只在get_manga的detail输出消费同次API响应Comic实体声明的原url，且仅在其为https://globalcomix.com/c/加已经校验的同实体slug时新增kind=source链接；缺失/不匹配沿原详情成功输出，不拼网址或猜语言query。原API请求是https://api.globalcomix.com/v1/read/<slug>，不把它当网页。共享列表emit_manga、id/slug/cn语言、章节/免费权限、正文/图片、icon.ico及metadata保持，版本011→012。原6fce37b恢复时已省略网页字段，没有查到刻意排除该字段的理由；本次按用户网页入口授权只补该字段及交付版本/记录。
+
+原31985《侯門少爺寵上天》完整detail-once.json的payload.results.url明确为https://globalcomix.com/c/the-marquis-s-cherished-one，来源为既有保全包；现存2026-10-21 readV2原体内同comic.url再次相同。该地址是原响应网页声明，不是当前网页HTTP成功，也不强加cn或默认页面语言保证。原详情JSON提取到Koma .hvigor/outputs/user-flow-audit/globalcomix012-detail-fixture.json；原响应/headers不完整边界保留，离线200信封为受控重建，未发新请求。旧侯门在线P2超时仍OPEN，泰坦旧正文成功不混作本作或网页通过；012普通具名网页观察见下。
+
+单源offline/locked release构建和真实WASM info012通过。同一侯门原JSON的实际WASM对照包括当前源码重编译011、保全原正式011与012，除新增links外全部manga字段与唯一HTTP请求深相等；缺失url、异域url、同域不同实体url三个受控边界仍与原011完整成功输出/请求相等且不造链接。输出沿Koma同产物分区`globalcomix011-{link-baseline,formal-original}-offline.json`、`globalcomix012-link-offline.json`及`globalcomix012-link-optional-boundaries.json`。这是原JSON/受控信封的离线输出，不单独证明当前公网作品页或Native通过。正式`dist/sources/globalcomix-zh-hans/globalcomix-zh-hans-0.1.2.koma`三成员继承原011完整manifest，仅version变化，localizedNames与metadata.json相等、icon.ico与原正式011逐字节相同；不改变图标。
+
+237 VDE-AL00展开竖屏1320×2120，复用现装Debug16289681B/23:30:52，经系统picker011→012普通更新明确成功，服务54包与最终Browse54启用保持。普通热门仍19本，沿首项同一31985《侯門少爺寵上天》进入详情，1/1章、Episode1第2/2页及已下载保持。两网页菜单可见；只打开WebView，加载完成后为原响应声明的作品页，真实英文题名The Marquis’s Cherished One、同封面、Azuki Studio、状态/分类/简介可见；默认网页为英文，未追加语言query或保证中文网页。未遇拒绝/挑战、未刷新/登录。自然Back仍1/1章、Episode1第2/2页和已下载，再回列表/Browse；未打开正文、外部浏览器或下载，原侯门onlineP2超时仍OPEN，不能由网页或下载标记关闭。未操作泰坦作品，未导出全库，不扩为全部历史读态逐项校验。仅本人传包已清理并读回不存在，最终10000ms/AWAKE并释放租约。
+
+原图/回执沿Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/` 的`globalcomix012-import-detail237-001/{import-success,services54,browse012,source-list,detail-before}.png`、`globalcomix012-webview237-002/{both-web-actions,webview-workpage,detail-returned,browse-restored54}.png`及`globalcomix012-webview-postflight237-002/run-metadata.json`。
