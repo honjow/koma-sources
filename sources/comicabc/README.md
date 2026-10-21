@@ -16,6 +16,8 @@
 
 原件均沿Koma既有 `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/`：`comicabc010-ch01reader30513237-003`（下载正文原图/日志）、`comicabc010-ch05online30513237-003`（缓存首图/日志）、`comicabc010-ch04online30513237-003`（在线get_pages日志/真实首图）、`comicabc010-progress-restored30513237-003`（恢复5話1/24原图）、`comicabc010-sourceversion237-003`（当前版本回执）、`comicabc010-session-restored237-003`（返回原搜索/超时恢复）。所有回执 `artifactHashesEnabled=false`。本次无业务、版本、图标或App样式改动，未构建、未重新打包。
 
+2026-10-21后继具名补验：237现装仍为0.1.10（由完整registry读回）。普通同作品30513第4話翻到2/27，Root亲看完整繁中黑白正文；随后原执行者普通回第4話第一页、改回原第5話1/24并自然返回详情，reader读回chapter:30513:5/pageIndex0/total24。该执行者随后429中断，Root按原checked门禁接管，返回原Browse末端；完整50项registry保持，10000ms/AWAKE恢复并释放cdda07c3。原件category-membership/comicabc010-{ch04page2-30513237-004,restored30513237-004,root-session-restored237-004}。仅补现装包具名第二页和原进度恢复，不称在线首取、全27页或新下载；未改源码、版本、资源，未直接编辑用户数据文件。
+
 历史实现/验收记录（以下原owner全文保留；其中旧“当前/未部署”只按对应历史版本解释，不作本轮结论）：
 
 # 無限動漫 / ComicABC 0.1.2
