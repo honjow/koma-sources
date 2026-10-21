@@ -8,7 +8,7 @@ const BASE: &[u8] = b"https://www.manhuagui.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.manhuagui.koma",
     name: "Manhuagui",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -868,7 +868,11 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
             b"unknown"
         };
     q(b, &mut n, status)?;
-    bytes(b, &mut n, b"}}")?;
+    bytes(b, &mut n, br#","links":[{"kind":"source","url":""#)?;
+    bytes(b, &mut n, BASE)?;
+    bytes(b, &mut n, b"/comic/")?;
+    bytes(b, &mut n, id)?;
+    bytes(b, &mut n, br#"/"}]}}"#)?;
     Ok(n)
 }
 fn chapters(r: &[u8]) -> Result<usize, &'static str> {

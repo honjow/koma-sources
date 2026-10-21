@@ -1,4 +1,4 @@
-# Manhuagui 0.1.4
+# Manhuagui 0.1.5
 
 Source-only ordinary public HTML adapter for https://www.manhuagui.com, based on Keiyoushi extensions-source commit 10f06eb833af5990bc5470c84c5e93edc159ad4e (Apache-2.0). LZ-string algorithm attribution: Keiyoushi LZString (Apache-2.0), with an independent algorithm check against pieroxy/lz-string 1.5.0 (reference file licensed WTFPL v2); bounded source-local implementation.
 
@@ -34,3 +34,14 @@ Root 后继 237 封面诊断（同日 07:27–07:29）：保持现装包、缓�
 ## 0.1.4 optical identity framing (2026-10-21)
 
 The user explicitly requested replacing the inset book-shaped 0.1.3 identity because its apparent size and corner relationship looked inconsistent in the source list, and approved the full-bleed portrait candidate. Current `icon.png` is a 512px export of an image-generated reconstruction based on the site's distributed Naruto shortcut portrait above. It fills the square without the old book spine, bevel or transparent frame, allowing the App's existing rounded slot to define its boundary. It is a derived portrait, not an official high-resolution original or a pixel-identical crop; fine drawing details differ. No external background tile, mask, shadow or pre-rounded corners were added. The source behavior, requests, capabilities, language and minimum App version are unchanged; the version bump delivers the replacement asset through ordinary source updates. Device237 (VDE-AL00, unfolded1320×2120) ordinary local import completed as an update to the existing 50th source. Root reviewed both source-manager and Browse screenshots: the full-bleed portrait has the same App-defined rounded boundary as adjacent square icons. All50 source IDs/enabled states retain their exact order, and only this version becomes0.1.4. The sole uploaded014 package copy was removed afterwards; the original10000ms timeout was restored and read back AWAKE. Evidence: Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/manhuagui014-{import,manager-visible,browse-restored}237-001`. This accepts only the two icon consumers; no source reading/download/cold result is implied.
+
+
+## 0.1.5 详情来源网页（2026-10-21）
+
+`get_manga` 新增 `links:[{kind:"source",url:<作品页>}]`，地址复用原 `manga_doc` 的 `BASE + /comic/ + 已验证原网页编号 + /`。例如《鬼灭之刃》为 https://www.manhuagui.com/comic/19430/；不使用站首页或猜造 App 内部 ID 对应网址。除交付版本014→015外，请求、身份、章节、阅读和图标保持。
+
+Host 按原源声明头单次读取该页200/53615B；014基线WASM与原正式包相同，014/015实际WASM在同一真实HTML上离线详情成功，除新增links外所有manga字段、唯一请求合同深比较相同。离线适配器使用禁网惰性Chromium DOM查询，不代表生产Lexbor/scraper或Native等价。单源offline/locked构建、真实WASM info015及图标门禁通过；正式包 `dist/sources/manhuagui/manhuagui-0.1.5.koma` 为372036B/三成员，沿014manifest仅版本变化，图标原bytes保持。
+
+237（VDE-AL00，展开竖屏1320×2120）普通本地选择器014→015更新成功；随后覆盖安装Root指定16289728B/2026-10-21 22:29:30签名Debug，未清数据。《鬼灭之刃》235/235章详情两网页菜单可见；仅执行WebView，终态显示真实封面、作者、9.5评分和卷章列表及导航控件。原003白屏转圈只证明标题到达，未作为内容通过；004等加载结束后才接受终态。自然Back仍第23卷3/230页，再返回Browse；服务页54个源包，新名称序中漫画1234→漫画160→漫画柜015→漫画人可见。未切换启用/索引、未导出私有registry，不冒全54条字段逐项比对；未执行外部浏览器、正文、下载或全源矩阵。最终10000ms/AWAKE读回、本人上传包不存在，租约释放。Root已亲看004五张原图，结论仅限上述路径。
+
+Host原件在Koma `.hvigor/outputs/user-flow-audit/` 的 `manhuagui015-detail-fixture.html`、`manhuagui015-detail-fixture-receipt.json`、`manhuagui014-link-baseline-offline.json`、`manhuagui015-link-offline.json`。237原件在同目录 `device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/`：`manhuagui015-import237-002/import-success.png`、`manhuagui015-app-update237-001/run-metadata.json`、`manhuagui015-webview237-004/{both-web-actions,webview-workpage,detail-returned,services54-newapp,browse-restored}.png`；最终恢复回执 `manhuagui015-webview-postflight237-004/run-metadata.json`。
