@@ -23,3 +23,11 @@ Actual named host routes: popular topic pages 21 and 5 works, latest topics 4 an
 
 Two investigated alternatives are not implemented: Manhuadb is absent from current zh directory; Creativecomic requires encrypted image response transformation beyond current get_image_request ABI. Neither conclusion is a whole-product blocker.
 ```
+
+## 237 现装0.1.7具名第二页补验（2026-10-21）
+
+沿普通Browse现装0.1.7→21本列表→7746《循途漫录：大将军，出击！》详情，实际一章7746/8623，原继续阅读为1/58。普通进入亲看完整彩色封面1/58，再普通右侧翻页亲看中文黑白叙事正文2/58；随后普通左侧返回1/58并自然Back，详情仍为同章第1/58页。会话读回comicId=com.terrahistoricus.koma:7746、chapterId=7746/8623、pageId=page:7746:8623:1、pageIndex=0、totalPages=58、completed=false。没有新增下载、收藏、登录、改变模式或编辑持久状态。
+
+只接受现装包上述原具名章节首两页和返回；未核下载/缓存来源，不将本轮称作无缓存在线首取，也不扩大为全58页、cold、其他章节或整源通过。原封面低清、图标小槽及其他既有未闭项保持。原Browse末端已恢复并亲看，50项完整registry与进入前逐项相同；原OverrideTimeout10000ms/AWAKE已读回，租约84519278已释放，全部回执哈希关闭。
+
+原件在Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/：terra017-{entry,detail,first}237-002、terra017-page2-237-002、terra017-progress-restored237-002与terra017-session-restored237-002。当前源码、版本与资源未改，未构建或更新包。

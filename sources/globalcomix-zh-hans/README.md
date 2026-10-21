@@ -29,3 +29,9 @@
 原件在Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/` 的`globalcomix011-{browse237-001,popular237-001,houmen-chapters237-001,titan-chapters237-001,titan-first237-001,titan-page2-237-001,titan-natural-return237-001,titan-session-restored237-001}`。回执与原图保留，artifact哈希关闭。
 
 Root 已亲审本条首两页原图及精确记录；结论仅限上述具名路径，原未闭边界保持。
+
+## 原侯门在线第二页的当前 Host 边界（2026-10-21）
+
+接续时先核现存回执，确认原 owner 已完成唯一请求，因此没有重复联网。现存 readV2 原体的 payload.results 为 release177649、comic31985、key a658f6d5-2f9e-42fb-a9c8-d824d4cd1c46，is_free=true、premium_only=0；两页均为 cn、同 comic/release 且 is_page_paid=false。pageIndex1 的 pageId7348860 原公开 JPEG 请求返回200、4944829B、0.872秒；本次亲看原件，确为完整中文长条正文，可正常解码。readV2 本身200、21867B。两请求均无Cookie，15秒有界，无重试或登录。
+
+原件为 Koma/.hvigor/outputs/user-flow-audit/globalcomix011-houmen-current-readv2.json、同名前缀 readv2-receipt.json/page2-receipt.json/page2-original.jpg。只证明当前 Host 的准确原第二页可取；不解释历史未关联URL的超时原因，也不将已下载原章的237离线路径冒在线复验。原 Native onlineP2 边界继续OPEN，源实现/版本/资源与设备数据均未改。
