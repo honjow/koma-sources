@@ -7,3 +7,5 @@
 此次仅补回有当前官网父链的源码标识基线，源版本/业务/能力/SDK、标准注册和App呈现均不改。280×95横标在现有小槽仍可能过小，未作当前设备交付，不将文件存在或原图像素较大称为质量通过；小槽辨识继续OPEN。
 
 2026-10-21独立标识接续调查：先读现存已成功父页原HTML，未找到独立品牌方图或官方账号声明。仅对父页明确声明的 https://www.mh160mh.com/template/skin1/css/head2.css?20260915202656 和 https://m.mh160mh.com/template/wap2/css/style.css?20260915202656 各作一次普通匿名Python urllib.request.urlopen GET；两次均真实返回HTTPError HTTP Error 403: Forbidden。没有cookie、挑战处理、UA切换或重试，不再请求这两条准确URL；没有新素材可采用，原横标/二维码排除及小槽OPEN边界保持。
+
+2026-10-22原件结构复核：当前280×95 RGBA PNG仅单帧，只有IHDR/sRGB/gAMA/pHYs/IDAT/IEND块，无EXIF、内嵌缩略图或更大原图。重读上述已保存桌面/移动200父页，身份资源仍只有280×95与220×72横标；未发现声明的独立favicon、apple-touch、manifest或官方社交头像。没有新网络请求，不重试两条403 CSS。当前缺口是官方独立清晰标识，而非可提取的隐藏大图；不截字、重排或把二维码当标识，原横标与小槽适配OPEN保持。
