@@ -5,13 +5,12 @@ extern crate koma_source_sdk;
 use koma_source_sdk::host::{self, http_request, log_info};
 use koma_source_sdk::json_utils::{
     append_json_escaped, append_json_unescaped_then_escaped, contains_bytes, find_subslice,
-    request_page_number, write_bytes, write_url_encoded, write_usize,
+    json_object_member, request_page_number, write_bytes, write_url_encoded, write_usize,
 };
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{FetchError, build_get_request, build_post_request, fetch_error_code};
 
 const API_BASE: &[u8] = b"http://mangaapi.manhuaren.com";
-const WEB_BASE: &[u8] = b"https://www.manhuaren.com";
 const GSN_SALT: &[u8] = b"4e0a48e1c0b54041bce9c8f0e036124d";
 const PAGE_SIZE: usize = 20;
 
@@ -36,7 +35,7 @@ static mut AUTH_TOKEN_LEN: usize = 0;
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.manhuaren.koma",
     name: "漫画人",
-    version: "0.1.1",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -994,6 +993,24 @@ fn run_search(req: &[u8]) -> u32 {
     write_manga_items_from_array("search", api_json, b"result", Some(b"mangas"), page)
 }
 
+fn detail_source_url<'a>(api_json: &'a [u8], manga_id: &[u8]) -> Option<&'a [u8]> {
+    let detail = json_object_member(api_json, b"response")?;
+    if json_object_member(detail, b"mangaId")? != manga_id {
+        return None;
+    }
+    let raw = json_object_member(detail, b"shareUrl")?;
+    if raw.len() < 2 || raw[0] != b'"' || raw[raw.len() - 1] != b'"' {
+        return None;
+    }
+    let url = &raw[1..raw.len() - 1];
+    let slug = url.strip_prefix(b"https://www.manhuaren.com/manhua-")?
+        .strip_suffix(b"/")?;
+    if slug.is_empty() || !slug.iter().all(|b| b.is_ascii_alphanumeric() || *b == b'-') {
+        return None;
+    }
+    Some(url)
+}
+
 fn run_get_manga(req: &[u8]) -> u32 {
     let manga_id = match extract_json_string(req, b"mangaId") {
         Some(v) => v,
@@ -1085,15 +1102,15 @@ fn run_get_manga(req: &[u8]) -> u32 {
             br#"","contentRating":"unknown","language":"zh","tags":["#,
         )
         && write_tags(payload, &mut c, theme)
-        && write_bytes(payload, &mut c, br#"],"links":[{"kind":"source","url":""#)
-        && append_json_escaped(payload, &mut c, API_BASE)
-        && write_bytes(payload, &mut c, b"/v1/manga/getDetail?mangaId=")
-        && append_json_escaped(payload, &mut c, id)
-        && write_bytes(payload, &mut c, br#""},{"kind":"source","url":""#)
-        && append_json_escaped(payload, &mut c, WEB_BASE)
-        && write_bytes(payload, &mut c, b"/manhua/")
-        && append_json_escaped(payload, &mut c, id)
-        && write_bytes(payload, &mut c, br#""}]}}"#);
+        && write_bytes(payload, &mut c, br#"],"links":["#)
+        && if let Some(url) = detail_source_url(api_json, id) {
+            write_bytes(payload, &mut c, br#"{"kind":"source","url":""#)
+                && append_json_escaped(payload, &mut c, url)
+                && write_bytes(payload, &mut c, br#""}"#)
+        } else {
+            true
+        }
+        && write_bytes(payload, &mut c, b"]}}");
     if !ok {
         return write_error("get_manga", "internal_error", "overflow");
     }
