@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 76 76" color-interpolation="sRGB">
+<title>MangaBZ retained identity geometric reconstruction</title>
+<desc>Locally reconstructed from the retained official-header76px symbol under user authorization; not an official high-resolution original or exact contour restoration. Eight cubic outer segments, bespoke BZ counters, no font/bitmap tracing. The red field retains its sampled two-dimensional colour gradient. PNG delivery uses1536 geometry antialiasing and512 output.</desc>
+<metadata>Green plane:77.79605939944983-5.743829929930778*x-8.183084453711267*y-0.11695016022976083*x*y. Blue plane:25.07427397093763+37.354177335139*x+52.67303654277656*y+0.06954519179916102*x*y. x,y normalized0..1. Red=255. Top/bottom horizontal gradients blend through the vertical alpha mask.</metadata>
+<defs>
+<clipPath id="outer"><path d="M42 0 C32 0 23 10 14 18 C5 26 -1 33 0 43 C0 55 6 66 17 70 C27 73 41 76 51 76 C63 77 72 71 75 62 C78 54 75 45 73 35 C71 24 68 14 61 8 C56 3 49 0 42 0 Z"/></clipPath>
+<linearGradient id="top"><stop stop-color="rgb(255,77.796059,25.074274)"/><stop offset="1" stop-color="rgb(255,72.052229,62.428451)"/></linearGradient>
+<linearGradient id="bottom"><stop stop-color="rgb(255,69.612975,77.747311)"/><stop offset="1" stop-color="rgb(255,63.752195,115.171033)"/></linearGradient>
+<linearGradient id="vertical" x1="0" y1="0" x2="0" y2="1"><stop stop-color="black"/><stop offset="1" stop-color="white"/></linearGradient>
+<mask id="blend" maskUnits="userSpaceOnUse" x="0" y="0" width="76" height="76"><rect width="76" height="76" fill="url(#vertical)"/></mask>
+</defs>
+<g clip-path="url(#outer)"><rect width="76" height="76" fill="url(#top)"/><rect width="76" height="76" fill="url(#bottom)" mask="url(#blend)"/><path d="M18 26 H34 C39 26 41 29 41 33 C41 36 40.5 38 39 39 C41 40.5 41 43 41 46 C41 50 39 52 35 52 H18 C17.3 52 17 51.7 17 51 V27 C17 26.3 17.3 26 18 26 Z M23 32 H33 C34.5 32 35 32.4 35 34 C35 35.6 34.5 36 33 36 H23 Z M23 42 H33 C34.5 42 35 42.4 35 44 C35 45.6 34.5 46 33 46 H23 Z" fill="white" fill-rule="evenodd"/><path d="M39 26 H61 V32 C61 32.6 60.6 33 60 33.5 L46 46 H61 V52 H42 V45 C42 42 41.9 40.8 41.4 39.8 C41 39.1 41 38.8 41.7 38.4 L53 32 H43 C42.5 29 41 27.5 39 26 Z" fill="white"/></g>
+</svg>

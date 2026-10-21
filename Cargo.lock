@@ -1366,7 +1366,7 @@ dependencies = [
 
 [[package]]
 name = "koma_mangabz_source"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "koma_source_sdk",
 ]
