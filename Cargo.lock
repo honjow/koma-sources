@@ -3585,7 +3585,7 @@ dependencies = [
 
 [[package]]
 name = "koma_miaoqu_source"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "koma_source_sdk",
 ]

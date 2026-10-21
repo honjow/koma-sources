@@ -1,4 +1,4 @@
-# 喵趣漫画 — independent Koma source 0.1.0
+# 喵趣漫画 — independent Koma source 0.1.2
 
 Stable source ID: `com.miaoqu.koma`; Chinese canonical name: 喵趣漫画. Localized labels are optional presentation metadata. Actual usage: unknown. Upstream SAFE (protobuf 1 and Gradle SAFE), individual works unknown. This source shares the SixMH catalogue but has independent host and slug identities; no aliases, migration or merging.
 
@@ -19,3 +19,7 @@ Actual 0.1.0 and 0.1.1 WASM replayed that same saved HTML with network blocked: 
 ## 2026-10-22 distribution asset restoration
 
 The current `icon.png` restores the unchanged original from the installed device237 0.1.0 package, received as `miaoqu010-current-asset237-001/installed-icon.png`. This restores the required package asset for remote installation/update; it does not claim a new official high-resolution resource, resolved icon quality, or new provider/content acceptance. Existing plate/shadow/small-slot limitations remain OPEN. No image processing, source identity, request, chapter or App presentation changes. Prior business-only/missing-file statements above describe the earlier recovery checkpoint; the original source documents and notices are retained.
+
+## 0.1.2 icon board/shadow cleanup
+
+This version removes the external white board/grey shadow from the retained fixed-upstream192×192 Miaoqu reference. Chroma separation restores alpha around its original104×104 glyph without scaling or tracing; the foreground uses the original body's modal orange RGB240/160/110. The120×120 PNG retains8px transparent safety margins. This is background cleanup of the existing identity, not a new official resource or high-resolution redraw; no new backing, shadow or mask is added. The separate generated image with yellow fringe/hole specks was rejected and is not used. App radius/slot/order, source identity/requests/chapters and all provider behaviour remain unchanged; only source/Cargo/lock asset-delivery version011→012. Website403/404 branches remain stopped; no content acceptance is added. Device237 ordinary local update0.1.0→0.1.2 succeeded; both management and Browse display the orange mark without the former board/grey edge. All56 sourceId/enabled pairs retain their exact order, and the original Browse position/10000ms override were restored, read back AWAKE, with the owned transfer removed and lease released. Root reviewed both full-resolution images and the restoration receipt; the board/shadow cleanup is accepted for these two consumers. Original full images and receipts: Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/miaoqu012-icon-import237-001/{manager-current,browse-current}.png` and `miaoqu012-icon-restored237-001`.
