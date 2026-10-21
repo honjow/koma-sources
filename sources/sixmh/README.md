@@ -24,7 +24,6 @@ Root icon.ico is the unprocessed site-declared 32px original; ASSET_SOURCES.md r
 
 Only a formal host ok:false/error.code=network_error envelope with neither status nor statusCode, or an HTTP host ABI failure, is reported as network_error. Unknown/invalid statuses and all existing HTTP non-2xx classifications remain explicit failures. Existing success parsing, complete-body checks, UA, timeout, TLS and SDK are unchanged. The first current-standard Native popular attempt failed at TLS (CURL35/RespCode0/zero bytes); no detail/body/download/cold result was reached, and this classification change does not repair or prove the remote connection. Controlled envelopes are not the original Native callback input.
 
-
 ## 2026-10-21 237现装0.1.2《一人之下》有限Native结果
 
 当前VDE-AL00展开竖屏1320×2120，普通Browse实读六漫画v0.1.2，未更新源包、App或偏好。沿普通热门入口返回30本，19:07:04请求HTTP200；只打开可见《一人之下》，19:07:29 get_manga HTTP200/body_ready/html_ready，实际封面、动漫堂、简介可见。独立get_chapters于19:07:30同样HTTP200/body_ready/html_ready，随后准确日志为 `sixmh error op=get_chapters code=source_error`。实际画面显示“详情已加载，但章节加载失败。”，开始阅读和下载章节按钮为灰；未取得目录、未进入Reader，首两页正文未验。仅凭HTTP200和source_error不能确定目录失败原因；未留存该次原始HTTP体，不能猜成站点挑战、选择器变化或容量问题。
@@ -35,7 +34,6 @@ Only a formal host ok:false/error.code=network_error envelope with neither statu
 
 后继受限诊断仍为0.1.2，仅追加固定白名单token日志，普通同版本导入后对同一作品取一次目录。19:44:38精确读回 `sixmh chapters failure=chapter_structure_missing`，将失败收窄到现有目录选择器返回0节点；未取得原始HTML，实际DOM差异仍未知，不能据此改选择器或宣称已修复。原件为同场景 `sixmh012-token-yiren-detail237-001/run-metadata.json`。237已普通恢复Browse和10000ms/AWAKE，本轮两处上传已清理、租约已释放；未改请求/版本/图标/错误封套。
 
-
 ## 2026-10-21 下架分类候选与独立正常样本
 
 此前单次公开热门取样得到两个同名《一人之下》href `/260264`、`/236126`；各自单次详情HTTP200，准确状态span显示“已下架”且目录选择器为空。它们未与19:44设备作品ID绑定，不宣称该次设备一定请求其中一个ID；原HTTP体未落盘，不把后续控制用例称为原体回放。候选仅在原目录0节点时，沿现有get_manga状态合同（`div.cy_info`内首个`div.cy_xinxi`的`span:nth-child(2)`）明确含“已下架”才返回既有`public comic unavailable`/`not_found`；状态缺失、读取失败或其他状态仍为原`chapter structure missing`/`source_error`。有效目录优先，简介中的同词不参与判断；不增加请求或改目录/身份/页数、UA/TLS/容量/状态枚举/App。
@@ -43,7 +41,6 @@ Only a formal host ok:false/error.code=network_error envelope with neither statu
 现装仍为含固定安全token的0.1.2诊断包，本候选尚未安装。237普通切“更新时间”，真实首项《水行群侠》详情5/5章，第01卷实际产出23页；P1/23完整彩色封面、P2/23“曼哈顿”中文彩色分格正文已目视，普通Back仍为5/5目录，滚回详情顶部只有“继续阅读”，未显示章页文字。仅接受此具名前两页，不冒全23页、其余卷、下载或cold；未导出私有进度文件，不能声称持久进度字段已实读。原列表选择已经普通菜单恢复热门人气动作，最终Browse末端原图与OverrideTimeout10000ms/AWAKE读回，306569fc租约已释放，哈希关闭。原件在Koma同一category-membership场景的`sixmh012-aquaman-page1-ready237-001`、`sixmh012-aquaman-page2-237-001`、`sixmh012-aquaman-natural-return237-001`、`sixmh012-aquaman-return-top237-001`与`sixmh012-aquaman-browse-end-restored237-001`。
 
 限定候选已离线locked release编译，并读回真实WASM元数据仍为com.sixmh.koma/0.1.2。WASM实际导出经受控host ABI结构/分支检查：空目录+准确下架状态→not_found；有效目录即使下架状态也保持原章ID/index/title；空目录其他状态、仅简介提及下架、状态缺失、详情卡缺失均保留source_error，每例仅一次模拟HTTP回调。这是控制用例，不证明站点DOM解析或候选Native验收。首轮测试替身缺bodyText/ok字段及误读sourceInfo层级均已更正，没有据此修改生产合同。
-
 
 ## 0.1.3 限定Native复核（237，2026-10-21）
 
@@ -55,9 +52,16 @@ Root审过分类与版本diff后，仅SixMH Cargo、内嵌SourceInfo及对应loc
 
 最后普通Back回原热门列表，再回Browse末端；两处仅本轮013上传路径已删除且读回不存在，10000ms/AWAKE读回、9acb0ad0租约已释放，哈希关闭，原件`sixmh013-session-restored237-001`。首次上传位置未出现在picker，按原回执改用公共Docs/Download后才导入；恢复manifest首轮因不支持allowFailure字段在动作前校验失败，删除该字段后同协议完成，未重导或重复正文。没有私有状态导出、App/样式变更或提交推送。
 
-
 ## 0.1.4 webpage-link candidate
 
 `get_manga` declares one `kind=source` link using the same BASE + normalized public detail path as its existing GET. The retained HTTP200 latest-list parent explicitly linked `/620554` (罗梅莉娅战记~伯爵千金，打倒魔王之後发现人类处境实在不妙於是组建军队~). One ordinary anonymous GET with the unchanged PC Firefox150 contract returned HTTP200/29294B at `https://www.liumanhua.com/620554`, without redirect, and the matching work title. No canonical/og:url was present; this link is the successful original detail request URL. Requests, identities, chapter parsing, removed-catalogue classification, images, permissions and icon are unchanged.
 
-Actual 0.1.3 and 0.1.4 WASM replayed the same saved work HTML with network blocked: both succeeded, every non-links manga field and the sole HTTP request were deeply equal. Offline locked single-crate release build passed. No package, index, hashes, device work or reading acceptance is produced by this candidate. Prior `/255429` and homepage403 remain stopped; this work is separate from old 鬼灭 and 水行群侠 reading evidence. Evidence under `Koma/.hvigor/outputs/user-flow-audit/`: `sixmh014-latest-parent{.html,-receipt.json}`, `sixmh014-{detail-once.html,detail-once.json,baseline-offline.json,candidate-offline.json,link-compare-offline.json,build.log}` and `sixmh013-baseline.wasm`.
+Actual 0.1.3 and 0.1.4 WASM replayed the same saved work HTML with network blocked: both succeeded, every non-links manga field and the sole HTTP request were deeply equal. Offline locked single-crate release build passed. At that offline stage, no package, index, hashes, device work or reading acceptance was produced. Prior `/255429` and homepage403 remain stopped; this work is separate from old 鬼灭 and 水行群侠 reading evidence. Evidence under `Koma/.hvigor/outputs/user-flow-audit/`: `sixmh014-latest-parent{.html,-receipt.json}`, `sixmh014-{detail-once.html,detail-once.json,baseline-offline.json,candidate-offline.json,link-compare-offline.json,build.log}` and `sixmh013-baseline.wasm`.
+
+## 0.1.4 corrected-package webpage acceptance (237)
+
+On the Root-signed App (16317008B / 2026-10-22 01:23:08), ordinary picker installed 0.1.4. The first local package incorrectly declared `nsfw=false`; its installed manifest and preliminary icon evidence are retained. Root corrected only that manifest field and ordinary same-version picker reimport installed the 197542B package. The installed manifest exactly matches the corrected package (`nsfw=true`, `contentRating=nsfw`); all 54 source IDs, registry order and enabled values remain equal before correction and at final return. Manager/Browse same-group original icons retain the approved 1.05 asset scale.
+
+The ordinary 更新时间 list exposed the exact `/620554` work. `get_manga` and `get_chapters` each returned HTTP200; native detail showed 3/3 chapters and Start reading. Both webpage menu entries appeared. WebView displayed the same work's real cover/title/author/three catalogue entries; natural Back kept the original 3 chapters, 3/3 catalogue and Start reading. No chapter, Reader, external browser or download was opened; old 鬼灭/水行群侠 reading acceptance is separate. Original 热门人气 selection and Browse54 were restored, own transfer removed, 10000ms/AWAKE read back and lease released.
+
+Raw evidence in Koma's existing `category-membership` device237 partition: `sixmh014-{import-icons237-001-gate,manifest-before-fix237-001,corrected-import237-003-restored,manifest-corrected237-001}`, `sixmh014-exact620554237-001-{gate,restored}`, `sixmh014-webview620554237-001-gate/webview620554.png`, and `sixmh014-return-restored237-001-{gate,restored}`. This accepts only the named corrected-package webpage/return and icon paths, without site-wide or new reading claims.
