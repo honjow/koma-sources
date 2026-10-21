@@ -34,3 +34,23 @@ Only a formal host ok:false/error.code=network_error envelope with neither statu
 原图、布局及精确日志保留在Koma原场景 `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/sixmh012-yiren-{awake,browse-top,browse-middle,browse-entry,popular,detail,session-restored}237-*`；决定性失败为 `sixmh012-yiren-detail237-001/screen.png` 和 `run-metadata.json`，恢复为 `sixmh012-yiren-session-restored237-001`。本条只补原有验收账，不修改源实现、样式、版本或既有图标。
 
 后继受限诊断仍为0.1.2，仅追加固定白名单token日志，普通同版本导入后对同一作品取一次目录。19:44:38精确读回 `sixmh chapters failure=chapter_structure_missing`，将失败收窄到现有目录选择器返回0节点；未取得原始HTML，实际DOM差异仍未知，不能据此改选择器或宣称已修复。原件为同场景 `sixmh012-token-yiren-detail237-001/run-metadata.json`。237已普通恢复Browse和10000ms/AWAKE，本轮两处上传已清理、租约已释放；未改请求/版本/图标/错误封套。
+
+
+## 2026-10-21 下架分类候选与独立正常样本
+
+此前单次公开热门取样得到两个同名《一人之下》href `/260264`、`/236126`；各自单次详情HTTP200，准确状态span显示“已下架”且目录选择器为空。它们未与19:44设备作品ID绑定，不宣称该次设备一定请求其中一个ID；原HTTP体未落盘，不把后续控制用例称为原体回放。候选仅在原目录0节点时，沿现有get_manga状态合同（`div.cy_info`内首个`div.cy_xinxi`的`span:nth-child(2)`）明确含“已下架”才返回既有`public comic unavailable`/`not_found`；状态缺失、读取失败或其他状态仍为原`chapter structure missing`/`source_error`。有效目录优先，简介中的同词不参与判断；不增加请求或改目录/身份/页数、UA/TLS/容量/状态枚举/App。
+
+现装仍为含固定安全token的0.1.2诊断包，本候选尚未安装。237普通切“更新时间”，真实首项《水行群侠》详情5/5章，第01卷实际产出23页；P1/23完整彩色封面、P2/23“曼哈顿”中文彩色分格正文已目视，普通Back仍为5/5目录，滚回详情顶部只有“继续阅读”，未显示章页文字。仅接受此具名前两页，不冒全23页、其余卷、下载或cold；未导出私有进度文件，不能声称持久进度字段已实读。原列表选择已经普通菜单恢复热门人气动作，最终Browse末端原图与OverrideTimeout10000ms/AWAKE读回，306569fc租约已释放，哈希关闭。原件在Koma同一category-membership场景的`sixmh012-aquaman-page1-ready237-001`、`sixmh012-aquaman-page2-237-001`、`sixmh012-aquaman-natural-return237-001`、`sixmh012-aquaman-return-top237-001`与`sixmh012-aquaman-browse-end-restored237-001`。
+
+限定候选已离线locked release编译，并读回真实WASM元数据仍为com.sixmh.koma/0.1.2。WASM实际导出经受控host ABI结构/分支检查：空目录+准确下架状态→not_found；有效目录即使下架状态也保持原章ID/index/title；空目录其他状态、仅简介提及下架、状态缺失、详情卡缺失均保留source_error，每例仅一次模拟HTTP回调。这是控制用例，不证明站点DOM解析或候选Native验收。首轮测试替身缺bodyText/ok字段及误读sourceInfo层级均已更正，没有据此修改生产合同。
+
+
+## 0.1.3 限定Native复核（237，2026-10-21）
+
+Root审过分类与版本diff后，仅SixMH Cargo、内嵌SourceInfo及对应lock包项升0.1.3；正式本地.koma为manifest.json/source.wasm/icon.png三成员，图标原字节保留，无发布index或哈希计算。20:25:31普通picker导入日志为`import_ok id=com.sixmh.koma`，普通Browse实读v0.1.3，原件`sixmh013-imported237-001`及`sixmh013-browse-version237-002`。当前相邻来源位置可见，但未导出registry，不能宣称全序或全库内容相同。
+
+普通“更新时间”首项水行群侠仍5/5章，打开第01卷自然显示既有P2/23，左翻P1/23完整原封面，再右翻P2/23“曼哈顿”中文彩色正文，普通Back详情再Back列表；原件`sixmh013-aquaman-detail237-001`、`sixmh013-aquaman-open237-001`及`sixmh013-aquaman-page{1,2}-237-001`。只覆盖该卷前两页及本次返回，不冒全23页、其他卷、下载或cold。列表经原菜单恢复热门人气，30本及首个一人之下具名可见，原件`sixmh013-popular-restored237-001`。
+
+对该热门首个一人之下仅一次普通打开：20:32:53 get_manga/get_chapters均HTTP200，章节准确日志`code=not_found`、`failure=public_comic_unavailable`；实际画面仍为原“详情已加载，但章节加载失败”，阅读/下载灰置。原件`sixmh013-yiren-notfound237-001/{screen.png,run-metadata.json}`。这验证了空目录准确状态分支的真实Native分类，不表示下架内容恢复；未重试、未另开第二个下架ID、未触已403首页或/255429、未改UA/TLS/请求合同。
+
+最后普通Back回原热门列表，再回Browse末端；两处仅本轮013上传路径已删除且读回不存在，10000ms/AWAKE读回、9acb0ad0租约已释放，哈希关闭，原件`sixmh013-session-restored237-001`。首次上传位置未出现在picker，按原回执改用公共Docs/Download后才导入；恢复manifest首轮因不支持allowFailure字段在动作前校验失败，删除该字段后同协议完成，未重导或重复正文。没有私有状态导出、App/样式变更或提交推送。

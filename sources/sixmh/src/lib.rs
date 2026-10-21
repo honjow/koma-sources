@@ -8,7 +8,7 @@ const BASE: &[u8] = b"https://www.liumanhua.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.sixmh.koma",
     name: "六漫画",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -784,6 +784,20 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
     let root = fetch_doc(id)?;
     let nodes = Nodes::get(&root, b"ul#mh-chapter-list-ol-0 li.chapter__item")?;
     if nodes.n == 0 {
+        if let Ok(card) = root.select(b"div.cy_info") {
+            if let Ok(infos) = Nodes::get(&card, b"div.cy_xinxi") {
+                if infos.n > 0 {
+                    if let Ok(status) = selected(&infos, 0).select(b"span:nth-child(2)") {
+                        let mut text = [0; 32768];
+                        if let Ok(value) = status.text(&mut text) {
+                            if find_subslice(value, "已下架".as_bytes()).is_some() {
+                                return Err("public comic unavailable");
+                            }
+                        }
+                    }
+                }
+            }
+        }
         return Err("chapter structure missing");
     }
     let b = payload_buf();
