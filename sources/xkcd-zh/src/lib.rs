@@ -8,7 +8,7 @@ use koma_source_sdk::{
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.xkcd.zh.koma",
     name: "xkcd",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma source contributors",
@@ -530,7 +530,7 @@ fn book_request(r: &[u8]) -> Result<(), &'static str> {
     };
     Ok(())
 }
-fn manga(b: &mut [u8], n: &mut usize, body: &[u8]) -> Result<(), &'static str> {
+fn manga(b: &mut [u8], n: &mut usize, body: &[u8], detail: bool) -> Result<(), &'static str> {
     let mut cover = [0; 1200];
     let mut len = 0;
     walk(body, |_, obj, i| {
@@ -552,7 +552,11 @@ fn manga(b: &mut [u8], n: &mut usize, body: &[u8]) -> Result<(), &'static str> {
     )?;
     bytes(b,n,b",\"language\":\"zh\",\"status\":\"ongoing\",\"contentRating\":\"unknown\",\"cover\":{\"kind\":\"url\",\"url\":")?;
     q(b, n, &cover[..len])?;
-    bytes(b, n, b"}}")
+    bytes(b, n, b"}")?;
+    if detail {
+        bytes(b, n, br#","links":[{"kind":"source","url":"https://xkcd.tw/"}]"#)?;
+    }
+    bytes(b, n, b"}")
 }
 fn list(r: &[u8]) -> Result<usize, &'static str> {
     let a = input(r)?;
@@ -568,7 +572,7 @@ fn list(r: &[u8]) -> Result<usize, &'static str> {
     let b = payload_buf();
     let mut n = 0;
     bytes(b, &mut n, b"{\"items\":[")?;
-    manga(b, &mut n, body)?;
+    manga(b, &mut n, body, false)?;
     bytes(
         b,
         &mut n,
@@ -582,7 +586,7 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
     let b = payload_buf();
     let mut n = 0;
     bytes(b, &mut n, b"{\"manga\":")?;
-    manga(b, &mut n, body)?;
+    manga(b, &mut n, body, true)?;
     bytes(b, &mut n, b"}")?;
     Ok(n)
 }
