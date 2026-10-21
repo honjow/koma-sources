@@ -13,3 +13,10 @@ Build: normal paired Rust toolchain ./build.sh --source manhuawu. minAppVersion0
 完整保留已审011 HTML/中文身份/旧PICID兼容与严格错误合同；012只修相同pager的a.on/a.end/a.next职责，next==end不能用来判终态。current==terminal且next自指或缺失才终止，current<terminal时next必须是current+1；共享listing/search保同路由/顺序，不猜页数。
 
 012原Root仅Host有限接受：真实首屏30项与原请求/输出不变；倒数第二/终态/search均明确受控，不冒实站。page49唯一公开请求403原件保留，禁止重试/换客户端；新012未Native，旧011/010具名正文下载cold不扩到012。生产入口 `bash build.sh --source manhuawu`，当前SDK/必需icon字段，不用旧封包冒标准编译。原icon/ASSET_SOURCES/Apache许可保留，App显示圆角独立保持，无新素材处理。当前未部署。
+
+
+## 0.1.3 webpage-link candidate
+
+`get_manga` now declares one `kind=source` link using the same BASE + detail path as its existing GET. For the existing `mh:doupocangkong:0` (斗破苍穹) entity, one ordinary anonymous GET to `https://www.mhua5.com/index.php/comic/doupocangkong` returned HTTP200/318057B and the named work HTML, without redirect. No canonical/og:url was present; this is the successful original detail request URL. Identity/PICID handling, requests, chapters, images, permissions, icon and metadata remain unchanged.
+
+Actual 0.1.2 and 0.1.3 WASM replayed this same saved HTML with network blocked: both succeeded, every non-links manga field and the sole HTTP request were deeply equal. Offline locked release build passed. No new package or Native acceptance yet. The separate page49 and current popular-page403 remain stopped and do not count as this detail request failing. Evidence: `Koma/.hvigor/outputs/user-flow-audit/manhuawu013-{detail-once.html,detail-once.json,baseline-offline.json,candidate-offline.json,link-compare-offline.json,build.log}`. No reading, downloads or chapter refresh was run.

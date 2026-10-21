@@ -10,7 +10,7 @@ const BASE: &[u8] = b"https://www.mhua5.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.manhuawu.koma",
     name: "漫画屋 (Manhuawu)",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -844,7 +844,13 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
     }
     bytes(b, &mut n, b"],\"status\":\"unknown\",\"summary\":")?;
     q(b, &mut n, owner.select(b".intro-total")?.text(&mut text)?)?;
-    bytes(b, &mut n, b"}}")?;
+    let mut page_url = [0; 2048];
+    let mut page_len = 0;
+    bytes(&mut page_url, &mut page_len, BASE)?;
+    bytes(&mut page_url, &mut page_len, detail_path(slug, &mut path)?)?;
+    bytes(b, &mut n, b",\"links\":[{\"kind\":\"source\",\"url\":")?;
+    q(b, &mut n, &page_url[..page_len])?;
+    bytes(b, &mut n, b"}]}}")?;
     Ok(n)
 }
 fn explicit_chapter_number(title: &[u8]) -> Option<&[u8]> {
