@@ -17,3 +17,21 @@
 图标保持原PNG原bytes，不加工素材，不改变App显示圆角。候选包manifest遵守当前必需icon资源合同，新增 icon 字段，旧身份字段保持；version和description准确反映本候选。原010包、原回放和原owner WIP保留。
 
 本最终候选在独立tree使用当前canonical SDK原字节、同一已安装rustup stable工具链离线编译。生产编译使用原owner build.sh的 -reference-types/--strip-all flags，并保留无该flags的开发对照；二者不能混称WASM字节复现。未修改SDK/App/canonical，未部署237，未重跑已接受正文/下载/cold。原owner→当前SDK的48份完整输出/HTTP回调/DOM轨迹兼容回放已另保留；最终去Referer的48对请求另逐实际头比较，响应/DOM轨迹保持。实际canonical集成和Native仍须Root审后分别验证。
+
+
+## 2026-10-21 237现装0.1.1具名Native观察
+
+设备为VDE-AL00展开态、竖屏1320×2120。未更新源包或App；Browse原生行明确显示本源v0.1.1，普通进入后为三本原顺序及各自封面。本次只选《慟哭的星 第1集》，详情显示李次銑 / 朴鍾成、章节1/1及23页，既有继续阅读为第2/23页。普通继续阅读实际到2/23，再用普通前页回1/23、后页回2/23；原图均显示真实繁中彩色正文：第一页雷雨中追兵与“快點找”“在過今晚之前一定要找到”，第二页逃跑者与“我要培養力量／我要讓自己變強”。当前长条原图在此阅读模式呈居中窄栏；本次未修改模式或样式，不将能解码等同全部屏幕/模式体验通过。
+
+普通Back后同本详情继续阅读仍明确显示《慟哭的星 第1集》与第2/23页。原源合同将该标题绑定comic2、章节`bnsread:zh-hant:musung:comic2`及`bnspage:zh-hant:musung:comic2:0..22`；这是源合同与可见标题/页位的绑定，不是本轮持久文件身份的新实读。私有registry、reader-sessions和preferences导出被自动审批拒绝后未执行、未换方法；本轮没有新文件层进度或全库/偏好不变证明。未重跑旧《悲運的徒弟，無塵》，《慟哭的星 第2集》、其余21页、下载和cold不外推为通过。
+
+原图及回执沿Koma原目录`.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/`保留：`bns011-browse-visible237-001`、`bns011-list-ready237-001`、`bns011-comic2-detail-ready237-001`、`bns011-comic2-first237-001`、`bns011-comic2-second237-001`、`bns011-comic2-natural-return237-001`。`bns011-session-restored237-001`实际恢复原Browse末端（漫画人／老夫子尾项），读回AWAKE及OverrideTimeout=10000ms；原租约18e67332已正常release。全部新回执关闭artifact hash，未清数据、注入、改偏好、改App容器或样式。Root已亲审两页正文、自然返回及恢复原图；仅接受此具名路径，不外推全源。
+
+
+### 同日后继：《慟哭的星 第2集》
+
+同一现装0.1.1，重新实时解析237并取得a513360f独占租约，完整wake门禁读回AWAKE/86400000ms及Koma窗口1320×2120。普通详情显示《慟哭的星 第2集》、李次銑 / 朴鍾成、章节1/1及35页，既有继续阅读为2/35。普通进入2/35、前页到1/35、后页回2/35，均实际显示彩色正文；第一页为男子与持刀女子场景，第二页可见“竟然想拿刀刺我／妳知道這是什麼意思嗎”等繁中文字。普通Back后详情仍具名显示本集第2/35页。此单元按原源合同为comic3，章节`bnsread:zh-hant:musung:comic3`；不将合同身份冒作本轮私有持久文件实读。只观察首两页，不外推其余33页、下载、cold或完整阅读体验。未重试前述私有文件导出，也未改偏好、包或产品代码。
+
+导航中的一次偏差保留：从Browse末端连续复用三滚动后，原坐标实际进入包子漫画并显示source_runtime失败；未点重试、不据此判BNS失败。普通Back后以当前可见行重新定位BNS，才接上述第2集路径。错误原件`bns011-comic3-list237-001`和恢复原件`bns011-comic3-browse-recovery237-001`均保留。
+
+具名原图/回执仍在上段同一category-membership原目录：`bns011-comic3-detail-ready237-001`、`bns011-comic3-first237-001`、`bns011-comic3-second237-001`、`bns011-comic3-natural-return237-001`。`bns011-comic3-session-restored237-001`已恢复原Browse末端，读回AWAKE/OverrideTimeout=10000ms后正常release a513360f；全部回执hash关闭。Root已亲审两页正文、自然返回和恢复原图；仅接受此具名路径，不外推全源通过。
