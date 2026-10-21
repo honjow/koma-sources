@@ -23,3 +23,12 @@ get_manga/get_chapters/get_pages及正文计划：1次当前目录GET验证当�
 62生产WASM操作：35真实保留HTTP正向操作（25目录项目+25封面计划+#2518详情/一章/一页/正文计划）、19合成错误请求、8明确单列合成异常HTML反例（missing data-src/错owner/跨host/子目录/重复ID/缺目录原图/骨架冒正文/多正文）。成功响应全为原bytes，不造真实响应。现App原html_host.cpp/.h、1057原Lexbor文件与静态lib绑定，macOS Wasmtime22+真实C++HtmlHost/Lexbor对本原HTML实际解析，全部operation关闭descriptor0、无缺失Attr调用。完整ABI gate通过。不是197/WAMR接受，也不是真实下载或网络性能证明。
 
 保护全部旧冻结源码包、主源WIP、SDK/App/Kit与共享runner；不设备/IDE/签名/提交/推送/发版。不重试BNS失败JS、Overwatch PDF、探測機522、任何旧挑战，不复测創漫冻结包。Root审全部Rust/README/diff/原HTML与Host/ABI/PNG及冻结后自行串行普通197链；其他24正文和全档案/Native阅读下载cold与缓存成本unknown。
+
+
+## 237 0.1.0 普通交付与详情限制（2026-10-21）
+
+沿现有公开关联站分支接续，不重做原目录/正文合同。普通网页读取当前 /comics/ 仍显示 #2518《人為財死》及2517..2494；这只提供当前目录线索。原主仓 offline/locked 标准参数构建后，真实 WASM SourceInfo 为0.1.0，使用原180px官方 apple-touch 图生成三成员正式包，在237经系统 picker 普通导入成功。管理和 Browse 两消费者原图实际显示标识及0.1.0；未改素材、业务、App容器或顺序。
+
+Native普通列表实际显示“最新25條獨立漫畫 / 25本”及原具名首项。进入 #2518 后实际显示“源详情加载失败”，未进入阅读；标签范围 hilog 原记录14:49:31.484 HTTP403、14:49:31.570 manga-detail source detail load failed reason=source_detail。此前列表加载过程中14:48:58.301/.623也有HTTP403，故不声明全部25封面成功。最初事后流式hilog为空，不能作无错误证明；后续只读hilog -x标签转储取得以上原码，没有重新请求内容。具体服务端拒绝原因未知，未修改解析、重试该路径、变更客户端/身份或绕过挑战；正文、下载与cold仍未验。
+
+原件在 Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/：oldmasterq010-import237-001、oldmasterq010-manager237-001、oldmasterq010-browse237-001、oldmasterq010-list237-001、oldmasterq010-detail2518-237-001、oldmasterq010-detail-failure237-001；HTTP原码在 oldmasterq010-detail-logs237-001/run-metadata.json。oldmasterq010-session-restored237-001 记录普通返回原Browse、reader与Root原004逐字节相同、原51项sourceId/enabled顺序逐项保持，正常新增本源后52项；仅自传包删除并断言不存在，AWAKE/OverrideTimeout=10000ms读回后释放aa51056e。未清数据/缓存，全部设备回执关闭哈希。

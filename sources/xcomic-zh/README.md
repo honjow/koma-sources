@@ -14,3 +14,7 @@ Materials and exact receipts: /private/tmp/koma-xcomic-readonly-20261011. Build 
 ## Source-tree recovery boundary
 
 The original implementation and its dated stage notes above are preserved. This recovery uses the current canonical SDK and does not add artwork, standard-package registration or new HTTP/native acceptance. Original named runtime evidence remains separately bound to its original version and package.
+
+## 2026-10-21 official identity follow-up
+
+The canonical public homepage `https://xcomic.me/` was requested once through the available web reader and returned `403 Forbidden`. This request yielded no successful parent HTML or official image declaration. No retry, alternate client/domain, challenge handling or artwork substitution followed. The missing official resource remains OPEN; this homepage result does not classify the independent GraphQL endpoint, the Traditional source, or any reading path as failed. No source code, asset, version or package changed.
