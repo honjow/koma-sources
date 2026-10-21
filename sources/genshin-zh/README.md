@@ -84,3 +84,12 @@ readingGroup/continuationEligible metadata. No deployment is included here.
 
 The preserved 256px official icon bytes remain unchanged; manifest adds the
 current mandatory local icon field. Artwork suitability remains separate.
+
+
+## 237 现装0.1.2第十六话首两页（2026-10-21）
+
+本轮registry实读现装0.1.2、enabled=true，取代上方旧“237仍0.1.0”的当时状态；没有更新包或修改元数据。普通15/15章目录选择无现存章节记录的《第十六话 添酒》（genshinch:zh:118850），未重开已有第一话样本。Root亲看1/21与2/21两完整彩色剧情原图，安柏出窗、跃空与蒲公英可辨；两页主要是动作画面及中文拟声，不扩大为大段对白、全21页、下载、cold或无缓存在线首取验收。
+
+普通Back后真实进度为genshinpage:zh:118850:1、pageIndex1、totalPages21、completed=false。源执行者在返回后因502/429中断，Root沿同一manifest及770dcddc租约接管恢复；最终Browse末端与10000ms/AWAKE亲看读回，租约已释放。52项registry与reader偏好XML相对本轮baseline内容相同，原17sourceHistory/60chapter对象保持，仅新增本章记录；原47progress中仅本书自然从原第一话变为本章P2，其他书对象保持。没有编辑持久记录、清数据/缓存、改变模式或修源。
+
+原件在Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/的genshin012-{baseline,public-list,detail,chapter-seek,ch16-first,ch16-second,ch16-natural-return,session-restored}237-001；哈希关闭。只接受上述具名正文加载、翻页与自然返回边界。
