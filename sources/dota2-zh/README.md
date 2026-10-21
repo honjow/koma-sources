@@ -19,3 +19,12 @@ R2 冻结时仍为未安装的0.1.0，R1全部冻结实体保留。该R2相对R1
 R3 source-only 0.1.1 封面正确性修复：R2 已由 Root 普通安装为0.1.0，首次 Browse 的封面占位 FAIL 保留。实际 App 封面链将 RemoteMangaID `dota2:zh:are-we-heroes-yet` 传作 args.pageId，R2 将任何带 pageId 的封面错误归入正文验证，拒绝原 `img1.jpg`（invalid_request，0HTTP）。0.1.1 仅对原 COVER URL 接受没有 PageID 或 PageID精确为同一 MID；其他 MID、正文页ID用于封面、作品MID用于正文仍拒绝。mangaUrl 独立校验仍仅允许原 BASE；URL/Referer、原页许可表/顺序/标题/章号null/eligiblefalse、图标、ABI不变，无 UI/App/SDK 改动。
 
 R1/R2全部冻结保留。原75请求/输出与18拒绝保持（sourceInfo仅版本步进）；新增实际App封面MID正向及错MID/正文ID/错误mangaUrl负向通过生产WASM保留回放，不代表Native封面已恢复。未重新抓取远程原图或其他47正文实体、未设备操作；Root后续普通更新并验收。
+
+
+## 237 现装0.1.1封面与首两页（2026-10-21）
+
+沿普通Browse进入现装 enabled 的 `com.perfectworld.dota2.zh.koma`，registry实读manifestVersion=0.1.1。官方漫画列表实际1本《我们是英雄了吗  Are We Heroes Yet? - 秘密店铺之传说》，原img1缩略图在列表和详情均实际渲染，补上R3原封面MID修复的具名Native消费者证据；不推断其他封面合同。详情1/1阅读单元，开始前reader无该书进度。
+
+普通开始阅读实际1/48页彩色中文正文，可读“战争之日即将到来，日光找到了个与世隔绝的秘密避难所。”；普通右侧翻页后实际2/48页，可读“正闯进来的是甚么奇怪的兽？”及下方多格正文。自然Back后真实进度为 `dota2read:zh:are-we-heroes-yet` / `dota2page:zh:are-we-heroes-yet:1`、pageIndex1、totalPages48、completed=false。只接受上述前两页、普通翻页/返回和自然进度保存；其他46页、全48解码、下载、cold及无缓存在线首取均未验，不把单元页数当成全书阅读通过。
+
+原件在Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/：dota2011-baseline237-001、dota2011-public-list237-001、dota2011-heroes-{detail,first,second,natural-return}237-001、dota2011-session-restored237-001。最终恢复原Browse末端，52项registry及reader偏好XML与本轮基线全bytes相同；原46条progress/17条sourceHistory/57条chapters各对象全部保持，仅自然新增本书progress/chapter各一条。恢复回执实读AWAKE/OverrideTimeout10000ms，8929bb38已释放。设备回执关闭哈希；未改源/App/Kit代码、模式或全局偏好，未清数据/缓存、登录、匿名建号或下载。
