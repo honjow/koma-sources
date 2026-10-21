@@ -8,7 +8,7 @@ const BASE: &[u8] = b"https://www.manhuagui.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.manhuagui.koma",
     name: "Manhuagui",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
