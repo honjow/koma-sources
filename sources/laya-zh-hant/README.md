@@ -1,4 +1,4 @@
-# 醫院也瘋狂（繁中）0.1.1
+# 醫院也瘋狂（繁中）0.1.2
 
 來源為作者品牌官網 `https://www.laya.url.tw/comic/` 精選漫畫藝廊，與 `https://www.laya.url.tw/hospital/` 真實雙向連結。原作者頁明確分工：雷亞（林子堯）編寫故事腳本、兩元（梁德垣）繪製漫畫。SourceInfo.author 的 Koma 是源開發者。源不使用官網粉絲數作使用率、不把官網14/15冊的不同宣傳文字合併為全冊合同；正式評級、狀態、usage 未知。
 
@@ -36,3 +36,14 @@ Root在197觀察0.1.0封面與首正文原圖下載為HTTP500/537字節；目錄
 ## 当前图标格式合同补齐（2026-10-20）
 
 0.1.1采用官网艺廊明确声明的64×64 JPEG favicon，仍有低清限制。0.1.2只替换为新核实的官方认可品牌原件：`https://www.laya.url.tw/hospital/` 导航与Organization.sameAs明确指向 `https://www.facebook.com/Crazyospital`；该页og:title与og:image:alt均为「醫院也瘋狂」，og:image声明图片ID `317259963_695807238568682_7194057852934992248_n.jpg`。Root实读父链并亲看匿名200取得的完整720×720 JPEG（67776B）：原书法字、纸箱头医生、作者角色与灰底均保留。没有转码、缩放、描摹、裁切或新增底板／遮罩／阴影，原App图标槽及布局保持。197已从普通文件选择器导入0.1.2，Root亲看源包管理与Browse两行：原书法字和两个角色完整保留，纸箱头及作者轮廓可辨，像素模糊较原64px减轻；只关闭这两个消费者的低清交付缺口，不扩大为全源、正文、下载或cold。原漫画请求头、身份、80条目录及阅读业务保持，仅源/crate/manifest版本步进0.1.2。
+
+
+## 237 現裝 0.1.2 首正文與首屏封面有限結果（2026-10-21）
+
+沿既存正式 `dist/laya-zh-hant-0.1.2.koma` 首次普通本地導入，系統選擇器精確選中該檔並回「導入成功」。包內 WASM 與既存 target WASM 逐位元組相同，實際 `source_info` 讀回 `com.laya.zh-hant.koma` / `0.1.2`，沒有計算雜湊。237 VDE-AL00 展開豎屏1320×2120的管理/Browse均顯示醫院也瘋狂0.1.2；GUI由52個已啟用變53個，新增源在原末項老夫子之後。未切換其他源啟用狀態；本輪不匯出私有狀態，因此不把首末GUI觀察冒作原52項持久內容逐項相同。
+
+普通精選漫畫首項「最常被問」（源內 `ch-0001.jpg`）→詳情一章/一頁→開始閱讀，實際親看完整繁體中文彩色四格與1/1；21:17:36原生日誌記錄 `ReaderImage display_ready/display_complete page=1`。自然Back後詳情為「繼續閱讀」。本篇僅一頁，沒有虛構第二頁、下載、收藏、重試、登入或cold驗收。當前Host另以源012明示的Windows Firefox121 UA與原藝廊Referer，單次原首圖GET200、535730B、JPEG首尾完整；這不解釋歷史010的500原因，也不證明其餘79正文。
+
+21:15初始列表首6封面仍為占位；21:19自然Back至同一首屏後，最常被問、失智風險比較、起跑點、冷笑話大師、誰才記性差、眼藥水過量六張均已顯示真實圖像，未點重試或換詞。畫面下緣第三排左側仍見占位，不擴大為12張或全部80項封面通過。21:17:22尚有transport `2300028` / ReaderImage `2300055`；不能把它們斷言為某一張封面的錯誤。最後補讀CachedCoverImage/ReaderImage/SourceHttpTransport有界日誌stdout為空，保留該結果，不編造失敗原因或穩定性結論。
+
+原件在Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/laya012-picker-entry237-001/`：`confirmed-import-actions.json`、`source-entry-actions.json`、`reader-actions.json`、`return-actions.json`及同名具名原圖；首正文為 `first-reader-after6s.png`、封面終態為 `natural-return-gallery.png`。有效Reader/HTTP日誌在旁列 `laya012-reader-log-restored237-001/run-metadata.json`。最終Browse末端恢復；僅本輪正確傳入的產品包已刪且test不存在，已安裝源保留。收尾日誌跨過原10000ms後自然SLEEP，最後另一次完整醒屏在 `laya012-final-awake-restored237-001` 讀回AWAKE/OverrideTimeout10000ms，兩本人租約均已釋放；沒有匯出書架/reader、修改App/源業務/版本/圖標或新建腳本/工作樹。
