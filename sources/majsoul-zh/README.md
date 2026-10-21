@@ -1,6 +1,6 @@
 # 雀魂官方漫画
 
-独立 source `com.catfood.majsoul.zhhant.koma`，版本 `0.1.0`，语言 `zh-Hant`，最低 Koma `0.1.1`；使用现有 Host/信封 ABI v1。这里仅适配官方“漫畫壁紙”栏目中的一个漫画合集和其 150 条真实漫画记录，不将 150 话当成 150 本书，不支持另列的 80 条壁纸。
+独立 source `com.catfood.majsoul.zhhant.koma`，版本 `0.1.1`，语言 `zh-Hant`，最低 Koma `0.1.1`；使用现有 Host/信封 ABI v1。这里仅适配官方“漫畫壁紙”栏目中的一个漫画合集和其 150 条真实漫画记录，不将 150 话当成 150 本书，不支持另列的 80 条壁纸。
 
 官方身份链为猫粮工作室 / Catfood Studio 的 TapTap 开发者页 `https://www.taptap.cn/developer/56654` 的官网字段 → `https://www.maj-soul.com/` → HTML 声明主脚本 → `GalleryList.json` 的 comic 分类。早先候选 `https://www.majsoul.com/` 的 404 为另一域名的单路径证据，不重试。Steam 商店 HTTP 200 实际是地区错误页，未用于官方身份确认。
 
@@ -15,3 +15,9 @@
 唯一已取得正文是第一话原 PNG：900×1200，繁中麻将四格笑话；未见成人内容。其余 149 图仅有官方原 URI 和单图消费合同，没有实体可用性、逐页年龄、下载或 Native 验收结论。全站使用率和逐话评级 unknown。官网透明 PNG logo 原 bytes 保留，未加底板、阴影、遮罩或替换形状。
 
 原 HTTP / JSON / JS 精确 byte slices / 首话与 logo：`/private/tmp/koma-majsoul-zh-contract-20261014/`。完整生成依据/源 diff/生产包与 WASM 回放：`/private/tmp/koma-majsoul-zh-implementation-20261014/`。Host 回放不是 Harmony Native 验收；未推送、发布或操作设备。
+
+## 2026-10-21 Native 限定观察（237）
+
+现装 0.1.1，经普通 Browse → 唯一合集 → 继续阅读第一話（`majsoulread:zh-Hant:official:ch-1`），完整原图四格同时可见、页码 1/1；未拆图、未把相邻章当第二页。自然 Back 回详情仍显示第一話第 1/1 页，真实 `reader-sessions.v1.json` 对应 pageId `majsoulpage:zh-Hant:official:ch-1:0`、pageIndex 0、totalPages 1。只接受该一话完整画面与普通返回，不外推其他149图、下载、cold 或目录鲜度。
+
+原件：Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/majsoul011-{first-complete,natural-return,session-restored}237-001/`。已返回原 Browse 末端，50 项 sourceId/enabled 顺序逐项保持，AWAKE/原 OverrideTimeout 10000ms 读回；哈希关闭。额外旧 `reader-progress.v1.json` 导出不存在的失败保留于 natural-return 回执，未计成功；真实会话读回在 session-restored。执行者与 Root 均已亲看上述完整原图和自然返回，结论仅限本条路径。
