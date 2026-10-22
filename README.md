@@ -18,7 +18,9 @@ https://github.com/honjow/koma-sources/releases/latest/download/index.json
 
 - 85 个生产书源全部纳入自动编译；教学用 `example-demo` 单独编译检查，不进入安装索引。
 - [安装索引](https://github.com/honjow/koma-sources/releases/latest/download/index.json)仅列出符合打包合同的源；[完整源目录](https://github.com/honjow/koma-sources/releases/latest/download/catalogue.json)同时列出所有生产源及尚不能发布的具体原因。
-- 85 个生产源均提供必需图标并进入安装索引。IKMMH、HentaiHand、Happy、92 漫画采用用户批准的临时名称字标 `IKM / HH / Happy / 92`：普通粗体、Koma 绿色、透明512px，无底板/阴影/遮罩，不称官方Logo；九儿（92）的资产说明在本条保留。喵趣、HComic、MyComic、XComic 简中和漫画1234 原样补回现存图标；其图标清晰度/外底板问题仍待后续处理。
+- 85 个生产源均提供必需图标并进入安装索引。IKMMH、HentaiHand、Happy、92 漫画采用用户批准的临时名称字标 `IKM / HH / Happy / 92`：普通粗体、Koma 绿色、透明512px，无底板/阴影/遮罩，不称官方Logo；九儿（92）的资产说明在本条保留。
+- 喵趣0.1.2与XComic简繁0.1.1已清理原外底板/灰影，HComic0.1.2采用完整鲨鱼标识。各源说明保留资源来源及已验证范围；清理或重建的图标不代表取得了新的官方高清原件。MyComic与漫画1234仍使用现有图标，素材清晰度及来源说明仍有待完善。
+- 部分黑色图标使用固定白底，以保证深色界面的辨识度并保留原图形。鸟鸟韩漫0.1.2已完成浅深色列表验证；泰拉记事社0.1.7保留原白底黑字图标。
 - 编译和安装成功不表示站点所有功能均可用。部分源会受站点限制、登录要求或上游变更影响；成人内容源保留分级，具体已验证范围见[各源目录](sources)中的说明。
 
 问题请提交到[源库 Issues](https://github.com/honjow/koma-sources/issues)，附源名、版本、普通操作步骤和错误提示。不要提供账号、Cookie 或令牌。
@@ -131,10 +133,13 @@ packaging; no placeholder is generated.
 
 Prefer a suitable real official identity asset. Explicitly approved temporary
 source-name wordmarks must be labelled as temporary, never official logos.
-Do not leave added backing plates,
-external masks or shadows in the artwork. Secondary processing is allowed to
-remove those defects while preserving the real identity; keep provenance and
-before/after evidence. Prefer a suitable official original over an unsuitable
+Do not add decorative backing plates, external masks or shadows. When an
+otherwise transparent black subject is actually unreadable on dark UI, the
+user's fixed-white-background permission allows retaining the subject and its
+black colour on white; this is optional, not a requirement for every black icon. Keep
+existing official white canvases where appropriate. Secondary processing may
+remove unwanted plates/shadows while preserving the real identity; retain
+provenance and before/after evidence. Prefer a suitable official original over an unsuitable
 ported icon. The App's existing rounded display clipping is a separate layer
 and must remain. New production requirements do not remove old installed sources
 or invalidate old backups automatically.
