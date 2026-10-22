@@ -20,4 +20,4 @@ The current `icon.png` restores the unchanged original from the installed device
 
 ## 0.1.2 retained-identity icon cleanup
 
-The icon is a 2D reconstruction preserving the single red C identity while removing the former grey-black backing and shadow. It is not a new official high-resolution original; the unmodified installed image is retained as `original-installed-icon.png`. Provider behaviour and App presentation are unchanged; device237 acceptance is pending.
+The icon is a 2D reconstruction preserving the single red C identity while removing the former grey-black backing and shadow. It is not a new official high-resolution original; the unmodified installed image is retained as `original-installed-icon.png`. Provider behaviour and App presentation are unchanged; device237 ordinary installation verified the mark in management and Browse without the former backing/shadow; this accepts only these icon consumers, not provider content.

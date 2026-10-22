@@ -12,4 +12,4 @@ The current `icon.png` restores the unchanged original from the installed device
 
 ## 0.1.3 retained-identity icon cleanup
 
-The icon is a 2D reconstruction preserving the red-orange-yellow monogram identity while removing the former white backing and shadow. It is not a new official high-resolution original; the unmodified installed image is retained as `original-installed-icon.png`. Provider behaviour and App presentation are unchanged; device237 acceptance is pending.
+The icon is a 2D reconstruction preserving the red-orange-yellow monogram identity while removing the former white backing and shadow. It is not a new official high-resolution original; the unmodified installed image is retained as `original-installed-icon.png`. Provider behaviour and App presentation are unchanged; device237 ordinary update verified the mark in management and Browse without the former backing/shadow; this accepts only these icon consumers, not provider content.
