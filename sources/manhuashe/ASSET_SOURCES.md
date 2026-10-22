@@ -1,4 +1,10 @@
-# 漫画社 official original horizontal logo
+# 漫画社 asset provenance
+
+## Current delivery
+
+Version 0.1.5 uses the user-approved yellow 漫 / brown speech-bubble derivative in `icon.png`, with its editable geometry in `identity-reconstruction.svg`. The user approved all four presented icon candidates on 2026-10-22; the later Terra-only correction does not change this selection. The complete original horizontal JPEG is retained as `official-header-logo-original.jpg`. This is a reconstructed derivative, not a newly obtained official independent logo. Commit `3fda006` and the 0.1.5 section of `README.md` record delivery and the two accepted light-theme list consumers. The historical horizontal-logo readability hold below was superseded by that approved derivative; it is not a pending icon task. No App slot, corner radius, ordering or provider behaviour was changed.
+
+## Historical original-logo investigation
 
 Current proposed icon.jpg is the exact unprocessed image declared by https://www.311s.com/ header img src=/template/pc/zizhi001/img/logo.png (alt includes 漫画社). Final resource URL: https://www.311s.com/template/pc/zizhi001/img/logo.png . One ordinary anonymous GET per URL on 2026-10-18: homepage200, logo200; original Firefox121 UA/Referer https://www.311s.com/ and Origin https://www.311s.com, no cookie/redirect/retry. Homepage also declares /template/pc/zizhi001/img/favicon.ico; that single request404 is retained and not retried.
 
@@ -11,3 +17,5 @@ Historical144PNG bc96f8a58321e064aa71b7faa42a7348b5c4d7a7602653215d7ec392f984768
 2026-10-20 delivery follow-up: the current 197 list still shows the old rounded white-board/shadow icon at 0.1.2. Keep the already reviewed full official 150x50 JPEG unchanged and increment only source version to 0.1.3 so this actual resource successor can be delivered. No App slot/layout/cropping changes. Wordmark small-slot readability remains open; Native delivery is checked separately.
 
 2026-10-21 standalone-identity follow-up: one ordinary anonymous Python urllib.request.urlopen GET of the exact public homepage https://www.311s.com/ returned HTTPError HTTP Error 403: Forbidden. No cookie, challenge handling, alternate user-agent or retry was used; this exact URL is not requested again. The search service could expose an older cached homepage, but that is not a current successful parent response or a new independent identity asset. No new artwork was adopted; the existing horizontal-logo small-slot issue remains open.
+
+2026-10-22 retained-detail follow-up (historical investigation): the saved 0.1.4 work page `https://www.311s.com/comic_13871.html` declares `/template/pc/zizhi001/css/index.css`. The retained JSON receipt records GET, HTTP 200, 42561 bytes and the same final URL; the retained CSS contains no url(...) image references. These files remain in Koma `.hvigor/outputs/user-flow-audit/manhuashe014-declared-brand-style-once.{css,json}`. This investigation yielded no new identity artwork. Its then-open horizontal-logo quality issue was subsequently superseded by the approved 0.1.5 derivative described above; it must not reopen that completed delivery.
