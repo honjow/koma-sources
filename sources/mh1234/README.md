@@ -9,3 +9,7 @@
 ## 2026-10-22 distribution asset restoration
 
 The current `icon.png` restores the unchanged original from the installed device197 package, received as `mh1234-installed197-icon.png`. This restores the required package asset for remote installation/update; it does not claim a new official high-resolution resource, resolved icon quality, or new provider/content acceptance. Existing plate/shadow/small-slot limitations remain OPEN. No image processing, source identity, request, chapter or App presentation changes. Prior business-only/missing-file statements above describe the earlier recovery checkpoint; the original source documents and notices are retained.
+
+## 0.1.3 retained-identity icon cleanup
+
+The icon is a 2D reconstruction preserving the red-orange-yellow monogram identity while removing the former white backing and shadow. It is not a new official high-resolution original; the unmodified installed image is retained as `original-installed-icon.png`. Provider behaviour and App presentation are unchanged; device237 acceptance is pending.
