@@ -7,7 +7,7 @@ use koma_source_sdk::{
     source::{SourceCapabilities, SourceInfo},
 };
 const BASE: &[u8] = b"https://www.311s.com";
-const SOURCE_INFO: SourceInfo = SourceInfo { id:"com.manhuashe.koma", name:"漫画社 (Manhuashe)", version:"0.1.6", api_version:"0.2",language:"zh",author:"Koma",description:"Manhuashe public HTML adapter. Upstream MIXED maps conservatively to nsfw; individual works unclassified.",content_rating:"nsfw" };
+const SOURCE_INFO: SourceInfo = SourceInfo { id:"com.manhuashe.koma", name:"漫画社 (Manhuashe)", version:"0.1.7", api_version:"0.2",language:"zh",author:"Koma",description:"Manhuashe public HTML adapter. Upstream MIXED maps conservatively to nsfw; individual works unclassified.",content_rating:"nsfw" };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -143,21 +143,36 @@ fn number(s: &[u8]) -> Option<usize> {
     }
     Some(n)
 }
-// Only explicit chapter prefixes observed in this provider's catalogue.
-// Do not use catalogue position, dates, seasons or numbers embedded in prose.
+// Explicit leading chapter labels observed in this provider's catalogues.
+// Position and numbers embedded later in the title never supply metadata.
 fn title_chapter_number(title: &[u8]) -> Option<usize> {
-    let title = title.strip_prefix("第".as_bytes()).map(|rest| (rest, true))
-        .unwrap_or((title, false));
-    let digits = title.0.iter().take_while(|c| c.is_ascii_digit()).count();
-    let value = number(&title.0[..digits])?;
-    let rest = &title.0[digits..];
-    if title.1 {
-        rest.starts_with("话".as_bytes()).then_some(value)
-    } else {
-        // The current catalogue also explicitly labels chapters as "697 离家出走中".
-        let separator = rest.iter().take_while(|c| c.is_ascii_whitespace()).count();
-        (separator > 0 && separator < rest.len()).then_some(value)
+    let (title, prefixed) = title.strip_prefix("第".as_bytes())
+        .map(|rest| (rest, true)).unwrap_or((title, false));
+    let digits = title.iter().take_while(|c| c.is_ascii_digit()).count();
+    let value = number(&title[..digits])?;
+    let rest = &title[digits..];
+    if prefixed {
+        return rest.starts_with("话".as_bytes()).then_some(value);
     }
+    let separated = rest.first().map(|c| c.is_ascii_whitespace()).unwrap_or(false);
+    let rest = core::str::from_utf8(rest).ok()?.trim();
+    if rest.is_empty() {
+        // Numeric-only labels 583 and 571 occur in the same real catalogue.
+        // An eight-digit calendar date is not a chapter label.
+        if digits == 8 && (19000101..=20991231).contains(&value) {
+            return None;
+        }
+        return Some(value);
+    }
+    if ["季", "卷", "部", "年", "月", "日"].iter().any(|s| rest.starts_with(s)) ||
+        ["公告", "请假", "活動", "活动", "通知", "番外", "特别篇", "特別篇", "贺图"].iter().any(|s| rest.contains(s)) {
+        return None;
+    }
+    // Current titles include "669阴物", "624“鸡”不可失" and "697 离家出走中".
+    let first = rest.chars().next()?;
+    let chinese = |c: char| ('\u{3400}'..='\u{9fff}').contains(&c);
+    let opening_quote = matches!(first, '“' | '‘' | '「' | '『');
+    (separated || chinese(first) || opening_quote && rest.chars().any(chinese)).then_some(value)
 }
 fn ws(s: &[u8], mut p: usize) -> usize {
     while p < s.len() && s[p].is_ascii_whitespace() {
