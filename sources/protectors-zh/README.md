@@ -40,4 +40,9 @@ get_image_request接受MID/None作为原封面身份，正文PageID必须是同m
 
 目录/本子集搜索/封面计划各1次目录GET；详情/章节/页面/正文计划各2次目录+同篇详情GET，首篇元数据369203B。实现中0新网络；HTTP只回放已存原body/status/headers，异常fixture另标synthetic，不冒实站响应。完整ABI/操作/失败边界与包绑定由Root独立审核。macOS Wasmtime22+C++Host不是197 WAMR或真实网络。
 
-只有首篇原详情和完整JPEG实体已取得；另外4官方篇的详情/正文实体、被排除的原第5条正文、真实Native读取/解码/下载/cold及usage均unknown。源列表5篇及5原封面描述符不冒充5篇正文已验。原神/SOC及所有旧源冻结、主源WIP、共同SDK/runner、App/Kit保持，未操作设备、IDE、提交、push或发布。
+只有首篇原详情和完整JPEG实体已取得；另外4官方篇的详情/正文实体、被排除的原第5条正文、下载/cold及usage均unknown；首篇Native读取/解码及返回的后继验收见下。源列表5篇及5原封面描述符不冒充5篇正文已验。原神/SOC及所有旧源冻结、主源WIP、共同SDK/runner、App/Kit保持，未操作设备、IDE、提交、push或发布。
+
+
+## 237 普通阅读验收（2026-10-23）
+
+现装0.1.0从普通Browse进入首篇《具现灵小课堂》（moment185451606127414743），开始阅读后完整中文四格原图实际显示为1/1页；普通返回详情立即显示“继续阅读 · 【四格漫画】具现灵小课堂 · 第1/1页”。自然保存的reader记录绑定同作品/章节，pageIndex=0、totalPages=1、completed=true。此项只接受首篇Native读图与返回读态，不把列表阶段缓存命中或HTTP200绑定为正文首次网络成功，也不宣称下载、冷启动或其余四篇通过。
