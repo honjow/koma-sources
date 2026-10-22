@@ -35,3 +35,10 @@
 其餘27詳情／正文實體（含頁數/格式）、Native Cpp/WAMR集成、CMYK實際呈現、其他布局/圖標槽、下載/cold、並發速度與未來目錄變更未驗收。Root負責全差異審查及197串行普通導入、真5→28分頁、首篇完整原圖、下載與cold；build或Host成功不提前稱Native PASS。沒有App/Kit/SDK/舊源/WIP/設備/IDE/簽名操作，未提交/推送/發布。
 
 图标更新（0.1.1，2026-10-20）：官网 https://scitechvista.nat.gov.tw/ 的 follow-fixed-fb 明确链接 https://www.facebook.com/scitechvista/ ，该官方账号标题「科技大觀園 | Taipei」及简介声明Q博。采用其准确og:image完整720×720 JPEG（39742字节），Q博角色与原环保科技图形/浅色画布保持；未提取旧V、裁切、重绘或新增底板/阴影/遮罩，App容器保持原样。Root已审完整原图；两处小槽实际对比另验，不以分辨率代替通过。
+
+
+## 237 首篇普通阅读失败（2026-10-23）
+
+普通本地导入正式0.1.1后，登记由61项增至62项，仅新增本源，其余61项完整记录及相对顺序保持；普通Browse首屏5篇与《幽冥六劍客： 蚊子讓你又癢又腫的秘密》1章成功。开始阅读后先显示“图片解码中”1/1，约61秒后日志明确为ReaderImage http_request_failed code=2300028（操作超时），继而resolve_failed page=1；实际终态“无法加载页面/重试”，没有点击重试。未取得正文实体或解码成功，本次不能判断CMYK颜色、解码或内存兼容，也不把元数据HTTP200当正文成功。
+
+普通返回Browse喵趣分组，原10000ms/AWAKE已读回；只清理本次上传包及两个临时取证文件，均核不存在，租约已释放，哈希关闭。自然进度pageIndex=0/totalPages=1/completed=false、章节isRead=false。原件在Koma既有237 category-membership的`scitech011-cmyk237-reader-final-001/{screen.png,run-metadata.json}`（business-log含01:25:54错误）、`scitech011-cmyk237-imported-001/registry.json`及`scitech011-cmyk237-final-restored-001`。不由此推断其余27篇、下载或冷启动通过，不修改源业务或App超时。
