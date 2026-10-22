@@ -3,14 +3,14 @@
 Official https://mangaplus-creators.jp/ declares /img/mpc_logo.svg in multiple Logo images.
 identity.original.svg preserves the retrieved bytes (23473B; SHA256
 43a66b442aba9e98eab28189fc6900bd30d7278d3803520ad9376c136959a828).
-icon.png is only a1024x354 render of that vector, with original aspect and alpha.
+Before0.1.3, icon.png was a1024x354 render of that vector, with original aspect and alpha.
 No redraw, crop, backing, shadow or mask. App slot dimensions and clipping remain.
 Prior192x66 render is superseded by the original-vector render, already observed
 in the actual installed and browse consumers on237 at0.1.1. It remains a wide
 wordmark with small text at30vp, so this does not claim all legibility solved.
 Original binding and limited native receipt:
 /private/tmp/koma-icon-geometry-correction-20261018/mpc-official-svg/.
-Canonical0.1.2 update acceptance remains pending until observed.
+This is the historical wordmark checkpoint; current icon delivery is recorded under0.1.3 below.
 
 ## 2026-10-22 standalone identity investigation
 
@@ -21,3 +21,11 @@ That exact successful parent also declares `https://mangaplus-creators.jp/build/
 2026-10-22 new official parent: Shueisha's launch release https://prtimes.jp/main/html/rd/p/000000362.000011454.html explicitly names MPC and medibang.com/mpc. Only its first declaredImage17 was fetched once (HTTP200, JPEG237094B,1920×1080); Root viewed `Koma/.hvigor/outputs/user-flow-audit/mpc-shueisha-pr-image17-original.jpg`: full platform wordmark plus phone/service promotional layout, without an independent square identity. Not adopted or cropped; existingSVG/version remain unchanged. No other press images or the prior503 script were fetched. A captcha word in a separate successful Link-u products HTML probe did not prove an actual challenge; that branch remains unknown, not classified403.
 
 The Link-U branch was subsequently rendered normally using the already installed browser: its project page https://technologies.link-u.co.jp/products/mangaplus-creators names Shueisha as Partner and links “MANGA Plus Creators公式” to https://mangaplus-creators.jp/. The retained public200 shell is `Koma/.hvigor/outputs/user-flow-audit/mpc-linku-products-original.html`; its Nuxt product data was null, not an anti-bot challenge. The card-declared240×240 WebP returned200 (1282B), retained as `mpc-linku-card-240-original.webp`; Root viewed it and rejected it because it is a white navigation arrow, not the platform mark. The other card image was subsequently fetched from its exact declared URI (HTTP200,37670B); despite900×1200 in the URI, the actual WebP is450×600. Root viewed `mpc-linku-card-project-original.webp`: complete platform wordmark, phone interface and manga collage, not an independent identity. It was not cropped or adopted. Browser sessions closed; no artwork, source version or device change.
+
+## 0.1.3 browser identity reconstruction
+
+One ordinary anonymous GET of `https://mangaplus-creators.jp/favicon.ico` returned HTTP200, image/x-icon,5430B without redirect. The official about page identifies MPC but does not explicitly declare this default icon in its head; no separate logo-use approval was found. No existing evidence identifies it as another product/framework. `official-browser-favicon-original.ico` retains its original16/32px frames. Its blue disk/white C differs from the full-wordmark SVG's blue C; `identity.original.svg` remains unchanged and was not spliced into this reconstruction.
+
+The first013 candidate decoded the original32px frame losslessly. Ordinary237 manager/Browse validation exposed soft black/white edges and blue disk; Root rejected its high-density clarity. The original012 package was ordinarily reimported, restoring the adopted full wordmark/version012,58 sourceId/enabled pairs in the same order and original Browse/power; that failed32px result remains distinct.
+
+Current `icon.png` is Root-reviewed512px2D approximate reconstruction from the favicon identity, with maintainable `browser-identity-reconstruction.svg`: ideal circles, smooth circular C arcs/round caps, blue gradient, original white C/dark fine border and outer white rim. It does not trace enlarged pixel jaggies, reuse the full-wordmark C, or add a board/shadow/mask. This is not an official high-resolution original or exact geometric restoration. An image-generated alternative with white perimeter specks was rejected. Version013 is only for resource delivery; provider code changes only its two version strings, Cargo and corresponding lock version. Metadata and App slot/radius remain unchanged. Ordinary237012→013 import completed. Root reviewed the full manager and Browse images: complete C/disk/inner and outer edges are clear, with no initial32px blur, generated specks or extra plate/shadow.58 sourceId/enabled pairs remained in the same order; original Browse miaoqu group,10000ms/AWAKE and focus koma0/window208 were restored. Only this run's transfer package was removed/read back absent; leasee015ad5d was released. Evidence: Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/mpc013-geometric-awake237-001/{manager-mpc013-geometric.png,browse-mpc013-geometric-full.png,browse-original-group-restored.png}` and `mpc013-geometric-restored237-001/run-metadata.json`. Only these icon consumers are accepted; no source-content/reading claim. The first geometry Browse capture fell in the top blur region and is not the accepted full-row image.
