@@ -3,3 +3,5 @@ Reference revision: 10f06eb833af5990bc5470c84c5e93edc159ad4e
 Original file: src/zh/manhuashe/src/eu/kanade/tachiyomi/extension/zh/manhuashe/Manhuashe.kt
 https://github.com/keiyoushi/extensions-source
 Koma adapter changes: bounded source-only Rust implementation, ABI/paging/metadata corrections.
+
+0.1.5 artwork derivative: Uses the approved744×612RGBA yellow stylized漫/chocolate-brown speech-bubble derivative, closing the former right-hand connection smoothly and omitting画社/English. identity-reconstruction.svg preserves the smooth geometric input. The complete official150×50JPEG is preserved as official-header-logo-original.jpg; it is not an official independent original or exact glyph restoration. This explicit selection supersedes the earlier no-extraction/connected-wordmark hold. The original artwork remains owned by its rights holder; this source license is not an artwork ownership claim.

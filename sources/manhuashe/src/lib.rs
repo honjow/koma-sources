@@ -7,7 +7,7 @@ use koma_source_sdk::{
     source::{SourceCapabilities, SourceInfo},
 };
 const BASE: &[u8] = b"https://www.311s.com";
-const SOURCE_INFO: SourceInfo = SourceInfo { id:"com.manhuashe.koma", name:"漫画社 (Manhuashe)", version:"0.1.4", api_version:"0.2",language:"zh",author:"Koma",description:"Manhuashe public HTML adapter. Upstream MIXED maps conservatively to nsfw; individual works unclassified.",content_rating:"nsfw" };
+const SOURCE_INFO: SourceInfo = SourceInfo { id:"com.manhuashe.koma", name:"漫画社 (Manhuashe)", version:"0.1.5", api_version:"0.2",language:"zh",author:"Koma",description:"Manhuashe public HTML adapter. Upstream MIXED maps conservatively to nsfw; individual works unclassified.",content_rating:"nsfw" };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,

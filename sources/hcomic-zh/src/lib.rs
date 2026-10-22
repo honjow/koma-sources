@@ -10,7 +10,7 @@ const MAX: usize = 1048576;
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hcomic.zh.koma",
     name: "H-Comic",
-    version: "0.1.1",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -1110,7 +1110,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
-    let data=r#"{"sourceInfo":{"id":"com.hcomic.zh.koma","name":"H-Comic","version":"0.1.1","apiVersion":"0.2","language":"zh","author":"Koma","description":"H-Comic public Chinese metadata. NSFW source; per-book rating and usage unknown.","contentRating":"nsfw","localizedNames":{"zh-Hans":"H-Comic","zh-Hant":"H-Comic","en":"H-Comic"}},"capabilities":{"search":true,"mangaDetail":true,"chapters":true,"pages":true,"listings":true,"mangaList":true,"imageRequest":true,"home":false,"filters":false,"settings":false,"future":{"login":false,"auth":false,"process_page_image":false,"page_description":false,"base_url":false,"deeplink":false,"migration":false}}}"#.as_bytes();
+    let data=r#"{"sourceInfo":{"id":"com.hcomic.zh.koma","name":"H-Comic","version":"0.1.2","apiVersion":"0.2","language":"zh","author":"Koma","description":"H-Comic public Chinese metadata. NSFW source; per-book rating and usage unknown.","contentRating":"nsfw","localizedNames":{"zh-Hans":"H-Comic","zh-Hant":"H-Comic","en":"H-Comic"}},"capabilities":{"search":true,"mangaDetail":true,"chapters":true,"pages":true,"listings":true,"mangaList":true,"imageRequest":true,"home":false,"filters":false,"settings":false,"future":{"login":false,"auth":false,"process_page_image":false,"page_description":false,"base_url":false,"deeplink":false,"migration":false}}}"#.as_bytes();
     response_buffer().write_success_parts("source_info", &[data])
 }
 macro_rules! export_op {

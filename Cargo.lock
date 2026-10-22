@@ -1408,7 +1408,7 @@ dependencies = [
 
 [[package]]
 name = "koma_manhuashe_source"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -3592,7 +3592,7 @@ dependencies = [
 
 [[package]]
 name = "koma_hcomic_zh_source"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -3613,7 +3613,7 @@ dependencies = [
 
 [[package]]
 name = "koma_mh160_source"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "koma_source_sdk",
 ]
