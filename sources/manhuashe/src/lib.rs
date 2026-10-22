@@ -7,7 +7,7 @@ use koma_source_sdk::{
     source::{SourceCapabilities, SourceInfo},
 };
 const BASE: &[u8] = b"https://www.311s.com";
-const SOURCE_INFO: SourceInfo = SourceInfo { id:"com.manhuashe.koma", name:"漫画社 (Manhuashe)", version:"0.1.5", api_version:"0.2",language:"zh",author:"Koma",description:"Manhuashe public HTML adapter. Upstream MIXED maps conservatively to nsfw; individual works unclassified.",content_rating:"nsfw" };
+const SOURCE_INFO: SourceInfo = SourceInfo { id:"com.manhuashe.koma", name:"漫画社 (Manhuashe)", version:"0.1.6", api_version:"0.2",language:"zh",author:"Koma",description:"Manhuashe public HTML adapter. Upstream MIXED maps conservatively to nsfw; individual works unclassified.",content_rating:"nsfw" };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -142,6 +142,22 @@ fn number(s: &[u8]) -> Option<usize> {
         n = n.checked_mul(10)?.checked_add((c - b'0') as usize)?;
     }
     Some(n)
+}
+// Only explicit chapter prefixes observed in this provider's catalogue.
+// Do not use catalogue position, dates, seasons or numbers embedded in prose.
+fn title_chapter_number(title: &[u8]) -> Option<usize> {
+    let title = title.strip_prefix("第".as_bytes()).map(|rest| (rest, true))
+        .unwrap_or((title, false));
+    let digits = title.0.iter().take_while(|c| c.is_ascii_digit()).count();
+    let value = number(&title.0[..digits])?;
+    let rest = &title.0[digits..];
+    if title.1 {
+        rest.starts_with("话".as_bytes()).then_some(value)
+    } else {
+        // The current catalogue also explicitly labels chapters as "697 离家出走中".
+        let separator = rest.iter().take_while(|c| c.is_ascii_whitespace()).count();
+        (separator > 0 && separator < rest.len()).then_some(value)
+    }
 }
 fn ws(s: &[u8], mut p: usize) -> usize {
     while p < s.len() && s[p].is_ascii_whitespace() {
@@ -913,7 +929,15 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
         if !write_usize(b, &mut n, index) {
             return Err("payload overflow");
         }
-        bytes(b,&mut n,b",\"chapterNumber\":null,\"volumeNumber\":null,\"language\":\"zh\",\"publishedAt\":null,\"updatedAt\":null,\"pageCount\":null,\"scanlator\":null}")?;
+        bytes(b, &mut n, b",\"chapterNumber\":")?;
+        if let Some(chapter_number) = title_chapter_number(title) {
+            if !write_usize(b, &mut n, chapter_number) {
+                return Err("payload overflow");
+            }
+        } else {
+            bytes(b, &mut n, b"null")?;
+        }
+        bytes(b,&mut n,b",\"volumeNumber\":null,\"language\":\"zh\",\"publishedAt\":null,\"updatedAt\":null,\"pageCount\":null,\"scanlator\":null}")?;
     }
     bytes(
         b,
