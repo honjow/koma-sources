@@ -42,3 +42,10 @@
 普通本地导入正式0.1.1后，登记由61项增至62项，仅新增本源，其余61项完整记录及相对顺序保持；普通Browse首屏5篇与《幽冥六劍客： 蚊子讓你又癢又腫的秘密》1章成功。开始阅读后先显示“图片解码中”1/1，约61秒后日志明确为ReaderImage http_request_failed code=2300028（操作超时），继而resolve_failed page=1；实际终态“无法加载页面/重试”，没有点击重试。未取得正文实体或解码成功，本次不能判断CMYK颜色、解码或内存兼容，也不把元数据HTTP200当正文成功。
 
 普通返回Browse喵趣分组，原10000ms/AWAKE已读回；只清理本次上传包及两个临时取证文件，均核不存在，租约已释放，哈希关闭。自然进度pageIndex=0/totalPages=1/completed=false、章节isRead=false。原件在Koma既有237 category-membership的`scitech011-cmyk237-reader-final-001/{screen.png,run-metadata.json}`（business-log含01:25:54错误）、`scitech011-cmyk237-imported-001/registry.json`及`scitech011-cmyk237-final-restored-001`。不由此推断其余27篇、下载或冷启动通过，不修改源业务或App超时。
+
+
+## 237 同首篇后继成功（2026-10-23）
+
+覆盖安装仅增加响应头/终态诊断的App包后，从普通历史重开同一首篇一次，未点击重试或改变源、请求、超时、容量、缓存逻辑及阅读样式。本次持久日志同一request操作明确：响应声明28793918字节，17.145秒后HTTP200、实际收到28793918字节；完整纵向四格繁中原图及灰/紫/红/绿区域实际显示，1/1页，无加载层。自然Back回历史，同作品pageIndex=0/totalPages=1/completed=true。此后继关闭这一次28.8MB CMYK首图的普通传输与Native显示缺口，不冒色彩校准、其余作品、下载/cold或首轮超时原因已修复。
+
+原件为同237场景`scitech011-headerdiag237-terminal-001/screen.png`、`scitech011-headerdiag237-return-001/{business-log.txt,reader.json}`及`scitech011-headerdiag237-final-restored-001`（登记）及`scitech011-headerdiag237-anchor-restored-001`（完整喵趣锚点）；最终62项登记完整保持，普通Browse喵趣分组、10000ms/AWAKE恢复，本次两临时文件已清、租约释放。前段首轮2300028独立保留；本次不补改超时或响应容量参数。
