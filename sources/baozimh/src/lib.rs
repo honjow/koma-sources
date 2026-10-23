@@ -2,6 +2,8 @@
 
 extern crate koma_source_sdk;
 
+mod chapter_duplicates;
+
 use koma_source_sdk::host::{
     self, HtmlDescriptor, html_attr, html_close, html_parse, html_select, html_text, http_request,
     log_info,
@@ -92,7 +94,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "online.baozimh.koma",
     name: "包子漫畫 (Baozimh)",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -630,6 +632,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     }
 
     let mut written = 0usize;
+    let mut seen_len = 0usize;
 
     for i in 0..total_items {
         let hd = match descriptors.get(i) {
@@ -637,8 +640,11 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             None => return write_error("get_chapters", "parse_error", "missing chapter descriptor"),
         };
         let mut title_buf = [0u8; 256];
-        let title = text_into(hd, &mut title_buf).map(trim_ascii);
+        let title_capacity = title_buf.len();
+        let raw_title = text_into(hd, &mut title_buf);
+        let title = raw_title.map(trim_ascii);
         let mut href_buf = [0u8; 256];
+        let href_capacity = href_buf.len();
         let href = attr_into(hd, b"href", &mut href_buf);
 
         let mut chapter_slot_buf = [0u8; 16];
@@ -648,6 +654,15 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             None
         };
         let slot = chapter_slot.unwrap_or(b"0");
+
+        // Latest/full-list DOM groups may repeat the very same link. An ID alone
+        // is insufficient: section links or conflicting titles must stay visible.
+        // A saturated field may have been truncated by the existing host buffer.
+        let complete_href = chapter_duplicates::complete_fact(href, href_capacity);
+        let complete_title = chapter_duplicates::complete_fact(raw_title, title_capacity).map(trim_ascii);
+        if chapter_duplicates::remember_exact_duplicate(http_out(), &mut seen_len, complete_href, chapter_slot, complete_title) {
+            continue;
+        }
 
         if written > 0 {
             if !write_bytes(payload, &mut c, b",") { return write_error("get_chapters", "internal_error", "payload overflow"); }
