@@ -24,3 +24,10 @@ source ID `com.fjumonkey.pixnet.zh-hant.koma`，0.1.1，ABI0.2，zh-Hant。能�
 原68合同、page2補14、URI角色糾正5均保留；舊原REPORT的「首封面/正文完整URI相同」誤句已由獨立correction明確更正，不覆寫原凍結。源限制HTML<1MiB、每頁≤24項、每篇≤64圖、JSON深度≤64；結構不符明確拒絕，不猜URI回退。其餘23篇/後4頁/未來目錄/離線/Native unknown。原素材不隨包分發。
 
 獨立clone `/private/tmp/Koma-sources-fjumonkey-zh-hant-20261015`，base `d5ee46d9821c40c2931161517d27027671e6f0c9`；交付證據 `/private/tmp/koma-fjumonkey-zh-hant-implementation-20261015`。保護全部舊凍結及主WIP，不改App/Kit/SDK/runner原件，不設備/commit/push/release。Root審完整diff/原合同後負責普通197驗收。
+
+
+## 237 0.1.1 首篇普通正文（2026-10-23）
+
+普通系统选择器首次导入正式0.1.1，登记64→65只新增本源，原64条完整记录及相对顺序保持。普通Browse显示12本，首篇《Holly Plus 59 - 夏日玩水須知》详情1章；开始阅读实际显示标题1/5，正常下一页显示完整绿狮老师提醒玩水安全的叙事图2/5，文字、人物与原版权行完整可见，无加载层。自然Back后详情立即显示继续第2/5页；持久会话精确绑定post38769301、正文ordinal1、pageIndex=1、totalPages=5、progressRatio=0.4、completed=false，原全部其他阅读对象保持。只接受本篇标题和首张叙事正文、自然返回及读态，不外推其余三正文、其他作品、全分页、下载或cold。
+
+原件沿Koma既有237 category-membership的`fjumonkey011-native237-{gate,imported,browse,detail,title-reader,body,return}-001`与`fjumonkey011-native237-restored-anchor-002`；body/return保留完整原图、布局和命令回执，return另有reader.json。最终Browse原M组喵趣锚点、65项登记、10000ms/AWAKE、本轮传包与两scratch不存在均读回，租约已释放、哈希关闭。仅保留正常新装源及自然读态，未改源/App代码、版本、图标、偏好或新增下载。

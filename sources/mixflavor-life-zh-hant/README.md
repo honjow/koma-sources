@@ -23,3 +23,10 @@ sourceID=`com.mixflavor.life.zh-hant.koma`，0.1.1，ABI0.2，zh-Hant；能力�
 僅使用凍結原兩頁、11152、8513、8481與現有production Cpp HtmlHost+Lexbor/Wasmtime作有限回放：30操作/真ABI，18 metadata callbacks=15原HTTP回放+3明確synthetic malformed body。原20/範圍19、case/URI/next、首2正文計畫/附文、8513五描述符、8481整篇拒絕及有限身份反例成立；descriptor末0指資源關閉不是0圖片。除調查已取的首2實體及8513/8481各首圖外，未補其它實體/頁/作品。初期錯要求分類og:url的probe原失敗保留，依完整原head修正；不合成成功原體。Host與構建不等於Native/NetworkKit成功，197普通導入、原分頁、正文、下載/cold待Root具名驗收。
 
 base `d5ee46d9821c40c2931161517d27027671e6f0c9`；獨立clone `/private/tmp/Koma-sources-mixflavor-life-zh-hant-20261015`，證據 `/private/tmp/koma-mixflavor-life-zh-hant-implementation-20261015`。原54+32+14=100合同、舊源與主WIP保護。無App/Kit/SDK/共享runner原件、style、設備、commit/push/release操作。
+
+
+## 237 0.1.1 首篇普通正文（2026-10-23）
+
+普通系统选择器首次导入正式0.1.1，登记62→63仅新增本源，原62项完整记录及相对顺序保持。普通Browse分类9本→11152《你的事，我都知道。》1章→阅读，完整繁中彩色叙事原图1/2及普通右侧翻页2/2均实际显示，无加载层；自然Back后会话绑定原post/path，pageIndex=1、totalPages=2、completed=true，其他原阅读记录完整保持。只接受本篇两图、自然返回及读态，不外推其他文章、全分页、下载/cold或商业分发许可。
+
+原件沿Koma既有237 category-membership的`mixflavor011-native237-firstpage-001/screen.png`、`mixflavor011-native237-page2-return-001/{page2.png,reader.json}`及`mixflavor011-native237-{browse-restored,final-restored}-001`。最终普通Browse喵趣完整锚点、63项登记保持、10000ms/AWAKE、本人传包及两scratch不存在均读回，租约已释放，哈希关闭；未改源/App/图标/版本、偏好或新增下载。

@@ -57,3 +57,10 @@ uses the current SDK HTTP-status decoder. PGR already checks status 200 before
 body decoding. The official 400px same-portrait original replaces the 30px
 favicon; provenance and prior image-only acceptance are in ASSET_SOURCES.md.
 Current integration review: /private/tmp/koma-pgr012-original-canonical-20261018.
+
+
+## 237 0.1.2 第一话普通正文（2026-10-23）
+
+现装0.1.2的作品79《战双帕弥什的日常》从普通Browse返回5本列表、详情完整33章。基线已存在第零话708完成态，本轮未重开它；从真实目录临时切升序选择本轮基线无读态的第一话677《七实的实验》。完整中文彩色叙事四格实际显示为1/1页，无加载层；同次图片请求日志HTTP200、543926字节、356ms完成。自然Back后详情立即显示第一话第1/1页，真实会话绑定pgrchapter:79:677、pgrpage:79:677:0、pageIndex=0/totalPages=1/completed=true；原708章节对象及所有其他书的读态保持。仅接受本章普通正文及自然返回，不外推其余章节、其他作品、下载/cold或整源通过。
+
+临时章节排序已重置为原话数降序，最终普通Browse喵趣完整锚点、62项登记完整保持、10000ms/AWAKE读回，本次两个scratch文件已清并核不存在，租约已释放，哈希关闭。原件沿Koma既有237 category-membership：`pgr012-native237-ch677-reader-001/{screen.png,run-metadata.json}`、`pgr012-native237-ch677-return-001/{screen.png,reader.json}`与`pgr012-native237-final-restored-001`。本轮没有改源/App/图标/版本、安装或新增下载。

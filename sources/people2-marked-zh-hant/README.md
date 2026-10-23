@@ -18,3 +18,10 @@
 成本：get_listings 0 GET；每個 browse頁1 GET；detail/chapters/pages各1 GET；cover/body plan各1 GET；非法 host/ID/owner/cursor前置拒絕0 GET，合法語法但錯 ordinal需1 GET確認。構建期間除 Root明確批准的另外3篇原HTML各1次資格GET，沒有新增網路或圖片請求。
 
 靜態能力邊界：原聖誕文另有 People2 movie script 嵌入，萬聖節文另有 YouTube iframe。只允許原已核 `https://ext.pixnet.tv/user/People2/embed/movie/<正整數>.js` 和 `https://www.youtube.com/embed/<11字元ID>` 作明確原地址文字引用；含這些嵌入的詳情開頭先說明僅提供靜態圖與可見附文，影音未承載。無執行、抓取、watch URL合成或新網路域；inline/未知 script/iframe、video/object/embed 仍拒絕。本源不聲稱完整消費原 post 所有媒介。另三篇靜態圖陣列為2/2/3，所有附文保留，這7張實體未GET/目檢。
+
+
+## 237 普通空中间页分页观察（2026-10-23）
+
+普通picker首次导入既有正式0.1.1，登记63→64只新增本源，原63条完整记录和相对顺序保持。现装App 0.1.2-pre/code3普通Browse首屏HTTP200，实际显示原4本及封面；一次正常滚到末尾后连续完成4次后继get_manga_list，均HTTP200/completed，最终仍4本并显示“没有更多了”。当前消费者没有在原留存的零匹配中间页处提前终止；源码严格校验next/back页号并仅按实际next输出hasMore，App按该标记保留后继。日志未导出逐页原JSON封套，不能把resultChars335/279当逐字段响应实读；本次仅接受具名普通分页消费，不宣称详情、阅读、下载或整源通过。
+
+原件沿Koma既有237 category-membership：`people2011-empty237-{gate,imported,firstpage,nextpage,final-restored}-001`，nextpage内为连续日志及完整原图。最终普通Browse喵趣组已恢复，reader整份内容与进入前相同，原10000ms/AWAKE、本人传包及两scratch不存在均读回，租约释放、哈希关闭。仅保留正常新装People2；未改源/App代码、版本、图标、偏好、读态或其他源。
