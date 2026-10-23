@@ -50,8 +50,20 @@ fn numbered_title_prefix(title: &[u8]) -> Option<&[u8]> {
     let value = core::str::from_utf8(number).ok()?.parse::<f64>().ok()?;
     // Avoid silently turning a huge decimal label into rounded/infinite metadata.
     if !value.is_finite() || value > 9_007_199_254_740_991.0 { return None; }
-    if !title.get(end).is_some_and(u8::is_ascii_whitespace) { return None; }
     let rest = &title[end..];
+    // Two additional real catalog forms: "045" and "006扶腰壯膽韓良臣".
+    // Only three-digit zero-padded integers qualify, not arbitrary bare numbers.
+    if number.len() == 3 && number[0] == b'0' && number.iter().all(u8::is_ascii_digit) {
+        if rest.is_empty() { return Some(number); }
+        let first = core::str::from_utf8(rest).ok()?.chars().next()?;
+        if ('\u{3400}'..='\u{4dbf}').contains(&first) || ('\u{4e00}'..='\u{9fff}').contains(&first) {
+            // These prefixes describe dates, editions or units, not a title.
+            if !matches!(first, '年' | '月' | '日' | '卷' | '季' | '頁' | '页' | '冊' | '册' | '部' | '集' | '第') {
+                return Some(number);
+            }
+        }
+    }
+    if !title.get(end).is_some_and(u8::is_ascii_whitespace) { return None; }
     if rest.iter().all(u8::is_ascii_whitespace) { return None; }
     Some(number)
 }
@@ -92,6 +104,27 @@ mod tests {
         }
         let huge = format!("{} 标题", "9".repeat(400));
         assert_eq!(title_chapter_number(huge.as_bytes()), None);
+    }
+
+    #[test]
+    fn observed_zero_padded_catalog_numbers_do_not_need_a_space_or_title() {
+        assert_eq!(title_chapter_number("006扶腰壯膽韓良臣".as_bytes()), Some(b"006".as_slice()));
+        assert_eq!(title_chapter_number(b"045"), Some(b"045".as_slice()));
+        let labels = ["005 标题", "006扶腰壯膽韓良臣", "007 标题", "045"];
+        let numbers: Vec<u32> = labels.iter().map(|title|
+            core::str::from_utf8(title_chapter_number(title.as_bytes()).unwrap()).unwrap().parse().unwrap()).collect();
+        assert_eq!(numbers, [5, 6, 7, 45]);
+    }
+
+    #[test]
+    fn zero_padded_extension_does_not_guess_dates_editions_or_other_numeric_titles() {
+        for title in ["006年01月02日", "006月刊", "006日更新", "006卷", "006季", "006頁", "006页",
+            "006冊", "006册", "006部", "006集", "006第2季", "006-01-02", "006/01/02", "006.01.02",
+            "20261023", "2026年更新", "45", "170", "215如之奈何", "6扶腰壯膽韓良臣", "0006标题",
+            "006A标题", "006_标题", "006.5标题", "标题006", "006（番外）"] {
+            assert_eq!(title_chapter_number(title.as_bytes()), None, "{title}");
+        }
+        assert_eq!(title_chapter_number(b"006\xff"), None);
     }
 
     #[test]
