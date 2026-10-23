@@ -2,6 +2,9 @@
 // Only the observed leading labels supply numeric metadata; all other titles
 // remain unknown. This deliberately does not scan for digits elsewhere.
 pub(crate) fn title_chapter_number(title: &[u8]) -> Option<&[u8]> {
+    if title.first().is_some_and(u8::is_ascii_digit) {
+        return numbered_title_prefix(title);
+    }
     let (label, bracketed) = match title.strip_prefix(b"[") {
         Some(label) => (label, true),
         None => (title, false),
@@ -31,6 +34,28 @@ pub(crate) fn title_chapter_number(title: &[u8]) -> Option<&[u8]> {
     Some(number)
 }
 
+// Baozimh's observed 紹宋 catalog labels use "215 如之奈何". Keep the
+// request slot opaque: only this complete, delimited title prefix is metadata.
+fn numbered_title_prefix(title: &[u8]) -> Option<&[u8]> {
+    let mut end = 0;
+    while title.get(end).is_some_and(u8::is_ascii_digit) { end += 1; }
+    if end == 0 { return None; }
+    if title.get(end) == Some(&b'.') {
+        end += 1;
+        let start = end;
+        while title.get(end).is_some_and(u8::is_ascii_digit) { end += 1; }
+        if end == start { return None; }
+    }
+    let number = &title[..end];
+    let value = core::str::from_utf8(number).ok()?.parse::<f64>().ok()?;
+    // Avoid silently turning a huge decimal label into rounded/infinite metadata.
+    if !value.is_finite() || value > 9_007_199_254_740_991.0 { return None; }
+    if !title.get(end).is_some_and(u8::is_ascii_whitespace) { return None; }
+    let rest = &title[end..];
+    if rest.iter().all(u8::is_ascii_whitespace) { return None; }
+    Some(number)
+}
+
 #[cfg(test)]
 mod tests {
     use super::title_chapter_number;
@@ -43,6 +68,30 @@ mod tests {
         assert_eq!(title_chapter_number("第0话 起点".as_bytes()), Some(b"0".as_slice()));
         assert_eq!(title_chapter_number("[第12.5話]番外(2)".as_bytes()), Some(b"12.5".as_slice()));
         assert_eq!(title_chapter_number("第1.5话：番外".as_bytes()), Some(b"1.5".as_slice()));
+    }
+
+    #[test]
+    fn observed_shaosong_labels_supply_numbers_without_reordering_catalog() {
+        let titles = ["215 如之奈何", "224 潰敗", "223 你不明白", "222 添亂", "221 你們也配？！",
+            "220 掏後", "219 車輪子", "214 鷹揚", "218 決戰時機", "217 牽扯", "216 奇兵"];
+        let numbers: Vec<u32> = titles.iter().map(|title|
+            core::str::from_utf8(title_chapter_number(title.as_bytes()).unwrap()).unwrap().parse().unwrap()).collect();
+        assert_eq!(numbers, [215, 224, 223, 222, 221, 220, 219, 214, 218, 217, 216]);
+        let mut descending = numbers.clone();
+        descending.sort_by(|left, right| right.cmp(left));
+        assert_eq!(descending, [224, 223, 222, 221, 220, 219, 218, 217, 216, 215, 214]);
+        assert_eq!(title_chapter_number("12.5 番外(2)".as_bytes()), Some(b"12.5".as_slice()));
+    }
+
+    #[test]
+    fn numeric_prefix_requires_complete_delimiter_title_and_representable_number() {
+        for title in ["215", "215 ", "215\t\r\n", "215如之奈何", "chapter 215 标题", "215A 标题",
+            "2026-10-23 更新", "2026/10/23 更新", "2026.10.23 更新", "215e2 标题", "-215 标题",
+            "215. 标题", "215.2.3 标题", "9007199254740992 标题"] {
+            assert_eq!(title_chapter_number(title.as_bytes()), None, "{title}");
+        }
+        let huge = format!("{} 标题", "9".repeat(400));
+        assert_eq!(title_chapter_number(huge.as_bytes()), None);
     }
 
     #[test]
