@@ -14,17 +14,39 @@ use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{build_get_request, parse_status_code};
 
 #[derive(Copy, Clone)]
-enum FetchError { Network, NotFound, RateLimit, PermissionDenied, ClientError, ServerError }
+enum FetchError { Network, Http(u16) }
 
 fn fetch_error_code(error: FetchError) -> (&'static str, &'static str) {
     match error {
         FetchError::Network => ("network_error", "connection or timeout failure"),
-        FetchError::NotFound => ("not_found", "resource not found"),
-        FetchError::RateLimit => ("rate_limited", "rate limited by server"),
-        FetchError::PermissionDenied => ("permission_denied", "source requires access verification"),
-        FetchError::ClientError => ("client_error", "client error (4xx)"),
-        FetchError::ServerError => ("server_error", "server error (5xx)"),
+        FetchError::Http(401 | 403) => ("permission_denied", "source requires access verification"),
+        FetchError::Http(404) => ("not_found", "resource not found"),
+        FetchError::Http(429) => ("rate_limited", "rate limited by server"),
+        FetchError::Http(400..=499) => ("client_error", "client error (4xx)"),
+        FetchError::Http(_) => ("server_error", "server error (5xx)"),
     }
+}
+
+// Preserve only the observed HTTP status; transport failures have no HTTP status.
+fn write_fetch_error(operation: &str, error: FetchError) -> u32 {
+    let (code, message) = fetch_error_code(error);
+    let status = match error {
+        FetchError::Network => return write_error(operation, code, message),
+        FetchError::Http(status) => status,
+    };
+    let mut envelope = [0u8; 512];
+    let mut cursor = 0;
+    let ok = write_bytes(&mut envelope, &mut cursor, br#"{"type":"response","version":1,"ok":false,"operation":""#)
+        && append_json_escaped(&mut envelope, &mut cursor, operation.as_bytes())
+        && write_bytes(&mut envelope, &mut cursor, br#"","error":{"code":""#)
+        && append_json_escaped(&mut envelope, &mut cursor, code.as_bytes())
+        && write_bytes(&mut envelope, &mut cursor, br#"","message":""#)
+        && append_json_escaped(&mut envelope, &mut cursor, message.as_bytes())
+        && write_bytes(&mut envelope, &mut cursor, br#"","status":"#)
+        && write_usize(&mut envelope, &mut cursor, status as usize)
+        && write_bytes(&mut envelope, &mut cursor, br#"},"hostHints":{"network":false},"warnings":[]}"#);
+    if !ok { return write_error(operation, "internal_error", "error response overflow"); }
+    response_buffer().write(&envelope[..cursor], false)
 }
 
 // Additional host import not yet in SDK
@@ -70,7 +92,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "online.baozimh.koma",
     name: "包子漫畫 (Baozimh)",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -115,11 +137,7 @@ fn fetch_html(url_bytes: &[u8]) -> Result<usize, FetchError> {
         .or_else(|| extract_json_number(resp, b"statusCode"))
         .map(parse_status_code).unwrap_or(0);
     match status {
-        401 | 403 => return Err(FetchError::PermissionDenied),
-        404 => return Err(FetchError::NotFound),
-        429 => return Err(FetchError::RateLimit),
-        400..=499 => return Err(FetchError::ClientError),
-        500..=599 => return Err(FetchError::ServerError),
+        400..=599 => return Err(FetchError::Http(status)),
         200..=299 => {},
         _ => return Err(FetchError::Network),
     }
@@ -283,7 +301,7 @@ fn run_search(req: &[u8]) -> u32 {
 
     let html_len = match fetch_html(url_bytes) {
         Ok(len) => len,
-        Err(e) => { let (c, m) = fetch_error_code(e); return write_error("search", c, m); }
+        Err(e) => return write_fetch_error("search", e),
     };
     let html_bytes = &body_buf()[..html_len];
 
@@ -381,7 +399,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
 
     let html_len = match fetch_html(url_bytes) {
         Ok(n) => n,
-        Err(e) => { let (c, m) = fetch_error_code(e); return write_error("get_manga", c, m); }
+        Err(e) => return write_fetch_error("get_manga", e),
     };
     let html_bytes = &body_buf()[..html_len];
 
@@ -571,7 +589,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
 
     let html_len = match fetch_html(url_bytes) {
         Ok(n) => n,
-        Err(e) => { let (c, m) = fetch_error_code(e); return write_error("get_chapters", c, m); }
+        Err(e) => return write_fetch_error("get_chapters", e),
     };
     let html_bytes = &body_buf()[..html_len];
 
@@ -741,7 +759,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
 
     let html_len = match fetch_html(url_bytes) {
         Ok(n) => n,
-        Err(e) => { let (c, m) = fetch_error_code(e); return write_error("get_pages", c, m); }
+        Err(e) => return write_fetch_error("get_pages", e),
     };
     let html_bytes = &body_buf()[..html_len];
 
@@ -912,7 +930,7 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
 
     let html_len = match fetch_html(url_bytes) {
         Ok(len) => len,
-        Err(e) => { let (c, m) = fetch_error_code(e); return write_error("get_manga_list", c, m); }
+        Err(e) => return write_fetch_error("get_manga_list", e),
     };
     let html_bytes = &body_buf()[..html_len];
 
@@ -1020,10 +1038,7 @@ enum HomeSectionError {
 
 fn write_home_section_error(error: HomeSectionError) -> u32 {
     match error {
-        HomeSectionError::Fetch(error) => {
-            let (code, message) = fetch_error_code(error);
-            write_error("get_home", code, message)
-        }
+        HomeSectionError::Fetch(error) => write_fetch_error("get_home", error),
         HomeSectionError::Parse => write_error("get_home", "parse_error", "html_parse failed"),
         HomeSectionError::Selection => write_error("get_home", "parse_error", "card selection failed"),
         HomeSectionError::Overflow => write_error("get_home", "internal_error", "overflow"),

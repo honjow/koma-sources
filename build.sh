@@ -311,6 +311,12 @@ build_source() {
   local icon_name
   icon_name="$(python3 "$ICON_VALIDATOR" --source-dir "$src_path" --print-name)"
 
+  # Optional package declaration; the App still requires per-source user consent.
+  local web_session_origins='[]'
+  if [[ -f "$src_path/web-session-origins.json" ]]; then
+    web_session_origins="$(jq -ce 'if type == "array" and all(.[]; type == "string" and test("^https://[A-Za-z0-9.-]+(:[0-9]+)?$")) then . else error("invalid web session origins") end' "$src_path/web-session-origins.json")"
+  fi
+
   # Create manifest.json
   local pkg_dir="$OUTPUT_DIR/pkg/$name"
   mkdir -p "$pkg_dir"
@@ -327,7 +333,8 @@ build_source() {
     --arg minAppVersion "$min_app_version" \
     --arg icon "$icon_name" \
     --argjson localizedMetadata "$localized_metadata" \
-    '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, minAppVersion: $minAppVersion, icon: $icon} + $localizedMetadata' \
+    --argjson webSessionOrigins "$web_session_origins" \
+    '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, minAppVersion: $minAppVersion, icon: $icon} + $localizedMetadata + (if ($webSessionOrigins | length) > 0 then {webSessionOrigins: $webSessionOrigins} else {} end)' \
     > "$pkg_dir/manifest.json"
 
   # Copy wasm

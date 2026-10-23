@@ -73,7 +73,7 @@ fn manga_title(obj: &[u8]) -> &[u8] {
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "org.mangadex.koma",
     name: "MangaDex",
-    version: "0.1.10",
+    version: "0.1.11",
     api_version: "0.2",
     language: "en",
     author: "Koma",
@@ -623,7 +623,9 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             Some(v) => v,
             None => { traversal.other = true; continue; },
         };
-        let chapter_num = api_string(api_attributes(obj), b"chapter").unwrap_or(b"0");
+        // An unnumbered extra is unknown, not chapter zero. Keep real "0" intact.
+        let chapter_num = api_string(api_attributes(obj), b"chapter")
+            .filter(|value| !value.iter().all(u8::is_ascii_whitespace));
         let title = api_string(api_attributes(obj), b"title").unwrap_or(b"");
         let lang = api_string(api_attributes(obj), b"translatedLanguage").unwrap_or(b"en");
 
@@ -650,9 +652,16 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             && write_bytes(payload, &mut c, br#"","mangaId":"mdx:"#)
             && append_json_escaped(payload, &mut c, uuid)
             && write_bytes(payload, &mut c, br#"","title":""#)
-            && append_api_string(payload, &mut c, title)          && write_bytes(payload, &mut c, br#"","chapterNumber":""#)
-            && append_api_string(payload, &mut c, chapter_num)
-            && write_bytes(payload, &mut c, br#"","volumeNumber":null,"language":""#)
+            && append_api_string(payload, &mut c, title)
+            && write_bytes(payload, &mut c, br#"","chapterNumber":"#)
+            && if let Some(number) = chapter_num {
+                write_bytes(payload, &mut c, b"\"")
+                    && append_api_string(payload, &mut c, number)
+                    && write_bytes(payload, &mut c, b"\"")
+            } else {
+                write_bytes(payload, &mut c, b"null")
+            }
+            && write_bytes(payload, &mut c, br#","volumeNumber":null,"language":""#)
             && append_api_string(payload, &mut c, lang)            && write_bytes(payload, &mut c, br#"","publishedAt":null,"updatedAt":null,"pageCount":"#);
         if !ok { return write_error("get_chapters", "internal_error", "overflow"); }
         if let Some(p) = pages {
