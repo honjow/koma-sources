@@ -4,6 +4,7 @@ extern crate koma_source_sdk;
 
 mod chapter_duplicates;
 mod chapter_number;
+mod access_signal;
 
 use koma_source_sdk::host::{
     self, HtmlDescriptor, html_attr, html_close, html_parse, html_select, html_text, http_request,
@@ -17,11 +18,13 @@ use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{build_get_request, parse_status_code};
 
 #[derive(Copy, Clone)]
-enum FetchError { Network, Http(u16) }
+enum FetchError { Network, Http(u16), Access(u16, access_signal::AccessSignal) }
 
 fn fetch_error_code(error: FetchError) -> (&'static str, &'static str) {
     match error {
         FetchError::Network => ("network_error", "connection or timeout failure"),
+        FetchError::Access(_, access_signal::AccessSignal::Challenge) => ("challenge_required", "website verification required"),
+        FetchError::Access(_, access_signal::AccessSignal::Authentication) => ("auth_required", "website authentication required"),
         FetchError::Http(401 | 403) => ("permission_denied", "source requires access verification"),
         FetchError::Http(404) => ("not_found", "resource not found"),
         FetchError::Http(429) => ("rate_limited", "rate limited by server"),
@@ -35,7 +38,7 @@ fn write_fetch_error(operation: &str, error: FetchError) -> u32 {
     let (code, message) = fetch_error_code(error);
     let status = match error {
         FetchError::Network => return write_error(operation, code, message),
-        FetchError::Http(status) => status,
+        FetchError::Http(status) | FetchError::Access(status, _) => status,
     };
     let mut envelope = [0u8; 512];
     let mut cursor = 0;
@@ -95,7 +98,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "online.baozimh.koma",
     name: "包子漫畫 (Baozimh)",
-    version: "0.1.6",
+    version: "0.1.7",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -140,6 +143,13 @@ fn fetch_html(url_bytes: &[u8]) -> Result<usize, FetchError> {
         .or_else(|| extract_json_number(resp, b"statusCode"))
         .map(parse_status_code).unwrap_or(0);
     match status {
+        401 | 403 => {
+            let error = match access_signal::from_host_response(status, resp, body_buf()) {
+                Some(signal) => FetchError::Access(status, signal),
+                None => FetchError::Http(status),
+            };
+            return Err(error);
+        }
         400..=599 => return Err(FetchError::Http(status)),
         200..=299 => {},
         _ => return Err(FetchError::Network),

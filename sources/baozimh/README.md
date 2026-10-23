@@ -43,3 +43,7 @@ Home栏目身份修订：仅四原栏目增加home:popular/cn/jp/kr稳定id，�
 237普通入口本轮首页实际显示12个封面，《紹宋》详情258/258章；打开“人設物料”后首图1/6为实际角色设定正文，自然返回详情立即显示“继续阅读 · 人設物料 · 第1/6页”，再返回到“熱門漫畫”。同链get_manga/get_chapters以native身份、session=attached实际HTTP200；get_pages因不同origin按边界不附会话（session=none），仍实际HTTP200并完成；6张图片请求均HTTP200。只接受本作这次首页、详情、首图及自然返回链，不等于其余5页已逐张看图、全站/下载/冷启动或所有源会话通过。
 
 原件沿Koma既有237 category-membership的`baozi014-native-context237-{settled-002,detail-003,reader-004,return-settings-005,full-log-006}`。`return-settings-005/failure.png`来自测试脚本错误期待不属于该设置sheet的“断开网页会话”；原图实际为正确源设置（預設地區、預設狀態），不记成产品失败，也不宣称设置保存已验证。此前identity=none的403和错误提示/状态透传取证继续保留，不重试覆盖。
+
+## 0.1.7 明确网页错误信号
+
+保留 HTTP 401/403 完整 JSON 响应中顶层 `error` 明确返回的 `challenge_required` / `auth_required`，以及原 HTTP 状态，供宿主区分网页挑战和登录要求；普通 403 不猜测为 Cloudflare 挑战。未知、嵌套、畸形或歧义信号继续保留原 HTTP 错误分类。
