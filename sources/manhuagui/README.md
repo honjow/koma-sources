@@ -1,4 +1,4 @@
-# Manhuagui 0.1.5
+# Manhuagui 0.1.6
 
 Source-only ordinary public HTML adapter for https://www.manhuagui.com, based on Keiyoushi extensions-source commit 10f06eb833af5990bc5470c84c5e93edc159ad4e (Apache-2.0). LZ-string algorithm attribution: Keiyoushi LZString (Apache-2.0), with an independent algorithm check against pieroxy/lz-string 1.5.0 (reference file licensed WTFPL v2); bounded source-local implementation.
 
@@ -8,7 +8,7 @@ Popular/latest paging, text search, detail, public catalogue, fixed Base64-LZ/ra
 
 The existing ABI cannot express upstream cross-call main-site 10 requests/10 seconds or image 4/second limits; no equivalent limiter is claimed. HTTP compression parity (br/gzip/zstd) is unproven. This candidate has local code/build gates only; no current source-site or physical-device chain has been accepted. Old tree connection/SSL timeouts are separate transport history, not HTTP rejection evidence.
 
-Source version is 0.1.4; minimum App version remains 0.1.0 (registry fourth field). These are independent. The previous candidate incorrectly required App 0.1.1; root observed native install_blocked/app_version_unsupported on App0.1.0 at17:04:49 and17:05:52, with no package request. Root owns that physical failure evidence. No App check/version/SDK change is needed.
+Source version is 0.1.6; minimum App version remains 0.1.0 (registry fourth field). These are independent. The previous candidate incorrectly required App 0.1.1; root observed native install_blocked/app_version_unsupported on App0.1.0 at17:04:49 and17:05:52, with no package request. Root owns that physical failure evidence. No App check/version/SDK change is needed.
 
 0.1.2 adds finite top-level failed-host-envelope classification only when no valid numeric HTTP status is present. Root observed 0.1.1 canonical popular timeout at17:14:58→17:15:13, status0 and no HTTP response/body. Network failures and native timeout now remain network_error/timeout with fixed privacy-safe messages. Existing numeric status/statusCode exchanges, including ok:false, retain HTTP2xx/403/429 behavior; no retry or request contract change.
 
@@ -45,3 +45,16 @@ Host 按原源声明头单次读取该页200/53615B；014基线WASM与原正式�
 237（VDE-AL00，展开竖屏1320×2120）普通本地选择器014→015更新成功；随后覆盖安装Root指定16289728B/2026-10-21 22:29:30签名Debug，未清数据。《鬼灭之刃》235/235章详情两网页菜单可见；仅执行WebView，终态显示真实封面、作者、9.5评分和卷章列表及导航控件。原003白屏转圈只证明标题到达，未作为内容通过；004等加载结束后才接受终态。自然Back仍第23卷3/230页，再返回Browse；服务页54个源包，新名称序中漫画1234→漫画160→漫画柜015→漫画人可见。未切换启用/索引、未导出私有registry，不冒全54条字段逐项比对；未执行外部浏览器、正文、下载或全源矩阵。最终10000ms/AWAKE读回、本人上传包不存在，租约释放。Root已亲看004五张原图，结论仅限上述路径。
 
 Host原件在Koma `.hvigor/outputs/user-flow-audit/` 的 `manhuagui015-detail-fixture.html`、`manhuagui015-detail-fixture-receipt.json`、`manhuagui014-link-baseline-offline.json`、`manhuagui015-link-offline.json`。237原件在同目录 `device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/`：`manhuagui015-import237-002/import-success.png`、`manhuagui015-app-update237-001/run-metadata.json`、`manhuagui015-webview237-004/{both-web-actions,webview-workpage,detail-returned,services54-newapp,browse-restored}.png`；最终恢复回执 `manhuagui015-webview-postflight237-004/run-metadata.json`。
+
+
+## 0.1.6 声明目录分组与卷/话metadata（2026-10-23，本地候选）
+
+修改依据是原成功公开详情 `https://www.manhuagui.com/comic/19430/` 的53615B HTML及200回执，现存于Koma `.hvigor/outputs/user-flow-audit/manhuagui015-detail-fixture{.html,-receipt.json}`。原页明确说明单行本卷包含杂志连载话，并以h4分出单行本/单话/番外篇；两后组均复用chapter-list-1，不能拿DOM id当阅读组。网站“开始阅读”明确指向 `/comic/19430/219425.html` 第01回，而不是数组首项第23卷。
+
+只消费同一目录owner的直接h4/list声明：单行本明确“第N卷”单位标签只填volumeNumber字符串；单话明确以“第N回/话”单位标签开头的title只填chapterNumber，后续题名原样保留。各组有独立readingGroup，只有明确数字标签才continuationEligible=true；番外/未知分组或歧义标签不猜主序、false且保留所有手动目录。日期仍未知，不将整书“最近更新2021-08-21”复制给每章。原稳定ID、全部title/index、section顺序、每section逆UL的原输出、get_pages/HTTP/网页字段/图标和最低App版本保持；不新增首章API、不用数组位置冒充章号、不全表reverse。
+
+版本015→016仅本parser及交付版本。原015正式包与016在同一真实HTML、当前生产CppHtmlHost/Lexbor上离线回放均235唯一href；全部ID/title/index/数组顺序、get_manga完整输出及HTTP请求保持。016给23卷/206单话/6番外分组；当前实际parseMangaChapterFromSourceItem/firstReaderChapter/continuationChapterIds消费后首章是上述219425，卷1→23、单话1→206互不串组，番外各仅自身。另三份受控原HTML派生只验证未知h4/非单位标签前置年份/真实零号边界，绝不冒当前上游或Native接受。单源offline/locked release编译通过，未联网、改App/SDK或部署。
+
+本地回放与精确diff原件 `/private/tmp/koma-manhuagui016-metadata-20261023/`。这只证明该原HTML的源与当前纯消费函数；016有限普通更新结果见下一段，既有收藏metadata正常落库、首次阅读/分组续章硬件仍未证。当天237现装015热门首批唯一请求15秒平台2300028/network_error/http0失败保持，未触页2、未重试；016不改网络合同，不作为该超时或分页修复。
+
+237有限普通验收（2026-10-23）：同一系统本地picker将015更新为016，原生显示“导入成功”，安装实体manifest为com.manhuagui.koma/0.1.6且仍启用。原样本是sourceHistory中的comic/19430而非收藏；只打开该项第23卷585116、第3/230页，未触同名其他源或新增收藏。此次get_chapters为15150ms network_error/http0，随后App自动get_pages为15058ms network_error/http0，原生终态“页面目录加载失败”；没有HTTP/HTML，不能归因为CF或parser，也不作为235目录、metadata落库或正文Native通过。未点击重试；普通Back后同项仍第23卷3/230页，再恢复原History首屏，10000ms/AWAKE读回，本次自传385962B包及capture scratch已清、租约释放。原件在Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/manhuagui016-native237-`各run：`picker-select016-012`、`history-scroll-016`（安装manifest接收）、`history-target-anchor-022`、`resume-original19430-023`、`resume-diagnosis-025`、`failure-preserve-026`、`return-original-history-027`、`restore-history-top-028`、`restored-cleanup-029`。精确scope及回执集中于 `/private/tmp/koma-manhuagui016-metadata-20261023/`；237仍旧App，不代表Root仅197安装的metadata持久化候选已验。完整会话文件后置导出被自动审批拒绝且未执行，进度保持以同实体普通历史UI前后为证。

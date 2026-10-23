@@ -8,7 +8,7 @@ const BASE: &[u8] = b"https://www.manhuagui.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.manhuagui.koma",
     name: "Manhuagui",
-    version: "0.1.5",
+    version: "0.1.6",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -875,6 +875,114 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
     bytes(b, &mut n, br#"/"}]}}"#)?;
     Ok(n)
 }
+#[derive(Clone, Copy, PartialEq)]
+enum ChapterGroup {
+    Unknown,
+    Volume,
+    Serial,
+    Extra,
+}
+impl ChapterGroup {
+    fn label(self) -> &'static [u8] {
+        match self {
+            Self::Volume => b"volume",
+            Self::Serial => b"serial",
+            Self::Extra => b"extra",
+            Self::Unknown => b"unknown",
+        }
+    }
+}
+// A single catalogue owner and its direct h4/list siblings give the group meaning.
+// IDs are not group keys: the public page reuses chapter-list-1 for serial/extras.
+// Optional metadata must never remove an otherwise supported catalogue entry.
+fn chapter_groups(root: &Node, count: usize) -> [ChapterGroup; 2048] {
+    let unknown = [ChapterGroup::Unknown; 2048];
+    let Ok(owners) = Nodes::get(root, b"div.chapter") else {
+        return unknown;
+    };
+    if owners.n != 1 {
+        return unknown;
+    }
+    let Ok(nodes) = Nodes::get(root, b"div.chapter > h4, div.chapter > [id^=chapter-list-]") else {
+        return unknown;
+    };
+    let mut groups = unknown;
+    let mut pending = ChapterGroup::Unknown;
+    let mut index = 0;
+    for i in 0..nodes.n {
+        let node = selected(&nodes, i);
+        let mut id = [0; 128];
+        if node
+            .optional_attr(b"id", &mut id)
+            .ok()
+            .flatten()
+            .is_some_and(|id| id.starts_with(b"chapter-list-"))
+        {
+            if index >= count {
+                return unknown;
+            }
+            groups[index] = pending;
+            pending = ChapterGroup::Unknown;
+            index += 1;
+        } else {
+            let mut text = [0; 512];
+            pending = match node.text(&mut text).ok() {
+                Some(v) if v == "单行本".as_bytes() => ChapterGroup::Volume,
+                Some(v) if v == "单话".as_bytes() => ChapterGroup::Serial,
+                Some(v) if v == "番外篇".as_bytes() => ChapterGroup::Extra,
+                _ => ChapterGroup::Unknown,
+            };
+        }
+    }
+    if index == count {
+        groups
+    } else {
+        unknown
+    }
+}
+// Read only the explicit ordinal/unit label of a declared volume or serial group.
+// Numbers elsewhere in a title (e.g. an extra's "20卷附录") are not chapter order.
+fn chapter_ordinal(title: &[u8], group: ChapterGroup) -> Option<&[u8]> {
+    if group != ChapterGroup::Volume && group != ChapterGroup::Serial {
+        return None;
+    }
+    let rest = title.strip_prefix("第".as_bytes())?;
+    let mut end = rest.iter().take_while(|c| c.is_ascii_digit()).count();
+    if end == 0 {
+        return None;
+    }
+    if rest.get(end) == Some(&b'.') {
+        end += 1;
+        let fraction = rest[end..]
+            .iter()
+            .take_while(|c| c.is_ascii_digit())
+            .count();
+        if fraction == 0 {
+            return None;
+        }
+        end += fraction;
+    }
+    let suffix = &rest[end..];
+    let unit_matches = match group {
+        ChapterGroup::Volume => suffix.starts_with("卷".as_bytes()),
+        ChapterGroup::Serial => {
+            suffix.starts_with("回".as_bytes()) || suffix.starts_with("话".as_bytes())
+        }
+        _ => false,
+    };
+    if !unit_matches {
+        return None;
+    }
+    let value = core::str::from_utf8(&rest[..end])
+        .ok()?
+        .parse::<f64>()
+        .ok()?;
+    if value.is_finite() {
+        Some(&rest[..end])
+    } else {
+        None
+    }
+}
 fn chapters(r: &[u8]) -> Result<usize, &'static str> {
     let id = manga_id(r)?;
     let root = manga_doc(id)?;
@@ -882,6 +990,7 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
     if sections.n == 0 {
         return Err("chapter structure missing");
     }
+    let groups = chapter_groups(&root, sections.n);
     let b = payload_buf();
     let mut n = 0;
     let mut count = 0;
@@ -930,11 +1039,31 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
                 if !write_usize(b, &mut n, count) {
                     return Err("payload overflow");
                 };
+                let group = groups[si];
+                let ordinal = chapter_ordinal(t, group);
+                bytes(b, &mut n, b",\"chapterNumber\":")?;
+                if let Some(value) = ordinal.filter(|_| group == ChapterGroup::Serial) {
+                    q(b, &mut n, value)?;
+                } else {
+                    bytes(b, &mut n, b"null")?;
+                }
+                bytes(b, &mut n, b",\"volumeNumber\":")?;
+                if let Some(value) = ordinal.filter(|_| group == ChapterGroup::Volume) {
+                    q(b, &mut n, value)?;
+                } else {
+                    bytes(b, &mut n, b"null")?;
+                }
+                bytes(b, &mut n, b",\"readingGroup\":\"manhuagui:")?;
+                bytes(b, &mut n, id)?;
+                bytes(b, &mut n, b":")?;
+                bytes(b, &mut n, group.label())?;
+                bytes(b, &mut n, b"\",\"continuationEligible\":")?;
                 bytes(
                     b,
                     &mut n,
-                    b",\"chapterNumber\":null,\"updatedAt\":null,\"scanlator\":null}",
+                    if ordinal.is_some() { b"true" } else { b"false" },
                 )?;
+                bytes(b, &mut n, b",\"updatedAt\":null,\"scanlator\":null}")?;
                 count += 1;
             }
         }
