@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Extract only localizedNames under the existing App display-name contract.
+"""Project explicit display names and optional navigation homepage metadata.
 
-Preserve tag spelling and values in the package; App normalizes on consumption.
-Unrelated metadata is ignored and never merged into the generated manifest.
+Preserve existing localizedNames spelling and values. homepage is independent of
+webSessionOrigins and never grants cookie/session permissions. Unrelated fields
+are ignored rather than merged into generated manifests or indexes.
 """
 from pathlib import Path
 import json
 import re
 import sys
+from urllib.parse import urlsplit
 
 TAG = re.compile(r"[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8}){0,5}", re.ASCII)
 CONTROL = re.compile(r"[\x00-\x1f\x7f]")
@@ -27,9 +29,32 @@ def valid_unicode(value):
         return False
 
 
+def navigation_homepage(value):
+    if (not isinstance(value, str) or not value or not valid_unicode(value)
+            or any(char.isspace() for char in value) or CONTROL.search(value)
+            or any(char in value for char in '\\<>"')):
+        raise ValueError("invalid homepage: expected safe HTTP(S) navigation URL")
+    try:
+        parsed = urlsplit(value)
+        if (parsed.scheme.lower() not in ("http", "https") or not parsed.hostname
+                or parsed.username is not None or parsed.password is not None
+                or "%" in parsed.hostname):
+            raise ValueError("invalid homepage URL")
+        # Accessing port validates numeric/range syntax without making a request.
+        parsed.port
+    except ValueError as error:
+        raise ValueError("invalid homepage URL") from error
+    return value
+
+
 def extract(metadata):
-    if not isinstance(metadata, dict) or "localizedNames" not in metadata:
+    if not isinstance(metadata, dict):
         return {}
+    result = {}
+    if "homepage" in metadata:
+        result["homepage"] = navigation_homepage(metadata["homepage"])
+    if "localizedNames" not in metadata:
+        return result
     names = metadata["localizedNames"]
     if not isinstance(names, dict) or len(names) > 16:
         raise ValueError("invalid localizedNames: expected object with at most 16 entries")
@@ -42,7 +67,8 @@ def extract(metadata):
                 or not valid_unicode(name) or CONTROL.search(name)):
             raise ValueError("invalid localizedNames display name")
         seen.add(tag.lower())
-    return {"localizedNames": names}
+    result["localizedNames"] = names
+    return result
 
 
 def main():

@@ -305,8 +305,8 @@ build_source() {
   nsfw="${nsfw:-false}"
   min_app_version="$(source_min_app_version "$name")"
   
-  local localized_metadata
-  localized_metadata="$(python3 "$SCRIPT_DIR/scripts/read-source-localized-metadata.py" "$src_path/metadata.json")"
+  local source_metadata
+  source_metadata="$(python3 "$SCRIPT_DIR/scripts/read-source-localized-metadata.py" "$src_path/metadata.json")"
 
   local icon_name
   icon_name="$(python3 "$ICON_VALIDATOR" --source-dir "$src_path" --print-name)"
@@ -332,9 +332,9 @@ build_source() {
     --arg contentRating "$src_content_rating" \
     --arg minAppVersion "$min_app_version" \
     --arg icon "$icon_name" \
-    --argjson localizedMetadata "$localized_metadata" \
+    --argjson sourceMetadata "$source_metadata" \
     --argjson webSessionOrigins "$web_session_origins" \
-    '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, minAppVersion: $minAppVersion, icon: $icon} + $localizedMetadata + (if ($webSessionOrigins | length) > 0 then {webSessionOrigins: $webSessionOrigins} else {} end)' \
+    '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, minAppVersion: $minAppVersion, icon: $icon} + $sourceMetadata + (if ($webSessionOrigins | length) > 0 then {webSessionOrigins: $webSessionOrigins} else {} end)' \
     > "$pkg_dir/manifest.json"
 
   # Copy wasm
@@ -422,8 +422,8 @@ build_source() {
     --arg pkg "$pkg_url" \
     --arg icon "$icon_path" \
     --arg minAppVersion "$min_app_version" \
-    --argjson localizedMetadata "$localized_metadata" \
-    '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, pkg: $pkg, icon: $icon, minAppVersion: $minAppVersion} + $localizedMetadata'
+    --argjson sourceMetadata "$source_metadata" \
+    '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, pkg: $pkg, icon: $icon, minAppVersion: $minAppVersion} + $sourceMetadata'
 }
 
 validate_index_packages() {
