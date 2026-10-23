@@ -3,6 +3,7 @@
 extern crate koma_source_sdk;
 
 mod chapter_duplicates;
+mod chapter_number;
 
 use koma_source_sdk::host::{
     self, HtmlDescriptor, html_attr, html_close, html_parse, html_select, html_text, http_request,
@@ -94,7 +95,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "online.baozimh.koma",
     name: "包子漫畫 (Baozimh)",
-    version: "0.1.5",
+    version: "0.1.6",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -675,9 +676,15 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             && append_json_escaped(payload, &mut c, slug)
             && write_bytes(payload, &mut c, br#"","title":""#)
             && append_json_escaped(payload, &mut c, title.unwrap_or(b"Chapter"))
-            && write_bytes(payload, &mut c, br#"","chapterNumber":""#)
-            && append_json_escaped(payload, &mut c, slot)
-            && write_bytes(payload, &mut c, br#"","volumeNumber":null,"publishedAt":null,"updatedAt":null,"pageCount":null}"#);
+            && write_bytes(payload, &mut c, br#"","chapterNumber":"#)
+            && if let Some(number) = complete_title.and_then(chapter_number::title_chapter_number) {
+                write_bytes(payload, &mut c, b"\"")
+                    && append_json_escaped(payload, &mut c, number)
+                    && write_bytes(payload, &mut c, b"\"")
+            } else {
+                write_bytes(payload, &mut c, b"null")
+            }
+            && write_bytes(payload, &mut c, br#","volumeNumber":null,"publishedAt":null,"updatedAt":null,"pageCount":null}"#);
         if !ok { return write_error("get_chapters", "internal_error", "payload overflow"); }
         written += 1;
     }
