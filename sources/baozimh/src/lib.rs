@@ -5,6 +5,7 @@ extern crate koma_source_sdk;
 mod chapter_duplicates;
 mod chapter_number;
 mod access_signal;
+mod cdn_selection;
 
 use koma_source_sdk::host::{
     self, HtmlDescriptor, html_attr, html_close, html_parse, html_select, html_text, http_request,
@@ -98,7 +99,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "online.baozimh.koma",
     name: "包子漫畫 (Baozimh)",
-    version: "0.1.9",
+    version: "0.1.10",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -759,6 +760,38 @@ fn write_page_ordinal(dst: &mut [u8], cursor: &mut usize, ordinal: usize) -> boo
     write_bytes(dst, cursor, &digits)
 }
 
+fn log_cdn_result(probes: usize, outcome: &[u8]) {
+    let mut message = [0u8; 96];
+    let mut length = 0;
+    if write_bytes(&mut message, &mut length, b"baozimh cdn probes=")
+        && write_usize(&mut message, &mut length, probes)
+        && write_bytes(&mut message, &mut length, b" outcome=")
+        && write_bytes(&mut message, &mut length, outcome) {
+        log_info(&message[..length]);
+    }
+}
+
+// HEAD probes are deliberately not fetch_html: no GET/body or transport retry.
+fn probe_image_head(parts: &[&[u8]]) -> Result<bool, ()> {
+    if host::check_cancel() { return Err(()); }
+    let request = payload_buf();
+    let mut cursor = 0;
+    let mut ok = write_bytes(request, &mut cursor, br#"{"version":1,"method":"HEAD","url":""#);
+    for part in parts { ok = ok && append_json_escaped(request, &mut cursor, part); }
+    ok = ok && write_bytes(request, &mut cursor, br#"","headers":{},"timeoutMs":1500,"responseKind":"bodyText"}"#);
+    if !ok { return Ok(false); }
+    let mut response = [0u8; 4096];
+    let size = http_request(&request[..cursor], &mut response);
+    if host::check_cancel() { return Err(()); }
+    let size = match size { Ok(size) => size, Err(_) => return Ok(false) };
+    let response = &response[..size];
+    let status = json_object_member(response, b"status")
+        .or_else(|| json_object_member(response, b"statusCode")).map(parse_status_code);
+    Ok(json_object_member(response, b"ok") == Some(b"true".as_slice())
+        && status == Some(200)
+        && json_object_member(response, b"bodyText") == Some(br#""""#.as_slice()))
+}
+
 fn run_get_pages(req: &[u8]) -> u32 {
     let chapter_id = match extract_json_string(req, b"chapterId") {
         Some(v) => v,
@@ -829,6 +862,39 @@ fn run_get_pages(req: &[u8]) -> u32 {
         return write_error("get_pages", "parse_error", "image selection changed");
     }
 
+    // Keep the original first URI alive while later attributes use the other
+    // half of the existing HTTP buffer. HEAD replies use their own small buffer.
+    let (first_uri_buffer, page_uri_buffer) = http_out().split_at_mut(NATIVE_RESULT_CAP);
+    let first_uri = if total == 0 { &[] as &[u8] } else {
+        let hd = match descriptors.get(0) {
+            Some(value) => value,
+            None => return write_error("get_pages", "parse_error", "missing image descriptor"),
+        };
+        match attr_into(hd, b"src", first_uri_buffer) {
+            Some(value) => value,
+            None => return write_error("get_pages", "parse_error", "missing image src"),
+        }
+    };
+    if host::check_cancel() { return write_error("get_pages", "cancelled", "cancelled"); }
+    let mut probes = 0;
+    let mut head_succeeded = false;
+    let selection = match cdn_selection::choose(first_uri, slug, |parts| {
+        probes += 1;
+        let result = probe_image_head(parts);
+        if matches!(result, Ok(true)) { head_succeeded = true; }
+        result
+    }) {
+        Ok(value) => value,
+        Err(()) => {
+            log_cdn_result(probes, b"cancelled");
+            return write_error("get_pages", "cancelled", "cancelled");
+        }
+    };
+    log_cdn_result(probes, if selection.is_some() { b"fallback" }
+        else if probes == 0 { b"skipped" }
+        else if head_succeeded { b"original" }
+        else { b"original_all_failed" });
+
     let payload = payload_buf();
     let mut c = 0usize;
     let ok = write_bytes(payload, &mut c, br#"{"chapterId":"chapter:"#)
@@ -843,12 +909,13 @@ fn run_get_pages(req: &[u8]) -> u32 {
     let mut written = 0usize;
 
     for i in 0..total {
+        if host::check_cancel() { return write_error("get_pages", "cancelled", "cancelled"); }
         let hd = match descriptors.get(i) {
             Some(value) => value,
             None => return write_error("get_pages", "parse_error", "missing image descriptor"),
         };
         // The old HTTP envelope has been consumed; reuse that full buffer.
-        let img_src = match attr_into(hd, b"src", &mut http_out()[..NATIVE_RESULT_CAP]) {
+        let img_src = match attr_into(hd, b"src", page_uri_buffer) {
             Some(value) => value,
             None => return write_error("get_pages", "parse_error", "missing image src"),
         };
@@ -872,7 +939,12 @@ fn run_get_pages(req: &[u8]) -> u32 {
                 && write_bytes(payload, &mut c, br#"","index":"#)
                 && write_usize(payload, &mut c, written)
                 && write_bytes(payload, &mut c, br#","image":{"kind":"url","url":""#)
-                && append_json_escaped(payload, &mut c, img_src)
+                && match selection.as_ref().and_then(|selected| selected.rewrite(img_src)) {
+                    Some(rewritten) => append_json_escaped(payload, &mut c, rewritten.prefix)
+                        && append_json_escaped(payload, &mut c, rewritten.suffix)
+                        && append_json_escaped(payload, &mut c, rewritten.tail),
+                    None => append_json_escaped(payload, &mut c, img_src),
+                }
                 && write_bytes(payload, &mut c, br#""}}"#);
             if !ok2 {
                 return write_error("get_pages", "internal_error", "payload overflow");

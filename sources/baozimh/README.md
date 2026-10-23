@@ -55,3 +55,13 @@ Home栏目身份修订：仅四原栏目增加home:popular/cn/jp/kr稳定id，�
 ## 0.1.9 三位补零章节标签
 
 承接197《紹宋》0.1.8排序复验的新边界，仅补三位补零纯整数与直接连接中文标题的编号，例如“045”“006扶腰壯膽韓良臣”。日期、卷季页等单位及其他歧义形式继续未知，不将任意裸数字泛化为话号。原 ID、请求 slot、正文请求、目录原序和进度引用保持；已有明确话号及带空白标签规则保留。这两种标签来自主线程实际观察，本版生产解析器行为验证不替代后继安装及完整目录实机验收。
+
+## 0.1.10 每章一次的有界 CDN 选路候选
+
+- **依据**：197《大奉打更人》`chapter:dafengdagengren-chuyingshe:2` 的目录与24页解析成功，图片在302后TLS失败。当前同章网页仍给24张图；其真实 `page_runtime_v5.js` 明确列出CDN候选与选择机制。匿名Mac原首图及追加`t`均重定向到失败节点；网站所列rsa节点的同首图GET为200/JPEG/2500×4482，随后同URI HEAD为200、空正文。不是403或Cookie问题的证据，也不保证所有节点/章节可用。
+- **候选行为**：只在`get_pages`内先对原首图HEAD，失败后按网站level降序、同级原声明顺序尝试有限候选；每项一次1500ms、首个200且空正文即停止，最多6项。无计时/并发ABI，不冒称浏览器竞速。只替换同原authority、同作品章节目录的严格HTTPS `s数字`官方后缀，保ID/index/页数/path/query；未知host、混合章节和全部失败时保原URI。取消仍返回取消；`get_image_request`不探测、不加凭据或权限。
+- **本地验证**：实际候选WASM与生产C++ HTML Host/Lexbor在保留96271B原HTML上离线回放13项通过，另纯选择模块4项通过；覆盖默认成功、继续至rsa、全部失败、非空HEAD正文拒绝、取消及混合URL。每次新`get_pages`重新选择；换URI可能新增缓存项，不清旧缓存。
+- **Native有限结果**：197的342普通导入0.1.10后，《大奉打更人》详情695章成功，首章“001牢獄之災”第1/24页完整显示。`get_pages`完成5004ms，3次HEAD前两次失败、第三次200/空正文，日志为`probes=3 outcome=fallback`，随后6张实际图片均HTTP200。
+- **翻页与重开**：347沿346确认的“纵向分页/从上到下”普通滑动依次到第2/24、3/24页；Root亲审349整图为真实第3页。348正常BACK返回同695章详情后，继续阅读重开仍为本章第3/24页。349注册与书架内容同342，reader仅本书同章正常更新到第3/24页。仅接受该首话前三页及返回重开，cold、全章和整书仍未验。
+- **宿主兼容边界**：旧公开App使用`method=GET`加`customMethod='HEAD'`；[官方API23+契约](https://developer.huawei.com/consumer/cn/doc/harmonyos-references/js-apis-http)明确customMethod优先于method，不能由枚举写法断言旧App不支持。已亲读公开`v0.1.2-pre`的`build-profile.json5`：target与compatible均为`6.1.0(23)`；当前compatible也仍为API23，已覆盖该API能力，不因这项HEAD写法再抬高源`minAppVersion`。342–349只验当前显式`RequestMethod.HEAD`宿主，旧公开HAP同候选路径未重验。200且空正文是探测成功条件，不是旧包实际发GET的证据。
+- **原件**：`/private/tmp/koma-baozi-dafeng-image-20261024/` 内 `page.body`、`runtime-script.body`、`cdn-static-decoded.txt`、`probe-results.json`、`same-first-image-candidate-receipt.json`、`head-rsa-first-receipt.json`、`verify-0.1.10.cjs` 与 `candidate-0.1.10-verification.json`；Mac取样、离线Host和Native证据严格分开。
