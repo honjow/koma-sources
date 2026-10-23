@@ -9,7 +9,7 @@ const WEB: &[u8] = b"https://3hentai.net";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hentai3.zh.koma",
     name: "3Hentai",
-    version: "0.1.0",
+    version: "0.1.1",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -549,8 +549,10 @@ fn asset<'a>(s: &'a [u8]) -> R<(&'a [u8], &'a [u8])> {
     if !matches!(&rest[..z], b"2" | b"4" | b"9") {
         return Err("unobserved asset host");
     }
+    // Preserve the original CDN and the same shards now declared by the site.
     let p = rest[z..]
         .strip_prefix(b".3hentai.net/d")
+        .or_else(|| rest[z..].strip_prefix(b".3hentai.xyz/d"))
         .ok_or("asset domain")?;
     let k = p.iter().position(|c| *c == b'/').ok_or("asset path")?;
     let id = ident(&p[..k])?;
@@ -980,7 +982,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
-    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.hentai3.zh.koma\",\"name\":\"3Hentai\",\"version\":\"0.1.0\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"Chinese-language provider catalogue. Per-work rating and source usage unknown.\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"3Hentai（中文）\",\"zh-Hant\":\"3Hentai（中文）\",\"en\":\"3Hentai (Chinese)\"}},\"capabilities\":{\"search\":false,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":false,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
+    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.hentai3.zh.koma\",\"name\":\"3Hentai\",\"version\":\"0.1.1\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"Chinese-language provider catalogue. Per-work rating and source usage unknown.\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"3Hentai（中文）\",\"zh-Hant\":\"3Hentai（中文）\",\"en\":\"3Hentai (Chinese)\"}},\"capabilities\":{\"search\":false,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":false,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
 }
 macro_rules! export_op {
     ($f:ident,$op:literal,$run:ident) => {
