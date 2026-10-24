@@ -35,7 +35,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.tongli.koma",
     name: "東立",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -217,14 +217,72 @@ fn fetch_anon_token() -> core::result::Result<&'static [u8], FetchError> {
     })
 }
 
-fn fetch_authorized_json(url: &[u8]) -> core::result::Result<usize, FetchError> {
+enum AuthorizedError {
+    Fetch(FetchError),
+    RegionRestricted,
+}
+
+impl From<FetchError> for AuthorizedError {
+    fn from(error: FetchError) -> Self { Self::Fetch(error) }
+}
+
+fn write_authorized_error(operation: &str, error: AuthorizedError) -> u32 {
+    match error {
+        AuthorizedError::Fetch(error) => {
+            let (code, message) = fetch_error_code(error);
+            write_error(operation, code, message)
+        }
+        AuthorizedError::RegionRestricted => write_error(operation, "region_restricted",
+            "HTTP 400: this work is not available in the current region"),
+    }
+}
+
+fn region_restricted_response(response: &[u8]) -> bool {
+    if json_object_member(response, b"status")
+        .or_else(|| json_object_member(response, b"statusCode")) != Some(b"400") {
+        return false;
+    }
+    let raw_body = match json_object_member(response, b"bodyText") {
+        Some(body) => body,
+        None => return false,
+    };
+    // Decode only the failure payload with the SDK's string decoder; HTTP remains failed.
+    let mut wrapper = [0u8; 4096];
+    let mut cursor = 0usize;
+    if !(write_bytes(&mut wrapper, &mut cursor, br#"{"ok":true,"bodyText":"#)
+        && write_bytes(&mut wrapper, &mut cursor, raw_body)
+        && write_bytes(&mut wrapper, &mut cursor, b"}")) {
+        return false;
+    }
+    let len = match decode_json_body_into(&wrapper[..cursor], body_buf()) {
+        Ok(len) => len,
+        Err(_) => return false,
+    };
+    let body = &body_buf()[..len];
+    if json_object_member(body, b"Succeeded") != Some(b"false") { return false; }
+    let mut errors = match JsonArrayIter::new(body, b"Errors") {
+        Some(errors) => errors,
+        None => return false,
+    };
+    while let Some(error) = errors.next_object() {
+        if json_object_member(error, b"Code") == Some(b"3166") { return true; }
+    }
+    false
+}
+
+fn fetch_authorized_json(url: &[u8]) -> core::result::Result<usize, AuthorizedError> {
     let token = fetch_anon_token()?;
     let mut auth = [0u8; 4096];
     let mut c = 0usize;
     if !(write_bytes(&mut auth, &mut c, b"Bearer ") && write_bytes(&mut auth, &mut c, token)) {
-        return Err(FetchError::Network);
+        return Err(FetchError::Network.into());
     }
-    fetch_json_with_headers(url, &[(b"Authorization", &auth[..c])])
+    let req_len = build_get_request(http_req_buf(), url, Some(BASE_URL), &[(b"Authorization", &auth[..c])])
+        .ok_or(FetchError::Network)?;
+    let resp_len = http_request(&http_req_buf()[..req_len], http_out()).map_err(|_| FetchError::Network)?;
+    let response = &http_out()[..resp_len];
+    if region_restricted_response(response) { return Err(AuthorizedError::RegionRestricted); }
+    decode_json_body_into(response, body_buf()).map_err(AuthorizedError::Fetch)
 }
 
 fn build_latest_url(page: usize) -> Option<usize> {
@@ -610,8 +668,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     let len = match fetch_authorized_json(url) {
         Ok(v) => v,
         Err(e) => {
-            let (c, m) = fetch_error_code(e);
-            return write_error("get_chapters", c, m);
+            return write_authorized_error("get_chapters", e);
         }
     };
     let json =
@@ -696,8 +753,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
     let len = match fetch_authorized_json(url) {
         Ok(v) => v,
         Err(e) => {
-            let (c, m) = fetch_error_code(e);
-            return write_error("get_pages", c, m);
+            return write_authorized_error("get_pages", e);
         }
     };
     let json =
