@@ -5,7 +5,7 @@ extern crate koma_source_sdk;
 use koma_source_sdk::host::{http_request, log_info};
 use koma_source_sdk::json_utils::{
     append_json_escaped, append_json_unescaped_then_escaped, contains_bytes, extract_json_string,
-    find_subslice, write_bytes, write_url_encoded, write_usize, JsonArrayIter,
+    find_subslice, json_object_member, write_bytes, write_url_encoded, write_usize, JsonArrayIter,
 };
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{
@@ -35,7 +35,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.tongli.koma",
     name: "東立",
-    version: "0.1.1",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -150,7 +150,7 @@ fn fetch_json_with_headers(
     decode_json_body_into(&http_out()[..resp_len], body_buf())
 }
 
-fn post_json(
+fn post_json_response(
     url: &[u8],
     request_body: &[u8],
     content_type: &[u8],
@@ -163,8 +163,15 @@ fn post_json(
         Some(BASE_URL),
     )
     .ok_or(FetchError::Network)?;
-    let resp_len =
-        http_request(&http_req_buf()[..req_len], http_out()).map_err(|_| FetchError::Network)?;
+    http_request(&http_req_buf()[..req_len], http_out()).map_err(|_| FetchError::Network)
+}
+
+fn post_json(
+    url: &[u8],
+    request_body: &[u8],
+    content_type: &[u8],
+) -> core::result::Result<usize, FetchError> {
+    let resp_len = post_json_response(url, request_body, content_type)?;
     decode_json_body_into(&http_out()[..resp_len], body_buf())
 }
 
@@ -173,19 +180,32 @@ fn fetch_json(url: &[u8]) -> core::result::Result<usize, FetchError> {
 }
 
 fn fetch_anon_token() -> core::result::Result<&'static [u8], FetchError> {
-    let mut len = post_json(
+    let resp_len = post_json_response(
         FIREBASE_SIGNUP_URL,
         br#"{"returnSecureToken":true}"#,
         b"application/json;charset=UTF-8",
     )?;
-    if extract_json_string_loose(&body_buf()[..len], b"idToken").is_none() {
-        log_info(b"tongli: primary firebase key rejected, trying reference key");
-        len = post_json(
-            FIREBASE_SIGNUP_FALLBACK_URL,
-            br#"{"returnSecureToken":true}"#,
-            b"application/json;charset=UTF-8",
-        )?;
-    }
+    // Configuration errors use HTTP 400; decoding them first skipped the existing fallback.
+    // A refusal, rate limit, server error or transport failure must not switch identities.
+    let response = &http_out()[..resp_len];
+    let primary_configuration_error = json_object_member(response, b"status")
+        .or_else(|| json_object_member(response, b"statusCode")) == Some(b"400");
+    let primary_len = if primary_configuration_error {
+        None
+    } else {
+        Some(decode_json_body_into(response, body_buf())?)
+    };
+    let len = match primary_len {
+        Some(len) if extract_json_string_loose(&body_buf()[..len], b"idToken").is_some() => len,
+        _ => {
+            log_info(b"tongli: primary anonymous auth unavailable, using configured fallback");
+            post_json(
+                FIREBASE_SIGNUP_FALLBACK_URL,
+                br#"{"returnSecureToken":true}"#,
+                b"application/json;charset=UTF-8",
+            )?
+        }
+    };
     let body = &body_buf()[..len];
     let token = extract_json_string_loose(body, b"idToken").ok_or(FetchError::ClientError)?;
     if token.len() > scratch_b().len() {
@@ -763,12 +783,7 @@ fn run_get_filters(_req: &[u8]) -> u32 {
 }
 
 fn run_get_settings(_req: &[u8]) -> u32 {
-    let payload = payload_buf();
-    let mut c = 0usize;
-    if !write_bytes(payload, &mut c, br#"{}"#) {
-        return write_error("get_settings", "internal_error", "overflow");
-    }
-    write_success_payload("get_settings", c)
+    write_error("get_settings", "not_supported", "not supported")
 }
 
 fn run_get_image_request(req: &[u8]) -> u32 {
