@@ -6,6 +6,12 @@ Upstream rating SAFE; actual source contents are unverified, so Koma source/cont
 
 Canonical source id `com.mh160.koma`; manga identity `mh160:<original slug>`, chapter identity `mh160ch:<original public path>`, page identity `page:mh160:<original chapter path>:<1-based index>`. Upstream catalogue order is preserved, chapterNumber remains null.
 
+## 0.1.4 错误原因与网页会话
+
+请求失败现在保留 Host 返回的 HTTP 状态；只有 Host 明确标记网页挑战时才报告需要网页验证，普通拒绝、找不到页面和限流仍分别显示原原因。包声明的网页会话只限源本来使用的 `www.mh160mh.com`、`m.mh160mh.com` 两个 HTTPS origin，仍须由 App 按既有流程取得用户同意；不改 UA、网址、作品/章节身份或排序。
+
+生产 WASM 编译及 info 0.1.4 已通过；本机真实 WASM 的失败封包检查覆盖明确挑战、普通403、404、429、500与伪似信号，不访问网站。这不代表挑战已成功通过，也没有修复已观察的跨 origin 网页白屏或宣称正文可读；远端发布及普通更新后的实际表现仍待验证。
+
 ## 0.1.3 作品网页入口
 
 列表和详情现在返回本源已有的公开作品地址，App可据此显示现有“在WebView中打开”和“在浏览器中打开”动作。地址与详情请求的`/kanmanhua/<slug>/`一致；作品ID、章节顺序、未提供的话数及图标保持。跨季目录与图片失败仍在调查，此更新不代表整源已可正常阅读。

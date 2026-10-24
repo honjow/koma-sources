@@ -1,6 +1,8 @@
 #![no_std]
 // Public contract adapted from Keiyoushi Mh160.kt (Apache-2.0), revision
 // 10f06eb833af5990bc5470c84c5e93edc159ad4e. No JavaScript execution or credentials.
+mod http_failure;
+use http_failure::HttpFailure;
 use koma_source_sdk::{
     host,
     json_utils::*,
@@ -11,7 +13,7 @@ const MOBILE: &[u8] = b"https://m.mh160mh.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mh160.koma",
     name: "漫画160",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -416,20 +418,51 @@ fn error_code(e: &str) -> &'static str {
         _ => "parse_error",
     }
 }
-fn execute(op: &str, result: Result<usize, &'static str>) -> u32 {
+#[derive(Copy, Clone)]
+enum OperationError {
+    Message(&'static str),
+    Http(HttpFailure),
+}
+impl From<&'static str> for OperationError {
+    fn from(message: &'static str) -> Self { Self::Message(message) }
+}
+fn write_operation_error(op: &str, failure: OperationError) -> u32 {
+    let http = match failure {
+        OperationError::Message(message) => return write_error(op, error_code(message), message),
+        OperationError::Http(http) => http,
+    };
+    let mut envelope = [0u8; 512];
+    let mut n = 0;
+    let ok = write_bytes(&mut envelope, &mut n, br#"{"type":"response","version":1,"ok":false,"operation":""#)
+        && append_json_escaped(&mut envelope, &mut n, op.as_bytes())
+        && write_bytes(&mut envelope, &mut n, br#"","error":{"code":""#)
+        && append_json_escaped(&mut envelope, &mut n, http.code().as_bytes())
+        && write_bytes(&mut envelope, &mut n, br#"","message":""#)
+        && append_json_escaped(&mut envelope, &mut n, http.message().as_bytes())
+        && write_bytes(&mut envelope, &mut n, br#"","status":"#)
+        && write_usize(&mut envelope, &mut n, http.status as usize)
+        && write_bytes(&mut envelope, &mut n, br#"},"hostHints":{"network":false},"warnings":[]}"#);
+    if !ok { return write_error(op, "internal_error", "error response overflow"); }
+    response_buffer().write(&envelope[..n], false)
+}
+fn execute<E: Into<OperationError>>(op: &str, result: Result<usize, E>) -> u32 {
     match result {
         Ok(n) => {
             diagnostic(b"operation_ok", op.as_bytes());
             write_success_payload(op, n)
         }
         Err(e) => {
-            let code = error_code(e);
+            let failure = e.into();
+            let code = match failure {
+                OperationError::Message(message) => error_code(message),
+                OperationError::Http(http) => http.code(),
+            };
             diagnostic(b"operation_error", code.as_bytes());
-            write_error(op, code, e)
+            write_operation_error(op, failure)
         }
     }
 }
-fn fetch(base: &[u8], path: &[u8]) -> Result<usize, &'static str> {
+fn fetch(base: &[u8], path: &[u8]) -> Result<usize, OperationError> {
     host::log_info(b"mh160 stage=fetch_begin");
     let mut url = [0; 8192];
     let mut n = 0;
@@ -454,8 +487,9 @@ fn fetch(base: &[u8], path: &[u8]) -> Result<usize, &'static str> {
         "network failure"
     })?;
     let response = unsafe { core::slice::from_raw_parts(HTTP_OUT.as_ptr(), len) };
-    let status = extract_json_number(response, b"status")
-        .or_else(|| extract_json_number(response, b"statusCode"))
+    let status = json_object_member(response, b"status")
+        .or_else(|| json_object_member(response, b"statusCode"))
+        .filter(|raw| raw.len() == 3 && raw.iter().all(u8::is_ascii_digit))
         .map(koma_source_sdk::parse_status_code)
         .unwrap_or(0);
     let mut log = [0; 64];
@@ -467,11 +501,8 @@ fn fetch(base: &[u8], path: &[u8]) -> Result<usize, &'static str> {
     }
     match status {
         200..=299 => {}
-        401 | 403 => return Err("public request rejected"),
-        404 => return Err("not found"),
-        429 => return Err("rate limited"),
-        400..=499 => return Err("client failure"),
-        500..=599 => return Err("server failure"),
+        400..=599 => return Err(OperationError::Http(HttpFailure::from_host(status,
+            json_object_member(response, b"accessSignal")))),
         _ => {
             let code = match extract_json_string(response, b"code") {
                 Some(b"transport_unavailable") => b"transport_unavailable".as_slice(),
@@ -483,7 +514,7 @@ fn fetch(base: &[u8], path: &[u8]) -> Result<usize, &'static str> {
                 _ => b"unknown",
             };
             diagnostic(b"transport", code);
-            return Err("network failure");
+            return Err("network failure".into());
         }
     }
     let len = koma_source_sdk::decode_json_body_into(response, body_buf())
@@ -491,9 +522,9 @@ fn fetch(base: &[u8], path: &[u8]) -> Result<usize, &'static str> {
     host::log_info(b"mh160 stage=body_ready");
     Ok(len)
 }
-fn fetch_doc(base: &[u8], path: &[u8]) -> Result<Node, &'static str> {
+fn fetch_doc(base: &[u8], path: &[u8]) -> Result<Node, OperationError> {
     let n = fetch(base, path)?;
-    Node::parse(&body_buf()[..n])
+    Node::parse(&body_buf()[..n]).map_err(OperationError::from)
 }
 fn path<'a>(href: &'a [u8]) -> Result<&'a [u8], &'static str> {
     let p = if href.starts_with(BASE) {
@@ -578,7 +609,7 @@ fn manga_url<'a>(id: &[u8], out: &'a mut [u8]) -> Result<&'a [u8], &'static str>
     bytes(out, &mut n, b"/")?;
     Ok(&out[..n])
 }
-fn manga_doc(id: &[u8]) -> Result<Node, &'static str> {
+fn manga_doc(id: &[u8]) -> Result<Node, OperationError> {
     let mut out = [0; 1024];
     let mut n = 0;
     bytes(&mut out, &mut n, b"/kanmanhua/")?;
@@ -586,7 +617,7 @@ fn manga_doc(id: &[u8]) -> Result<Node, &'static str> {
     bytes(&mut out, &mut n, b"/")?;
     fetch_doc(BASE, &out[..n])
 }
-fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
+fn list(r: &[u8], search: bool) -> Result<usize, OperationError> {
     let p = page(r)?;
     let mut out = [0; 8192];
     let mut n = 0;
@@ -595,15 +626,15 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
         let mut decoded = [0; 4096];
         let term = trim_ascii(unescape(raw, &mut decoded)?);
         if term.is_empty() {
-            return Err("empty query");
+            return Err("empty query".into());
         }
         bytes(&mut out, &mut n, b"/statics/searchelxt1e1.aspx?key=")?;
         if !write_url_encoded(&mut out, &mut n, term) {
-            return Err("payload overflow");
+            return Err("payload overflow".into());
         }
         bytes(&mut out, &mut n, b"&page=")?;
         if !write_usize(&mut out, &mut n, p) {
-            return Err("payload overflow");
+            return Err("payload overflow".into());
         }
     } else {
         let listing = string(args(r), b"listingId").unwrap_or(b"popular");
@@ -613,11 +644,11 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
             match listing {
                 b"popular" => b"/kanmanhua/zaixian_hit.html".as_slice(),
                 b"latest" => b"/kanmanhua/zaixian_recent.html",
-                _ => return Err("unknown listing"),
+                _ => return Err("unknown listing".into()),
             },
         )?;
         if p != 1 {
-            return Err("invalid page cursor");
+            return Err("invalid page cursor".into());
         }
     }
     let root = fetch_doc(if search { BASE } else { MOBILE }, &out[..n])?;
@@ -628,7 +659,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
         Nodes::get(&root, b".itemBox")?
     };
     if !search && nodes.n == 0 {
-        return Err("list structure missing");
+        return Err("list structure missing".into());
     }
     let b = payload_buf();
     let mut n = 0;
@@ -645,7 +676,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
         let mut title = [0; 4096];
         let title = a.text(&mut title)?;
         if title.is_empty() {
-            return Err("empty manga title");
+            return Err("empty manga title".into());
         }
         if i > 0 {
             bytes(b, &mut n, b",")?;
@@ -689,7 +720,7 @@ fn first(root: &Node, selectors: &[&[u8]]) -> Result<Node, &'static str> {
     }
     Err("required HTML node missing")
 }
-fn detail(r: &[u8]) -> Result<usize, &'static str> {
+fn detail(r: &[u8]) -> Result<usize, OperationError> {
     let id = manga_id(r)?;
     let root = manga_doc(id)?;
     let title_node = first(
@@ -704,7 +735,7 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
         raw
     };
     if title.is_empty() {
-        return Err("empty manga title");
+        return Err("empty manga title".into());
     }
     let b = payload_buf();
     let mut n = 0;
@@ -772,7 +803,7 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
     bytes(b, &mut n, b"}}")?;
     Ok(n)
 }
-fn chapters(r: &[u8]) -> Result<usize, &'static str> {
+fn chapters(r: &[u8]) -> Result<usize, OperationError> {
     let id = manga_id(r)?;
     let root = manga_doc(id)?;
     let nodes = Nodes::get(
@@ -780,7 +811,7 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
         b"ul[id^=mh-chapter-list-ol] li a, ul[id^=chapterList_ul] li a",
     )?;
     if nodes.n == 0 {
-        return Err("chapter structure missing");
+        return Err("chapter structure missing".into());
     }
     let b = payload_buf();
     let mut n = 0;
@@ -790,7 +821,7 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
         let mut href = [0; 1024];
         let p = path(a.attr(b"href", &mut href)?)?;
         if slug(p)? != id {
-            return Err("chapter manga mismatch");
+            return Err("chapter manga mismatch".into());
         }
         let mut text = [0; 4096];
         let name = if let Ok(title) = a.select(b"p") {
@@ -799,7 +830,7 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
             a.text(&mut text)?
         };
         if name.is_empty() {
-            return Err("empty chapter title");
+            return Err("empty chapter title".into());
         }
         if i > 0 {
             bytes(b, &mut n, b",")?;
@@ -812,7 +843,7 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
         q(b, &mut n, name)?;
         bytes(b, &mut n, b",\"index\":")?;
         if !write_usize(b, &mut n, i) {
-            return Err("payload overflow");
+            return Err("payload overflow".into());
         }
         bytes(
             b,
@@ -955,7 +986,7 @@ fn page_url<'a>(p: &[u8], pid: usize, out: &'a mut [u8]) -> Result<&'a [u8], &'s
     }
     Ok(&out[..n])
 }
-fn pages(r: &[u8]) -> Result<usize, &'static str> {
+fn pages(r: &[u8]) -> Result<usize, OperationError> {
     let path = chapter_path(r)?;
     let len = fetch(BASE, path)?;
     let html = unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), len) };
@@ -970,7 +1001,7 @@ fn pages(r: &[u8]) -> Result<usize, &'static str> {
     if find_subslice(decoded, b"+http://").is_some()
         || find_subslice(decoded, b"+https://").is_some()
     {
-        return Err("chapter removed");
+        return Err("chapter removed".into());
     }
     let b = payload_buf();
     let mut n = 0;
@@ -991,22 +1022,22 @@ fn pages(r: &[u8]) -> Result<usize, &'static str> {
             }
             bytes(b, &mut n, b"{\"id\":\"page:mh160:")?;
             if !append_json_escaped(b, &mut n, path) {
-                return Err("payload overflow");
+                return Err("payload overflow".into());
             }
             bytes(b, &mut n, b":")?;
             if !write_usize(b, &mut n, count + 1) {
-                return Err("payload overflow");
+                return Err("payload overflow".into());
             }
             bytes(b, &mut n, b"\",\"index\":")?;
             if !write_usize(b, &mut n, count) {
-                return Err("payload overflow");
+                return Err("payload overflow".into());
             }
             bytes(b, &mut n, b",\"image\":{\"kind\":\"url\",\"url\":")?;
             q(b, &mut n, u)?;
             bytes(b, &mut n, b"}}")?;
             count += 1;
             if count > 4096 {
-                return Err("too many pages");
+                return Err("too many pages".into());
             }
         }
         match next {
@@ -1015,7 +1046,7 @@ fn pages(r: &[u8]) -> Result<usize, &'static str> {
         }
     }
     if count == 0 {
-        return Err("empty image list");
+        return Err("empty image list".into());
     }
     bytes(b, &mut n, b"]}")?;
     host::log_info(b"mh160 stage=pages_ready");
