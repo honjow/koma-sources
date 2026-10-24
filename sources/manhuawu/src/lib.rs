@@ -10,7 +10,7 @@ const BASE: &[u8] = b"https://www.mhua5.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.manhuawu.koma",
     name: "漫画屋 (Manhuawu)",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -422,6 +422,7 @@ fn code(e: &str) -> &'static str {
 enum OperationError {
     Message(&'static str),
     Http(u16),
+    Challenge(u16),
 }
 impl From<&'static str> for OperationError {
     fn from(message: &'static str) -> Self { Self::Message(message) }
@@ -439,15 +440,18 @@ fn http_message(status: u16) -> &'static str {
 fn write_operation_error(op: &str, error: OperationError) -> u32 {
     let status = match error {
         OperationError::Message(message) => return write_error(op, code(message), message),
-        OperationError::Http(status) => status,
+        OperationError::Http(status) | OperationError::Challenge(status) => status,
     };
-    let message = http_message(status);
+    let (error_code, message) = match error {
+        OperationError::Challenge(_) => ("challenge_required", "website verification required"),
+        _ => (code(http_message(status)), http_message(status)),
+    };
     let mut envelope = [0u8; 512];
     let mut n = 0;
     let ok = write_bytes(&mut envelope, &mut n, br#"{"type":"response","version":1,"ok":false,"operation":""#)
         && append_json_escaped(&mut envelope, &mut n, op.as_bytes())
         && write_bytes(&mut envelope, &mut n, br#"","error":{"code":""#)
-        && append_json_escaped(&mut envelope, &mut n, code(message).as_bytes())
+        && append_json_escaped(&mut envelope, &mut n, error_code.as_bytes())
         && write_bytes(&mut envelope, &mut n, br#"","message":""#)
         && append_json_escaped(&mut envelope, &mut n, message.as_bytes())
         && write_bytes(&mut envelope, &mut n, br#"","status":"#)
@@ -467,8 +471,13 @@ fn execute<E: Into<OperationError>>(op: &str, r: Result<usize, E>) -> u32 {
             let message = match error {
                 OperationError::Message(message) => message,
                 OperationError::Http(status) => http_message(status),
+                OperationError::Challenge(_) => "website verification required",
             };
-            diagnostic(b"operation_error", code(message).as_bytes());
+            let error_code = match error {
+                OperationError::Challenge(_) => "challenge_required",
+                _ => code(message),
+            };
+            diagnostic(b"operation_error", error_code.as_bytes());
             write_operation_error(op, error)
         }
     }
@@ -513,7 +522,16 @@ fn fetch(path: &[u8]) -> Result<Node, OperationError> {
     }
     match status {
         Some(200..=299) => {}
-        Some(status) => return Err(OperationError::Http(status as u16)),
+        Some(status) => {
+            // The Host emits only the standardized cf-mitigated: challenge signal.
+            // HTTP refusal alone never identifies a website verification page.
+            if matches!(status, 401 | 403 | 503)
+                && json_object_member(response, b"accessSignal") == Some(b"\"challenge_required\"".as_slice())
+            {
+                return Err(OperationError::Challenge(status as u16));
+            }
+            return Err(OperationError::Http(status as u16));
+        }
         None => {
             if json_object_member(response, b"ok") == Some(b"false".as_slice()) {
                 let c = match string(

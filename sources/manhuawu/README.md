@@ -4,7 +4,7 @@ Keiyoushi Manhuawu -> MCCMSWeb -> KeiSource, fixed revision 10f06eb833af5990bc54
 
 New public cards use existing fallback mh:<actual slug>:0. Existing mh:<slug>:<numeric PICID> requests echo the exact input mangaId and resolve current HTML by slug. No aliases, migration, merge or claim of historical nonzero-PICID end-to-end identity compatibility. Chapter ch:<original full href> keeps /index.php exactly; page p:<index> is the existing identity. Catalogue follows primary explicit reverse. Only explicit 第N话/話/回/章 title leaves provide chapterNumber; order indices never become numbers.
 
-No auth/cookies/challenge bypass/mirror/JS/image decryption or automatic retries. Missing/invalid/oversized parsing fails explicitly. Fixed existing SDK Firefox121 UA, no Referer/Origin, including image descriptor. Primary Firefox150 is documented but not adopted by probing. Images were not fetched; local body/WASM gates do not establish 197 acceptance.
+No source-managed auth/cookies, challenge bypass, mirror, JS/image decryption or automatic retries. Version0.1.5 can request the App’s existing origin-scoped website verification when the Host explicitly identifies a challenge. Missing/invalid/oversized parsing fails explicitly. Fixed existing SDK Firefox121 UA, no Referer/Origin, including image descriptor. Primary Firefox150 is documented but not adopted by probing. Images were not fetched; local body/WASM gates do not establish 197 acceptance.
 
 Build: normal paired Rust toolchain ./build.sh --source manhuawu. minAppVersion0.1.0 and nsfwfalse reflect fixed upstream SAFE only. No publication.
 
@@ -27,3 +27,10 @@ Actual 0.1.2 and 0.1.3 WASM replayed this same saved HTML with network blocked: 
 ## 0.1.4 HTTP错误信息
 
 保留书源实际收到的HTTP状态码，区分401、403、404、429及5xx；网络或解析错误不伪造状态。请求、目录解析、阅读身份、图标及会话权限保持。197当前列表实际收到403，具体拒绝原因仍待调查；网页首页可打开不代表列表或正文已恢复。
+
+
+## 0.1.5 标准网页挑战信号
+
+仅在Host明确提供 `accessSignal=challenge_required` 且HTTP状态为401/403/503时，返回现有挑战错误并保留状态；普通403及其他错误不变，不猜HTML关键词。仅声明 `https://www.mhua5.com`，沿宿主既有受限验证及失败地址回流，不新增请求、Cookie读取或自动重试。
+
+197普通官网分类曾自然出现安全验证并自行通过；这不证明Native423的403正文或响应头。当前候选还需支持该标准信号的App构建与普通Native验收，不能以离线回放宣布列表/正文已恢复。历史page49请求停止边界保持。
