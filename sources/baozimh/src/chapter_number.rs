@@ -51,11 +51,19 @@ fn numbered_title_prefix(title: &[u8]) -> Option<&[u8]> {
     // Avoid silently turning a huge decimal label into rounded/infinite metadata.
     if !value.is_finite() || value > 9_007_199_254_740_991.0 { return None; }
     let rest = &title[end..];
-    // Real catalog forms include "045", "006扶腰壯膽韓良臣" and "687赤尾烈鷹".
-    // Three-digit integers may directly prefix a CJK title; only zero-padded
-    // labels may be bare numbers. Dates and edition/unit labels stay unknown.
+    // Real forms include "138", "687赤尾烈鷹" and "624“雞”不可失".
+    // Three-digit integer labels may be bare or prefix a CJK/Chinese-quoted
+    // title. Dates and edition/unit labels stay unknown.
     if number.len() == 3 && number.iter().all(u8::is_ascii_digit) {
-        if rest.is_empty() { return (number[0] == b'0').then_some(number); }
+        if rest.is_empty() { return Some(number); }
+        if let Some(quoted) = core::str::from_utf8(rest).ok()?.strip_prefix('“') {
+            if let Some((label, _suffix)) = quoted.split_once('”') {
+                if !label.is_empty() && label.chars().all(|c|
+                    ('\u{3400}'..='\u{4dbf}').contains(&c) || ('\u{4e00}'..='\u{9fff}').contains(&c)) {
+                    return Some(number);
+                }
+            }
+        }
         let first = core::str::from_utf8(rest).ok()?.chars().next()?;
         if ('\u{3400}'..='\u{4dbf}').contains(&first) || ('\u{4e00}'..='\u{9fff}').contains(&first) {
             // These prefixes describe dates, editions or units, not a title.
@@ -98,7 +106,7 @@ mod tests {
 
     #[test]
     fn other_numeric_prefixes_require_delimited_titles_and_representable_numbers() {
-        for title in ["215", "215 ", "215\t\r\n", "15如之奈何", "chapter 215 标题", "215A 标题",
+        for title in ["15", "215 ", "215\t\r\n", "15如之奈何", "chapter 215 标题", "215A 标题",
             "2026-10-23 更新", "2026/10/23 更新", "2026.10.23 更新", "215e2 标题", "-215 标题",
             "215. 标题", "215.2.3 标题", "9007199254740992 标题"] {
             assert_eq!(title_chapter_number(title.as_bytes()), None, "{title}");
@@ -121,7 +129,7 @@ mod tests {
     fn zero_padded_extension_does_not_guess_dates_editions_or_other_numeric_titles() {
         for title in ["006年01月02日", "006月刊", "006日更新", "006卷", "006季", "006頁", "006页",
             "006冊", "006册", "006部", "006集", "006第2季", "006-01-02", "006/01/02", "006.01.02",
-            "20261023", "2026年更新", "45", "170", "583", "6扶腰壯膽韓良臣", "0006标题",
+            "20261023", "2026年更新", "45", "17", "1583", "6扶腰壯膽韓良臣", "0006标题",
             "006A标题", "006_标题", "006.5标题", "标题006", "006（番外）"] {
             assert_eq!(title_chapter_number(title.as_bytes()), None, "{title}");
         }
@@ -143,15 +151,33 @@ mod tests {
     fn three_digit_extension_keeps_dates_units_and_other_forms_unknown() {
         for title in ["687年更新", "687月刊", "687日更新", "687卷", "687季", "687頁", "687页",
             "687冊", "687册", "687部", "687集", "687第2季", "687-01-02", "687/01/02", "687.01.02",
-            "687A标题", "687_标题", "687.5标题", "标题687", "687（番外）", "1687标题", "68标题", "687"] {
+            "687A标题", "687_标题", "687.5标题", "标题687", "687（番外）", "1687标题", "68标题", "1687"] {
             assert_eq!(title_chapter_number(title.as_bytes()), None, "{title}");
         }
         assert_eq!(title_chapter_number(b"687\xff"), None);
     }
 
     #[test]
+    fn observed_dafeng_bare_and_chinese_quoted_labels_supply_numbers() {
+        // Native baozi011-native197-ascending-519/observations.json.
+        assert_eq!(title_chapter_number(b"138"), Some(b"138".as_slice()));
+        assert_eq!(title_chapter_number(b"285"), Some(b"285".as_slice()));
+        assert_eq!(title_chapter_number("624“雞”不可失".as_bytes()), Some(b"624".as_slice()));
+    }
+
+    #[test]
+    fn notices_dates_units_and_incomplete_quotes_stay_unknown() {
+        for title in ["放料", "預告", "有關許七安頭髮的通告", "通知",
+            "138年", "285卷", "624季", "624頁", "624部", "624.01.02", "624-01-02",
+            "24", "1624", "624“雞", "624”雞“", "624“”不可失", "624‘雞’不可失",
+            "624\"雞\"不可失", "624“abc”不可失", "624“1”不可失"] {
+            assert_eq!(title_chapter_number(title.as_bytes()), None, "{title}");
+        }
+    }
+
+    #[test]
     fn unknown_or_ambiguous_labels_remain_unknown() {
-        for title in ["第2季第170話", "第12卷", "第12頁", "预告(3P)", "Extra 2", "170", "",
+        for title in ["第2季第170話", "第12卷", "第12頁", "预告(3P)", "Extra 2", "17", "",
             "[第170話", "[第170話}正文", "第170話]正文", "第170話數", "第1.話", "第1.2.3話",
             "第-1話", "第+1話", "第1e2話", "第話", "第１２話", "标题[第170話]"] {
             assert_eq!(title_chapter_number(title.as_bytes()), None, "{title}");
