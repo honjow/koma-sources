@@ -58,6 +58,23 @@ class HomepageMetadataTest(unittest.TestCase):
             if path.parent.name in expected:
                 self.assertEqual(actual['homepage'], expected[path.parent.name])
 
+    def test_additional_homepages_quote_complete_source_webpage_literals(self):
+        # Source ownership/website-vs-API semantics are reviewed separately.
+        # This protects the reviewed literal paths, queries and fragments from
+        # being silently shortened into inferred site roots during packaging.
+        previously_reviewed = {'baozimh', 'manhuawu', 'manhuagui'}
+        for path in (ROOT / 'sources').glob('*/metadata.json'):
+            raw = json.loads(path.read_text())
+            if 'homepage' not in raw or path.parent.name in previously_reviewed:
+                continue
+            source = (path.parent / 'src/lib.rs').read_text()
+            value = raw['homepage']
+            with self.subTest(source=path.parent.name):
+                self.assertTrue('"' + value + '"' in source
+                                or '\\"' + value + '\\"' in source,
+                                'homepage must retain its complete reviewed source literal')
+                self.assertEqual(metadata.extract(raw)['homepage'], value)
+
     def test_actual_manifest_and_index_jq_expressions_keep_homepage_and_separate_origins(self):
         # Execute the real production expressions, without build.sh's compilation,
         # dist cleanup, source_info runner, package generation or network calls.
