@@ -10,7 +10,7 @@ const BASE: &[u8] = b"https://www.mhua5.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.manhuawu.koma",
     name: "漫画屋 (Manhuawu)",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -418,23 +418,65 @@ fn code(e: &str) -> &'static str {
         _ => "parse_error",
     }
 }
-fn execute(op: &str, r: Result<usize, &'static str>) -> u32 {
+#[derive(Copy, Clone)]
+enum OperationError {
+    Message(&'static str),
+    Http(u16),
+}
+impl From<&'static str> for OperationError {
+    fn from(message: &'static str) -> Self { Self::Message(message) }
+}
+fn http_message(status: u16) -> &'static str {
+    match status {
+        401 | 403 => "permission denied",
+        404 => "not found",
+        429 => "rate limited",
+        400..=499 => "client failure",
+        500..=599 => "server failure",
+        _ => "unexpected HTTP status",
+    }
+}
+fn write_operation_error(op: &str, error: OperationError) -> u32 {
+    let status = match error {
+        OperationError::Message(message) => return write_error(op, code(message), message),
+        OperationError::Http(status) => status,
+    };
+    let message = http_message(status);
+    let mut envelope = [0u8; 512];
+    let mut n = 0;
+    let ok = write_bytes(&mut envelope, &mut n, br#"{"type":"response","version":1,"ok":false,"operation":""#)
+        && append_json_escaped(&mut envelope, &mut n, op.as_bytes())
+        && write_bytes(&mut envelope, &mut n, br#"","error":{"code":""#)
+        && append_json_escaped(&mut envelope, &mut n, code(message).as_bytes())
+        && write_bytes(&mut envelope, &mut n, br#"","message":""#)
+        && append_json_escaped(&mut envelope, &mut n, message.as_bytes())
+        && write_bytes(&mut envelope, &mut n, br#"","status":"#)
+        && write_usize(&mut envelope, &mut n, status as usize)
+        && write_bytes(&mut envelope, &mut n, br#"},"hostHints":{"network":false},"warnings":[]}"#);
+    if !ok { return write_error(op, "internal_error", "error response overflow"); }
+    response_buffer().write(&envelope[..n], false)
+}
+fn execute<E: Into<OperationError>>(op: &str, r: Result<usize, E>) -> u32 {
     match r {
         Ok(n) => {
             diagnostic(b"operation_ok", op.as_bytes());
             write_success_payload(op, n)
         }
         Err(e) => {
-            let c = code(e);
-            diagnostic(b"operation_error", c.as_bytes());
-            write_error(op, c, e)
+            let error = e.into();
+            let message = match error {
+                OperationError::Message(message) => message,
+                OperationError::Http(status) => http_message(status),
+            };
+            diagnostic(b"operation_error", code(message).as_bytes());
+            write_operation_error(op, error)
         }
     }
 }
 fn valid_status(s: &[u8]) -> Option<usize> {
     number(s).filter(|n| (100..=599).contains(n))
 }
-fn fetch(path: &[u8]) -> Result<Node, &'static str> {
+fn fetch(path: &[u8]) -> Result<Node, OperationError> {
     host::log_info(b"manhuawu stage=fetch_begin");
     let mut url = [0; 8192];
     let mut n = 0;
@@ -471,12 +513,7 @@ fn fetch(path: &[u8]) -> Result<Node, &'static str> {
     }
     match status {
         Some(200..=299) => {}
-        Some(401 | 403) => return Err("permission denied"),
-        Some(404) => return Err("not found"),
-        Some(429) => return Err("rate limited"),
-        Some(400..=499) => return Err("client failure"),
-        Some(500..=599) => return Err("server failure"),
-        Some(_) => return Err("unexpected HTTP status"),
+        Some(status) => return Err(OperationError::Http(status as u16)),
         None => {
             if json_object_member(response, b"ok") == Some(b"false".as_slice()) {
                 let c = match string(
@@ -490,15 +527,15 @@ fn fetch(path: &[u8]) -> Result<Node, &'static str> {
                     _ => "invalid HTTP envelope",
                 };
                 diagnostic(b"transport", code(c).as_bytes());
-                return Err(c);
+                return Err(c.into());
             }
-            return Err("invalid HTTP envelope");
+            return Err("invalid HTTP envelope".into());
         }
     }
     let n = koma_source_sdk::decode_json_body_into(response, body_buf())
         .map_err(|_| "HTTP body invalid or too large")?;
     if n == 0 {
-        return Err("empty HTTP body");
+        return Err("empty HTTP body".into());
     }
     core::str::from_utf8(&body_buf()[..n]).map_err(|_| "invalid UTF8")?;
     host::log_info(b"manhuawu stage=body_ready");
@@ -667,7 +704,7 @@ fn search_page_number(path: &[u8], prefix: &[u8]) -> Result<usize, &'static str>
         .strip_prefix(prefix).and_then(number).filter(|n| *n > 0)
         .ok_or("invalid search pagination")
 }
-fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
+fn list(r: &[u8], search: bool) -> Result<usize, OperationError> {
     let pn = page(r)?;
     let mut path = [0; 8192];
     let mut n = 0;
@@ -678,15 +715,15 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
         let mut decoded = [0; 2048];
         let term = trim_ascii(unescape(raw, &mut decoded)?);
         if term.is_empty() {
-            return Err("empty query");
+            return Err("empty query".into());
         }
         bytes(&mut path, &mut n, b"/search/")?;
         if !write_url_encoded(&mut path, &mut n, term) {
-            return Err("payload overflow");
+            return Err("payload overflow".into());
         }
         bytes(&mut path, &mut n, b"/")?;
         if !write_usize(&mut path, &mut n, pn) {
-            return Err("payload overflow");
+            return Err("payload overflow".into());
         }
     } else {
         let listing = string(args(r), b"listingId").unwrap_or(b"popular");
@@ -696,22 +733,22 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
             match listing {
                 b"popular" => b"/category/order/hits".as_slice(),
                 b"latest" => b"/category/order/addtime",
-                _ => return Err("unknown listing"),
+                _ => return Err("unknown listing".into()),
             },
         )?;
         bytes(&mut path, &mut n, &prefix[..plen])?;
         bytes(&mut path, &mut n, b"/page/")?;
         if !write_usize(&mut path, &mut n, pn) {
-            return Err("payload overflow");
+            return Err("payload overflow".into());
         }
     }
     let root = fetch(&path[..n])?;
     if root.select(b"#code-div").is_ok() {
-        return Err("permission denied");
+        return Err("permission denied".into());
     }
     let nodes = Nodes::get(&root, b".common-comic-item")?;
     if nodes.n == 0 {
-        return Err("listing structure missing");
+        return Err("listing structure missing".into());
     }
     let mut next_buf = [0; 1024];
     let mut current_buf = [0; 1024];
@@ -734,7 +771,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
          next.map(|p| search_page_number(p, prefix)).transpose()?)
     };
     if current_page != pn || terminal_page < pn {
-        return Err("pagination current mismatch");
+        return Err("pagination current mismatch".into());
     }
     // The next page can also be the last page. Its relation to the current
     // page, rather than equality with the terminal link, determines continuation.
@@ -744,10 +781,10 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
             && target <= terminal_page => true,
         Some(target) if pn == terminal_page && target == pn => false,
         None if pn == terminal_page => false,
-        _ => return Err("pagination target mismatch"),
+        _ => return Err("pagination target mismatch".into()),
     };
     if nodes.n == 0 && has_more {
-        return Err("empty page has next cursor");
+        return Err("empty page has next cursor".into());
     }
     let b = payload_buf();
     let mut n = 0;
@@ -759,7 +796,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
             .select(b".comic__title > :first-child")?
             .text(&mut text)?;
         if title.is_empty() {
-            return Err("empty manga title");
+            return Err("empty manga title".into());
         }
         let mut href = [0; 1024];
         let slug = manga_slug(
@@ -778,7 +815,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
         bytes(b, &mut n, b"{\"id\":")?;
         bytes(b, &mut n, b"\"mh:")?;
         if !append_json_escaped(b, &mut n, slug) {
-            return Err("payload overflow");
+            return Err("payload overflow".into());
         }
         bytes(b, &mut n, b":0\"")?;
         bytes(b, &mut n, b",\"title\":")?;
@@ -795,7 +832,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
     if has_more {
         bytes(b, &mut n, b"\"")?;
         if !write_usize(b, &mut n, pn + 1) {
-            return Err("payload overflow");
+            return Err("payload overflow".into());
         }
         bytes(b, &mut n, b"\",\"hasMore\":true}}")?;
     } else {
@@ -803,7 +840,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
     }
     Ok(n)
 }
-fn detail(r: &[u8]) -> Result<usize, &'static str> {
+fn detail(r: &[u8]) -> Result<usize, OperationError> {
     let (id, slug) = manga_identity(r)?;
     let mut path = [0; 1024];
     let root = fetch(detail_path(slug, &mut path)?)?;
@@ -811,7 +848,7 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
     let mut text = [0; 32768];
     let title = owner.select(b".comic-title")?.text(&mut text)?;
     if title.is_empty() {
-        return Err("empty manga title");
+        return Err("empty manga title".into());
     }
     let b = payload_buf();
     let mut n = 0;
@@ -827,7 +864,7 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
     bytes(b, &mut n, b"},\"contentRating\":\"unknown\",\"authors\":[")?;
     let author = owner.select(b".name")?.text(&mut text)?;
     if author.is_empty() {
-        return Err("empty author");
+        return Err("empty author".into());
     }
     q(b, &mut n, author)?;
     bytes(b, &mut n, b"],\"tags\":[")?;
@@ -838,7 +875,7 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
         }
         let t = selected(&tags, i).text(&mut text)?;
         if t.is_empty() {
-            return Err("empty tag");
+            return Err("empty tag".into());
         }
         q(b, &mut n, t)?;
     }
@@ -869,14 +906,14 @@ fn explicit_chapter_number(title: &[u8]) -> Option<&[u8]> {
         None
     }
 }
-fn chapters(r: &[u8]) -> Result<usize, &'static str> {
+fn chapters(r: &[u8]) -> Result<usize, OperationError> {
     let (id, slug) = manga_identity(r)?;
     let mut path = [0; 1024];
     let root = fetch(detail_path(slug, &mut path)?)?;
     let _owner = root.select(b".chapter__list-box")?;
     let nodes = Nodes::get(&root, b".chapter__list-box > li > :first-child")?;
     if nodes.n == 0 {
-        return Err("chapter structure missing");
+        return Err("chapter structure missing".into());
     }
     let b = payload_buf();
     let mut n = 0;
@@ -888,7 +925,7 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
         let mut text = [0; 4096];
         let title = a.text(&mut text)?;
         if title.is_empty() {
-            return Err("empty chapter title");
+            return Err("empty chapter title".into());
         }
         if index > 0 {
             bytes(b, &mut n, b",")?;
@@ -901,7 +938,7 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
         q(b, &mut n, title)?;
         bytes(b, &mut n, b",\"index\":")?;
         if !write_usize(b, &mut n, index) {
-            return Err("payload overflow");
+            return Err("payload overflow".into());
         }
         bytes(b, &mut n, b",\"chapterNumber\":")?;
         bytes(b, &mut n, explicit_chapter_number(title).unwrap_or(b"null"))?;
@@ -914,12 +951,12 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
     )?;
     Ok(n)
 }
-fn pages(r: &[u8]) -> Result<usize, &'static str> {
+fn pages(r: &[u8]) -> Result<usize, OperationError> {
     let cp = chapter_id(r)?;
     let root = fetch(cp)?;
     let nodes = Nodes::get(&root, b"img[data-original]")?;
     if nodes.n == 0 {
-        return Err("page structure missing");
+        return Err("page structure missing".into());
     }
     let b = payload_buf();
     let mut n = 0;
@@ -940,11 +977,11 @@ fn pages(r: &[u8]) -> Result<usize, &'static str> {
         }
         bytes(b, &mut n, b"{\"id\":\"p:")?;
         if !write_usize(b, &mut n, i) {
-            return Err("payload overflow");
+            return Err("payload overflow".into());
         }
         bytes(b, &mut n, b"\",\"index\":")?;
         if !write_usize(b, &mut n, i) {
-            return Err("payload overflow");
+            return Err("payload overflow".into());
         }
         bytes(b, &mut n, b",\"image\":{\"kind\":\"url\",\"url\":")?;
         q(b, &mut n, url)?;
