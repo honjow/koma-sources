@@ -6,6 +6,10 @@ Upstream rating SAFE; actual source contents are unverified, so Koma source/cont
 
 Canonical source id `com.mh160.koma`; manga identity `mh160:<original slug>`, chapter identity `mh160ch:<original public path>`, page identity `page:mh160:<original chapter path>:<1-based index>`. Upstream catalogue order is preserved, chapterNumber remains null.
 
+## 0.1.3 作品网页入口
+
+列表和详情现在返回本源已有的公开作品地址，App可据此显示现有“在WebView中打开”和“在浏览器中打开”动作。地址与详情请求的`/kanmanhua/<slug>/`一致；作品ID、章节顺序、未提供的话数及图标保持。跨季目录与图片失败仍在调查，此更新不代表整源已可正常阅读。
+
 ## Current native boundary (197, 2026-10-10)
 
 Exact 0.1.0 package SHA `77ce60bd21d05227fe02e28d2627e5db2d20e4670b385255c89179cce4664619` and WASM SHA `b8da3dd365ce0be0be902fa609bc49be2eb9fc25bdd290f37ae384ce81f2bd8d` were read back after ordinary subscription installation. Native popular displayed 50 actual Chinese titles; covers were placeholders. Chinese keyword search was rejected with HTTP403. Actual `mh160:12094` 风起苍岚 detail and full 782-chapter catalogue returned200. Chapter `mh160ch:/kanmanhua/12094/43350001.html` 第1话 苍岚之巅1 returned200 and parsed10 pages, but Reader P1 failed; the historical first-image-window record noted404. Its raw response/request linkage is insufficient here to establish the failure cause, and it does not identify the cause of later cover placeholders or the unbound zero-chapter stage. Literal PID742697 and all10 image URL mappings match the fixed primary contract. No image Retry, UA/domain variation, download, full readability or all-site acceptance. Server-side failure causes remain unknown.

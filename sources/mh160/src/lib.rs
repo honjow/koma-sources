@@ -11,7 +11,7 @@ const MOBILE: &[u8] = b"https://m.mh160mh.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mh160.koma",
     name: "漫画160",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -568,6 +568,16 @@ fn absolute<'a>(u: &[u8], out: &'a mut [u8]) -> Result<&'a [u8], &'static str> {
     }
     Ok(&out[..n])
 }
+// The provider owns this public work route; consumers must not infer it from
+// the opaque mh160: identity. It is the same route used by manga_doc below.
+fn manga_url<'a>(id: &[u8], out: &'a mut [u8]) -> Result<&'a [u8], &'static str> {
+    let mut n = 0;
+    bytes(out, &mut n, BASE)?;
+    bytes(out, &mut n, b"/kanmanhua/")?;
+    bytes(out, &mut n, id)?;
+    bytes(out, &mut n, b"/")?;
+    Ok(&out[..n])
+}
 fn manga_doc(id: &[u8]) -> Result<Node, &'static str> {
     let mut out = [0; 1024];
     let mut n = 0;
@@ -644,6 +654,9 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
         qid(b, &mut n, b"mh160:", id)?;
         bytes(b, &mut n, b",\"title\":")?;
         q(b, &mut n, title)?;
+        bytes(b, &mut n, b",\"url\":")?;
+        let mut url = [0; 1024];
+        q(b, &mut n, manga_url(id, &mut url)?)?;
         bytes(b, &mut n, b",\"contentRating\":\"unknown\",\"cover\":")?;
         if let Ok(img) = item.select(if search {
             b".mh-nlook-w img".as_slice()
@@ -699,6 +712,9 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
     qid(b, &mut n, b"mh160:", id)?;
     bytes(b, &mut n, b",\"title\":")?;
     q(b, &mut n, title)?;
+    bytes(b, &mut n, b",\"url\":")?;
+    let mut url = [0; 1024];
+    q(b, &mut n, manga_url(id, &mut url)?)?;
     bytes(b, &mut n, b",\"contentRating\":\"unknown\",\"cover\":")?;
     if let Ok(img) = first(&root, &[b".mh-date-bgpic img", b"#Cover img"]) {
         let mut src = [0; 8192];
