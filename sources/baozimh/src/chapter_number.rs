@@ -35,7 +35,7 @@ pub(crate) fn title_chapter_number(title: &[u8]) -> Option<&[u8]> {
 }
 
 // Baozimh's observed 紹宋 catalog labels use "215 如之奈何". Keep the
-// request slot opaque: only this complete, delimited title prefix is metadata.
+// request slot opaque: only the verified leading label forms are metadata.
 fn numbered_title_prefix(title: &[u8]) -> Option<&[u8]> {
     let mut end = 0;
     while title.get(end).is_some_and(u8::is_ascii_digit) { end += 1; }
@@ -51,10 +51,11 @@ fn numbered_title_prefix(title: &[u8]) -> Option<&[u8]> {
     // Avoid silently turning a huge decimal label into rounded/infinite metadata.
     if !value.is_finite() || value > 9_007_199_254_740_991.0 { return None; }
     let rest = &title[end..];
-    // Two additional real catalog forms: "045" and "006扶腰壯膽韓良臣".
-    // Only three-digit zero-padded integers qualify, not arbitrary bare numbers.
-    if number.len() == 3 && number[0] == b'0' && number.iter().all(u8::is_ascii_digit) {
-        if rest.is_empty() { return Some(number); }
+    // Real catalog forms include "045", "006扶腰壯膽韓良臣" and "687赤尾烈鷹".
+    // Three-digit integers may directly prefix a CJK title; only zero-padded
+    // labels may be bare numbers. Dates and edition/unit labels stay unknown.
+    if number.len() == 3 && number.iter().all(u8::is_ascii_digit) {
+        if rest.is_empty() { return (number[0] == b'0').then_some(number); }
         let first = core::str::from_utf8(rest).ok()?.chars().next()?;
         if ('\u{3400}'..='\u{4dbf}').contains(&first) || ('\u{4e00}'..='\u{9fff}').contains(&first) {
             // These prefixes describe dates, editions or units, not a title.
@@ -96,8 +97,8 @@ mod tests {
     }
 
     #[test]
-    fn numeric_prefix_requires_complete_delimiter_title_and_representable_number() {
-        for title in ["215", "215 ", "215\t\r\n", "215如之奈何", "chapter 215 标题", "215A 标题",
+    fn other_numeric_prefixes_require_delimited_titles_and_representable_numbers() {
+        for title in ["215", "215 ", "215\t\r\n", "15如之奈何", "chapter 215 标题", "215A 标题",
             "2026-10-23 更新", "2026/10/23 更新", "2026.10.23 更新", "215e2 标题", "-215 标题",
             "215. 标题", "215.2.3 标题", "9007199254740992 标题"] {
             assert_eq!(title_chapter_number(title.as_bytes()), None, "{title}");
@@ -120,11 +121,32 @@ mod tests {
     fn zero_padded_extension_does_not_guess_dates_editions_or_other_numeric_titles() {
         for title in ["006年01月02日", "006月刊", "006日更新", "006卷", "006季", "006頁", "006页",
             "006冊", "006册", "006部", "006集", "006第2季", "006-01-02", "006/01/02", "006.01.02",
-            "20261023", "2026年更新", "45", "170", "215如之奈何", "6扶腰壯膽韓良臣", "0006标题",
+            "20261023", "2026年更新", "45", "170", "583", "6扶腰壯膽韓良臣", "0006标题",
             "006A标题", "006_标题", "006.5标题", "标题006", "006（番外）"] {
             assert_eq!(title_chapter_number(title.as_bytes()), None, "{title}");
         }
         assert_eq!(title_chapter_number(b"006\xff"), None);
+    }
+
+    #[test]
+    fn observed_dafeng_three_digit_cjk_labels_supply_metadata_without_reordering() {
+        // Native chapter-catalog-order197-unknown-labels-508/observations.json.
+        let titles = ["687赤尾烈鷹", "686人脈遍佈九州的聖子", "685不可化解的矛盾",
+            "684搏一搏，單車變摩托", "683交換情報", "682我從未去過教坊司",
+            "681逃脫", "680半個故人", "679庭院衝突", "678姐妹花入懷來"];
+        let numbers: Vec<u32> = titles.iter().map(|title|
+            core::str::from_utf8(title_chapter_number(title.as_bytes()).unwrap()).unwrap().parse().unwrap()).collect();
+        assert_eq!(numbers, [687, 686, 685, 684, 683, 682, 681, 680, 679, 678]);
+    }
+
+    #[test]
+    fn three_digit_extension_keeps_dates_units_and_other_forms_unknown() {
+        for title in ["687年更新", "687月刊", "687日更新", "687卷", "687季", "687頁", "687页",
+            "687冊", "687册", "687部", "687集", "687第2季", "687-01-02", "687/01/02", "687.01.02",
+            "687A标题", "687_标题", "687.5标题", "标题687", "687（番外）", "1687标题", "68标题", "687"] {
+            assert_eq!(title_chapter_number(title.as_bytes()), None, "{title}");
+        }
+        assert_eq!(title_chapter_number(b"687\xff"), None);
     }
 
     #[test]
