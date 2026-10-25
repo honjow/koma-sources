@@ -38,3 +38,12 @@ Native/WAMR、其他13詳情／正文、7舊記錄真漫畫落點、主站／clo
 metadataR2仍為未安裝的0.1.0獨立候選。R1完整樹／包／56回放保持凍結；R2僅補原article.summary到詳情簡介及本README，無其他行為／capabilities／身份／圖片／圖標變更。R2生產WASM只重放受影響#22與#3的get_manga，確認原summary逐字保留、支持範圍／日期／編署仍在，除summary新增段落以外其餘輸出與R1逐項相同，描述符歸零。R1其他回放不冒稱R2已重新執行；Root審精確R1→R2差異及兩份當次Host輸出後再197串行驗收。
 
 图标更新（0.1.1，2026-10-20）：正式机构转发页 https://cc.ncnu.edu.tw/p/404-1001-18310.php?Lang=zh-tw 明确链接标题「經濟部智慧財產局粉絲團」至 https://www.facebook.com/TIPO.gov.tw/ ，该账号公开机构职责及准确og:image。采用完整720×720 JPEG（69196字节）的TIPO正式头像，保留原字母、台北101、纹理和原画布；不放大旧32px图、不裁切/重绘或新增底板、阴影、遮罩，App容器保持。官网403路径未重试；小槽实际呈现另验。
+
+
+## Native 首篇驗證（2026-10-25，0.1.1）
+
+237（VDE-AL00，展開豎屏1320×2120）以 Koma 0.1.2-pre/code3 的簽名 Release 8580548B，從原生源包管理正常首裝0.1.1，再由瀏覽入口打開。當次首屏實見12篇；首篇《IP手札mini! #22 保護營業秘密從細節開始》經詳情、開始閱讀顯示完整原四格與知識解說JPEG，1/1，未裁切。實際正文HTTP200，5351599B；詳情3179ms、章951ms、取頁1216ms、圖片計畫1469ms、正文下載1489ms，均具名完成。
+
+自然返回原書架後，library與75源registry完整JSON不變；Reader僅本次IPmini新增progress/sourceHistory/chapters各1，原60/29/76筆每字段及相對順序保持，既有大奉001第6頁25%仍在。首次安裝前後另已核舊74源與library/reader保持。本次不冒稱第2頁3篇、其餘正文、下載、cold或其他裝置通過。
+
+本地原始證據在 Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/` 的173–179具名目錄；177為原圖、178為自然返回、179為三域讀回與具名日誌。原件僅留本地。以上更新先前「尚未Native驗收」的對應首屏／首篇邊界，其餘未知仍保留。
