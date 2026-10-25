@@ -34,3 +34,11 @@ Actual 0.1.2 and 0.1.3 WASM replayed this same saved HTML with network blocked: 
 仅在Host明确提供 `accessSignal=challenge_required` 且HTTP状态为401/403/503时，返回现有挑战错误并保留状态；普通403及其他错误不变，不猜HTML关键词。仅声明 `https://www.mhua5.com`，沿宿主既有受限验证及失败地址回流，不新增请求、Cookie读取或自动重试。
 
 197普通官网分类曾自然出现安全验证并自行通过；这不证明Native423的403正文或响应头。当前候选还需支持该标准信号的App构建与普通Native验收，不能以离线回放宣布列表/正文已恢复。历史page49请求停止边界保持。
+
+## 0.1.6 明确源目录时间方向
+
+本次人类在核对Mihon默认源码后采用“按源序选最早未读”，取代尚未采用的改源DOM顺序候选。`metadata.json`声明`chapterOrder: newest_first`，通过标准打包进入manifest；这是原输出时间方向，不是展示排序。保留MCCMSWeb参考的整体反转、全部原chapterId、原话数（含unknown）、请求、权限和样式；不新增标题解析或伪造小数。宿主已有进度/显式章选择优先，未声明源不得猜方向。
+
+原始证据在Koma现有user-flow-audit/manhuawu-yuanzun-exact-contract-228：准确SDK WindowsFirefox121单次详情200/552175B，1270章DOM首为第1上228928→第1下228919；发布015WASM回放仍输出最新在前。斗破旧成功HTML670章以同WASM回放：默认最小已知号误选131回，Mihon源序合同则选原01/196437。固定参考10f06eb的MCCMSWeb明确getDescendingChapters/asReversed；Mihon宿主d001e6f默认SOURCE+DESC、降序取最后未读。该声明只适用于本源，不把Mihon标题编号推断或其他源的方向自动移植。
+
+0.1.6标准单源构建完成，87192B三成员包已通过237普通系统文件选择器更新，80源中仅本源版本/交付路径及chapterOrder变化；App普通冷恢复仍保留声明，旧79源、书库和原阅读记录完整保持。最终App8588931B的书架来源筛选→现有斗破详情670/670→开始阅读，实际首图1/36，独立249读回chapter196437/page0/36，原61项进度及原顺序逐项保持；没有清历史造首次。元尊1270章的生产WASM回放与宿主真实选择器已证第1话上228928，普通237源入口248却自然触发网页挑战，尚未到该书实机首次阅读，不将其或整个站点记为通过。后继App8589011B仅按当前人类要求收紧验证半模态底栏，不改变本源请求/目录。范围提交、精确CI与实际公开发布结果仍分开记录于Koma CURRENT_STATUS。

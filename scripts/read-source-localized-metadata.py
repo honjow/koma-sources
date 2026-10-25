@@ -51,6 +51,12 @@ def extract(metadata):
     if not isinstance(metadata, dict):
         return {}
     result = {}
+    # Chronology belongs to the unchanged source output, not the App's display
+    # sort. Missing means unverified; never infer it from names or chapter IDs.
+    if "chapterOrder" in metadata:
+        if metadata["chapterOrder"] not in ("newest_first", "oldest_first"):
+            raise ValueError("invalid chapterOrder: expected explicit source chronology")
+        result["chapterOrder"] = metadata["chapterOrder"]
     if "homepage" in metadata:
         result["homepage"] = navigation_homepage(metadata["homepage"])
     if "localizedNames" not in metadata:
