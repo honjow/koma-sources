@@ -33,6 +33,12 @@ SDK普通metadata请求使用其原User-Agent与官网BASE Referer，不修改SD
 使用现有缓冲/响应助手和已接受源的显式边界检查ABI exports，保留全部操作/alloc/init/info/free，避免旧宏未检查的指针范围；未修改共同SDK、ABI或runner。离线runner只在本源证据目录独立复制后修改原HTTP映射及该源请求断言。
 
 
+## 2026-10-25 Native 首篇验证
+
+237（VDE-AL00，展开竖屏）在 Koma 0.1.2-pre 的签名 Release 包中，正常安装本源 0.1.1 后，从浏览页进入《试用体验》并开始阅读，完整四格长图按一页显示。原生列表、详情、章节、取页与图片请求均完成；正文 HTTP 200，收到 1,620,075 字节。返回后原书架、原阅读位置及全部旧记录保持，仅新增本次作品的正常阅读记录。
+
+本次只确认首屏与首篇正文，不代表第二页、其他15篇、下载、冷启动或整源性能均已通过。安装过程仍观察到47ms主线程回调，App卡顿项继续独立处理。以上是新增实机结果，原离线验证的范围与历史限制保留。
+
 ## Source-tree recovery boundary
 
 The original implementation and its dated stage notes above are preserved. This recovery uses the current canonical SDK and does not add artwork, standard-package registration or new HTTP/native acceptance. Original named runtime evidence remains separately bound to its original version and package.
