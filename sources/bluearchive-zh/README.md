@@ -1,6 +1,6 @@
 # 蔚蓝档案官方漫画（中文）
 
-Source ID `com.yostar.bluearchive.zh.koma`, version `0.1.0`, API `0.2`, minimum Koma `0.1.1`. One public Chinese four-panel collection; usage and content rating are `unknown`, manifest `nsfw=false`. No authentication, cookies, JavaScript execution, paid content or challenge handling.
+Source ID `com.yostar.bluearchive.zh.koma`, version `0.1.1`, API `0.2`, minimum Koma `0.1.1`. One public Chinese four-panel collection; usage and content rating are `unknown`, manifest `nsfw=false`. No authentication, cookies, JavaScript execution, paid content or challenge handling.
 
 ## Actual public contract
 
@@ -27,3 +27,13 @@ Only chapter 15's original JPEG was fetched and visually inspected (1224x1877, 1
 Installed 0.1.0, ordinary Browse → the sole collection (15/15 chapters) → official chapter 15, “第二部第六话：蕴含强大力量的装备！”. One complete original four-panel image, including the copyright footer, was visible with 1/1. Natural Back returned to the collection; its row became read and the button said only “继续阅读”, so no claim is made that chapter/page text was visible there. The actual `reader-sessions.v1.json` binds `bluearchive:zh:four-panel` / `bach:zh:four-panel:15` / `bapage:zh:four-panel:15:0`, pageIndex 0, totalPages 1, completed true. No split, next chapter, download, cold start, or other fourteen image acceptance.
 
 Originals: Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/bluearchive010-{chapter15-complete,natural-return,session-restored}237-001/`. Original Browse end and AWAKE/10000ms restored; all 50 sourceId/enabled entries retain their order. Hashes disabled. Executor and Root both inspected the complete original image and natural return; acceptance is limited to this route. Earlier no-Native statements above describe the earlier Host-only run.
+
+## 0.1.1 source chronology
+
+The package declares `chapterOrder: newest_first` for the unchanged official list output. This completes the user-adopted Mihon earliest-unread contract; it does not sort, reverse, renumber or discard chapters. Existing progress and explicit chapter selections keep priority.
+
+On 2026-10-26 the ordinary public list returned the same 15 rows, in order 15 through 1. All 15 official detail responses were read once, without retries, redirects or image requests. Their `preComicChapters`/`nextComicChapters` links form one complete reciprocal chain from 1 (pre=-1) to 15 (next=-1), exactly the reverse of list order. Direction follows these links, rather than inferring chronology from IDs or titles. Raw responses are retained in Koma `.hvigor/outputs/user-flow-audit/bluearchive-current-{catalogue,chain}-20261026.json`.
+
+The current 0.1.0 WASM was replayed against that real retained list and emits the original 15 chapter objects in the same order. Only the package declaration and source version change in 0.1.1; API requests, parser, IDs, names, grouping/continuation contract, pages, assets, icon and App presentation remain unchanged. Build, package, production-selector replay and ordinary App delivery remain separate proof boundaries in Koma CURRENT_STATUS.
+
+The standard single-source build produced a 325253-byte three-member 0.1.1 package. Executing its actual WASM against the retained official list produced the same complete chapter response and HTTP request as 0.1.0; the icon bytes are unchanged. The current App production `firstReaderChapter` selects official chapter 1, then chapter 2 if 1 is read, and returns no target when all are read, without mutating the list. This is a real-WASM/production-selector replay, not Native first-reading or body acceptance. Result: Koma `.hvigor/outputs/user-flow-audit/bluearchive011-chronology-replay-20261026.json`.
