@@ -13,7 +13,7 @@ const MOBILE: &[u8] = b"https://m.mh160mh.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mh160.koma",
     name: "漫画160",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma",

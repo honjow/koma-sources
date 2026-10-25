@@ -6,6 +6,12 @@ Upstream rating SAFE; actual source contents are unverified, so Koma source/cont
 
 Canonical source id `com.mh160.koma`; manga identity `mh160:<original slug>`, chapter identity `mh160ch:<original public path>`, page identity `page:mh160:<original chapter path>:<1-based index>`. Upstream catalogue order is preserved, chapterNumber remains null.
 
+## 0.1.5 原源序与首次未读
+
+按本轮用户采用的Mihon规则，包显式声明`chapterOrder: newest_first`。固定Keiyoushi10f06eb的`Mh160.parseChapters`与本源`chapters`都按相同DOM选择直接输出，遵循Mihon最新在前接口；声明不改变任何目录项或请求。237现存《风起苍岚》782章原快照首为第2季352，末为第1话苍岚之巅1/43350001，且没有该书进度。整表含番外、请假条、标题漏字和第8话异常插入，不能宣称话数严格单调，不能据此从标题猜数、去重或整理目录。
+
+宿主对声明源从原序的最早端找未读，已有进度和显式选章优先；章号继续null、原路径/顺序/图标/网页授权不变。固定参考代码、完整旧快照分析与生产选择器结果保存在Koma `user-flow-audit/mh160-chapter-contract-review-256`。本次不重请旧403章节/详情、跳转失败页或首图，不把首次目标修正写成正文恢复。标准22644B三成员包已237普通文件选择器014→015更新；80源同序，仅本源7个交付/版本/方向字段变化，旧79源及书库、Reader、网页会话元数据完整保持。生产选择器在实际782章旧快照和本包声明下，首次为43350001第1话，标读该话的受控选择分支为73620002第2话，原数组不变；这不是设备上新开正文。259观测主进程40851→49736，新进程书架/继续阅读真实显示，260全部四域JSON同258；没有观察空PID阶段，不写成空进程证明。自传包已ABSENT。范围提交、精确CI及公开发布仍分别记录于Koma CURRENT_STATUS。
+
 ## 0.1.4 错误原因与网页会话
 
 请求失败现在保留 Host 返回的 HTTP 状态；只有 Host 明确标记网页挑战时才报告需要网页验证，普通拒绝、找不到页面和限流仍分别显示原原因。包声明的网页会话只限源本来使用的 `www.mh160mh.com`、`m.mh160mh.com` 两个 HTTPS origin，仍须由 App 按既有流程取得用户同意；不改 UA、网址、作品/章节身份或排序。
