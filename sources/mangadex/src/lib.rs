@@ -73,7 +73,7 @@ fn manga_title(obj: &[u8]) -> &[u8] {
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "org.mangadex.koma",
     name: "MangaDex",
-    version: "0.1.12",
+    version: "0.1.13",
     api_version: "0.2",
     language: "en",
     author: "Koma",
@@ -98,6 +98,18 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
 
 fn json_buf() -> &'static mut [u8] {
     unsafe { &mut *core::ptr::addr_of_mut!(JSON_BUF) }
+}
+
+// Follow the fixed MangaDex cover variants. `original` encodes the upstream
+// empty suffix because Host option IDs cannot be blank. No setting keeps every
+// original URL and existing language/rating/chapter behavior unchanged.
+fn cover_quality(req: &[u8]) -> &'static [u8] {
+    let value = json_object_member(req, b"settings")
+        .and_then(|settings| json_object_member(settings, b"thumbnailQuality_en"));
+    match value { Some(br#"".512.jpg""#) => b".512.jpg", Some(br#"".256.jpg""#) => b".256.jpg", _ => b"" }
+}
+fn append_cover_filename(out: &mut [u8], n: &mut usize, filename: &[u8], req: &[u8]) -> bool {
+    append_api_string(out, n, filename) && write_bytes(out, n, cover_quality(req))
 }
 
 // --- HTTP helper ---
@@ -303,7 +315,7 @@ fn run_search(req: &[u8]) -> u32 {
             && write_bytes(payload, &mut c, b"/");
         if !ok { return write_error("search", "internal_error", "overflow"); }
         if let Some(cfn) = cover_fn {
-            if !append_api_string(payload, &mut c, cfn) { return write_error("search", "internal_error", "overflow"); }
+            if !append_cover_filename(payload, &mut c, cfn, req) { return write_error("search", "internal_error", "overflow"); }
         } else {
             if !write_bytes(payload, &mut c, b"none.jpg") { return write_error("search", "internal_error", "overflow"); }
         }
@@ -406,7 +418,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
         && write_bytes(payload, &mut c, b"/");
     if !ok { return write_error("get_manga", "internal_error", "overflow"); }
     if let Some(cfn) = cover_fn {
-        if !append_api_string(payload, &mut c, cfn) {
+        if !append_cover_filename(payload, &mut c, cfn, req) {
             return write_error("get_manga", "internal_error", "overflow");
         }
     } else {
@@ -935,7 +947,7 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
             && write_bytes(payload, &mut c, b"/");
         if !ok { return write_error("get_manga_list", "internal_error", "overflow"); }
         if let Some(cfn) = cover_fn {
-            if !append_api_string(payload, &mut c, cfn) { return write_error("get_manga_list", "internal_error", "overflow"); }
+            if !append_cover_filename(payload, &mut c, cfn, req) { return write_error("get_manga_list", "internal_error", "overflow"); }
         } else {
             if !write_bytes(payload, &mut c, b"none.jpg") { return write_error("get_manga_list", "internal_error", "overflow"); }
         }
@@ -1061,7 +1073,7 @@ fn run_get_home(req: &[u8]) -> u32 {
                         && write_bytes(payload, &mut c, b"/");
                     if !ok2 { return write_error("get_home", "internal_error", "overflow"); }
                     if let Some(cfn) = cover_fn {
-                        if !append_api_string(payload, &mut c, cfn) { return write_error("get_home", "internal_error", "overflow"); }
+                        if !append_cover_filename(payload, &mut c, cfn, req) { return write_error("get_home", "internal_error", "overflow"); }
                     } else {
                         if !write_bytes(payload, &mut c, b"none.jpg") { return write_error("get_home", "internal_error", "overflow"); }
                     }
@@ -1084,7 +1096,7 @@ fn run_get_home(req: &[u8]) -> u32 {
 
 fn run_get_settings(_req: &[u8]) -> u32 {
     // MangaDex settings: preferred language, content rating, data saver mode
-    const SETTINGS_JSON: &[u8] = br#"{"settings":[{"id":"language","name":"Preferred Language","kind":"select","options":[{"value":"en","label":"English"},{"value":"ja","label":"Japanese"},{"value":"zh","label":"Chinese (Simplified)"},{"value":"zh-hk","label":"Chinese (Traditional)"},{"value":"ko","label":"Korean"},{"value":"fr","label":"French"},{"value":"es","label":"Spanish"},{"value":"de","label":"German"},{"value":"pt-br","label":"Portuguese (Brazil)"}],"default":"en"},{"id":"dataSaver","name":"Data Saver","kind":"toggle","description":"Use compressed images to save bandwidth","default":"false"},{"id":"defaultContentRating","name":"Default Content Rating","kind":"select","options":[{"value":"safe","label":"Safe Only"},{"value":"suggestive","label":"Safe + Suggestive"},{"value":"erotica","label":"All (including Erotica)"}],"default":"suggestive"}]}"#;
+    const SETTINGS_JSON: &[u8] = br#"{"settings":[{"id":"thumbnailQuality_en","name":"Cover Quality","kind":"select","options":[{"value":"original","label":"Original"},{"value":".512.jpg","label":"Medium"},{"value":".256.jpg","label":"Low"}],"default":"original"},{"id":"language","name":"Preferred Language","kind":"select","options":[{"value":"en","label":"English"},{"value":"ja","label":"Japanese"},{"value":"zh","label":"Chinese (Simplified)"},{"value":"zh-hk","label":"Chinese (Traditional)"},{"value":"ko","label":"Korean"},{"value":"fr","label":"French"},{"value":"es","label":"Spanish"},{"value":"de","label":"German"},{"value":"pt-br","label":"Portuguese (Brazil)"}],"default":"en"},{"id":"dataSaver","name":"Data Saver","kind":"toggle","description":"Use compressed images to save bandwidth","default":"false"},{"id":"defaultContentRating","name":"Default Content Rating","kind":"select","options":[{"value":"safe","label":"Safe Only"},{"value":"suggestive","label":"Safe + Suggestive"},{"value":"erotica","label":"All (including Erotica)"}],"default":"suggestive"}]}"#;
 
     let payload = payload_buf();
     let flen = SETTINGS_JSON.len();

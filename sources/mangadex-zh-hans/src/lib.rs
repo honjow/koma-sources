@@ -7,7 +7,7 @@ use koma_source_sdk::{
 };
 type E = &'static str;
 const MAX: usize = 1048576;
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"org.mangadex.zh-hans.koma",name:"MangaDex",version:"0.1.0",api_version:"0.2",language:"zh-Hans",author:"Koma",description:"MangaDex public simplified-Chinese chapters. Usage unknown; followedCount listing is not a usage ranking.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"org.mangadex.zh-hans.koma",name:"MangaDex",version:"0.1.1",api_version:"0.2",language:"zh-Hans",author:"Koma",description:"MangaDex public simplified-Chinese chapters. Usage unknown; followedCount listing is not a usage ranking.",content_rating:"nsfw"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -18,7 +18,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     image_request: true,
     home: false,
     filters: false,
-    settings: false,
+    settings: true,
     credentials: false,
 };
 koma_source_sdk::koma_source_buffers! {payload:1048000,http_out:MAX,body:MAX,http_req:32768,scratch:8192,}
@@ -592,7 +592,19 @@ fn host_url(s: &[u8]) -> Result<(), E> {
     }
     Ok(())
 }
-fn card(b: &mut [u8], n: &mut usize, v: &[u8], expected: Option<&[u8]>) -> Result<(), E> {
+// Published variants only; the Host nonempty value `original` means empty
+// cover suffix. Defaults preserve original images, IDs, language/rating filters,
+// complete owned catalogue order and the per-image descriptor-refresh contract.
+fn cover_quality(r: &[u8]) -> Result<&'static [u8], E> {
+    let settings = member(r, b"settings")?.unwrap_or(b"{}");
+    let value = match member(settings, b"thumbnailQuality_zh")? { Some(v) => quoted(v)?, None => b"" };
+    Ok(match value { b".512.jpg" => b".512.jpg", b".256.jpg" => b".256.jpg", _ => b"" })
+}
+fn data_saver(r: &[u8]) -> Result<bool, E> {
+    let settings = member(r, b"settings")?.unwrap_or(b"{}");
+    Ok(matches!(member(settings, b"dataSaverV5_zh")?, Some(b"true" | b"\"true\"")))
+}
+fn card(b: &mut [u8], n: &mut usize, v: &[u8], expected: Option<&[u8]>, quality: &[u8]) -> Result<(), E> {
     if text(v, b"type")? != b"manga" {
         return Err("manga type");
     };
@@ -618,6 +630,7 @@ fn card(b: &mut [u8], n: &mut usize, v: &[u8], expected: Option<&[u8]>) -> Resul
         bytes(b, n, id)?;
         bytes(b, n, b"/")?;
         bytes(b, n, raw)?;
+        bytes(b, n, quality)?;
         bytes(b, n, b"\"}")?
     }
     bytes(b, n, b",\"authors\":[")?;
@@ -689,6 +702,7 @@ fn request_offset(r: &[u8], limit: usize) -> Result<usize, E> {
         .ok_or("page overflow")
 }
 fn listing(r: &[u8], search: bool) -> Result<usize, E> {
+    let quality = cover_quality(r)?;
     if !search {
         if let Some(v) = member(args(r)?, b"listingId")? {
             if quoted(v)? != b"listing:followed" {
@@ -738,7 +752,7 @@ fn listing(r: &[u8], search: bool) -> Result<usize, E> {
         if count > 0 {
             bytes(output, &mut n, b",")?
         };
-        card(output, &mut n, x, None)?;
+        card(output, &mut n, x, None, quality)?;
         count += 1
     }
     let end = offset.checked_add(count).ok_or("listing count overflow")?;
@@ -766,6 +780,7 @@ fn listing(r: &[u8], search: bool) -> Result<usize, E> {
     Ok(n)
 }
 fn detail(r: &[u8]) -> Result<usize, E> {
+    let quality = cover_quality(r)?;
     let id = key(r, b"mangaId", b"mdzh:")?;
     let url = make_url(&[
         API,
@@ -777,7 +792,7 @@ fn detail(r: &[u8]) -> Result<usize, E> {
     let out = payload_buf();
     let mut n = 0;
     bytes(out, &mut n, b"{\"manga\":")?;
-    card(out, &mut n, required(v, b"data")?, Some(id))?;
+    card(out, &mut n, required(v, b"data")?, Some(id), quality)?;
     bytes(out, &mut n, b"}")?;
     Ok(n)
 }
@@ -964,8 +979,8 @@ fn chapter_key(r: &[u8]) -> Result<(&[u8], &[u8]), E> {
 fn descriptor(ch: &[u8]) -> Result<&'static [u8], E> {
     fetch(make_url(&[API, b"/at-home/server/", ch])?)
 }
-fn validate_original_files(v: &[u8]) -> Result<(), E> {
-    let data = required(required(v, b"chapter")?, b"data")?;
+fn validate_files(v: &[u8], saver: bool) -> Result<(), E> {
+    let data = required(required(v, b"chapter")?, if saver { b"dataSaver" } else { b"data" })?;
     let mut a = Array::new(data)?;
     let mut seen: [Option<&[u8]>; 4096] = [None; 4096];
     let mut count = 0;
@@ -976,17 +991,17 @@ fn validate_original_files(v: &[u8]) -> Result<(), E> {
             return Err("page capacity");
         }
         if seen[..count].iter().any(|prior| *prior == Some(f)) {
-            return Err("duplicate original filename");
+            return Err(if saver { "duplicate saver filename" } else { "duplicate original filename" });
         }
         seen[count] = Some(f);
         count += 1;
     }
     if count == 0 {
-        return Err("empty original data");
+        return Err(if saver { "empty saver data" } else { "empty original data" });
     }
     Ok(())
 }
-fn image_emit(b: &mut [u8], n: &mut usize, v: &[u8], index: usize) -> Result<(), E> {
+fn image_emit(b: &mut [u8], n: &mut usize, v: &[u8], index: usize, saver: bool) -> Result<(), E> {
     let mut hb = [0; 512];
     let h = uq(required(v, b"baseUrl")?, &mut hb)?;
     host_url(h)?;
@@ -998,7 +1013,7 @@ fn image_emit(b: &mut [u8], n: &mut usize, v: &[u8], index: usize) -> Result<(),
     if hash.len() != 32 || !hash.iter().all(|c| c.is_ascii_hexdigit()) {
         return Err("descriptor hash invalid");
     };
-    let mut a = Array::new(required(chapter, b"data")?)?;
+    let mut a = Array::new(required(chapter, if saver { b"dataSaver" } else { b"data" })?)?;
     let mut count = 0;
     let mut selected = None;
     while let Some(x) = a.next()? {
@@ -1014,17 +1029,19 @@ fn image_emit(b: &mut [u8], n: &mut usize, v: &[u8], index: usize) -> Result<(),
     }
     let f = selected.ok_or("page index out of range")?;
     bytes(b, n, h)?;
-    bytes(b, n, b"/data/")?;
+    bytes(b, n, if saver { b"/data-saver/" } else { b"/data/" })?;
     bytes(b, n, hash)?;
     bytes(b, n, b"/")?;
     bytes(b, n, f)
 }
 fn pages(r: &[u8]) -> Result<usize, E> {
+    let saver = data_saver(r)?;
     let (m, ch) = chapter_key(r)?;
     let (_, count) = feed(m, Some(ch))?;
     let v = descriptor(ch)?;
-    validate_original_files(v)?;
-    let data = required(required(v, b"chapter")?, b"data")?;
+    validate_files(v, false)?;
+    if saver { validate_files(v, true)?; }
+    let data = required(required(v, b"chapter")?, if saver { b"dataSaver" } else { b"data" })?;
     let mut arr = Array::new(data)?;
     let mut actual = 0;
     while arr.next()?.is_some() {
@@ -1049,13 +1066,14 @@ fn pages(r: &[u8]) -> Result<usize, E> {
         bytes(out, &mut n, b"\",\"index\":")?;
         wn(out, &mut n, i)?;
         bytes(out, &mut n, b",\"image\":{\"kind\":\"url\",\"url\":\"")?;
-        image_emit(out, &mut n, v, i)?;
+        image_emit(out, &mut n, v, i, saver)?;
         bytes(out, &mut n, b"\"}}")?
     }
     bytes(out, &mut n, b"]}")?;
     Ok(n)
 }
 fn image_request(r: &[u8]) -> Result<usize, E> {
+    let saver = data_saver(r)?;
     let a = args(r)?;
     let page_id = text(a, b"pageId")?;
     if let Some(m) = page_id.strip_prefix(b"mdzh:") {
@@ -1090,11 +1108,12 @@ fn image_request(r: &[u8]) -> Result<usize, E> {
     let mut oldurl = [0; 2048];
     host_url(uq(required(a, b"url")?, &mut oldurl)?)?;
     let v = descriptor(ch)?;
-    validate_original_files(v)?;
+    validate_files(v, false)?;
+    if saver { validate_files(v, true)?; }
     let out = payload_buf();
     let mut n = 0;
     bytes(out, &mut n, b"{\"url\":\"")?;
-    image_emit(out, &mut n, v, idx)?;
+    image_emit(out, &mut n, v, idx, saver)?;
     bytes(out,&mut n,b"\",\"headers\":{\"Referer\":\"https://mangadex.org/\",\"Origin\":\"https://mangadex.org\",\"User-Agent\":\"Koma/0.1.0 (public Chinese source)\"}}")?;
     Ok(n)
 }
@@ -1137,7 +1156,9 @@ fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "not_supported", "not supported")
 }
 fn run_get_settings(_: &[u8]) -> u32 {
-    write_error("get_settings", "not_supported", "not supported")
+    let data = r#"{"settings":[{"id":"thumbnailQuality_zh","name":"封面品質","kind":"select","options":[{"value":"original","label":"原圖"},{"value":".512.jpg","label":"中等"},{"value":".256.jpg","label":"低"}],"default":"original"},{"id":"dataSaverV5_zh","name":"省流量","kind":"toggle","default":"false"}]}"#.as_bytes();
+    payload_buf()[..data.len()].copy_from_slice(data);
+    write_success_payload("get_settings", data.len())
 }
 
 // Source-local ABI gate; SDK remains byte-identical. Check before helper forms a slice.
@@ -1162,7 +1183,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 pub extern "C" fn koma_source_info() -> u32 {
     response_buffer().write_success_parts("source_info", &[
  b"{\"sourceInfo\":{\"id\":\"", SOURCE_INFO.id.as_bytes(), b"\",\"name\":\"", SOURCE_INFO.name.as_bytes(), b"\",\"version\":\"", SOURCE_INFO.version.as_bytes(), b"\",\"apiVersion\":\"0.2\",\"language\":\"zh-Hans\",\"author\":\"Koma\",\"description\":\"",SOURCE_INFO.description.as_bytes(),
- "\",\"contentRating\":\"nsfw\",\"localizedNames\":{\"zh-Hans\":\"MangaDex（简体中文）\",\"zh-Hant\":\"MangaDex（簡體中文）\",\"en\":\"MangaDex (Simplified Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":false,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes()
+ "\",\"contentRating\":\"nsfw\",\"localizedNames\":{\"zh-Hans\":\"MangaDex（简体中文）\",\"zh-Hant\":\"MangaDex（簡體中文）\",\"en\":\"MangaDex (Simplified Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes()
  ])
 }
 macro_rules! export_op {

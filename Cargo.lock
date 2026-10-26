@@ -1373,7 +1373,7 @@ dependencies = [
 
 [[package]]
 name = "koma_mangadex_source"
-version = "0.1.11"
+version = "0.1.13"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -3515,14 +3515,14 @@ dependencies = [
 
 [[package]]
 name = "koma_mangadex_zh_hans_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_mangadex_zh_hant_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "koma_source_sdk",
 ]
