@@ -1,0 +1,9 @@
+(function() {
+    const implementors = Object.fromEntries([["koma_source_sdk",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.99.1/core/clone/trait.Clone.html\" title=\"trait core::clone::Clone\">Clone</a> for <a class=\"enum\" href=\"koma_source_sdk/enum.FetchError.html\" title=\"enum koma_source_sdk::FetchError\">FetchError</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.99.1/core/clone/trait.Clone.html\" title=\"trait core::clone::Clone\">Clone</a> for <a class=\"struct\" href=\"koma_source_sdk/host/struct.HtmlDescriptor.html\" title=\"struct koma_source_sdk::host::HtmlDescriptor\">HtmlDescriptor</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.99.1/core/clone/trait.Clone.html\" title=\"trait core::clone::Clone\">Clone</a> for <a class=\"struct\" href=\"koma_source_sdk/source/struct.SourceCapabilities.html\" title=\"struct koma_source_sdk::source::SourceCapabilities\">SourceCapabilities</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.99.1/core/clone/trait.Clone.html\" title=\"trait core::clone::Clone\">Clone</a> for <a class=\"enum\" href=\"koma_source_sdk/source/enum.SourceErrorCode.html\" title=\"enum koma_source_sdk::source::SourceErrorCode\">SourceErrorCode</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.99.1/core/clone/trait.Clone.html\" title=\"trait core::clone::Clone\">Clone</a> for <a class=\"struct\" href=\"koma_source_sdk/source/struct.SourceInfo.html\" title=\"struct koma_source_sdk::source::SourceInfo\">SourceInfo</a>",0]]]]);
+    if (window.register_implementors) {
+        window.register_implementors(implementors);
+    } else {
+        window.pending_implementors = implementors;
+    }
+})()
+//{"start":59,"fragment_lengths":[1501]}

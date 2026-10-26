@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["empty_filters","empty_home","empty_listings","empty_manga_list"],"struct":["ResultBuffer"]};
