@@ -70,14 +70,19 @@ class HomepageMetadataTest(unittest.TestCase):
             source = (path.parent / 'src/lib.rs').read_text()
             value = raw['homepage']
             with self.subTest(source=path.parent.name):
-                if path.parent.name == 'goda':
+                if path.parent.name in {'goda', 'mangadex', 'manhuaren'}:
                     # User correction and the actual GoDa official homepage:
                     # navigation must not inherit the retained request backend.
-                    self.assertEqual(value, 'https://godamh.com/')
+                    # 2026-10-27: MangaDex title URL and mangaapi.manhuaren.com
+                    # similarly do not define their official homepage spelling.
+                    frontends = {'goda': 'https://godamh.com/',
+                                 'mangadex': 'https://mangadex.org/',
+                                 'manhuaren': 'https://www.manhuaren.com/'}
+                    self.assertEqual(value, frontends[path.parent.name])
                     projected = metadata.extract({**raw,
                         'requestBaseUrl': 'https://baozimh.org',
                         'webSessionOrigins': ['https://baozimh.org']})
-                    self.assertEqual(projected['homepage'], 'https://godamh.com/')
+                    self.assertEqual(projected['homepage'], frontends[path.parent.name])
                     self.assertNotIn('requestBaseUrl', projected)
                     self.assertNotIn('webSessionOrigins', projected)
                     continue
@@ -85,6 +90,17 @@ class HomepageMetadataTest(unittest.TestCase):
                                 or '\\"' + value + '\\"' in source,
                                 'homepage must retain its complete reviewed source literal')
                 self.assertEqual(metadata.extract(raw)['homepage'], value)
+
+    def test_production_cli_requires_homepage_without_changing_legacy_projection(self):
+        missing = ROOT / 'sources/example-demo/no-metadata.json'
+        command = [sys.executable, str(ROOT / 'scripts/read-source-localized-metadata.py'), str(missing)]
+        self.assertEqual(json.loads(subprocess.check_output(command, text=True)), {})
+        result = subprocess.run(command + ['--require-homepage'], capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('requires an explicit official homepage', result.stderr)
+        for path in (ROOT / 'sources').glob('*/metadata.json'):
+            projected = json.loads(subprocess.check_output(command[:2] + [str(path), '--require-homepage'], text=True))
+            self.assertEqual(projected['homepage'], json.loads(path.read_text())['homepage'])
 
     def test_actual_manifest_and_index_jq_expressions_keep_homepage_and_separate_origins(self):
         # Execute the real production expressions, without build.sh's compilation,

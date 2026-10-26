@@ -8,7 +8,7 @@ use koma_source_sdk::host::{
 };
 use koma_source_sdk::json_utils::{
     append_json_escaped, contains_bytes, extract_json_number, extract_json_string, find_subslice,
-    write_bytes, write_url_encoded, write_usize,
+    write_bytes, write_url_encoded, write_usize, json_object_member,
 };
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{FetchError, build_get_request, fetch_error_code, parse_status_code};
@@ -53,7 +53,7 @@ static mut SELECT_BUF: [u8; SELECT_CAP] = [0; SELECT_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.zerobyw.koma",
     name: "Zerobyw",
-    version: "0.1.1",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -92,18 +92,21 @@ fn trim_trailing_slash(bytes: &[u8]) -> &[u8] {
     }
 }
 
-fn current_base_url<'a>(out: &'a mut [u8]) -> &'a [u8] {
-    match host::get_setting(b"baseUrl", out) {
-        Some(v) => {
-            let v = trim_trailing_slash(trim_ascii(v));
-            if v.starts_with(b"http://") || v.starts_with(b"https://") {
-                v
-            } else {
-                DEFAULT_BASE_URL
-            }
+// Ordinary source settings arrive in the scoped request envelope. Koma's
+// production ABI does not provide the dev runner's legacy get_setting import.
+// Keep the existing URL/default behavior without adding a global Host setting.
+fn current_base_url<'a>(req: &[u8], out: &'a mut [u8]) -> &'a [u8] {
+    let value = json_object_member(req, b"settings")
+        .and_then(|settings| extract_json_string(settings, b"baseUrl"))
+        .map(|value| trim_trailing_slash(trim_ascii(value)));
+    if let Some(value) = value {
+        if (value.starts_with(b"http://") || value.starts_with(b"https://"))
+            && value.len() <= out.len() && !value.contains(&b'\\') {
+            out[..value.len()].copy_from_slice(value);
+            return &out[..value.len()];
         }
-        None => DEFAULT_BASE_URL,
     }
+    DEFAULT_BASE_URL
 }
 
 fn base_referer<'a>(base: &[u8], out: &'a mut [u8]) -> Option<&'a [u8]> {
@@ -270,7 +273,7 @@ fn run_search(req: &[u8]) -> u32 {
     };
     let page = extract_json_number(req, b"page").unwrap_or(b"1");
     let mut base_buf = [0u8; 512];
-    let base = current_base_url(&mut base_buf);
+    let base = current_base_url(req, &mut base_buf);
     let mut referer_buf = [0u8; 512];
     let referer = match base_referer(base, &mut referer_buf) {
         Some(v) => v,
@@ -392,12 +395,13 @@ fn manga_id_from_request<'a>(req: &'a [u8], op: &str) -> Result<&'a [u8], u32> {
 }
 
 fn fetch_detail_doc<'a>(
+    req: &[u8],
     id: &[u8],
     op: &str,
     base_buf: &'a mut [u8],
     referer_buf: &'a mut [u8],
 ) -> Result<(usize, &'a [u8], OwnedDescriptor), u32> {
-    let base = current_base_url(base_buf);
+    let base = current_base_url(req, base_buf);
     let referer = base_referer(base, referer_buf)
         .ok_or_else(|| write_error(op, "internal_error", "referer overflow"))?;
     let url_buf = scratch_a();
@@ -473,7 +477,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
     let mut base_buf = [0u8; 512];
     let mut referer_buf = [0u8; 512];
     let (_html_len, base, doc) =
-        match fetch_detail_doc(id, "get_manga", &mut base_buf, &mut referer_buf) {
+        match fetch_detail_doc(req, id, "get_manga", &mut base_buf, &mut referer_buf) {
             Ok(v) => v,
             Err(ptr) => return ptr,
         };
@@ -598,7 +602,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     let mut base_buf = [0u8; 512];
     let mut referer_buf = [0u8; 512];
     let (_html_len, base, doc) =
-        match fetch_detail_doc(id, "get_chapters", &mut base_buf, &mut referer_buf) {
+        match fetch_detail_doc(req, id, "get_chapters", &mut base_buf, &mut referer_buf) {
             Ok(v) => v,
             Err(ptr) => return ptr,
         };
@@ -755,7 +759,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
         None => return write_error("get_pages", "invalid_request", "unexpected chapterId"),
     };
     let mut base_buf = [0u8; 512];
-    let base = current_base_url(&mut base_buf);
+    let base = current_base_url(req, &mut base_buf);
     let mut referer_buf = [0u8; 512];
     let referer = match base_referer(base, &mut referer_buf) {
         Some(v) => v,
@@ -867,7 +871,7 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
         .or_else(|| extract_json_string(req, b"cursor"))
         .unwrap_or(b"1");
     let mut base_buf = [0u8; 512];
-    let base = current_base_url(&mut base_buf);
+    let base = current_base_url(req, &mut base_buf);
     let mut referer_buf = [0u8; 512];
     let referer = match base_referer(base, &mut referer_buf) {
         Some(v) => v,

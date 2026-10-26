@@ -93,3 +93,14 @@ The `build.sh` script handles packaging automatically. You can also distribute s
 ## Questions?
 
 Open an issue on GitHub or refer to the existing sources in `sources/` as examples.
+
+
+### Explicit ordinary website navigation
+
+Production sources must declare a valid HTTP(S) `homepage` in `metadata.json`.
+Use the independently verified official frontend, including a meaningful path;
+never infer it by stripping a manga URL or reusing an API/backend host. The
+production package step rejects a missing address (the teaching demo is exempt).
+This is navigation metadata only, independent of HTTP and Web-session grants.
+The App shows an ordinary website action only when it already knows a valid
+address; it must not advertise an empty action and fail after the user taps it.

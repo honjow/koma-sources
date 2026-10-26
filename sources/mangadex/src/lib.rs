@@ -73,7 +73,7 @@ fn manga_title(obj: &[u8]) -> &[u8] {
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "org.mangadex.koma",
     name: "MangaDex",
-    version: "0.1.11",
+    version: "0.1.12",
     api_version: "0.2",
     language: "en",
     author: "Koma",

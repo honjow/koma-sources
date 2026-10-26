@@ -80,7 +80,12 @@ def extract(metadata):
 def main():
     path = Path(sys.argv[1])
     metadata = json.loads(path.read_text()) if path.exists() else {}
-    print(json.dumps(extract(metadata), ensure_ascii=False, separators=(",", ":")))
+    projected = extract(metadata)
+    # Production sources must not publish a dead ordinary WebView action.
+    # This is navigation metadata only; it grants no HTTP/session permission.
+    if "--require-homepage" in sys.argv[2:] and "homepage" not in projected:
+        raise ValueError("production source requires an explicit official homepage")
+    print(json.dumps(projected, ensure_ascii=False, separators=(",", ":")))
 
 
 if __name__ == "__main__":

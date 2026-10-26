@@ -306,7 +306,11 @@ build_source() {
   min_app_version="$(source_min_app_version "$name")"
   
   local source_metadata
-  source_metadata="$(python3 "$SCRIPT_DIR/scripts/read-source-localized-metadata.py" "$src_path/metadata.json")"
+  if [[ "$name" == "example-demo" ]]; then
+    source_metadata="$(python3 "$SCRIPT_DIR/scripts/read-source-localized-metadata.py" "$src_path/metadata.json")" || return 1
+  else
+    source_metadata="$(python3 "$SCRIPT_DIR/scripts/read-source-localized-metadata.py" "$src_path/metadata.json" --require-homepage)" || return 1
+  fi
 
   local icon_name
   icon_name="$(python3 "$ICON_VALIDATOR" --source-dir "$src_path" --print-name)"
