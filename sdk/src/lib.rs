@@ -2353,3 +2353,103 @@ mod tests {
         assert!(!search.limit_is(20));
     }
 }
+
+/// Bounded source-side text adaptation; existing HTML5 entities are decoded once
+/// without interpreting literal markup. Call only for the explicit text consumer;
+/// no default source field is normalized by this helper.
+pub mod plain_text {
+    use crate::{host, json_utils::{write_bytes,append_json_escaped}};
+    fn bytes(out: &mut [u8], n: &mut usize, value: &[u8]) -> Result<(), &'static str> {
+        if write_bytes(out,n,value) { Ok(()) } else { Err("text overflow") }
+    }
+fn hex4(s: &[u8]) -> Option<u32> {
+    if s.len() != 4 {
+        return None;
+    };
+    let mut n = 0;
+    for &c in s {
+        n = n * 16
+            + match c {
+                b'0'..=b'9' => (c - b'0') as u32,
+                b'a'..=b'f' => (c - b'a' + 10) as u32,
+                b'A'..=b'F' => (c - b'A' + 10) as u32,
+                _ => return None,
+            };
+    }
+    Some(n)
+}
+fn decode_json_content<'a>(s: &[u8], out: &'a mut [u8]) -> Result<&'a [u8], &'static str> {
+    let mut i = 0;
+    let mut n = 0;
+    while i < s.len() {
+        let c = s[i];
+        i += 1;
+        if c != b'\\' {
+            if c < 32 || c == b'"' {
+                return Err("invalid JSON string");
+            };
+            bytes(out, &mut n, &[c])?;
+            continue;
+        }
+        let c = *s.get(i).ok_or("invalid JSON escape")?;
+        i += 1;
+        let c = match c {
+            b'"' => b'"',
+            b'\\' => b'\\',
+            b'/' => b'/',
+            b'n' => b'\n',
+            b'r' => b'\r',
+            b't' => b'\t',
+            b'b' => 8,
+            b'f' => 12,
+            b'u' => {
+                let mut cp = hex4(s.get(i..i + 4).ok_or("invalid unicode escape")?)
+                    .ok_or("invalid unicode escape")?;
+                i += 4;
+                if (0xd800..=0xdbff).contains(&cp) {
+                    if s.get(i..i + 2) != Some(b"\\u") {
+                        return Err("invalid unicode pair");
+                    };
+                    i += 2;
+                    let low = hex4(s.get(i..i + 4).ok_or("invalid unicode pair")?)
+                        .ok_or("invalid unicode pair")?;
+                    i += 4;
+                    if !(0xdc00..=0xdfff).contains(&low) {
+                        return Err("invalid unicode pair");
+                    };
+                    cp = 0x10000 + ((cp - 0xd800) << 10) + (low - 0xdc00)
+                } else if (0xdc00..=0xdfff).contains(&cp) {
+                    return Err("invalid unicode pair");
+                };
+                let ch = char::from_u32(cp).ok_or("invalid unicode scalar")?;
+                let mut tmp = [0; 4];
+                bytes(out, &mut n, ch.encode_utf8(&mut tmp).as_bytes())?;
+                continue;
+            }
+            _ => return Err("invalid JSON escape"),
+        };
+        bytes(out, &mut n, &[c])?;
+    }
+    core::str::from_utf8(&out[..n]).map_err(|_| "invalid UTF8")?;
+    Ok(&out[..n])
+}
+
+    static mut TEXT: [u8;65536] = [0;65536];
+    static mut HTML: [u8;4*65536+16] = [0;4*65536+16];
+    pub fn append_entity_decoded_json_content(out: &mut [u8], cursor: &mut usize, raw: &[u8]) -> bool {
+        let text = unsafe { &mut *core::ptr::addr_of_mut!(TEXT) };
+        let html = unsafe { &mut *core::ptr::addr_of_mut!(HTML) };
+        let decoded = match decode_json_content(raw,text) { Ok(v) => v, Err(_) => return false };
+        let mut n = 0;
+        if !write_bytes(html,&mut n,b"<div>") { return false; }
+        for &value in decoded {
+            let escaped = match value { b'<' => b"&lt;".as_slice(), b'>' => b"&gt;", b'\r' => b"&#13;", _ => core::slice::from_ref(&value) };
+            if !write_bytes(html,&mut n,escaped) { return false; }
+        }
+        if !write_bytes(html,&mut n,b"</div>") { return false; }
+        let descriptor = match host::html_parse(&html[..n]) { Ok(v) => v, Err(_) => return false };
+        let len = host::html_text(descriptor,text);
+        let closed = host::html_close(descriptor).is_ok();
+        match len { Ok(len) if closed && len < text.len() => append_json_escaped(out,cursor,&text[..len]), _ => false }
+    }
+}

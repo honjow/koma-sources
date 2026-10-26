@@ -7,7 +7,7 @@ use koma_source_sdk::{
 };
 type E = &'static str;
 const MAX: usize = 1048576;
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"org.mangadex.zh-hans.koma",name:"MangaDex",version:"0.1.1",api_version:"0.2",language:"zh-Hans",author:"Koma",description:"MangaDex public simplified-Chinese chapters. Usage unknown; followedCount listing is not a usage ranking.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"org.mangadex.zh-hans.koma",name:"MangaDex",version:"0.1.2",api_version:"0.2",language:"zh-Hans",author:"Koma",description:"MangaDex public simplified-Chinese chapters. Usage unknown; followedCount listing is not a usage ranking.",content_rating:"nsfw"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -28,6 +28,38 @@ static mut URL: [u8; 32768] = [0; 32768];
 static mut SEEN: [[u8; 36]; 4096] = [[0; 36]; 4096];
 const API: &[u8] = b"https://api.mangadex.org";
 const WEB: &[u8] = b"https://mangadex.org";
+const ALT_TITLE_LANG: &[u8] = b"zh";
+const ALT_DESCRIPTION_KEY: &[u8] = b"altTitlesInDesc_zh";
+
+fn alt_description_enabled(req: &[u8]) -> bool {
+    json_object_member(req,b"settings").and_then(|v|json_object_member(v,ALT_DESCRIPTION_KEY))
+        .map(|v|v==b"true" || v==b"\"true\"").unwrap_or(false)
+}
+// Source settings only append a description block. Titles, identity, chapter
+// order and the default description bytes are deliberately unchanged.
+fn append_description_content(out: &mut [u8], n: &mut usize, attributes: &[u8], base: &[u8], enabled: bool) -> bool {
+    if !enabled { return write_bytes(out,n,base); }
+    let original = json_object_member(attributes,b"originalLanguage").unwrap_or(b"null");
+    let romanized = match original { b"\"ja\""=>b"ja-ro".as_slice(), b"\"ko\""=>b"ko-ro", b"\"zh\"" | b"\"zh-hk\""=>b"zh-ro", _=>b"" };
+    if !write_bytes(out,n,base) { return false; }
+    let mut started=false;
+    if let Some(alts)=json_object_member(attributes,b"altTitles") {
+        let Some(mut alts)=JsonArrayIter::from_raw_array(alts) else { return false; };
+        while let Some(item)=alts.next_object() {
+            if json_object_member(item,ALT_TITLE_LANG).is_none() && json_object_member(item,romanized).is_none() { continue; }
+            let Some(mut values)=JsonObjectStringIter::new(item) else { return false; };
+            let Some(value)=values.next_string() else { continue; };
+            if value.is_empty() || values.next_string().is_some() { continue; }
+            if !started {
+                if !base.is_empty() && !write_bytes(out,n,b"\\n\\n") { return false; }
+                if !write_bytes(out,n,b"Alternative titles:\\n") { return false; }
+            } else if !write_bytes(out,n,b"\\n") { return false; }
+            if !write_bytes(out,n,"• ".as_bytes()) || !koma_source_sdk::plain_text::append_entity_decoded_json_content(out,n,value) { return false; }
+            started=true;
+        }
+    }
+    true
+}
 fn bytes(b: &mut [u8], n: &mut usize, s: &[u8]) -> Result<(), &'static str> {
     if write_bytes(b, n, s) {
         Ok(())
@@ -604,7 +636,7 @@ fn data_saver(r: &[u8]) -> Result<bool, E> {
     let settings = member(r, b"settings")?.unwrap_or(b"{}");
     Ok(matches!(member(settings, b"dataSaverV5_zh")?, Some(b"true" | b"\"true\"")))
 }
-fn card(b: &mut [u8], n: &mut usize, v: &[u8], expected: Option<&[u8]>, quality: &[u8]) -> Result<(), E> {
+fn card(b: &mut [u8], n: &mut usize, v: &[u8], expected: Option<&[u8]>, quality: &[u8], alt_description: bool) -> Result<(), E> {
     if text(v, b"type")? != b"manga" {
         return Err("manga type");
     };
@@ -658,11 +690,22 @@ fn card(b: &mut [u8], n: &mut usize, v: &[u8], expected: Option<&[u8]>, quality:
     };
     bytes(b, n, b",\"contentRating\":")?;
     q(b, n, rating(a)?)?;
+    if alt_description {
+        let base = match member(a,b"description")? {
+            Some(desc) => literal_map(desc,b"zh")?.or(literal_map(desc,b"en")?),
+            None => None,
+        };
+        bytes(b,n,b",\"description\":\"")?;
+        let raw = base.map(|v| &v[1..v.len()-1]).unwrap_or(b"");
+        if !append_description_content(b,n,a,raw,true) { return Err("alternative description overflow"); }
+        bytes(b,n,b"\"")?;
+    } else {
     if let Some(desc) = member(a, b"description")? {
         if let Some(s) = literal_map(desc, b"zh")?.or(literal_map(desc, b"en")?) {
             bytes(b, n, b",\"description\":")?;
             rawq(b, n, s)?
         }
+    }
     }
     bytes(b,n,b",\"language\":\"zh-Hans\",\"links\":[{\"kind\":\"source\",\"url\":\"https://mangadex.org/title/")?;
     bytes(b, n, id)?;
@@ -752,7 +795,7 @@ fn listing(r: &[u8], search: bool) -> Result<usize, E> {
         if count > 0 {
             bytes(output, &mut n, b",")?
         };
-        card(output, &mut n, x, None, quality)?;
+        card(output, &mut n, x, None, quality, false)?;
         count += 1
     }
     let end = offset.checked_add(count).ok_or("listing count overflow")?;
@@ -792,7 +835,7 @@ fn detail(r: &[u8]) -> Result<usize, E> {
     let out = payload_buf();
     let mut n = 0;
     bytes(out, &mut n, b"{\"manga\":")?;
-    card(out, &mut n, required(v, b"data")?, Some(id), quality)?;
+    card(out, &mut n, required(v, b"data")?, Some(id), quality, alt_description_enabled(r))?;
     bytes(out, &mut n, b"}")?;
     Ok(n)
 }
@@ -1156,12 +1199,12 @@ fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "not_supported", "not supported")
 }
 fn run_get_settings(_: &[u8]) -> u32 {
-    let data = r#"{"settings":[{"id":"thumbnailQuality_zh","name":"封面品質","kind":"select","options":[{"value":"original","label":"原圖"},{"value":".512.jpg","label":"中等"},{"value":".256.jpg","label":"低"}],"default":"original"},{"id":"dataSaverV5_zh","name":"省流量","kind":"toggle","default":"false"}]}"#.as_bytes();
+    let data = r#"{"settings":[{"id":"thumbnailQuality_zh","name":"封面品質","kind":"select","options":[{"value":"original","label":"原圖"},{"value":".512.jpg","label":"中等"},{"value":".256.jpg","label":"低"}],"default":"original"},{"id":"dataSaverV5_zh","name":"省流量","kind":"toggle","default":"false"},{"id":"altTitlesInDesc_zh","name":"Alternative titles in description","kind":"toggle","description":"Include a manga's alternative titles at the end of its description","default":"false"}]}"#.as_bytes();
     payload_buf()[..data.len()].copy_from_slice(data);
     write_success_payload("get_settings", data.len())
 }
 
-// Source-local ABI gate; SDK remains byte-identical. Check before helper forms a slice.
+// Source-local ABI gate. Check before helper forms a slice.
 fn checked_request(ptr: u32, len: u32) -> Option<&'static [u8]> {
     let cap = core::arch::wasm32::memory_size::<0>().checked_mul(65536)?;
     let start = ptr as usize;

@@ -119,3 +119,7 @@ HOME=/home/gamer ./tools/wasm-runtime-spike/run-rust-fixture.sh \
 The script pins the wasm build to `target-cpu=mvp` and disables
 `reference-types` because the current WAMR smoke host is built with reference
 types off.
+
+### Plain text entity adaptation
+
+`plain_text::append_entity_decoded_json_content` accepts the unquoted serialized content of a JSON string and appends valid JSON string content to a bounded caller buffer. It validates Unicode escape pairs, uses the existing HTML5 entity table once, and escapes literal angle brackets before parsing so they remain text. It introduces no host import beyond the established HTML ABI and does not normalize any existing source field automatically. Sources opt in only at the explicit text consumer; invalid input or capacity overflow returns failure.

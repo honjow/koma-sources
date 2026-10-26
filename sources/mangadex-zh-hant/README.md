@@ -1,4 +1,4 @@
-# MangaDex — Traditional Chinese 0.1.1
+# MangaDex — Traditional Chinese 0.1.2
 
 Independent source `org.mangadex.zh-hant.koma`, API 0.2, content language zh-Hant, provider API language `zh-hk`. Other language-source IDs remain independent; no alias or migration. Provider language metadata does not guarantee the writing system of every image. Implementation/license and original official icon attribution remain in NOTICE/LICENSE; icon bytes/background/mask are unchanged.
 
@@ -8,4 +8,6 @@ Listing 关注较多 is all-time followedCount, not 30-day popularity or usage. 
 
 `dataSaverV5_zh-hk` defaults false. Only explicit true selects actual `chapter.dataSaver` filenames and `/data-saver/`; otherwise original ordered `chapter.data` and `/data/` remain. get_pages still validates the complete owned feed and declared page count; stable page IDs carry the original chapter UUID/index. Every image request still makes its existing fresh normal at-home GET and resolves the selected quality by index. Both selected and original file sets retain safe filename, capacity and duplicate guards; no filename is guessed.
 
-Image HTTPS hosts remain uploads.mangadex.org or the actual descriptor-provided mangadex.network subdomain. Cover requests remain bound to the same manga UUID. No tokens, Cookie handling, statistics POST, auth/retry fallback, new host grants or App/SDK/style changes. Standard build: `bash build.sh --source mangadex-zh-hant`. Runtime/crate/package versions align at 0.1.1.
+Image HTTPS hosts remain uploads.mangadex.org or the actual descriptor-provided mangadex.network subdomain. Cover requests remain bound to the same manga UUID. No tokens, Cookie handling, statistics POST, auth/retry fallback, new host grants or App/style changes. Standard build: `bash build.sh --source mangadex-zh-hant`. Runtime/crate/package versions align at 0.1.2.
+
+`altTitlesInDesc_zh-hk` defaults false and is consumed only by manga detail descriptions. Explicit true appends the fixed reference `Alternative titles:` block: extension-language or original-language romanized maps, exactly one nonempty value per map, provider order, no sorting/deduplication. The shared SDK plain-text helper decodes JSON Unicode and HTML entities once while preserving literal markup; the original base description is retained. Missing/false leaves the prior description bytes, title fallback and all other fields unchanged. The default-true upstream title-priority/final-chapter settings are not exposed by this item.
