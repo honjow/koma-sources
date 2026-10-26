@@ -70,6 +70,17 @@ class HomepageMetadataTest(unittest.TestCase):
             source = (path.parent / 'src/lib.rs').read_text()
             value = raw['homepage']
             with self.subTest(source=path.parent.name):
+                if path.parent.name == 'goda':
+                    # User correction and the actual GoDa official homepage:
+                    # navigation must not inherit the retained request backend.
+                    self.assertEqual(value, 'https://godamh.com/')
+                    projected = metadata.extract({**raw,
+                        'requestBaseUrl': 'https://baozimh.org',
+                        'webSessionOrigins': ['https://baozimh.org']})
+                    self.assertEqual(projected['homepage'], 'https://godamh.com/')
+                    self.assertNotIn('requestBaseUrl', projected)
+                    self.assertNotIn('webSessionOrigins', projected)
+                    continue
                 self.assertTrue('"' + value + '"' in source
                                 or '\\"' + value + '\\"' in source,
                                 'homepage must retain its complete reviewed source literal')

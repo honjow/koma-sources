@@ -10,7 +10,7 @@ const BASE: &[u8] = b"https://baozimh.org";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "org.goda.koma",
     name: "GoDa漫画",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh",
     author: "Koma",

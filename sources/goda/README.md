@@ -29,3 +29,5 @@ Latest accepted successor is 0.1.1 original-G icon correction. User-supplied god
 自然Back後仍為原夺酒第2/70頁。臨時升序已透過原「重置」恢復全部/預設話數降序，且重置標記消失；Browse末端恢復，10000ms/AWAKE讀回後釋放本人b5fcf3cb租約。本輪未改53項源啟用、導入包或匯出私有狀態，未將GUI首末觀察冒作全量持久內容逐項相同。
 
 原件在Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/goda012-entry237-001/`：`goda-current-row.png`、`goda-detail-ready.png`、`duojiu-existing-page2-current.png`、`natural-return-original-detail.png`、`final-browse-restored.png`及entry/chapter/continue/return-actions.json。Reader原日誌在旁列 `goda012-continue-log-restored237-001/run-metadata.json`，最終回復在 `goda012-session-restored237-001/run-metadata.json`；全部本輪artifact雜湊關閉。
+
+2026-10-26：用户报告普通网页误开包子。0.1.3将独立homepage元数据纠正为用户指定、实际首页自称GoDa漫畫的https://godamh.com/；只修品牌主页声明，原baozimh.org请求后端、章节/图片ID及权限保持。旧metadata把后端当主页的ae83e07被本修正取代，不能因后端仍保留而复活错误网页入口。

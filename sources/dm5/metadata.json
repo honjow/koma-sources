@@ -1,3 +1,8 @@
 {
-  "homepage": "https://www.dm5.cn"
+  "homepage": "https://www.dm5.cn",
+  "localizedNames": {
+    "zh-Hans": "动漫屋",
+    "zh-Hant": "動漫屋",
+    "en": "DM5"
+  }
 }

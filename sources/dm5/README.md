@@ -15,3 +15,5 @@
 当前017完整继承owner为 `/private/tmp/Koma-sources-dm5-chapter-language-combined-20261016`，lib SHA0360fa660d0598f620c7ae4a95d445d36a5ed56029ec07a7ad3f9c2bba61a4ec。仅在完整015基础增加已审016 display标题流（不改旧ID/pageCount/章卷）和017省略无上游依据的chapter.language；不从源目录zh推断章节正文语言。原库已有持久语言不能由源省略自动撤销。
 
 017原交付包543ed8d732f940e91c9c0ec5b9ad3eaf4a682a6189c2f798e07f91a0e4f973f0/WASMe93b8d9d75855a19c5fa31ede037f839055b52ad4a4c229b02affe72993a8e5c。Root124绑定Host审与237batch具名目录/已下载虫笼P2回执在 `/private/tmp/koma-four-source-chapter-language-20261016/ROOT_REVIEW.json` 和 `/private/tmp/koma-source-quality-batch-native237-20261016/native-receipt.json`；2026-10-17 live唯一DM5解包manifest版本0.1.17及四实体精确复核在 `/private/tmp/koma-dm50115-standard-native237-20261017/m01d/run-metadata.json`。原v017-cover目录是0.1.7，不是本017；旧DM5019标签是0.1.9，不据文件名推版本。
+
+2026-10-26用户纠正：018首页不再仅返回两颗listingLink。保留热门/最新的既有ID、完整分页和菜单，沿同一真实目录请求/卡片解析各提供12项首页预览，错误仍整次传播，不伪装空成功；不改详情、目录、正文和既有记录。中文显示名按https://www.dm5.cn/标题“动漫屋”补齐简繁localizedNames，英文/源ID保持。尚待当前包普通入口Native验证，旧017的具名验收不外推本次首页。
