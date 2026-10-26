@@ -10,7 +10,7 @@ const BASE: &[u8] = b"https://www.mhua5.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.manhuawu.koma",
     name: "漫画屋 (Manhuawu)",
-    version: "0.1.6",
+    version: "0.1.7",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -718,8 +718,13 @@ fn pagination_control<'a>(pager: &Node, selector: &[u8], out: &'a mut [u8]) -> R
 }
 fn search_page_number(path: &[u8], prefix: &[u8]) -> Result<usize, &'static str> {
     let mut decoded = [0; 8192];
-    url_decode(clean_path(path)?, &mut decoded)?
-        .strip_prefix(prefix).and_then(number).filter(|n| *n > 0)
+    let path = url_decode(clean_path(path)?, &mut decoded)?;
+    // The real single-page search controls omit /1. Accept only this exact
+    // query's canonical base as page one; other queries and invalid digits stay errors.
+    if prefix.strip_suffix(b"/") == Some(path) {
+        return Ok(1);
+    }
+    path.strip_prefix(prefix).and_then(number).filter(|n| *n > 0)
         .ok_or("invalid search pagination")
 }
 fn list(r: &[u8], search: bool) -> Result<usize, OperationError> {

@@ -42,3 +42,9 @@ Actual 0.1.2 and 0.1.3 WASM replayed this same saved HTML with network blocked: 
 原始证据在Koma现有user-flow-audit/manhuawu-yuanzun-exact-contract-228：准确SDK WindowsFirefox121单次详情200/552175B，1270章DOM首为第1上228928→第1下228919；发布015WASM回放仍输出最新在前。斗破旧成功HTML670章以同WASM回放：默认最小已知号误选131回，Mihon源序合同则选原01/196437。固定参考10f06eb的MCCMSWeb明确getDescendingChapters/asReversed；Mihon宿主d001e6f默认SOURCE+DESC、降序取最后未读。该声明只适用于本源，不把Mihon标题编号推断或其他源的方向自动移植。
 
 0.1.6标准单源构建完成，87192B三成员包已通过237普通系统文件选择器更新，80源中仅本源版本/交付路径及chapterOrder变化；App普通冷恢复仍保留声明，旧79源、书库和原阅读记录完整保持。最终App8588931B的书架来源筛选→现有斗破详情670/670→开始阅读，实际首图1/36，独立249读回chapter196437/page0/36，原61项进度及原顺序逐项保持；没有清历史造首次。元尊1270章的生产WASM回放与宿主真实选择器已证第1话上228928，普通237源入口248却自然触发网页挑战，尚未到该书实机首次阅读，不将其或整个站点记为通过。后继App8589011B仅按当前人类要求收紧验证半模态底栏，不改变本源请求/目录。范围提交、精确CI与实际公开发布结果仍分开记录于Koma CURRENT_STATUS。
+
+## 0.1.7 搜索第一页的规范分页地址
+
+2026-10-26 普通统一搜索“斗破苍穹”自然收到 HTTP200 后报 parse_error；同关键词、SDK 原 UA、无 Cookie 的一次桌面响应有6条漫画，分页 current/end/next 都指向 `/index.php/search/斗破苍穹`，省略 `/1`。原0.1.6实际WASM回放该HTML明确返回 `invalid search pagination`；此为独立解析反例，不解释旧元尊页表网络超时或证明同份Native响应。
+
+只把当前查询的规范搜索base地址认作第一页；显式数字页和原查询身份、当前/末页/下一页关系校验保持。沿固定MCCMSWeb参考的末页停止意图，不放宽其他查询或无效页；请求URL、UA、会话权限、漫画/章节身份、目录方向和样式不变。回放及后续普通升级/搜索的实际验收仍以Koma CURRENT_STATUS原漫画屋项为准，不以构建代替。
