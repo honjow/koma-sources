@@ -31,7 +31,7 @@ static mut CHAPTER_SNAPSHOT: [u8; JSON_BUF_CAP] = [0; JSON_BUF_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.zaimanhua.koma",
     name: "再漫画",
-    version: "0.1.6",
+    version: "0.1.7",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -48,7 +48,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     manga_list: true,
     home: false,
     filters: false,
-    settings: false,
+    settings: true,
     image_request: true,
     credentials: false,
 };
@@ -897,6 +897,91 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     write_success_payload("get_chapters", c)
 }
 
+fn supports_comments(req: &[u8]) -> bool {
+    let Some(v) = json_object_member(req, b"hostFeatures") else { return false; };
+    let v = v.trim_ascii();
+    if !v.starts_with(b"[") || !v.ends_with(b"]") { return false; }
+    let has = |feature: &[u8]| v[1..v.len()-1].split(|c| *c == b',')
+        .any(|v| v.trim_ascii() == feature);
+    has(b"\"text_page_image_v1\"") && has(b"\"text_page_image_zaimanhua_comments_v1\"") && has(b"\"source_text_page_request_v1\"")
+}
+fn comments_enabled(req: &[u8]) -> bool {
+    supports_comments(req) && json_object_member(req, b"settings")
+        .and_then(|v| json_object_member(v, b"COMMENTS"))
+        .map(|v| v == b"true" || v == b"\"true\"").unwrap_or(false)
+}
+fn blank_json_text(raw: &[u8]) -> bool {
+    let mut i = 0;
+    while i < raw.len() {
+        let c = if raw[i] == b'\\' {
+            i += 1;
+            match raw.get(i) {
+                Some(b'n' | b'r' | b't' | b'f') => { i += 1; ' ' },
+                Some(b'u') if i+4 < raw.len() => {
+                    let Ok(s) = core::str::from_utf8(&raw[i+1..i+5]) else { return false; };
+                    let Ok(n) = u32::from_str_radix(s,16) else { return false; };
+                    let Some(c) = char::from_u32(n) else { return false; }; i += 5; c
+                },
+                _ => return false,
+            }
+        } else {
+            let Ok(s) = core::str::from_utf8(&raw[i..]) else { return false; };
+            let Some(c) = s.chars().next() else { return false; }; i += c.len_utf8(); c
+        };
+        if !c.is_whitespace() { return false; }
+    }
+    true
+}
+// The adopted source fetches comments as its final image, not as part of the
+// chapter page list. Keep HTTP/errmsg failure local to this requested text page;
+// the original URL pages remain readable and this page can use normal retry.
+fn render_comments(chapter_id: &[u8], payload: &mut [u8], c: &mut usize)
+    -> Result<(), (&'static str, &'static str)> {
+    let slash = find_subslice(chapter_id,b"/").ok_or(("invalid_request","bad chapterId format"))?;
+    let url = scratch_a(); let mut n = 0;
+    if !(write_bytes(url,&mut n,API_URL) && write_bytes(url,&mut n,b"/viewpoint/list?comicId=")
+        && write_url_encoded(url,&mut n,&chapter_id[..slash]) && write_bytes(url,&mut n,b"&chapterId=")
+        && write_url_encoded(url,&mut n,&chapter_id[slash+1..])) {
+        return Err(("internal_error","comment URL overflow"));
+    }
+    let data = fetch_json(&url[..n]).map_err(fetch_error_code)?;
+    let errmsg = extract_json_string(data,b"errmsg").unwrap_or(b"");
+    if !blank_json_text(errmsg) { return Err(("source_error","chapter comments API returned an error")); }
+    let data = extract_json_data_object(data).ok_or(("parse_error","missing comments data"))?;
+    let list = match json_object_member(data,b"list") {
+        None | Some(b"null") => b"".as_slice(),
+        Some(v) => array_content(v).ok_or(("parse_error","invalid comments list"))?,
+    };
+    let overflow = ("internal_error","comments payload overflow");
+    if !write_bytes(payload,c,b"{\"image\":{\"kind\":\"text\",\"text\":{\"template\":\"zaimanhua-chapter-comments\",\"paragraphs\":[") { return Err(overflow); }
+    let mut pos = 0; let mut count = 0;
+    while let Some(item) = next_array_value(list,&mut pos).map_err(|_| ("parse_error","invalid comment entry"))? {
+        let row = array_content(item).ok_or(("parse_error","invalid comment row"))?;
+        let mut p = 0; let mut last = None;
+        while let Some(v) = next_array_value(row,&mut p).map_err(|_| ("parse_error","invalid comment row"))? { last = Some(v); }
+        let last = last.ok_or(("parse_error","empty comment row"))?;
+        if count > 0 && !write_bytes(payload,c,b",") { return Err(overflow); }
+        // A serialized JSON string already represents ordinary Unicode, including
+        // surrogate-pair emoji. Copy it once; do not HTML-decode or double-unescape.
+        if last.first() == Some(&b'"') && last.last() == Some(&b'"') {
+            if !write_bytes(payload,c,last) { return Err(overflow); }
+        } else {
+            if last.first() == Some(&b'[') || last.first() == Some(&b'{') { return Err(("parse_error","comment text is not primitive")); }
+            if !(write_bytes(payload,c,b"\"") && append_json_escaped(payload,c,last) && write_bytes(payload,c,b"\"")) { return Err(overflow); }
+        }
+        count += 1;
+    }
+    if count == 0 && !write_bytes(payload,c,"\"没有吐槽\"".as_bytes()) { return Err(overflow); }
+    if !write_bytes(payload,c,b"]}}}") { return Err(overflow); }
+    Ok(())
+}
+fn run_get_settings(req: &[u8]) -> u32 {
+    let data = if supports_comments(req) {
+        "{\"settings\":[{\"id\":\"COMMENTS\",\"name\":\"章末吐槽页\",\"kind\":\"toggle\",\"default\":\"false\"}]}".as_bytes()
+    } else { b"{\"settings\":[]}".as_slice() };
+    payload_buf()[..data.len()].copy_from_slice(data);
+    write_success_payload("get_settings",data.len())
+}
 fn run_get_pages(req: &[u8]) -> u32 {
     let chapter_id = match extract_json_string(req, b"chapterId") {
         Some(v) => v,
@@ -991,6 +1076,17 @@ fn run_get_pages(req: &[u8]) -> u32 {
         page_idx += 1;
     }
 
+    if comments_enabled(req) {
+        // A real source page request, with no synthetic image URL. The host uses
+        // this outer id with get_image_request only when preparing this page.
+        let ok = (page_idx == 0 || write_bytes(payload,&mut c,b","))
+            && write_bytes(payload,&mut c,b"{\"id\":\"chapter-comments:")
+            && append_json_escaped(payload,&mut c,chapter_id)
+            && write_bytes(payload,&mut c,b"\",\"index\":")
+            && write_usize(payload,&mut c,page_idx)
+            && write_bytes(payload,&mut c,b",\"image\":{\"kind\":\"text_request\",\"textRequest\":{\"template\":\"zaimanhua-chapter-comments\"}}}");
+        if !ok { return write_error("get_pages","internal_error","comments page descriptor overflow"); }
+    }
     if !write_bytes(payload, &mut c, b"]}") {
         return write_error("get_pages", "internal_error", "overflow");
     }
@@ -1177,6 +1273,18 @@ fn run_get_filters(_req: &[u8]) -> u32 {
 }
 
 fn run_image_request(req: &[u8]) -> u32 {
+    if let Some(chapter_id) = extract_json_string(req,b"pageId")
+        .and_then(|v| v.strip_prefix(b"chapter-comments:")) {
+        if !comments_enabled(req) {
+            return write_error("get_image_request","unsupported","text page request unavailable");
+        }
+        let mut c = 0;
+        return match render_comments(chapter_id,payload_buf(),&mut c) {
+            Ok(()) => write_success_payload("get_image_request",c),
+            Err((code,message)) => write_error("get_image_request",code,message),
+        };
+    }
+
     let url = match extract_json_string(req, b"url") {
         Some(u) => u,
         None => return write_error("get_image_request", "invalid_request", "missing url"),
@@ -1295,6 +1403,15 @@ pub extern "C" fn koma_source_get_filters(req_ptr: u32, req_len: u32) -> u32 {
     };
     log_info(b"zaimanhua get_filters");
     run_get_filters(req)
+}
+
+#[no_mangle]
+pub extern "C" fn koma_source_get_settings(req_ptr: u32, req_len: u32) -> u32 {
+    let req = match read_request(req_ptr, req_len) {
+        Some(r) => r,
+        None => return write_error("get_settings", "invalid_request", "empty"),
+    };
+    run_get_settings(req)
 }
 
 #[no_mangle]
