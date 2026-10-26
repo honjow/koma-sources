@@ -6,7 +6,7 @@ use koma_source_sdk::{
     json_utils::*,
     source::{SourceCapabilities, SourceInfo},
 };
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.pixiv.zh.koma",name:"Pixiv",version:"0.1.8",api_version:"0.2",language:"zh",author:"Koma",description:"Pixiv anonymous All ages manga search, artworks and complete series. zh is service UI language; work language and usage unknown.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.pixiv.zh.koma",name:"Pixiv",version:"0.1.9",api_version:"0.2",language:"zh",author:"Koma",description:"Pixiv anonymous All ages manga search, artworks and complete series. zh is service UI language; work language and usage unknown.",content_rating:"nsfw"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -17,7 +17,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     manga_list: false,
     home: false,
     filters: false,
-    settings: false,
+    settings: true,
     credentials: false,
 };
 const MAX: usize = 1024 * 1024;
@@ -1029,8 +1029,20 @@ fn chapters(r: &[u8]) -> Result<usize, E> {
     bytes(b, &mut n, b"]}")?;
     Ok(n)
 }
+// Match Keiyoushi's quality order and upward fallback using only URLs from
+// this same page response. Default original and original identity guards stay
+// unchanged; a preference never opens login/private/adult or another host.
+const IMAGE_QUALITIES: [&[u8]; 4] = [b"thumb_mini", b"small", b"regular", b"original"];
+fn requested_image_quality(r: &[u8]) -> Result<usize, E> {
+    let settings = member(r, b"settings")?.unwrap_or(b"{}");
+    let quality = match member(settings, b"pref_image_quality")? {
+        Some(value) => quoted(value)?, None => b"original",
+    };
+    Ok(IMAGE_QUALITIES.iter().position(|name| *name == quality).unwrap_or(3))
+}
 fn pages(r: &[u8]) -> Result<usize, E> {
     let (series, x, ch) = namespace(r, b"chapterId", true)?;
+    let quality = requested_image_quality(r)?;
     let artwork = ch.unwrap_or(x);
     let expected = if series {
         let (count, _, _) = collect(x)?;
@@ -1068,9 +1080,10 @@ fn pages(r: &[u8]) -> Result<usize, E> {
         bytes(b, &mut n, b"\",\"index\":")?;
         wn(b, &mut n, count)?;
         bytes(b, &mut n, b",\"image\":{\"kind\":\"url\",\"url\":")?;
+        let urls = required(v, b"urls")?;
         let mut original_buffer = [0; 2048];
         let original = unescape(
-            text(required(v, b"urls")?, b"original")?,
+            text(urls, b"original")?,
             &mut original_buffer,
         )?;
         image_url(original)?;
@@ -1087,7 +1100,19 @@ fn pages(r: &[u8]) -> Result<usize, E> {
             CH_PAGES[count] = original.len();
             bytes(&mut CH_BYTES, &mut original_bytes, original)?;
         }
-        q(b, &mut n, original)?;
+        let mut selected = None;
+        for key in &IMAGE_QUALITIES[quality..] {
+            if let Some(candidate) = member(urls, key)? {
+                if candidate != b"null" { selected = Some(candidate); break; }
+            }
+        }
+        let mut selected_buffer = [0; 2048];
+        let selected = match selected {
+            Some(raw) => unescape(quoted(raw)?, &mut selected_buffer)?,
+            None => original,
+        };
+        image_url(selected)?;
+        q(b, &mut n, selected)?;
         bytes(b, &mut n, b"}}")?;
         count += 1;
     }
@@ -1163,7 +1188,11 @@ unsupported!(run_get_listings, "get_listings");
 unsupported!(run_get_manga_list, "get_manga_list");
 unsupported!(run_get_home, "get_home");
 unsupported!(run_get_filters, "get_filters");
-unsupported!(run_get_settings, "get_settings");
+fn run_get_settings(_: &[u8]) -> u32 {
+    let p = "{\"settings\":[{\"id\":\"pref_image_quality\",\"name\":\"圖片品質\",\"kind\":\"select\",\"options\":[{\"value\":\"thumb_mini\",\"label\":\"最小縮圖\"},{\"value\":\"small\",\"label\":\"小圖\"},{\"value\":\"regular\",\"label\":\"標準\"},{\"value\":\"original\",\"label\":\"原圖\"}],\"default\":\"original\"}]}".as_bytes();
+    payload_buf()[..p.len()].copy_from_slice(p);
+    write_success_payload("get_settings", p.len())
+}
 // Source-local ABI gate; SDK remains byte-identical. Check before helper forms a slice.
 fn checked_request(ptr: u32, len: u32) -> Option<&'static [u8]> {
     let cap = core::arch::wasm32::memory_size::<0>().checked_mul(65536)?;
