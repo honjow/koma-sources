@@ -19,7 +19,7 @@ Complete catalogue requires nextCursor zero/null and at most 2048 records; no tr
 All-types search is limited to a terminal first page; an advertised next page is explicitly unsupported,
 never returned with a fake terminal cursor. Search has not had live acceptance.
 
-No latest/day scheduling, filters/settings, MotionToon, synthetic author notes, query quality mutation,
+No latest/day scheduling, filters, MotionToon, synthetic author notes,
 login/paid/account access, ageGatePass/needGDPR cookies, automatic retry, challenge/mirror behavior.
 Requests use the existing SDK Firefox121 and fixed public Referer/Origin; mobile catalogue has no Origin.
 Image descriptors serialize only literal ASCII space as %20 for transport, preserving all other UTF8 and escapes.
@@ -52,3 +52,7 @@ get_manga的detail仅新增kind=source链接，复用同次doc(manga_url(id))的
 237 VDE-AL00展开竖屏1320×2120，复用现装Debug16289681B/23:30:52，经系统picker012→013普通更新明确成功，服务54包及最终Browse54已启用保持。普通热门一次返回30本，当前首屏未见5486，随后只在本源既有搜索框输入一次准确标题“變成蠻族！遊戲生存戰”，沿真实结果进入5486详情，现155/155章、开始阅读。两网页菜单可见；仅打开WebView，加载完成后亲看准确作品页标题、蓝色banner、作者、简介和章列表，无登录/挑战。自然Back详情仍155/155章及开始阅读，再回搜索结果/Browse；未打开正文、外部浏览器、下载或改变该作读态。旧197《武士萬里行》正文/cold不混入本次网页接受；未导出全库或据此宣称全部阅读位置逐项校验。仅本人传包已清理并读回不存在，最终10000ms/AWAKE并释放租约。
 
 原图与回执沿Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/`：`webtoon-hant013-import-list237-001/{import-success,services54}.png`，`webtoon-hant013-source237-002/{browse-unoccluded,source-list-terminal}.png`，`webtoon-hant013-webview237-004/{search-result-unoccluded,detail-before,both-web-actions,webview-workpage,detail-returned,browse-restored54}.png`，收尾`webtoon-hant013-webview-postflight237-004/run-metadata.json`。首次Browse点击落在导航遮挡区而切书架、随后搜索键盘联想导致重复标题断言均已依实际界面纠正，未重导/重搜，原失败产物保留，不作产品故障。
+
+## 0.1.4 圖片品質設定
+
+按固定 Keiyoushi 949dea252eb8e867b7b40834a26e13088764ff55 的 Webtoons 實作補入 useMaxQuality（預設 false）。僅明確開啟時移除章節圖片 URL 完整的 type=q90 查詢對，其餘參數、escape、fragment、頁面 ID 與順序保留；預設 URL 不變。設定從每次請求的 settings 讀取，不引入不存在的 Host import。作者備註依賴上游文字轉圖攔截器，現有 Host 不提供此能力，不放置無效開關；順序編號涉及既定章節 metadata，單獨核准後才改。

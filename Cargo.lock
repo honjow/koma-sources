@@ -1219,7 +1219,7 @@ dependencies = [
 
 [[package]]
 name = "koma_dm5_source"
-version = "0.1.18"
+version = "0.1.19"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1575,7 +1575,7 @@ dependencies = [
 
 [[package]]
 name = "koma_webtoons_zh_hant_source"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "koma_source_sdk",
 ]

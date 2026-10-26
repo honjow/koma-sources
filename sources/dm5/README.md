@@ -17,3 +17,7 @@
 017原交付包543ed8d732f940e91c9c0ec5b9ad3eaf4a682a6189c2f798e07f91a0e4f973f0/WASMe93b8d9d75855a19c5fa31ede037f839055b52ad4a4c229b02affe72993a8e5c。Root124绑定Host审与237batch具名目录/已下载虫笼P2回执在 `/private/tmp/koma-four-source-chapter-language-20261016/ROOT_REVIEW.json` 和 `/private/tmp/koma-source-quality-batch-native237-20261016/native-receipt.json`；2026-10-17 live唯一DM5解包manifest版本0.1.17及四实体精确复核在 `/private/tmp/koma-dm50115-standard-native237-20261017/m01d/run-metadata.json`。原v017-cover目录是0.1.7，不是本017；旧DM5019标签是0.1.9，不据文件名推版本。
 
 2026-10-26用户纠正：018首页不再仅返回两颗listingLink。保留热门/最新的既有ID、完整分页和菜单，沿同一真实目录请求/卡片解析各提供12项首页预览，错误仍整次传播，不伪装空成功；不改详情、目录、正文和既有记录。中文显示名按https://www.dm5.cn/标题“动漫屋”补齐简繁localizedNames，英文/源ID保持。尚待当前包普通入口Native验证，旧017的具名验收不外推本次首页。
+
+## 0.1.19 章節排序設定
+
+按固定 Keiyoushi 949dea252eb8e867b7b40834a26e13088764ff55 的 Dm5 實作補入 sortChapter，預設 false 保留原網站序列；僅使用者明確開啟時按 URL 章節數字由新到舊排列。同號保原順序，章節 ID、title、pageCount、chapterNumber、volumeNumber、readingGroup、continuationEligible 不變。設定從每次請求 settings 讀取。章末吐槽頁依賴文字轉圖及評論解析，清 Cookie 依賴 Android CookieManager；現有源 ABI 無此能力，不放置不生效選項。

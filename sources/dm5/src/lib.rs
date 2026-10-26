@@ -24,7 +24,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.dm5.koma",
     name: "DM5",
-    version: "0.1.18",
+    version: "0.1.19",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -495,6 +495,14 @@ fn run_get_manga(req: &[u8]) -> u32 {
     write_success_payload("get_manga", c)
 }
 
+fn chapter_anchor_number(list: &[u8], start: usize) -> usize {
+    let block = &list[start..];
+    find_subslice(block, b">").and_then(|end| attr_value(&block[..end + 1], b"href"))
+        .and_then(chapter_id_from_href)
+        .map(|id| id.iter().fold(0usize, |n, b| n.saturating_mul(10).saturating_add((b - b'0') as usize)))
+        .unwrap_or(0)
+}
+
 fn run_get_chapters(req: &[u8]) -> u32 {
     let manga_id = match extract_json_string(req, b"mangaId") {
         Some(v) => v,
@@ -530,16 +538,39 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     if !write_bytes(payload, &mut c, br#"{"items":["#) {
         return write_error("get_chapters", "internal_error", "payload overflow");
     }
+    // Default keeps the delivered site order. Explicit sortChapter follows
+    // Keiyoushi's descending numeric chapter URL order, without changing IDs,
+    // page counts or title-derived sequence metadata. Equal IDs retain site order.
+    let sort = json_object_member(req, b"settings")
+        .and_then(|s| json_object_member(s, b"sortChapter"))
+        .map(|v| v == b"true" || v == b"\"true\"").unwrap_or(false);
+    let mut anchors = [0usize; 8192];
+    let mut count = 0usize;
     let mut pos = 0usize;
-    let mut written = 0usize;
     while let Some(rel) = find_subslice(&list[pos..], b"<a ") {
-        let a_start = pos + rel;
+        if count == anchors.len() {
+            return write_error("get_chapters", "parse_error", "too many chapter anchors");
+        }
+        anchors[count] = pos + rel;
+        count += 1;
+        pos = match find_subslice(&list[anchors[count - 1]..], b"</a>") {
+            Some(end) => anchors[count - 1] + end + 4,
+            None => return write_error("get_chapters", "parse_error", "unterminated chapter anchor"),
+        };
+    }
+    if sort {
+        anchors[..count].sort_unstable_by(|a, b| {
+            chapter_anchor_number(list, *b).cmp(&chapter_anchor_number(list, *a))
+                .then_with(|| a.cmp(b))
+        });
+    }
+    let mut written = 0usize;
+    for &a_start in &anchors[..count] {
         let a_end = match find_subslice(&list[a_start..], b"</a>") {
             Some(v) => a_start + v + 4,
             None => return write_error("get_chapters", "parse_error", "unterminated chapter anchor"),
         };
         let block = &list[a_start..a_end];
-        pos = a_end;
         let tag_end = match find_subslice(block, b">") {
             Some(v) => v + 1,
             None => continue,
@@ -1378,7 +1409,7 @@ fn run_get_filters(_req: &[u8]) -> u32 {
 }
 
 fn run_get_settings(_req: &[u8]) -> u32 {
-    const SETTINGS: &[u8] = br#"{"settings":[]}"#;
+    const SETTINGS: &[u8] = "{\"settings\":[{\"id\":\"sortChapter\",\"name\":\"依照上傳時間排序章節\",\"kind\":\"toggle\",\"description\":\"依網站章節編號由新到舊排列，預設保留網站原順序\",\"default\":\"false\"}]}".as_bytes();
     let payload = payload_buf();
     if SETTINGS.len() > payload.len() {
         return write_error("get_settings", "internal_error", "payload overflow");

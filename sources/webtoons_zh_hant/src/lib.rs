@@ -11,7 +11,7 @@ const MOBILE: &[u8] = b"https://m.webtoons.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.webtoons.zh-hant.koma",
     name: "WEBTOON (Traditional Chinese)",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma source contributors",
@@ -28,7 +28,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     manga_list: true,
     home: false,
     filters: false,
-    settings: false,
+    settings: true,
     credentials: false,
     image_request: true,
 };
@@ -1054,12 +1054,39 @@ fn chapter_list(r: &[u8]) -> Result<usize, &'static str> {
     )?;
     Ok(n)
 }
+// Settings are request-scoped. Keep the delivered URI unchanged by default;
+// the opt-in follows Keiyoushi Webtoons: remove only a complete type=q90 query
+// pair, preserving all other parameters, escapes and the fragment byte-for-byte.
+fn maximum_quality_uri<'a>(uri: &'a [u8], enabled: bool, out: &'a mut [u8]) -> &'a [u8] {
+    if !enabled { return uri; }
+    let Some(query) = uri.iter().position(|b| *b == b'?') else { return uri; };
+    let end = uri.iter().position(|b| *b == b'#').unwrap_or(uri.len());
+    if query >= end { return uri; }
+    let mut n = query;
+    out[..query].copy_from_slice(&uri[..query]);
+    let mut first = true;
+    for pair in uri[query + 1..end].split(|b| *b == b'&') {
+        if pair == b"type=q90" { continue; }
+        out[n] = if first { b'?' } else { b'&' }; n += 1;
+        out[n..n + pair.len()].copy_from_slice(pair); n += pair.len();
+        first = false;
+    }
+    out[n..n + uri.len() - end].copy_from_slice(&uri[end..]);
+    n += uri.len() - end;
+    &out[..n]
+}
+fn setting_enabled(r: &[u8], key: &[u8]) -> bool {
+    json_object_member(r, b"settings")
+        .and_then(|s| json_object_member(s, key))
+        .map(|v| v == b"true" || v == b"\"true\"").unwrap_or(false)
+}
 fn page_list(r: &[u8]) -> Result<usize, &'static str> {
     let path = chapters_id(r)?;
     let (title, episode, _) = chapter_route(path)?;
     let mut url = [0; 8192];
     let root = doc(make_url(path, &mut url)?)?;
     let nodes = Nodes::get(&root, b"div#_imageList > img")?;
+    let maximum_quality = setting_enabled(r, b"useMaxQuality");
     if nodes.n == 0 {
         return Err("ordinary viewer images missing or gated");
     };
@@ -1076,6 +1103,8 @@ fn page_list(r: &[u8]) -> Result<usize, &'static str> {
         let mut src = [0; 8192];
         let src = selected(&nodes, i).attr(b"data-url", &mut src)?;
         image_url(src)?;
+        let mut quality_uri = [0; 8192];
+        let src = maximum_quality_uri(src, maximum_quality, &mut quality_uri);
         if i > 0 {
             bytes(b, &mut n, b",")?
         };
@@ -1152,6 +1181,8 @@ fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "unsupported", "filters unsupported")
 }
 fn run_get_settings(_: &[u8]) -> u32 {
-    write_error("get_settings", "unsupported", "settings unsupported")
+    let p = "{\"settings\":[{\"id\":\"useMaxQuality\",\"name\":\"最高畫質圖片\",\"kind\":\"toggle\",\"description\":\"移除網站 q90 壓縮參數；對之後載入的章節生效\",\"default\":\"false\"}]}".as_bytes();
+    payload_buf()[..p.len()].copy_from_slice(p);
+    write_success_payload("get_settings", p.len())
 }
 koma_source_sdk::koma_source_exports!("webtoons_zh_hant");
