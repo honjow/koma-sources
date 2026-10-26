@@ -6,7 +6,7 @@ use koma_source_sdk::host::{self, http_request, log_info};
 use koma_source_sdk::json_utils::{
     append_json_escaped, contains_bytes, extract_json_number, extract_json_string, find_subslice,
     write_bytes, write_url_encoded, write_usize, request_page_number, json_object_member,
-    append_json_unescaped_then_escaped,
+    append_json_unescaped_then_escaped, JsonArrayIter,
 };
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{FetchError, build_get_request, fetch_error_code};
@@ -24,7 +24,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.dm5.koma",
     name: "DM5",
-    version: "0.1.19",
+    version: "0.1.20",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -724,6 +724,118 @@ fn write_chapter_sequence_number(
     }
 }
 
+fn hex4(s: &[u8]) -> Option<u32> {
+    if s.len() != 4 {
+        return None;
+    };
+    let mut n = 0;
+    for &c in s {
+        n = n * 16
+            + match c {
+                b'0'..=b'9' => (c - b'0') as u32,
+                b'a'..=b'f' => (c - b'a' + 10) as u32,
+                b'A'..=b'F' => (c - b'A' + 10) as u32,
+                _ => return None,
+            };
+    }
+    Some(n)
+}
+fn comment_unescape<'a>(s: &[u8], out: &'a mut [u8]) -> Result<&'a [u8], &'static str> {
+    let mut i = 0;
+    let mut n = 0;
+    while i < s.len() {
+        let c = s[i];
+        i += 1;
+        if c != b'\\' {
+            if c < 32 || c == b'"' {
+                return Err("invalid JSON string");
+            };
+            if !write_bytes(out, &mut n, &[c]) { return Err("comment overflow"); }
+            continue;
+        }
+        let c = *s.get(i).ok_or("invalid JSON escape")?;
+        i += 1;
+        let c = match c {
+            b'"' => b'"',
+            b'\\' => b'\\',
+            b'/' => b'/',
+            b'n' => b'\n',
+            b'r' => b'\r',
+            b't' => b'\t',
+            b'b' => 8,
+            b'f' => 12,
+            b'u' => {
+                let mut cp = hex4(s.get(i..i + 4).ok_or("invalid unicode escape")?)
+                    .ok_or("invalid unicode escape")?;
+                i += 4;
+                if (0xd800..=0xdbff).contains(&cp) {
+                    if s.get(i..i + 2) != Some(b"\\u") {
+                        return Err("invalid unicode pair");
+                    };
+                    i += 2;
+                    let low = hex4(s.get(i..i + 4).ok_or("invalid unicode pair")?)
+                        .ok_or("invalid unicode pair")?;
+                    i += 4;
+                    if !(0xdc00..=0xdfff).contains(&low) {
+                        return Err("invalid unicode pair");
+                    };
+                    cp = 0x10000 + ((cp - 0xd800) << 10) + (low - 0xdc00)
+                } else if (0xdc00..=0xdfff).contains(&cp) {
+                    return Err("invalid unicode pair");
+                };
+                let ch = char::from_u32(cp).ok_or("invalid unicode scalar")?;
+                let mut tmp = [0; 4];
+                if !write_bytes(out, &mut n, ch.encode_utf8(&mut tmp).as_bytes()) { return Err("comment overflow"); }
+                continue;
+            }
+            _ => return Err("invalid JSON escape"),
+        };
+        if !write_bytes(out, &mut n, &[c]) { return Err("comment overflow"); }
+    }
+    core::str::from_utf8(&out[..n]).map_err(|_| "invalid UTF8")?;
+    Ok(&out[..n])
+}
+
+// Reuse the host's HTML5 entity table without interpreting literal markup.
+// Escaping only literal angle brackets preserves Parser.unescapeEntities(false)
+// semantics; CR is numeric-escaped to avoid HTML input newline normalization.
+static mut COMMENT_TEXT: [u8; 65536] = [0; 65536];
+static mut COMMENT_HTML: [u8; 4 * 65536 + 16] = [0; 4 * 65536 + 16];
+fn write_plain_comment(output: &mut [u8], cursor: &mut usize, poster: &[u8], content: &[u8]) -> bool {
+    let text = unsafe { &mut *core::ptr::addr_of_mut!(COMMENT_TEXT) };
+    let html = unsafe { &mut *core::ptr::addr_of_mut!(COMMENT_HTML) };
+    let mut n = 0;
+    if !write_bytes(html, &mut n, b"<div>") { return false; }
+    for (index, raw) in [poster, content].iter().enumerate() {
+        if index > 0 && !write_bytes(html, &mut n, b": ") { return false; }
+        let decoded = match comment_unescape(raw, text) { Ok(v) => v, Err(_) => return false };
+        for &b in decoded {
+            let escaped = match b { b'<' => b"&lt;".as_slice(), b'>' => b"&gt;", b'\r' => b"&#13;", _ => core::slice::from_ref(&b) };
+            if !write_bytes(html, &mut n, escaped) { return false; }
+        }
+    }
+    if !write_bytes(html, &mut n, b"</div>") { return false; }
+    let descriptor = match host::html_parse(&html[..n]) { Ok(v) => v, Err(_) => return false };
+    let len = host::html_text(descriptor, text);
+    let closed = host::html_close(descriptor).is_ok();
+    match len {
+        Ok(len) if closed && len < text.len() => append_json_escaped(output, cursor, &text[..len]),
+        _ => false,
+    }
+}
+
+fn supports_text_pages(req: &[u8]) -> bool {
+    let Some(features) = json_object_member(req, b"hostFeatures") else { return false; };
+    let features = trim_ascii(features);
+    features.starts_with(b"[") && features.ends_with(b"]") &&
+        features[1..features.len() - 1].split(|b| *b == b',')
+            .any(|value| trim_ascii(value) == b"\"text_page_image_v1\"")
+}
+fn enabled_setting(req: &[u8], key: &[u8]) -> bool {
+    json_object_member(req, b"settings").and_then(|s| json_object_member(s, key))
+        .map(|v| v == b"true" || v == b"\"true\"").unwrap_or(false)
+}
+
 fn run_get_pages(req: &[u8]) -> u32 {
     let chapter_id = match extract_json_string(req, b"chapterId") {
         Some(v) => v,
@@ -754,6 +866,25 @@ fn run_get_pages(req: &[u8]) -> u32 {
         }
     };
     let html = unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), html_len) };
+    let comments = supports_text_pages(req) && enabled_setting(req, b"chapterComments");
+    // Copy the real viewer fields before image requests reuse BODY_BUF.
+    let mut topic_store = [0u8; 64];
+    let mut topic_len = 0usize;
+    let mut comment_pages = 0usize;
+    if comments {
+        let topic = extract_js_single_quoted_string(html, b"DM5_TIEBATOPICID='")
+            .or_else(|| extract_js_string(html, b"DM5_TIEBATOPICID=\""));
+        let total = extract_js_number(html, b"DM5_PAGEPCOUNT = ")
+            .or_else(|| extract_js_number(html, b"DM5_PAGEPCOUNT="))
+            .and_then(parse_usize);
+        match (topic, total) {
+            (Some(t), Some(total)) if !t.is_empty() && t.len() <= topic_store.len()
+                && t.iter().all(|b| b.is_ascii_digit()) && total <= 2048 => {
+                    topic_store[..t.len()].copy_from_slice(t); topic_len = t.len(); comment_pages = total;
+                }
+            _ => return write_error("get_pages", "parse_error", "missing chapter comment metadata"),
+        }
+    }
     let mid_raw = extract_js_number(html, b"DM5_MID=").unwrap_or(b"");
     let dt_raw = extract_js_string(html, b"DM5_VIEWSIGN_DT=\"").unwrap_or(b"");
     let sign_raw = extract_js_string(html, b"DM5_VIEWSIGN=\"").unwrap_or(b"");
@@ -826,6 +957,60 @@ fn run_get_pages(req: &[u8]) -> u32 {
     }
     if written != page_count {
         return write_error("get_pages", "parse_error", "incomplete public chapter image list");
+    }
+    if comments {
+        for page in 1..=comment_pages {
+            let mut url = [0u8; 1024]; let mut u = 0;
+            let ok = write_bytes(&mut url, &mut u, BASE_URL)
+                && write_bytes(&mut url, &mut u, b"/m") && write_bytes(&mut url, &mut u, cid)
+                && write_bytes(&mut url, &mut u, b"/pagerdata.ashx?pageindex=") && write_usize(&mut url, &mut u, page)
+                && write_bytes(&mut url, &mut u, b"&pagesize=") && write_usize(&mut url, &mut u, comment_pages)
+                && write_bytes(&mut url, &mut u, b"&tid=") && write_bytes(&mut url, &mut u, &topic_store[..topic_len])
+                && write_bytes(&mut url, &mut u, b"&cid=") && write_bytes(&mut url, &mut u, cid)
+                && write_bytes(&mut url, &mut u, b"&t=9");
+            if !ok { return write_error("get_pages", "internal_error", "comment URL overflow"); }
+            let len = match fetch_body(&url[..u], Some(BASE_URL)) {
+                Ok(n) => n,
+                Err(e) => { let (code, msg) = fetch_error_code(e); return write_error("get_pages", code, msg); }
+            };
+            let body = trim_ascii(unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), len) });
+            if !body.ends_with(b"]") { return write_error("get_pages", "parse_error", "invalid chapter comments"); }
+            let mut rows = match JsonArrayIter::from_raw_array(body) {
+                Some(v) => v, None => return write_error("get_pages", "parse_error", "invalid chapter comments"),
+            };
+            let ok = write_bytes(payload, &mut c, b",{\"id\":\"page:dm5:")
+                && append_json_escaped(payload, &mut c, cid)
+                && write_bytes(payload, &mut c, b":comments:") && write_usize(payload, &mut c, page)
+                && write_bytes(payload, &mut c, b"\",\"index\":") && write_usize(payload, &mut c, page_count + page - 1)
+                && write_bytes(payload, &mut c, b",\"image\":{\"kind\":\"text\",\"text\":{\"template\":\"dm5-chapter-comments\",\"paragraphs\":[");
+            if !ok { return write_error("get_pages", "internal_error", "payload overflow"); }
+            let mut count = 0;
+            let mut consumed = 1usize;
+            while let Some(row) = rows.next_object() {
+                let start = row.as_ptr() as usize - body.as_ptr() as usize;
+                let gap = trim_ascii(&body[consumed..start]);
+                if (count == 0 && !gap.is_empty()) || (count > 0 && gap != b",") {
+                    return write_error("get_pages", "parse_error", "invalid chapter comments");
+                }
+                consumed = start + row.len();
+                let poster = match extract_json_string(row, b"Poster") { Some(v) => v, None => return write_error("get_pages", "parse_error", "comment poster missing") };
+                let content = match extract_json_string(row, b"PostContent") { Some(v) => v, None => return write_error("get_pages", "parse_error", "comment text missing") };
+                if (count > 0 && !write_bytes(payload, &mut c, b","))
+                    || !write_bytes(payload, &mut c, b"\"")
+                    || !write_plain_comment(payload, &mut c, poster, content)
+                    || !write_bytes(payload, &mut c, b"\"") {
+                    return write_error("get_pages", "parse_error", "comment text could not be decoded");
+                }
+                count += 1;
+            }
+            if trim_ascii(&body[consumed..]) != b"]" {
+                return write_error("get_pages", "parse_error", "invalid chapter comments");
+            }
+            if count == 0 && !write_bytes(payload, &mut c, "\"没有吐槽\"".as_bytes()) {
+                return write_error("get_pages", "internal_error", "payload overflow");
+            }
+            if !write_bytes(payload, &mut c, b"]}}}") { return write_error("get_pages", "internal_error", "payload overflow"); }
+        }
     }
     if !write_bytes(payload, &mut c, b"]}") {
         return write_error("get_pages", "internal_error", "payload overflow");
@@ -1408,14 +1593,16 @@ fn run_get_filters(_req: &[u8]) -> u32 {
     write_success_payload("get_filters", FILTERS.len())
 }
 
-fn run_get_settings(_req: &[u8]) -> u32 {
-    const SETTINGS: &[u8] = "{\"settings\":[{\"id\":\"sortChapter\",\"name\":\"依照上傳時間排序章節\",\"kind\":\"toggle\",\"description\":\"依網站章節編號由新到舊排列，預設保留網站原順序\",\"default\":\"false\"}]}".as_bytes();
-    let payload = payload_buf();
-    if SETTINGS.len() > payload.len() {
-        return write_error("get_settings", "internal_error", "payload overflow");
+fn run_get_settings(req: &[u8]) -> u32 {
+    let payload = payload_buf(); let mut c = 0;
+    let sort = "{\"settings\":[{\"id\":\"sortChapter\",\"name\":\"依照上傳時間排序章節\",\"kind\":\"toggle\",\"description\":\"依網站章節編號由新到舊排列，預設保留網站原順序\",\"default\":\"false\"}";
+    if !write_bytes(payload, &mut c, sort.as_bytes()) { return write_error("get_settings", "internal_error", "payload overflow"); }
+    if supports_text_pages(req) {
+        let comments = ",{\"id\":\"chapterComments\",\"name\":\"章末吐槽頁\",\"kind\":\"toggle\",\"description\":\"在章節原圖後顯示網站吐槽；對之後載入的章節生效\",\"default\":\"false\"}";
+        if !write_bytes(payload, &mut c, comments.as_bytes()) { return write_error("get_settings", "internal_error", "payload overflow"); }
     }
-    payload[..SETTINGS.len()].copy_from_slice(SETTINGS);
-    write_success_payload("get_settings", SETTINGS.len())
+    if !write_bytes(payload, &mut c, b"]}") { return write_error("get_settings", "internal_error", "payload overflow"); }
+    write_success_payload("get_settings", c)
 }
 
 // Covers are emitted by catalogue/detail metadata and have no chapter cid.

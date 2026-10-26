@@ -5,7 +5,7 @@ extern crate koma_source_sdk;
 use koma_source_sdk::host::{http_request, log_info};
 use koma_source_sdk::json_utils::{
     append_json_escaped, append_json_unescaped_then_escaped, contains_bytes, extract_json_number,
-    extract_json_string, find_subslice, write_bytes, write_usize, JsonArrayIter,
+    extract_json_string, find_subslice, write_bytes, write_usize, JsonArrayIter, json_object_member,
 };
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{build_post_request, parse_status_code};
@@ -30,7 +30,7 @@ static mut GQL_BODY_BUF: [u8; GQL_BODY_CAP] = [0; GQL_BODY_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.komiic.koma",
     name: "Komiic",
-    version: "0.1.6",
+    version: "0.1.7",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -47,7 +47,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     manga_list: true,
     home: true,
     filters: false,
-    settings: false,
+    settings: true,
     image_request: true,
     credentials: false,
 };
@@ -578,6 +578,9 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             return write_error("get_chapters", c, m);
         }
     };
+    let chapter_filter = json_object_member(req, b"settings")
+        .and_then(|settings| extract_json_string(settings, b"CHAPTER_FILTER"))
+        .unwrap_or(b"all");
     let payload = payload_buf();
     let mut c = 0usize;
     if !write_bytes(payload, &mut c, br#"{"items":["#) {
@@ -595,6 +598,9 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         };
         let serial = extract_json_string(obj, b"serial").unwrap_or(b"");
         let typ = extract_json_string(obj, b"type").unwrap_or(b"");
+        // Only an explicit source preference filters the existing sequence.
+        // The delivered default, IDs and all metadata remain unchanged.
+        if (chapter_filter == b"chapter" || chapter_filter == b"book") && typ != chapter_filter { continue; }
         let continuation_eligible = (typ == b"chapter" || typ == b"book") && valid_chapter_serial(serial);
         let size = extract_json_number(obj, b"size").unwrap_or(b"0");
         let date = extract_json_string(obj, b"dateCreated").unwrap_or(b"");
@@ -864,4 +870,12 @@ pub extern "C" fn koma_source_get_image_request(req_ptr: u32, req_len: u32) -> u
 #[no_mangle]
 pub extern "C" fn koma_source_free(result_ptr: u32) {
     response_buffer().free(result_ptr)
+}
+
+#[no_mangle]
+pub extern "C" fn koma_source_get_settings(req_ptr: u32, req_len: u32) -> u32 {
+    if read_request(req_ptr, req_len).is_none() { return write_error("get_settings", "invalid_request", "empty"); }
+    let p = "{\"settings\":[{\"id\":\"CHAPTER_FILTER\",\"name\":\"章節列表顯示\",\"kind\":\"select\",\"options\":[{\"value\":\"all\",\"label\":\"同時顯示卷和章節\"},{\"value\":\"chapter\",\"label\":\"僅顯示章節\"},{\"value\":\"book\",\"label\":\"僅顯示卷\"}],\"default\":\"all\"}]}".as_bytes();
+    payload_buf()[..p.len()].copy_from_slice(p);
+    write_success_payload("get_settings", p.len())
 }

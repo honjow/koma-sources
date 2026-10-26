@@ -8,7 +8,7 @@ const BASE: &[u8] = b"https://www.manhuagui.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.manhuagui.koma",
     name: "Manhuagui",
-    version: "0.1.6",
+    version: "0.1.7",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -25,7 +25,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     image_request: true,
     home: false,
     filters: false,
-    settings: false,
+    settings: true,
     credentials: false,
 };
 koma_source_sdk::koma_source_buffers! { payload:1024*1024,http_out:5*1024*1024,body:2*1024*1024,http_req:16*1024,scratch:512*1024, }
@@ -1279,7 +1279,15 @@ fn run_get_home(_: &[u8]) -> u32 {
 fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "not_implemented", "not supported")
 }
-fn run_get_settings(_: &[u8]) -> u32 {
-    write_error("get_settings", "not_implemented", "not supported")
+fn run_get_settings(r: &[u8]) -> u32 {
+    let features = json_object_member(r, b"hostFeatures").map(trim_ascii).unwrap_or(b"[]");
+    let supported = features.starts_with(b"[") && features.ends_with(b"]") &&
+        features[1..features.len() - 1].split(|b| *b == b',')
+            .any(|value| trim_ascii(value) == b"\"source_rate_limit_v1\"");
+    // Only expose a setting when the calling host really consumes it across
+    // metadata and image-cache misses. The two CDN hosts share one quota.
+    let p = if supported { r#"{"settings":[{"id":"mainSiteRatelimitPreference","name":"主站每十秒連接數限制","kind":"select","options":[{"value":"1","label":"1"},{"value":"2","label":"2"},{"value":"3","label":"3"},{"value":"4","label":"4"},{"value":"5","label":"5"},{"value":"6","label":"6"},{"value":"7","label":"7"},{"value":"8","label":"8"},{"value":"9","label":"9"},{"value":"10","label":"10"}],"default":"10","description":"調低可減少短時間連接，主站每十秒共用此額度"},{"id":"imgCDNRatelimitPreference","name":"圖片 CDN 每秒連接數限制","kind":"select","options":[{"value":"1","label":"1"},{"value":"2","label":"2"},{"value":"3","label":"3"},{"value":"4","label":"4"},{"value":"5","label":"5"},{"value":"6","label":"6"},{"value":"7","label":"7"},{"value":"8","label":"8"},{"value":"9","label":"9"},{"value":"10","label":"10"}],"default":"4","description":"所有已知圖片 CDN 共用每秒額度；不限制本地快取命中"}]}"#.as_bytes() } else { b"{\"settings\":[]}" };
+    payload_buf()[..p.len()].copy_from_slice(p);
+    write_success_payload("get_settings", p.len())
 }
 koma_source_sdk::koma_source_exports!("manhuagui");

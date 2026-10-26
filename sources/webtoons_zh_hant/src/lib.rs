@@ -11,7 +11,7 @@ const MOBILE: &[u8] = b"https://m.webtoons.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.webtoons.zh-hant.koma",
     name: "WEBTOON (Traditional Chinese)",
-    version: "0.1.4",
+    version: "0.1.6",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma source contributors",
@@ -567,7 +567,23 @@ fn safe_url_chars(s: &[u8]) -> Result<(), &'static str> {
 fn relative(s: &[u8]) -> Result<&[u8], &'static str> {
     let p = s.strip_prefix(BASE).unwrap_or(s);
     safe_url_chars(p)?;
-    if !p.starts_with(b"/zh-hant/")
+    // Canvas's real translated episode API returns an /en/canvas/ viewer
+    // with an explicit reading language. Accept only that exact zh-Hant form;
+    // do not rewrite the returned chapter identity or admit arbitrary English pages.
+    let route = p.split(|b| *b == b'?').next().unwrap_or(b"");
+    let mut language_count = 0;
+    let mut traditional = false;
+    if let Some(query) = p.split(|b| *b == b'?').nth(1) {
+        for field in query.split(|b| *b == b'&') {
+            if let Some(value) = field.strip_prefix(b"readingLanguageCode=") {
+                language_count += 1;
+                traditional = value == b"zh-hant";
+            }
+        }
+    }
+    let translated_canvas = route.starts_with(b"/en/canvas/") && route.ends_with(b"/viewer")
+        && language_count == 1 && traditional;
+    if (!p.starts_with(b"/zh-hant/") && !translated_canvas)
         || p.starts_with(b"//")
         || p.split(|c| *c == b'/').any(|v| v == b".." || v == b".")
     {
@@ -1033,14 +1049,18 @@ fn chapter_list(r: &[u8]) -> Result<usize, &'static str> {
             return Err("payload overflow");
         };
         bytes(b, &mut n, b",\"chapterNumber\":")?;
-        match explicit_number(name) {
+        // Explicit opt-in follows the upstream pre-reversal index + 1.
+        // Default retains the accepted title-derived/null metadata.
+        if setting_enabled(r, b"useSequentialNumbering") {
+            if !write_usize(b, &mut n, count - i) { return Err("payload overflow"); }
+        } else { match explicit_number(name) {
             Some(v) => {
                 if !write_usize(b, &mut n, number(v).ok_or("invalid chapter number")?) {
                     return Err("payload overflow");
                 }
             }
             None => bytes(b, &mut n, b"null")?,
-        };
+        } };
         bytes(b, &mut n, b",\"language\":\"zh-Hant\",\"publishedAt\":")?;
         bytes(b, &mut n, date)?;
         bytes(b, &mut n, b",\"uploadDate\":")?;
@@ -1074,6 +1094,13 @@ fn maximum_quality_uri<'a>(uri: &'a [u8], enabled: bool, out: &'a mut [u8]) -> &
     out[n..n + uri.len() - end].copy_from_slice(&uri[end..]);
     n += uri.len() - end;
     &out[..n]
+}
+fn supports_text_pages(r: &[u8]) -> bool {
+    let Some(features) = json_object_member(r, b"hostFeatures") else { return false; };
+    let features = trim_ascii(features);
+    features.starts_with(b"[") && features.ends_with(b"]") &&
+        features[1..features.len() - 1].split(|b| *b == b',')
+            .any(|value| trim_ascii(value) == b"\"text_page_image_v1\"")
 }
 fn setting_enabled(r: &[u8], key: &[u8]) -> bool {
     json_object_member(r, b"settings")
@@ -1123,6 +1150,29 @@ fn page_list(r: &[u8]) -> Result<usize, &'static str> {
         bytes(b, &mut n, b",\"image\":{\"kind\":\"url\",\"url\":")?;
         q(b, &mut n, src)?;
         bytes(b, &mut n, b"}}")?
+    }
+    // Opt-in local text descriptor requires the host's explicit render capability.
+    // Old Apps continue receiving only the established URL pages.
+    if supports_text_pages(r) && setting_enabled(r, b"showAuthorsNotes") {
+        let notes = Nodes::get(&root, b"div.creator_note p.author_text")?;
+        if notes.n > 0 {
+            let mut note = [0; 65536];
+            let note = selected(&notes, 0).text(&mut note)?;
+            if !note.is_empty() {
+                let names = Nodes::get(&root, b"div.creator_note .author_name span")?;
+                let mut author = [0; 4096];
+                let author = if names.n > 0 { selected(&names, 0).text(&mut author)? } else { b"" };
+                bytes(b, &mut n, b",{\"id\":\"page:webtoons:zh-Hant:")?;
+                bytes(b, &mut n, title)?; bytes(b, &mut n, b":")?;
+                bytes(b, &mut n, episode)?; bytes(b, &mut n, b":author-notes\",\"index\":")?;
+                if !write_usize(b, &mut n, nodes.n) { return Err("payload overflow"); }
+                bytes(b, &mut n, b",\"image\":{\"kind\":\"text\",\"text\":{\"template\":\"webtoon-author-notes\",\"heading\":\"")?;
+                bytes(b, &mut n, b"Author's Notes from ")?;
+                if !append_json_escaped(b, &mut n, author) { return Err("payload overflow"); }
+                bytes(b, &mut n, b"\",\"paragraphs\":[")?; q(b, &mut n, note)?;
+                bytes(b, &mut n, b"]}}}")?;
+            }
+        }
     }
     bytes(b, &mut n, b"]}")?;
     Ok(n)
@@ -1180,9 +1230,17 @@ fn run_get_home(_: &[u8]) -> u32 {
 fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "unsupported", "filters unsupported")
 }
-fn run_get_settings(_: &[u8]) -> u32 {
-    let p = "{\"settings\":[{\"id\":\"useMaxQuality\",\"name\":\"最高畫質圖片\",\"kind\":\"toggle\",\"description\":\"移除網站 q90 壓縮參數；對之後載入的章節生效\",\"default\":\"false\"}]}".as_bytes();
-    payload_buf()[..p.len()].copy_from_slice(p);
-    write_success_payload("get_settings", p.len())
+fn run_get_settings(r: &[u8]) -> u32 {
+    let b = payload_buf(); let mut n = 0;
+    let quality = "{\"settings\":[{\"id\":\"useMaxQuality\",\"name\":\"最高畫質圖片\",\"kind\":\"toggle\",\"description\":\"移除網站 q90 壓縮參數；對之後載入的章節生效\",\"default\":\"false\"}";
+    if !write_bytes(b, &mut n, quality.as_bytes()) { return write_error("get_settings", "internal_error", "payload overflow"); }
+    let numbering = ",{\"id\":\"useSequentialNumbering\",\"name\":\"使用連續章節編號\",\"kind\":\"toggle\",\"description\":\"使用網站目錄順序編號，保留章節標題與排列\",\"default\":\"false\"}";
+    if !write_bytes(b, &mut n, numbering.as_bytes()) { return write_error("get_settings", "internal_error", "payload overflow"); }
+    if supports_text_pages(r) {
+        let note = ",{\"id\":\"showAuthorsNotes\",\"name\":\"作者備註\",\"kind\":\"toggle\",\"description\":\"在章末顯示網站提供的作者備註\",\"default\":\"false\"}";
+        if !write_bytes(b, &mut n, note.as_bytes()) { return write_error("get_settings", "internal_error", "payload overflow"); }
+    }
+    if !write_bytes(b, &mut n, b"]}") { return write_error("get_settings", "internal_error", "payload overflow"); }
+    write_success_payload("get_settings", n)
 }
 koma_source_sdk::koma_source_exports!("webtoons_zh_hant");

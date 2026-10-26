@@ -1,23 +1,18 @@
-# DM5 0.1.17
+# 动漫屋 / DM5 0.1.20
 
-当前生产源码完整继承已验0.1.17 owner（包含015完整业务和016展示标题修复），使用仓库标准入口 `bash build.sh --source dm5`；保当前SDK、原icon和ASSET_SOURCES，不使用历史borrowed build或重封旧WASM冒充编译。
+源 ID `com.dm5.koma`，语言 `zh`，NSFW 标记保持。普通网站及生产请求主站为 `https://www.dm5.cn`；中文显示名为动漫屋，英文身份仍为 DM5。图标身份与原字节见 [ASSET_SOURCES.md](ASSET_SOURCES.md)，不因设置接入更换素材或 App 样式。
 
-完整继承包括：原卡片父容器及uk关联封面、既有正文签名/身份/顺序及失败传播、正式目录ABI与真实pager cursor、Home listingLink、latest首页别名、合并014正文容量继承、015卡片/章节数组结束与写失败整次拒绝。固定元数据、业务过滤和既有未改行为均保原owner，不夹带新parser或素材变化。
+支持搜索、热门/最新完整分页、详情、目录、原图、图片请求描述及首页各 12 项预览。首页复用真实列表请求与原卡片解析，保留完整列表目的地；请求或完整性失败整次返回错误，不伪装空成功。
 
-已验交付：0.1.15包3e6e65642725f913faafc79f5cdc6bc41d0e4b6697209c44fba6cd75008e79bf，WASM12e506346eae312a0a14d61390983f9231c4a2596eaecc5bda072887319f2908。历史015回执记import1792151324288，2026-10-17只读实物核其archive-only目录为1792151324283；q06历史四实体证据独立保留；q08热门70、q09原虫笼1章16页/已下载P2及原书架进度有限接受。原P2复用下载，不证明新get_pages/全源/新网络/全章图片；本次017隔离标准WASM需独立绑定和Root审核，不自动继承旧Native。
+章节身份继续使用原 `manhua` 标识、网站 CID 和原 pageCount；身份/章卷/续读资格仍由既有 legacy 标题字段派生，完整展示标题独立处理。保留这一边界是为了不破坏已有书架、下载和阅读位置；不能因设置、标题展示或重构改写身份，也不从源语言推断章节正文语言。卡片封面保原父容器关联，正文签名、图片顺序及失败传播保原链路。
 
-既有Host证据保真实与受控分层：真实原热门/最新70和虫笼目录原体；101卡/601章、payload跨界和257标题为受控输入。016已审DisplayChapterTitle只完整展示标题；身份、页数和章卷仍由原legacy256字段派生，late-pageCount身份边界仍OPEN。旧unintegrated-chapter-title-streaming实验未集成，不能因交付整合改变章ID。
+## 设置合同
 
-历史README标题0.1.9及后追加010/011/013/014记录是演进依据，原件保存在独立owner；0.1.9不是当前最新owner。原015最终仅整次错误传播/完整性范围及原get_pages精确保留依据见 `/private/tmp/koma-dm5-v0115-list-completeness-20261016/{REPORT.md,preserved-algorithms.json,verification.json}`；Native边界见 `/private/tmp/koma-dm5-v0115-native237-20261016/native-receipt.json`。
+- `sortChapter`：默认 `false`，原网站序列不变。仅用户显式开启时按网站章节 URL 数字由新到旧排列，同号保原相对顺序；ID、pageCount、标题与序列元数据不变。
+- `chapterComments`：默认 `false`。仅请求顶层 `hostFeatures` 含 `text_page_image_v1` 时显示并消费，旧 App 即使留有 `true` 也只接收原 URL 页。
 
-图标仍取本目录ASSET_SOURCES所列官方AppIcon原bytes；新标准manifest由当前打包器写必需icon字段，App显示圆角裁剪独立保留。无新网络/设备、推送或发布。
+吐槽开启后，从原 viewer 保存 `DM5_PAGEPCOUNT` 和 `DM5_TIEBATOPICID`，原图完整取得后按网站 `pagerdata.ashx` 的 pageindex/pagesize/tid/cid/t=9 合同获取评论。每个响应数组转成 `Poster: PostContent` 段落；空数组使用「没有吐槽」。追加的描述为 `image.kind=text`、`image.text.template=dm5-chapter-comments`，保原图身份和排列。
 
-当前017完整继承owner为 `/private/tmp/Koma-sources-dm5-chapter-language-combined-20261016`，lib SHA0360fa660d0598f620c7ae4a95d445d36a5ed56029ec07a7ad3f9c2bba61a4ec。仅在完整015基础增加已审016 display标题流（不改旧ID/pageCount/章卷）和017省略无上游依据的chapter.language；不从源目录zh推断章节正文语言。原库已有持久语言不能由源省略自动撤销。
+JSON Unicode 与 HTML 实体由源侧解码，保正文标签字面量和 CR；复用既有 HTML5 Host 表并关闭 descriptor，不增加依赖库或新 Host ABI。损坏、缺必要元数据、容量或网络失败整次拒绝。Host 只把普通 Unicode 按固定本地模板绘制成 PNG，不解释站点 HTML、不外发文字。设置对之后加载的章节生效。
 
-017原交付包543ed8d732f940e91c9c0ec5b9ad3eaf4a682a6189c2f798e07f91a0e4f973f0/WASMe93b8d9d75855a19c5fa31ede037f839055b52ad4a4c229b02affe72993a8e5c。Root124绑定Host审与237batch具名目录/已下载虫笼P2回执在 `/private/tmp/koma-four-source-chapter-language-20261016/ROOT_REVIEW.json` 和 `/private/tmp/koma-source-quality-batch-native237-20261016/native-receipt.json`；2026-10-17 live唯一DM5解包manifest版本0.1.17及四实体精确复核在 `/private/tmp/koma-dm50115-standard-native237-20261017/m01d/run-metadata.json`。原v017-cover目录是0.1.7，不是本017；旧DM5019标签是0.1.9，不据文件名推版本。
-
-2026-10-26用户纠正：018首页不再仅返回两颗listingLink。保留热门/最新的既有ID、完整分页和菜单，沿同一真实目录请求/卡片解析各提供12项首页预览，错误仍整次传播，不伪装空成功；不改详情、目录、正文和既有记录。中文显示名按https://www.dm5.cn/标题“动漫屋”补齐简繁localizedNames，英文/源ID保持。尚待当前包普通入口Native验证，旧017的具名验收不外推本次首页。
-
-## 0.1.19 章節排序設定
-
-按固定 Keiyoushi 949dea252eb8e867b7b40834a26e13088764ff55 的 Dm5 實作補入 sortChapter，預設 false 保留原網站序列；僅使用者明確開啟時按 URL 章節數字由新到舊排列。同號保原順序，章節 ID、title、pageCount、chapterNumber、volumeNumber、readingGroup、continuationEligible 不變。設定從每次請求 settings 讀取。章末吐槽頁依賴文字轉圖及評論解析，清 Cookie 依賴 Android CookieManager；現有源 ABI 無此能力，不放置不生效選項。
+Android CookieManager 的清 Cookie 动作不是普通可保存设置，本源没有伪造该开关；不增加账户、Cookie、UA 或网络权限。
