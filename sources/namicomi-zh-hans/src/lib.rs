@@ -9,7 +9,7 @@ use koma_source_sdk::{
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.namicomi.zh-hans.koma",
     name: "NamiComi",
-    version: "0.1.1",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh-Hans",
     author: "Koma",
@@ -26,7 +26,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     manga_list: true,
     home: false,
     filters: false,
-    settings: false,
+    settings: true,
     image_request: true,
     credentials: false,
 };
@@ -611,7 +611,7 @@ fn valid_image(url: &[u8]) -> Result<(), E> {
         if hash.len() != 32 || hash.iter().any(|c| !c.is_ascii_hexdigit()) {
             return Err("invalid image URL");
         }
-        if parts[3] != Some(b"source") {
+        if parts[3] != Some(b"source") && parts[3] != Some(b"low") {
             return Err("invalid image URL");
         }
         filename(parts[4].ok_or("invalid image URL")?)?;
@@ -621,7 +621,22 @@ fn valid_image(url: &[u8]) -> Result<(), E> {
     }
     Ok(())
 }
-fn cover_url<'a>(entity: &[u8], b: &'a mut [u8]) -> Result<Option<&'a [u8]>, E> {
+// Explicit quality preferences follow the published NamiComi variants only.
+// Host option IDs cannot be blank: `original` encodes upstream empty suffix.
+// Missing/unknown settings preserve original covers and source pages; no auth,
+// premium, language, catalogue order or identity boundary is changed.
+fn cover_quality(r: &[u8]) -> Result<&'static [u8], E> {
+    let settings = member(r, b"settings")?.unwrap_or(b"{}");
+    let value = match member(settings, b"thumbnailQuality_zh-hans")? {
+        Some(v) => quoted(v)?, None => b"",
+    };
+    Ok(match value { b".512.jpg" => b".512.jpg", b".256.jpg" => b".256.jpg", _ => b"" })
+}
+fn data_saver(r: &[u8]) -> Result<bool, E> {
+    let settings = member(r, b"settings")?.unwrap_or(b"{}");
+    Ok(matches!(member(settings, b"dataSaver_zh-hans")?, Some(b"true" | b"\"true\"")))
+}
+fn cover_url<'a>(entity: &[u8], quality: &[u8], b: &'a mut [u8]) -> Result<Option<&'a [u8]>, E> {
     let title = id(text(entity, b"id")?)?;
     let mut it = Array::new(required(entity, b"relationships")?)?;
     while let Some(rel) = it.next()? {
@@ -640,13 +655,14 @@ fn cover_url<'a>(entity: &[u8], b: &'a mut [u8]) -> Result<Option<&'a [u8]>, E> 
             bytes(b, &mut n, title)?;
             bytes(b, &mut n, b"/")?;
             bytes(b, &mut n, f)?;
+            bytes(b, &mut n, quality)?;
             valid_image(&b[..n])?;
             return Ok(Some(&b[..n]));
         }
     }
     Ok(None)
 }
-fn manga(entity: &[u8], b: &mut [u8], n: &mut usize) -> Result<(), E> {
+fn manga(entity: &[u8], quality: &[u8], b: &mut [u8], n: &mut usize) -> Result<(), E> {
     if text(entity, b"type")? != b"title" {
         return Err("invalid title entity");
     }
@@ -659,7 +675,7 @@ fn manga(entity: &[u8], b: &mut [u8], n: &mut usize) -> Result<(), E> {
     rawq(b, n, title)?;
     bytes(b, n, b",\"cover\":")?;
     let mut u = [0; 1024];
-    match cover_url(entity, &mut u)? {
+    match cover_url(entity, quality, &mut u)? {
         Some(url) => {
             bytes(b, n, b"{\"kind\":\"url\",\"url\":")?;
             q(b, n, url)?;
@@ -769,6 +785,7 @@ fn meta(body: &[u8]) -> Result<(usize, usize, usize), E> {
     ))
 }
 fn list(r: &[u8], search: bool) -> Result<usize, E> {
+    let quality = cover_quality(r)?;
     let pn = page(r)?;
     let offset = 20usize.checked_mul(pn - 1).ok_or("invalid request")?;
     let mut path = [0; 8192];
@@ -834,7 +851,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, E> {
         if count > 0 {
             bytes(b, &mut n, b",")?;
         }
-        manga(entity, b, &mut n)?;
+        manga(entity, quality, b, &mut n)?;
         count += 1;
     }
     if count != total.saturating_sub(offset).min(limit) {
@@ -861,6 +878,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, E> {
     Ok(n)
 }
 fn detail(r: &[u8]) -> Result<usize, E> {
+    let quality = cover_quality(r)?;
     let mid = manga_id(r)?;
     let mut path = [0; 1024];
     let mut n = 0;
@@ -877,7 +895,7 @@ fn detail(r: &[u8]) -> Result<usize, E> {
     let b = payload_buf();
     let mut n = 0;
     bytes(b, &mut n, b"{\"manga\":")?;
-    manga(e, b, &mut n)?;
+    manga(e, quality, b, &mut n)?;
     bytes(b, &mut n, b"}")?;
     Ok(n)
 }
@@ -1012,9 +1030,9 @@ fn emit_chapter(
             }
         }
     }
-    if nn == 0 {
-        return Err("empty chapter title");
-    }
+    // A published chapter may have null name/volume/chapter. Upstream emits
+    // an empty title; Host owns its existing localized unnamed label. Never
+    // invent a chapter number or reject the whole valid catalogue for this.
     bytes(b, n, b"{\"id\":")?;
     qid(b, n, CP, title, Some(cid))?;
     bytes(b, n, b",\"mangaId\":")?;
@@ -1161,6 +1179,7 @@ fn chapters(r: &[u8]) -> Result<usize, E> {
     Ok(n)
 }
 fn pages(r: &[u8]) -> Result<usize, E> {
+    let saver = data_saver(r)?;
     let (title, cid) = chapter_id(r)?;
     let map = gate(&[cid])?;
     if required(map, cid)? != b"true" {
@@ -1183,7 +1202,7 @@ fn pages(r: &[u8]) -> Result<usize, E> {
     if hash.len() != 32 || hash.iter().any(|c| !c.is_ascii_hexdigit()) {
         return Err("invalid image hash");
     }
-    let mut it = Array::new(required(d, b"source")?)?;
+    let mut it = Array::new(required(d, if saver { b"low" } else { b"source" })?)?;
     let b = payload_buf();
     let mut n = 0;
     let mut count = 0;
@@ -1205,7 +1224,7 @@ fn pages(r: &[u8]) -> Result<usize, E> {
             cid,
             b"/".as_slice(),
             hash,
-            b"/source/".as_slice(),
+            if saver { b"/low/".as_slice() } else { b"/source/".as_slice() },
             f,
         ] {
             bytes(&mut url, &mut un, s)?;
@@ -1275,6 +1294,8 @@ fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "not_implemented", "not supported")
 }
 fn run_get_settings(_: &[u8]) -> u32 {
-    write_error("get_settings", "not_implemented", "not supported")
+    let data = r#"{"settings":[{"id":"thumbnailQuality_zh-hans","name":"封面品質","kind":"select","options":[{"value":"original","label":"原圖"},{"value":".512.jpg","label":"中等"},{"value":".256.jpg","label":"低"}],"default":"original"},{"id":"dataSaver_zh-hans","name":"省流量","kind":"toggle","default":"false"}]}"#.as_bytes();
+    payload_buf()[..data.len()].copy_from_slice(data);
+    write_success_payload("get_settings", data.len())
 }
 koma_source_sdk::koma_source_exports!("namicomi-zh-hans");
