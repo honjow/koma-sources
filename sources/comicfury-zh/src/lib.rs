@@ -10,12 +10,12 @@ const BASE: &[u8] = b"https://comicfury.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.comicfury.zh.koma",
     name: "Comic Fury",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
     description:
-        "Comic Fury Chinese public HTML; upstream MIXED; no warning confirmation or author-note synthesis. Usage unknown.",
+        "Comic Fury Chinese public HTML; upstream MIXED; optional author notes; no warning confirmation. Usage unknown.",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
@@ -27,7 +27,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     manga_list: true,
     home: false,
     filters: false,
-    settings: false,
+    settings: true,
     image_request: true,
     credentials: false,
 };
@@ -1061,6 +1061,195 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
     )?;
     Ok(n)
 }
+fn supports_notes(r: &[u8]) -> bool {
+    let Some(v) = json_object_member(r, b"hostFeatures") else {
+        return false;
+    };
+    let v = trim_ascii(v);
+    v.starts_with(b"[")
+        && v.ends_with(b"]")
+        && v[1..v.len() - 1]
+            .split(|c| *c == b',')
+            .any(|v| trim_ascii(v) == b"\"text_page_image_v1\"")
+}
+fn notes_enabled(r: &[u8]) -> bool {
+    supports_notes(r)
+        && json_object_member(r, b"settings")
+            .and_then(|v| json_object_member(v, b"showAuthorsNotes"))
+            .map(|v| v == b"true" || v == b"\"true\"")
+            .unwrap_or(false)
+}
+// The existing HTML host returns text nodes without block/BR separators. Preserve
+// Android Html.fromHtml's visible paragraph boundaries before the same HTML5 parser
+// decodes entities. This second DOM is only used by explicit author notes; original
+// image selection, owner checks and default pages keep their original DOM.
+static mut NOTES_HTML: [u8; 2 * 1024 * 1024] = [0; 2 * 1024 * 1024];
+fn notes_document() -> Result<Node, &'static str> {
+    let raw = unsafe { core::slice::from_raw_parts(body_buf().as_ptr(), BODY_LEN) };
+    let out = unsafe { &mut *core::ptr::addr_of_mut!(NOTES_HTML) };
+    let mut n = 0;
+    let mut i = 0;
+    while i < raw.len() {
+        if raw[i] != b'<' {
+            // HTML source indentation is whitespace, unlike explicit BR/blocks.
+            if raw[i].is_ascii_whitespace() {
+                if n > 0 && out[n - 1] != b' ' {
+                    bytes(out, &mut n, b" ")?;
+                }
+                while i < raw.len() && raw[i].is_ascii_whitespace() {
+                    i += 1;
+                }
+            } else {
+                bytes(out, &mut n, &raw[i..i + 1])?;
+                i += 1;
+            }
+            continue;
+        }
+        let start = i;
+        i += 1;
+        let mut quote = 0;
+        while i < raw.len() {
+            let c = raw[i];
+            i += 1;
+            if quote != 0 {
+                if c == quote {
+                    quote = 0;
+                }
+            } else if c == b'\'' || c == b'"' {
+                quote = c;
+            } else if c == b'>' {
+                break;
+            }
+        }
+        if raw.get(i.wrapping_sub(1)) != Some(&b'>') {
+            return Err("invalid note HTML");
+        }
+        let tag = &raw[start..i];
+        let closing = tag.get(1) == Some(&b'/');
+        let offset = if closing { 2 } else { 1 };
+        let end = tag[offset..]
+            .iter()
+            .position(|c| !c.is_ascii_alphanumeric())
+            .unwrap_or(0)
+            + offset;
+        let name = &tag[offset..end];
+        let block = [
+            b"div".as_slice(),
+            b"p",
+            b"blockquote",
+            b"li",
+            b"ul",
+            b"ol",
+            b"h1",
+            b"h2",
+            b"h3",
+            b"h4",
+            b"h5",
+            b"h6",
+        ]
+        .iter()
+        .any(|v| name.eq_ignore_ascii_case(v));
+        bytes(out, &mut n, tag)?;
+        if !closing && name.eq_ignore_ascii_case(b"br") {
+            bytes(out, &mut n, b"&#10;")?;
+        } else if block {
+            bytes(out, &mut n, b"&#13;")?;
+        }
+    }
+    Node::parse(&out[..n])
+}
+fn append_notes(
+    r: &[u8],
+    cp: &[u8],
+    comicid: usize,
+    first: usize,
+    b: &mut [u8],
+    n: &mut usize,
+) -> Result<(), &'static str> {
+    if !notes_enabled(r) {
+        return Ok(());
+    }
+    let doc = notes_document()?;
+    let owners = Nodes::get(&doc, b"div.is--comic-page")?;
+    let owner = selected(&owners, 0);
+    let mut id = [0; 64];
+    if number(owner.attr(b"data-comicid", &mut id)?) != Some(comicid) {
+        return Err("comic owner mismatch");
+    }
+    let notes = Nodes::get(&owner, b"div.is--author-notes div.is--comment-box")?;
+    for i in 0..notes.n {
+        let note = selected(&notes, i);
+        let mut author = [0; 4096];
+        let authors = Nodes::get(&note, b"a.is--comment-author")?;
+        let author = if authors.n == 0 {
+            b"".as_slice()
+        } else {
+            selected(&authors, 0).text(&mut author)?
+        };
+        let contents = Nodes::get(&note, b"div.is--comment-content")?;
+        let mut text = [0; 32768];
+        let text = if contents.n == 0 {
+            b"".as_slice()
+        } else {
+            selected(&contents, 0).text(&mut text)?
+        };
+        let mut plain = [0; 32768];
+        let mut pn = 0;
+        for &c in text {
+            if c == b'\r' {
+                // A block supplies a minimum paragraph gap; explicit BRs never
+                // get truncated, including three or more consecutive BRs.
+                while pn > 0 && plain[pn - 1] == b' ' {
+                    pn -= 1;
+                }
+                let trailing = plain[..pn]
+                    .iter()
+                    .rev()
+                    .take_while(|v| **v == b'\n')
+                    .count();
+                for _ in trailing..2 {
+                    bytes(&mut plain, &mut pn, b"\n")?;
+                }
+            } else if c == b'\n' {
+                while pn > 0 && plain[pn - 1] == b' ' {
+                    pn -= 1;
+                }
+                bytes(&mut plain, &mut pn, b"\n")?;
+            } else if c.is_ascii_whitespace() {
+                if pn > 0 && plain[pn - 1] != b' ' && plain[pn - 1] != b'\n' {
+                    bytes(&mut plain, &mut pn, b" ")?;
+                }
+            } else {
+                bytes(&mut plain, &mut pn, &[c])?;
+            }
+        }
+        let text = trim_ascii(&plain[..pn]);
+        bytes(b, n, b",{\"id\":\"")?;
+        if !append_json_escaped(b, n, cp) {
+            return Err("payload overflow");
+        }
+        bytes(b, n, b":author-note:")?;
+        if !write_usize(b, n, i) {
+            return Err("payload overflow");
+        }
+        bytes(b, n, b"\",\"index\":")?;
+        if !write_usize(b, n, first + i) {
+            return Err("payload overflow");
+        }
+        bytes(b, n, b",\"image\":{\"kind\":\"text\",\"text\":{\"template\":\"webtoon-author-notes\",\"heading\":")?;
+        let mut heading = [0; 4200];
+        let mut hn = 0;
+        if authors.n > 0 {
+            bytes(&mut heading, &mut hn, b"Author's Notes from ")?;
+            bytes(&mut heading, &mut hn, author)?;
+        }
+        q(b, n, &heading[..hn])?;
+        bytes(b, n, b",\"paragraphs\":[")?;
+        q(b, n, text)?;
+        bytes(b, n, b"]}}}")?;
+    }
+    Ok(())
+}
 fn pages(r: &[u8]) -> Result<usize, &'static str> {
     let raw = string(args(r), b"chapterId").ok_or("missing chapterId")?;
     let mut cb = [0; 512];
@@ -1134,6 +1323,7 @@ fn pages(r: &[u8]) -> Result<usize, &'static str> {
         q(b, &mut n, url)?;
         bytes(b, &mut n, b"}}")?;
     }
+    append_notes(r, cp, comicid, images.n, b, &mut n)?;
     bytes(b, &mut n, b"]}")?;
     Ok(n)
 }
@@ -1163,8 +1353,14 @@ fn run_get_home(_: &[u8]) -> u32 {
 fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "not_implemented", "not supported")
 }
-fn run_get_settings(_: &[u8]) -> u32 {
-    write_error("get_settings", "not_implemented", "not supported")
+fn run_get_settings(r: &[u8]) -> u32 {
+    let d = if supports_notes(r) {
+        "{\"settings\":[{\"id\":\"showAuthorsNotes\",\"name\":\"显示作者附言\",\"kind\":\"toggle\",\"default\":\"false\"}]}".as_bytes()
+    } else {
+        b"{\"settings\":[]}".as_slice()
+    };
+    payload_buf()[..d.len()].copy_from_slice(d);
+    write_success_payload("get_settings", d.len())
 }
 fn run_get_image_request(r: &[u8]) -> u32 {
     execute("get_image_request", image_request(r))

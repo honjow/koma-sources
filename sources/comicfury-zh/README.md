@@ -1,15 +1,21 @@
 # Comic Fury (Chinese) source
 
-Stable identity com.comicfury.zh.koma, 0.1.3. Canonical Comic Fury; language zh. Usage unknown. Fixed primary 1319949ca9bc456908196e3ba2d104e94182c5d6. MIXED is conservatively mapped to Koma nsfw=true, not a claim that every comic is adult. Popular/search/latest use the published four flag filters set to 0 and language zh. No warning acceptance POST, cookies, login, custom-host layout fallback, author-note virtual images, or bitmap text rendering.
+Stable identity `com.comicfury.zh.koma`, version `0.1.4`, language `zh`, canonical origin `https://comicfury.com`. MIXED remains conservatively mapped to `nsfw=true`; this does not label every comic as adult. Source behavior follows the retained Keiyoushi ComicFury implementation and the fixed settings reference `949dea252eb8e867b7b40834a26e13088764ff55`.
 
-Current retained public evidence: 11 Chinese popular cards, 毛兒傳 (Maor) profile, all twelve actual archive groups/67 comics, cover comic1246839 and ordinary 第1話1268101. Entire catalogue is returned reversed as primary; explicit group episode numbers only, covers/extras null. Each reader emits only its exact first comic owner image, excludes five preloaded neighbours and notes. Three listing default SVG avatars remain actual URLs; native cover support unknown. Latest/search, physical rendering/download/cold are not accepted by offline checks.
+## Public behavior
 
-Historical borrowed package entry: the original owner used package_candidate.py with its frozen build/validator hashes. That artifact remains unchanged in the old owner and is not imported into canonical. Current production entry is `bash build.sh --source comicfury-zh`, with current canonical SDK and required icon. Standard compilation is newly bound; it does not claim the old WASM bytes or Native acceptance.
+Popular, search and latest retain the published four flag filters set to zero and Chinese language. The explicit official empty-search marker returns an empty successful result; an unexplained empty card list remains an error. Catalogues retain primary order reversal, chapter identities and explicit group episode numbers; covers/extras keep null chapter numbers.
 
-历史197有限验收：5580f575包/15f6411d WASM/8a5d98c0原icon；热门11、毛兒傳67、原1268101叙事正文1/1、下载/保存及不清数据cold。原本README“physical rendering/download/cold未接受”仅旧Host阶段标签，以当前工作单及src029/native-acceptance.json为准；不重跑已验路径。latest/search仍无真实响应，默认SVG封面和warning/custom-host边界不扩大。
+Reader images belong only to the exact first `div.is--comic-page` matching the requested chapter. Preloaded neighbouring chapters are excluded. A server response for another comic remains an owner error. The existing image URLs, IDs and order are unchanged with no settings.
 
-历史标准交付提案未改parser/固定中文身份/版本/素材，仅接回交付入口；本次0.1.2资源变更以下段为准。SDK差异、当前完整回放及产物另存本轮报告，不用签名相同或旧borrowed脚本冒标准build。App显示圆角保留。
+## Settings
 
-0.1.2 changes only the displayed identity resource to the complete retained official192px PNG and its package version. Its original green field is unchanged; no new plate, mask or shadow is added. 197 ALN-AL80 ordinary local import and both package-manager/Browse icon presentation were observed in light and dark themes on 2026-10-20. Versions 0.1.2 (ComicFury) and 0.1.4 (xkcd) appeared at the original positions 55/56 in the unchanged 79-source sequence. Original follow-system theme and timeout were restored. This accepts only these icon consumers, not provider reading/download behavior.
+`showAuthorsNotes` defaults to `false`. It is shown and consumed only when the host explicitly advertises `text_page_image_v1`; older hosts return no setting and receive only original URL pages even if a saved value is true. When enabled, each author-note box under the current comic appends one text page after the original images. Reader comments and notes from other comics are excluded.
 
-0.1.3 treats the official search form's explicit “There were no results for your search!” marker as a successful empty search with no next cursor. Zero cards without that unique marker, non-search lists and other error pages remain failures. The actual Chinese query 毛兒 returned HTTP200 with that marker on 2026-10-20; it is not evidence that every Chinese title is searchable. Nonempty parsing, pagination, identity artwork and provider requests are unchanged. On 197 ALN-AL80, ordinary local import read back 0.1.3; the same 毛兒 query displayed the existing empty-result state, Maor returned 毛兒傳 (Maor), and opening it displayed author Allen T and all 67 chapters. Back retained Maor and its result. This accepts these search/detail/return paths only, not every query, chapter reading or download.
+The source converts note HTML to plain Unicode: explicit BRs retain each line break, blocks provide the minimum paragraph gap, and the existing HTML parser decodes entities once. Text pages use the existing `webtoon-author-notes` template, whose layout matches the adopted text interceptor; the host prepares a local PNG through the original Reader image/cache pipeline. No synthetic network URL is emitted.
+
+## Retained boundaries and delivery
+
+No warning-confirmation POST, cookies, login, custom-host layout fallback, mirror selection or account configuration is added. Official SVG default-cover URLs remain genuine URLs; support is owned by the host. The complete official 192px icon and its original green field remain unchanged.
+
+Build with `bash build.sh --source comicfury-zh`. Build and parser checks do not establish Native image rendering or full provider availability. Code and asset attribution remain in `NOTICE.md` and `ASSET_SOURCES.md`.
