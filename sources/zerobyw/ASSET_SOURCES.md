@@ -16,3 +16,5 @@
   `f69deab961f505281718665556930358c9b88c01ee77f07f26e95ea4f93048e0`
 - **Rights note:** The mark remains the property of its owner and is included
   solely to identify this user-selected source.
+
+2026-10-26显示名核对：源自身既有Referer https://www.zerobyw.com/ 普通打开重定向https://www.zerobyw33.com/pc/pc/，站点标题为“zero搬运网”。0.1.1仅补该官方简繁显示名/保英文Zerobyw、ID、原请求域名和可配置baseUrl、图标及权限，不把主页重定向改成源请求端点。

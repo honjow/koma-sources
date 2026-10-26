@@ -1,3 +1,8 @@
 {
-  "homepage": "https://hanman18.com"
+  "homepage": "https://hanman18.com",
+  "localizedNames": {
+    "zh-Hans": "禁漫天堂",
+    "zh-Hant": "禁漫天堂",
+    "en": "HANMAN18"
+  }
 }
