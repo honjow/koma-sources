@@ -8,7 +8,7 @@
 
 源从请求顶层`settings`快照读值；能力、schema与实际消费者须一致。不要使用旧声明`koma_host.get_setting`替代请求设置，当前App不提供此import。敏感账号、token、Cookie不因参考存在偏好就开放普通明文存储。
 
-`gallery_titles::display`服务四个实际GalleryAdults消费者，仅在顶层`settings.pref_short_title=true`时按固定 `(\[[^]]*]|[({][^)}]*[)}])` 与Kotlin.trim删标签，其余返回原输入。Unicode原字节与混合闭符语义保持；非法UTF8或容量不足失败，不截断。它不是任意正则接口，不引入动态分配、提供方请求或章节变化。
+`gallery_titles::display`服务四个实际GalleryAdults消费者，仅在顶层`settings.pref_short_title=true`时按固定 `(\[[^]]*]|[({][^)}]*[)}])` 与Kotlin.trim删标签，其余返回原输入。Unicode原字节与混合闭符语义保持；非法UTF8或容量不足失败，不截断。`gallery_titles::display_short`为3Hentai的`full_title`反向开关提供同算法显式布尔入口，不构造伪请求；原四源入口仍按各自真实settings读值。它不是任意正则接口，不引入动态分配、提供方请求或章节变化。
 
 ### Plain text entity adaptation
 

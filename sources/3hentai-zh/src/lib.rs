@@ -9,7 +9,7 @@ const WEB: &[u8] = b"https://3hentai.net";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hentai3.zh.koma",
     name: "3Hentai",
-    version: "0.1.1",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -642,11 +642,17 @@ fn count(d: HtmlDescriptor) -> R<usize> {
     }
     result.ok_or("page count missing")
 }
-fn emit_work(out: &mut [u8], n: &mut usize, id: &[u8], t: &[u8], c: &[u8]) -> R<()> {
+fn emit_work(out: &mut [u8], n: &mut usize, id: &[u8], t: &[u8], c: &[u8], req: &[u8]) -> R<()> {
     let mut w = [0u8; 512];
     bytes(out, n, b"{\"id\":\"h3:zh:")?;
     bytes(out, n, id)?;
     bytes(out, n, b"\",\"title\":")?;
+    // Keep Koma's adopted full title default; fixed reference defaults short.
+    // Only an explicit false requests the fixed shortenTitle algorithm.
+    let short = json_object_member(req, b"settings")
+        .and_then(|v| json_object_member(v, b"full_title")) == Some(b"false");
+    let mut shown = [0u8; 4096];
+    let t = koma_source_sdk::gallery_titles::display_short(short, t, &mut shown)?;
     q(out, n, t)?;
     bytes(out, n, b",\"url\":")?;
     q(out, n, work_url(id, &mut w)?)?;
@@ -733,7 +739,7 @@ fn listing(r: &[u8]) -> R<usize> {
         if i > 0 {
             bytes(out, &mut n, b",")?
         };
-        emit_work(out, &mut n, id, t, c)?;
+        emit_work(out, &mut n, id, t, c, r)?;
     }
     bytes(out, &mut n, b"],\"page\":{\"hasMore\":")?;
     bytes(out, &mut n, if nxt.is_some() { b"true" } else { b"false" })?;
@@ -773,7 +779,7 @@ fn detail(r: &[u8]) -> R<usize> {
     let out = payload_buf();
     let mut n = 0;
     bytes(out, &mut n, b"{\"manga\":")?;
-    emit_work(out, &mut n, id, t, c)?;
+    emit_work(out, &mut n, id, t, c, r)?;
     n -= 1;
     bytes(out, &mut n, b",\"status\":\"completed\",\"authors\":[")?;
     if an > 0 {
@@ -961,7 +967,7 @@ fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "not_implemented", "unsupported")
 }
 fn run_get_settings(_: &[u8]) -> u32 {
-    write_error("get_settings", "not_implemented", "unsupported")
+    response_buffer().write_success("get_settings", br#"{"settings":[{"id":"full_title","name":"Display full title","kind":"toggle","default":"true"}]}"#)
 }
 fn checked_request(ptr: u32, len: u32) -> Option<&'static [u8]> {
     let cap = core::arch::wasm32::memory_size::<0>().checked_mul(65536)?;
@@ -982,7 +988,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
-    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.hentai3.zh.koma\",\"name\":\"3Hentai\",\"version\":\"0.1.1\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"Chinese-language provider catalogue. Per-work rating and source usage unknown.\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"3Hentai（中文）\",\"zh-Hant\":\"3Hentai（中文）\",\"en\":\"3Hentai (Chinese)\"}},\"capabilities\":{\"search\":false,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":false,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
+    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.hentai3.zh.koma\",\"name\":\"3Hentai\",\"version\":\"0.1.2\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"Chinese-language provider catalogue. Per-work rating and source usage unknown.\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"3Hentai（中文）\",\"zh-Hant\":\"3Hentai（中文）\",\"en\":\"3Hentai (Chinese)\"}},\"capabilities\":{\"search\":false,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
 }
 macro_rules! export_op {
     ($f:ident,$op:literal,$run:ident) => {

@@ -1,22 +1,17 @@
-3Hentai Chinese source candidate0.1.1, independent com.hentai3.zh.koma. FormalNSFW; perworkrating and usageunknown. Provider Chinese route listing25 realcards/next2, named222901 actual Chinese language declaration, singlegallerychapter and236 originalURLdescriptors implemented. ActualfirstreaderHTML declared derived1.jpg; remaining235 are primary-regex derived, not imagevalidated. No artworkGET, rendering or nativeacceptance. Search/latest/filter/home not advertised and return unsupported; no pretending popular is search.
+# 3Hentai 中文 0.1.2
 
-OwnedIDs numeric h3:zh:id; chapterh3ch:zh:id; pagesh3page:zh:id:index. Detail requires canonical numericowner and exact Chinese language link; complete declaredcount/uniqueoriginalorder checked, errors failwholeoperation. Only observed s2/s4/s9 asset shards on 3hentai.net and 3hentai.xyz are supported; other hosts fail explicitly. Nextcursor is exact actualsameChinesepopularhref and checkednextpage; realP2 response unverified.
+独立源身份 `com.hentai3.zh.koma`，API 0.2，主页 `https://3hentai.net`，最低App0.1.1。公开中文popular列表、详情、单作品章节及原图描述已实现；搜索、latest、filters、home不提供。混合成人源，单作品分级及用量未知。不登录、不发送凭据。
 
-imageRequest uses originalURL/normalheaders with zeroHTTP, currentApp blanksourceId only for this operation, rawcovermangaId plus independent canonicalmangaUrl. Pages additionally require numericassetwork/index equality. Covers trust prior source-emitted exactcarddescriptor: five actual25card thumbnail assetdirectories differ from their workIDs, so assetdirectory is not asserted to equalbookID for covers. No persistentcache; arbitrary forgedmutuallyconsistentcardURL cannot independentlybe disproved withoutmetadataI/O. CurrentApp0.1.1 routepropagation required; minApp0.1.1.
+## 标题设置
 
-Originalofficial180PNG preserved; visualnativeeffectOPEN. Coremetadata/pagesdescriptors retained-only productionreplay is supplementary, not liveimages/device/download/cold/fullsourceacceptance.
+`full_title`（Display full title）默认开启，保留当前Koma完整标题和无配置输出；固定Keiyoushi `949dea252eb8e867b7b40834a26e13088764ff55` 的默认值是关闭，这里按已定保当前默认适配。显式关闭后，列表和详情共同标题输出按参考 `(\[[^]]*]|[({][^)}]*[)}])` 删除标签再Kotlin.trim；复用SDK同算法显式布尔入口，不伪造请求。原HTTP、ID、单章名Chapter、原图顺序、封面和已入库旧标题保持，设置不会主动改Library。
 
-Retained parser correction: HTML5 scraper treats noscript markup as text. Source selects live card img[data-src] and .single-thumb img[data-src] plus actualownedreaderhref; all25/236 live data-src equals original noscript src byte-for-byte. Failed initial module and receipt retained separately. Work-language/title/cover/count/authors/tags scoped to actual #main-info under canonicalowner; no navigation tags used as Chinese proof. Source first compiler borrow-conflict log retained, corrected only local cover attribute read.
+## 归属与图像
 
+作品ID为 `h3:zh:数字`，章节为 `h3ch:zh:数字`，页为 `h3page:zh:数字:index`。详情核canonical数字归属及实际中文语言声明；完整页数、唯一性和原图顺序检查失败则整次失败，不发布截断结果。列表next只接受实际同中文popular下一页地址。
 
-## Source-tree recovery boundary
+共享图像校验仅接受已观察的s2/s4/s9与精确3hentai.net、3hentai.xyz CDN、HTTPS和合法文件形状。封面目录数字不等于作品ID是已核真实卡片合同，封面以原实际卡片描述为准；正文仍核数字资产与作品/页号关系。get_image_request不新增HTTP，不变换图像，不清缓存或改会话。原180PNG图标保留。
 
-The original business and its dated stage notes above are preserved. Current Root source and retained-output review does not imply new HTTP, Native or standard-package acceptance. No artwork is included in this recovery; original assets and candidate tools remain preserved separately.
+## 证据边界
 
-
-## 0.1.1 observed CDN domain compatibility (2026-10-24)
-
-- **Cause and change:** One authorized anonymous GET of the original Chinese popular URL returned HTTP200/60304 UTF-8 bytes (59886 UTF-16 code units). Its25 card image URLs use s2/s4/s9.3hentai.xyz instead of the retained .net CDN. The actual published010 WASM with the production C++HtmlHost/Lexbor bridge rejects this real body as `source_contract_error: asset domain`. Version011 accepts the two exact domain suffixes on the same three shards. HTTPS, numeric IDs, filename validation and page/work ownership checks remain; stable IDs, routes/headers, capabilities, icon and minimum App version are unchanged.
-- **Consumers:** Listing covers, detail covers, page descriptors and `get_image_request` share `asset()`, so compatibility applies consistently. Page-number and independent manga-route checks still run. The existing manifest has no separate network-domain allowlist to update. Cover asset-directory/book-ID inequality remains the explicitly documented prior contract; this change does not weaken page ownership.
-- **Local checks:** Offline/locked single-source release build passed. Actual candidate WASM on the same production HTML bridge returns25 items for the new real body, preserves its next cursor and passes all25 current cover image requests without HTTP. All13 original input cases retain identical outputs/requests against the old real fixtures, including wrong-host and wrong-owner rejections. Six controlled image-request cases additionally cover the new suffix plus rejected unknown shard/lookalike domain/wrong owner/plain HTTP/path traversal. These controlled cases are not new upstream page evidence.
-- **Evidence and limits:** `/private/tmp/koma-3hentai-runtime-readonly-20261024/` retains the single current response/receipt, published010 package/WASM, original archive fixtures, exact diff, candidate build/WASM and `verify011.cjs`/verification outputs. The197253 Native log shows HTTP200/59886chars then181-char failure, matching this error shape; its original body/error payload was not retained, so the current Mac response is not asserted to be that same original. No further content request, image download, device run, UI change or artifact hash was performed. Current detail/page content and Native acceptance remain for Root; this candidate is not whole-source usability acceptance.
+既有保全HTML及生产HTML解析桥支持具名列表/详情/页表合同；受控WASM重放仅证明相同原件的解析与标题选项，不等于当前站点HTTP、原图下载或Native完整可用。未具名通过的当前正文/图像路径继续保留未验证状态。

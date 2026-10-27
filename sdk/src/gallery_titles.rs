@@ -15,7 +15,13 @@ pub fn display<'a>(
     title: &'a [u8],
     output: &'a mut [u8],
 ) -> Result<&'a [u8], &'static str> {
-    if !enabled(request) {
+    display_short(enabled(request), title, output)
+}
+
+/// Same fixed algorithm for sources whose real preference uses another key or
+/// polarity (3Hentai full_title). Do not fabricate an HTTP/request envelope.
+pub fn display_short<'a>(short: bool, title: &'a [u8], output: &'a mut [u8]) -> Result<&'a [u8], &'static str> {
+    if !short {
         return Ok(title);
     }
     core::str::from_utf8(title).map_err(|_| "invalid title UTF8")?;
