@@ -1,6 +1,6 @@
-# Manga Ball Chinese 0.1.2
+# MangaBall Chinese 0.1.3
 
-Independent source `com.mangaball.zh.koma`, API 0.2, language zh. Chinese selects chapter language; it does not guarantee Chinese titles or a particular script. Existing `mb:`/`mbc:`/page identities, provider chapter order, actual chapter/volume numbers and exact page ownership remain. The existing 512px MangaBall identity icon and localized names are unchanged; see NOTICE for attribution.
+Independent source `com.mangaball.zh.koma`, API 0.2, language zh. Chinese selects chapter language; it does not guarantee Chinese titles or a particular script. Existing `mb:`/`mbc:`/page identities, provider chapter order, actual chapter/volume numbers and exact page ownership remain. The existing 512px MangaBall identity icon is unchanged; official site branding uses MangaBall; see NOTICE for attribution.
 
 Public list/search/detail/Chinese chapters/pages use canonical `mangaball.com`, the existing exact cover/page hosts and existing bounded JSON and pagination validation. No cookies, account credentials, mirrors, scripts, statistics requests, inferred chapter numbers or URL rewrites are introduced. Malformed, duplicate, incomplete and forbidden entities remain errors. Paid/locked chapter and page guards remain independent of list settings.
 

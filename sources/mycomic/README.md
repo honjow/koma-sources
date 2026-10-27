@@ -1,6 +1,6 @@
-# MyComic 0.1.3
+# MYCOMIC - 我的漫畫 0.1.4
 
-独立公开HTML适配 `com.mycomic.koma`，API0.2，主页 `https://mycomic.com`。中文内容、源级nsfw，单作品分级和用量未知；品牌保持MyComic，不造中文别名。popular、latest、search、详情、目录、页描述与图像请求已实现；home/filters/credentials不开放。不登录、不改Cookie、UA、网络或权限。
+独立公开HTML适配 `com.mycomic.koma`，API0.2，主页 `https://mycomic.com`。中文内容、源级nsfw，单作品分级和用量未知；官网繁中与简中页面标题分别为“MYCOMIC - 我的漫畫”和“MYCOMIC - 我的漫画”，显示名保留完整品牌；英文保留 MYCOMIC。现红色 C 是此前保留身份的重绘图，不冒称官网原图，图标字节不变。popular、latest、search、详情、目录、页描述与图像请求已实现；home/filters/credentials不开放。不登录、不改Cookie、UA、网络或权限。
 
 ## 首选语言
 

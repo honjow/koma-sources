@@ -1300,7 +1300,7 @@ dependencies = [
 
 [[package]]
 name = "koma_happymh_source"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1370,7 +1370,7 @@ dependencies = [
 
 [[package]]
 name = "koma_mangaball_zh_source"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1469,7 +1469,7 @@ dependencies = [
 
 [[package]]
 name = "koma_pixiv_zh_source"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1587,7 +1587,7 @@ dependencies = [
 
 [[package]]
 name = "koma_webtoons_zh_hant_source"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -3551,7 +3551,7 @@ dependencies = [
 
 [[package]]
 name = "koma_mycomic_source"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "koma_source_sdk",
 ]

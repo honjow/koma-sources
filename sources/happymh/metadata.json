@@ -1,3 +1,7 @@
 {
-  "homepage": "https://m.happymh.com"
+  "homepage": "https://m.happymh.com",
+  "localizedNames": {
+    "zh-Hans": "嗨皮漫画",
+    "zh-Hant": "嗨皮漫畫"
+  }
 }

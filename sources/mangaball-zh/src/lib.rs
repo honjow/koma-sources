@@ -15,13 +15,13 @@ use koma_source_sdk::{
 const BASE: &[u8] = b"https://mangaball.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mangaball.zh.koma",
-    name: "Manga Ball",
-    version: "0.1.2",
+    name: "MangaBall",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
     description:
-        "提供 Manga Ball 的中文章节。",
+        "提供 MangaBall 的中文章节。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

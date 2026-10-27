@@ -1,4 +1,4 @@
-# WEBTOON（繁体中文）0.1.6
+# LINE WEBTOON（繁体中文）0.1.7
 
 独立源 ID `com.webtoons.zh-hant.koma`、内容语言 `zh-Hant`；英文 WEBTOON 与简体咚漫是另外的源，不别名迁移或共用历史。普通网站为 `https://www.webtoons.com`，图标与身份资源保持，素材依据见 [ASSET_SOURCES.md](ASSET_SOURCES.md)。上游 SAFE 是源级标记，不是逐作品分类或使用验收。
 
@@ -17,3 +17,7 @@ Manga 身份保语言、类型、真实 title_no 及 list 路径；章节身份�
 备注从同次 viewer 的 `div.creator_note p.author_text` 和 `div.creator_note .author_name span` 取真实文字，非空才在原图末尾追加 `image.kind=text`、template=`webtoon-author-notes`、heading=`Author's Notes from {creator}`、paragraphs=[note]。DOM 已完成实体解码；Host 只把普通 Unicode 用固定模板本地绘为 PNG，不外发、不当作 URL。无备注不造空页，原图身份、顺序保持；设置对之后加载的章节生效。
 
 不提供 MotionToon、登录/付费/账户、年龄或 GDPR Cookie 预同意、自动重试、挑战或镜像切换。图片传输仅把原 URI 中字面 ASCII 空格序列化为 %20，保其它 UTF8/escape；原公开 Firefox121/Referer/Origin 请求边界保持。
+
+## 官方中文站品牌
+
+繁中官网 [原創頁](https://www.webtoons.com/zh-hant/originals) 与 [官方公告](https://www.webtoons.com/zh-hant/notice/list?page=1) 使用 `LINE WEBTOON`。本源显示名保留该完整品牌与繁体中文区分；英文源独立采用自身官网WEBTOON品牌，不联动改名。ID、语言、正文与设置合同、图标字节保持。
