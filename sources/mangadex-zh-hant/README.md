@@ -1,4 +1,4 @@
-# MangaDex — Traditional Chinese 0.1.6
+# MangaDex — Traditional Chinese 0.1.7
 
 Independent source `org.mangadex.zh-hant.koma`, API 0.2, content language zh-Hant, provider API language `zh-hk`. Other language-source IDs remain independent; no alias or migration. Provider language metadata does not guarantee the writing system of every image. Implementation/license and original official icon attribution remain in NOTICE/LICENSE; icon bytes/background/mask are unchanged.
 
@@ -8,9 +8,9 @@ Listing 关注较多 is all-time followedCount, not 30-day popularity or usage. 
 
 `dataSaverV5_zh-hk` defaults false. Only explicit true selects actual `chapter.dataSaver` filenames and `/data-saver/`; otherwise original ordered `chapter.data` and `/data/` remain. get_pages still validates the complete owned feed and declared page count; stable page IDs carry the original chapter UUID/index. Every image request still makes its existing fresh normal at-home GET and resolves the selected quality by index. Both selected and original file sets retain safe filename, capacity and duplicate guards; no filename is guessed.
 
-Image HTTPS hosts remain uploads.mangadex.org or the actual descriptor-provided mangadex.network subdomain. Cover requests remain bound to the same manga UUID. No tokens, Cookie handling, statistics POST, auth/retry fallback, new host grants or App/style changes. Standard build: `bash build.sh --source mangadex-zh-hant`. Runtime/crate/package versions align at 0.1.6.
+Image HTTPS hosts remain uploads.mangadex.org or the actual descriptor-provided mangadex.network subdomain. Cover requests remain bound to the same manga UUID. No tokens, Cookie handling, statistics POST, auth/retry fallback, new host grants or App/style changes. Standard build: `bash build.sh --source mangadex-zh-hant`. Runtime/crate/package versions align at 0.1.7.
 
-`altTitlesInDesc_zh-hk` defaults false and is consumed only by manga detail descriptions. Explicit true appends the fixed reference `Alternative titles:` block: extension-language or original-language romanized maps, exactly one nonempty value per map, provider order, no sorting/deduplication. The shared SDK plain-text helper decodes JSON Unicode and HTML entities once while preserving literal markup; the original base description is retained. Missing/false leaves the prior description bytes, title fallback and all other fields unchanged. The default-true upstream title-priority/final-chapter settings are not exposed by this item.
+`altTitlesInDesc_zh-hk` defaults false and is consumed only by manga detail descriptions. Explicit true appends the fixed reference `Alternative titles:` block: extension-language or original-language romanized maps, exactly one nonempty value per map, provider order, no sorting/deduplication. The shared SDK plain-text helper decodes JSON Unicode and HTML entities once while preserving literal markup; the original base description is retained. Missing/false leaves the prior description bytes, title fallback and all other fields unchanged. The upstream title-priority setting is not exposed by this item; final-chapter text has its own setting below.
 
 `usePort443_zh-hk`（Use HTTPS port 443 only）默认false。沿固定Keiyoushi949dea的实际消费者，只在显式开启时给at-home服务器查询追加 `?forcePort443=true`；默认请求原样。图片URL、页ID/序和校验仍取真实响应，不向URL硬写端口，不改其它API、封面、认证、网络、超时或重试。中文图片请求复用同一descriptor/settings合同。
 
@@ -19,3 +19,7 @@ Image HTTPS hosts remain uploads.mangadex.org or the actual descriptor-provided 
 `originalLanguage_zh-hk` is the fixed original-publication-language multiselect (Japanese/Chinese/Korean), empty by default. It filters public list/search requests only; Chinese includes both `zh` and `zh-hk`. It does not select translated chapter language, rewrite IDs or Library titles, or filter exact detail/chapter/image restoration. Missing/empty selection preserves previous requests and output.
 
 `contentRating_zh-hk` follows the fixed four-option content-rating multiselect; missing settings default to `["safe","suggestive"]`, preserving previous list/search requests and guards. Explicit choices supply only those API query values and accept only their known returned ratings. Explicit empty selection omits this API filter, as in the reference; unknown/missing rating data is still rejected. Exact details, complete chapter feeds (including their existing all-rating query), pages, image permissions, IDs and existing Library data are unaffected. No account/login or permission bypass is added.
+
+## 完结卷章说明
+
+`finalChapterInDesc_zh-hk`（Final chapter in description）默认关闭，保当前Koma无配置的简介；固定参考默认开启，这里保留既定缺省输出。显式开启仅在详情末尾按固定MangaDexHelper拼接非空 `lastVolume`/`lastChapter` 为 `Final chapter:\nVol.x Ch.y`，在已有简介/别名后隔一空行，并按原实体表解码一次。沿上游原字符串，不猜最大章、不要求数字、不剥正文标签。缺少两值不造段落，非法字段或容量不足明确失败。列表、HTTP、标题、ID、目录/页顺序和已存Library不主动变化。

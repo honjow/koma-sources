@@ -33,6 +33,8 @@ mod first_volume_cover;
 mod original_language;
 #[path = "../content_rating.rs"]
 mod content_rating;
+#[path = "../final_chapter_description.rs"]
+mod final_chapter_description;
 static mut COVER_JSON: [u8; JSON_BUF_CAP] = [0; JSON_BUF_CAP];
 
 static mut JSON_BUF: [u8; JSON_BUF_CAP] = [0; JSON_BUF_CAP];
@@ -46,7 +48,12 @@ fn alt_description_enabled(req: &[u8]) -> bool {
 }
 // Source settings only append a description block. Titles, identity, chapter
 // order and the default description bytes are deliberately unchanged.
-fn append_description_content(out: &mut [u8], n: &mut usize, attributes: &[u8], base: &[u8], enabled: bool) -> bool {
+fn append_description_content(out: &mut [u8], n: &mut usize, attributes: &[u8], base: &[u8], alternatives: bool, final_chapter: bool) -> bool {
+    let start = *n;
+    if !append_alt_description_content(out, n, attributes, base, alternatives) { return false; }
+    !final_chapter || final_chapter_description::append(out, n, attributes, *n > start)
+}
+fn append_alt_description_content(out: &mut [u8], n: &mut usize, attributes: &[u8], base: &[u8], enabled: bool) -> bool {
     if !enabled { return write_bytes(out,n,base); }
     let original = json_object_member(attributes,b"originalLanguage").unwrap_or(b"null");
     let romanized = match original { b"\"ja\""=>b"ja-ro".as_slice(), b"\"ko\""=>b"ko-ro", b"\"zh\"" | b"\"zh-hk\""=>b"zh-ro", _=>b"" };
@@ -113,7 +120,7 @@ fn manga_title(obj: &[u8]) -> &[u8] {
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "org.mangadex.koma",
     name: "MangaDex",
-    version: "0.1.18",
+    version: "0.1.19",
     api_version: "0.2",
     language: "en",
     author: "Koma",
@@ -487,7 +494,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
         && write_bytes(payload, &mut c, br#"","title":""#)
         && append_api_string(payload, &mut c, title)
         && write_bytes(payload, &mut c, br#"","alternateTitles":[],"description":""#)
-        && append_description_content(payload, &mut c, attributes, desc, alt_description_enabled(req))
+        && append_description_content(payload, &mut c, attributes, desc, alt_description_enabled(req), final_chapter_description::enabled(req, b"finalChapterInDesc_en"))
         && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":""#)
         && write_bytes(payload, &mut c, COVERS_BASE)
         && append_json_escaped(payload, &mut c, uuid)
@@ -1182,7 +1189,7 @@ fn run_get_home(req: &[u8]) -> u32 {
 
 fn run_get_settings(req: &[u8]) -> u32 {
     // MangaDex settings: preferred language, content rating, data saver mode
-    const SETTINGS_JSON: &[u8] = br#"{"settings":[{"id":"thumbnailQuality_en","name":"Cover Quality","kind":"select","options":[{"value":"original","label":"Original"},{"value":".512.jpg","label":"Medium"},{"value":".256.jpg","label":"Low"}],"default":"original"},{"id":"language","name":"Preferred Language","kind":"select","options":[{"value":"en","label":"English"},{"value":"ja","label":"Japanese"},{"value":"zh","label":"Chinese (Simplified)"},{"value":"zh-hk","label":"Chinese (Traditional)"},{"value":"ko","label":"Korean"},{"value":"fr","label":"French"},{"value":"es","label":"Spanish"},{"value":"de","label":"German"},{"value":"pt-br","label":"Portuguese (Brazil)"}],"default":"en"},{"id":"dataSaver","name":"Data Saver","kind":"toggle","description":"Use compressed images to save bandwidth","default":"false"},{"id":"defaultContentRating","name":"Default Content Rating","kind":"select","options":[{"value":"safe","label":"Safe Only"},{"value":"suggestive","label":"Safe + Suggestive"},{"value":"erotica","label":"All (including Erotica)"}],"default":"suggestive"},{"id":"altTitlesInDesc_en","name":"Alternative titles in description","kind":"toggle","description":"Include a manga's alternative titles at the end of its description","default":"false"},{"id":"usePort443_en","name":"Use HTTPS port 443 only","kind":"toggle","description":"Enable to only request image servers that use port 443. This allows users with stricter firewall restrictions to access MangaDex images","default":"false"},{"id":"tryUsingFirstVolumeCover_en","name":"Attempt to use the first volume cover as cover","kind":"toggle","description":"Existing library entries may need a manual refresh to show changed covers","default":"false"},{"id":"originalLanguage_en","name":"Filter original languages","kind":"multiselect","description":"Only show content that was originally published in the selected languages in both latest and browse","default":[],"options":[{"value":"ja","label":"Japanese"},{"value":"zh","label":"Chinese"},{"value":"ko","label":"Korean"}]}]}"#;
+    const SETTINGS_JSON: &[u8] = br#"{"settings":[{"id":"thumbnailQuality_en","name":"Cover Quality","kind":"select","options":[{"value":"original","label":"Original"},{"value":".512.jpg","label":"Medium"},{"value":".256.jpg","label":"Low"}],"default":"original"},{"id":"language","name":"Preferred Language","kind":"select","options":[{"value":"en","label":"English"},{"value":"ja","label":"Japanese"},{"value":"zh","label":"Chinese (Simplified)"},{"value":"zh-hk","label":"Chinese (Traditional)"},{"value":"ko","label":"Korean"},{"value":"fr","label":"French"},{"value":"es","label":"Spanish"},{"value":"de","label":"German"},{"value":"pt-br","label":"Portuguese (Brazil)"}],"default":"en"},{"id":"dataSaver","name":"Data Saver","kind":"toggle","description":"Use compressed images to save bandwidth","default":"false"},{"id":"defaultContentRating","name":"Default Content Rating","kind":"select","options":[{"value":"safe","label":"Safe Only"},{"value":"suggestive","label":"Safe + Suggestive"},{"value":"erotica","label":"All (including Erotica)"}],"default":"suggestive"},{"id":"altTitlesInDesc_en","name":"Alternative titles in description","kind":"toggle","description":"Include a manga's alternative titles at the end of its description","default":"false"},{"id":"usePort443_en","name":"Use HTTPS port 443 only","kind":"toggle","description":"Enable to only request image servers that use port 443. This allows users with stricter firewall restrictions to access MangaDex images","default":"false"},{"id":"tryUsingFirstVolumeCover_en","name":"Attempt to use the first volume cover as cover","kind":"toggle","description":"Existing library entries may need a manual refresh to show changed covers","default":"false"},{"id":"originalLanguage_en","name":"Filter original languages","kind":"multiselect","description":"Only show content that was originally published in the selected languages in both latest and browse","default":[],"options":[{"value":"ja","label":"Japanese"},{"value":"zh","label":"Chinese"},{"value":"ko","label":"Korean"}]},{"id":"finalChapterInDesc_en","name":"Final chapter in description","kind":"toggle","description":"Include a manga's final chapter number at the end of its description","default":"false"}]}"#;
 
     let context=if rating_context_supported(req){json_object_member(req,b"args").and_then(|v|json_object_member(v,b"settingValues")).filter(|v|v.first()==Some(&b'{'))}else{None};
     if let Some(values)=context {

@@ -1,4 +1,4 @@
-# MangaDex 0.1.18
+# MangaDex 0.1.19
 
 Independent source `org.mangadex.koma`, API 0.2, language en. Existing `mdx:` manga IDs, `ch:` chapter identities, original official icon and [asset attribution](ASSET_SOURCES.md) remain. Ordinary public search/list/detail/Home, exact chapter restoration and existing filters remain; no external provider body is followed.
 
@@ -6,9 +6,9 @@ Settings retain `language` (default en) and `dataSaver` (default false). Old Hos
 
 Chapter IDs, title fallbacks and original directory order remain. Null/missing/empty/nonstring chapter numbers remain unknown; actual zero and fractional numbers retain their values. No dates are inferred. The existing mdxc1 pagination state preserves full external-only terminal detection; empty catalogues, hosted/external mixed results, pagination errors and unsupported external-only results remain distinct.
 
-Existing data-saver pages use the actual selected API filename array and corresponding data/data-saver path, retaining page index IDs. No account/token/Cookie flow, statistics side effect, new source/host grant or App style is introduced. Standard build: `bash build.sh --source mangadex`. Runtime/crate/package versions align at 0.1.18.
+Existing data-saver pages use the actual selected API filename array and corresponding data/data-saver path, retaining page index IDs. No account/token/Cookie flow, statistics side effect, new source/host grant or App style is introduced. Standard build: `bash build.sh --source mangadex`. Runtime/crate/package versions align at 0.1.19.
 
-`altTitlesInDesc_en` defaults false and is consumed only by manga detail descriptions. Explicit true appends the fixed reference `Alternative titles:` block: extension-language or original-language romanized maps, exactly one nonempty value per map, provider order, no sorting/deduplication. The shared SDK plain-text helper decodes JSON Unicode and HTML entities once while preserving literal markup; the original base description is retained. Missing/false leaves the prior description bytes, title fallback and all other fields unchanged. The default-true upstream title-priority/final-chapter settings are not exposed by this item.
+`altTitlesInDesc_en` defaults false and is consumed only by manga detail descriptions. Explicit true appends the fixed reference `Alternative titles:` block: extension-language or original-language romanized maps, exactly one nonempty value per map, provider order, no sorting/deduplication. The shared SDK plain-text helper decodes JSON Unicode and HTML entities once while preserving literal markup; the original base description is retained. Missing/false leaves the prior description bytes, title fallback and all other fields unchanged. The upstream title-priority setting is not exposed by this item; final-chapter text has its own setting below.
 
 `usePort443_en`（Use HTTPS port 443 only）默认false。沿固定Keiyoushi949dea的实际消费者，只在显式开启时给at-home服务器查询追加 `?forcePort443=true`；默认请求原样。图片URL、页ID/序和校验仍取真实响应，不向URL硬写端口，不改其它API、封面、认证、网络、超时或重试。
 
@@ -17,3 +17,7 @@ Existing data-saver pages use the actual selected API filename array and corresp
 `originalLanguage_en` is the fixed original-publication-language multiselect (Japanese/Chinese/Korean), empty by default. It filters public list/search and Home sections requests only; Chinese includes both `zh` and `zh-hk`. It does not select translated chapter language, rewrite IDs or Library titles, or filter exact detail/chapter/image restoration. Missing/empty selection preserves previous requests and output.
 
 On Hosts declaring `source_settings_context_v1`, get_settings with present `args.settingValues` replaces the old three-value `defaultContentRating` selector with the fixed `contentRating_en` multiselect (safe/suggestive/erotica/pornographic). Missing new array inherits old safe→[safe], erotica→[safe,suggestive,erotica], and suggestive/missing/unknown→[safe,suggestive]. The old Erotica choice never implied pornographic. Schema reads are pure; only ordinary explicit Save persists the new array. Empty or failed context is distinguished: read-empty `{}` gets reference defaults, absent context keeps old schema. Missing feature keeps old schema and legacy consumption even if a new array was stored. The new array wins on supported Hosts, with existing explicit single-class filters still taking precedence; Home uses the saved set. Details, chapter/page identity and Library titles are unchanged.
+
+## 完结卷章说明
+
+`finalChapterInDesc_en`（Final chapter in description）默认关闭，保当前Koma无配置的简介；固定参考默认开启，这里保留既定缺省输出。显式开启仅在详情末尾按固定MangaDexHelper拼接非空 `lastVolume`/`lastChapter` 为 `Final chapter:\nVol.x Ch.y`，在已有简介/别名后隔一空行，并按原实体表解码一次。沿上游原字符串，不猜最大章、不要求数字、不剥正文标签。缺少两值不造段落，非法字段或容量不足明确失败。列表、HTTP、标题、ID、目录/页顺序和已存Library不主动变化。
