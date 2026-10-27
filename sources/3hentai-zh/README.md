@@ -1,4 +1,4 @@
-# 3Hentai 中文 0.1.2
+# 3Hentai 中文 0.1.3
 
 独立源身份 `com.hentai3.zh.koma`，API 0.2，主页 `https://3hentai.net`，最低App0.1.1。公开中文popular列表、详情、单作品章节及原图描述已实现；搜索、latest、filters、home不提供。混合成人源，单作品分级及用量未知。不登录、不发送凭据。
 
