@@ -1,10 +1,10 @@
-# XCOMIC 0.1.2（繁體中文 / API zh_hk）
+# XCOMIC 0.1.3（繁體中文 / API zh_hk）
 
 独立源身份 `com.xcomic.zh-hant.koma`，API 0.2，主页 `https://xcomic.me`。保持原匿名公开 GraphQL、12卡分页、语言筛选、作品/版本/章/页 ID 和原图顺序。混合内容源标记 nsfw，作品分级依实际响应，缺值保未知；不登录、不取 token、不发 mutation、不换域或变换图像。
 
 ## 设置
 
-`REMOVE_TITLE_VERSION`（Remove Version Information From Entry Titles）默认关闭。显式开启时，列表、搜索和详情的共同标题输出按固定 Keiyoushi `949dea252eb8e867b7b40834a26e13088764ff55` 删除版本标签并 trim；关闭和未配置保持原 JSON 标题逐字输出。清理后为空的列表标题沿参考回退到实际作品 ID。设置不改变身份、目录或页面，也不主动改写库内旧标题。
+`REMOVE_TITLE_VERSION`（Remove Version Information From Entry Titles）默认关闭。显式开启时，列表、搜索和详情的共同标题输出按固定 Keiyoushi `949dea252eb8e867b7b40834a26e13088764ff55` 删除版本标签并 trim；关闭和未配置保持原 JSON 标题逐字输出。清理后通过既有SDK的HTML5实体表解码一次，字面尖括号保持文字，不剥除标签。清理后为空的列表标题沿参考回退到实际作品 ID。设置不改变身份、目录或页面，也不主动改写库内旧标题。
 
 使用成熟 `regex` 的无 std 引擎执行固定表达式；Java负向前瞻的方括号分支改写为等价排除字符类，保留 Java 行终止符边界；`Official` 的大小写匹配保留 Java UnicodeCase 的 I/i/İ/ı。每次列表/详情操作只编译一次，默认关闭不编译。自定义正则、网页分类黑名单、服务器去重、版本包含与分组设置尚未接入，不用空 schema 冒实现。
 

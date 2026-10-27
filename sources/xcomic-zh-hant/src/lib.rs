@@ -13,7 +13,7 @@ use koma_source_sdk::{
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.xcomic.zh-hant.koma",
     name: "XCOMIC",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -1045,7 +1045,25 @@ fn emit_title(b: &mut [u8], n: &mut usize, raw: &[u8], cleaner: Option<&Regex>, 
     let removed = cleaner.replace_all(original, "");
     // Kotlin Char.isWhitespace = Java isWhitespace || isSpaceChar.
     let trimmed = removed.trim_matches(|c: char| (c.is_whitespace() && c != '\u{85}') || ('\u{1c}'..='\u{1f}').contains(&c));
-    q(b, n, if trimmed.is_empty() { fallback.unwrap_or(b"") } else { trimmed.as_bytes() })
+    let shown = if trimmed.is_empty() { fallback.unwrap_or(b"") } else { trimmed.as_bytes() };
+    if !shown.contains(&b'&') { return q(b, n, shown); }
+    // Fixed consumers call unescapeHtml after cleanTitleIfNeeded. Reuse the
+    // SDK HTML5 entity owner once; literal angle brackets remain plain text.
+    // This explicit-enabled branch never changes the original false/rawq path.
+    let capacity = shown.len().checked_mul(6).ok_or("title capacity")?;
+    let mut raw = alloc::vec![0; capacity];
+    let mut raw_len = 0;
+    if !append_json_escaped(&mut raw, &mut raw_len, shown) { return Err("title capacity"); }
+    let mut decoded = alloc::vec![0; capacity];
+    let mut decoded_len = 0;
+    if !koma_source_sdk::plain_text::append_entity_decoded_json_content(&mut decoded, &mut decoded_len, &raw[..raw_len]) {
+        return Err("title entity decode failed");
+    }
+    let mut text = alloc::vec![0; decoded_len];
+    let value = unescape(&decoded[..decoded_len], &mut text)?;
+    let string = core::str::from_utf8(value).map_err(|_| "invalid title UTF8")?;
+    let blank = string.chars().all(|c| (c.is_whitespace() && c != '\u{85}') || ('\u{1c}'..='\u{1f}').contains(&c));
+    q(b, n, if blank { fallback.unwrap_or(value) } else { value })
 }
 fn emit_manga(
     b: &mut [u8],
