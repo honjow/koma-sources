@@ -2380,7 +2380,8 @@ fn hex4(s: &[u8]) -> Option<u32> {
     }
     Some(n)
 }
-fn decode_json_content<'a>(s: &[u8], out: &'a mut [u8]) -> Result<&'a [u8], &'static str> {
+/// Decode unquoted JSON string content into the caller's bounded buffer; no HTML parsing or normalization.
+pub fn decode_json_content<'a>(s: &[u8], out: &'a mut [u8]) -> Result<&'a [u8], &'static str> {
     let mut i = 0;
     let mut n = 0;
     while i < s.len() {

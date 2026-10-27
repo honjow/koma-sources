@@ -21,6 +21,9 @@ koma_source_sdk::koma_source_buffers! {
     scratch: 4096,
 }
 koma_source_sdk::koma_source_helpers!();
+
+// Keep decoded search terms separate from URL scratch and the bounded WASM stack.
+static mut SEARCH_QUERY: [u8; 4096] = [0; 4096];
 const JSON_BUF_CAP: usize = 256 * 1024;
 
 static mut JSON_BUF: [u8; JSON_BUF_CAP] = [0; JSON_BUF_CAP];
@@ -31,7 +34,7 @@ static mut CHAPTER_SNAPSHOT: [u8; JSON_BUF_CAP] = [0; JSON_BUF_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.zaimanhua.koma",
     name: "再漫画",
-    version: "0.1.7",
+    version: "0.1.8",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -330,9 +333,15 @@ fn append_cards(operation:&str, items:&[u8], payload:&mut[u8], c:&mut usize, mod
 }
 
 fn run_search(req: &[u8]) -> u32 {
-    let query = match extract_json_string(req, b"query") {
+    let raw = match extract_json_string(req, b"query") {
         Some(q) => q,
         None => return write_error("search", "invalid_request", "missing query"),
+    };
+    // The request's JSON escapes are not part of the user's term.
+    let output = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
+    let query = match koma_source_sdk::plain_text::decode_json_content(raw, output) {
+        Ok(v) if core::str::from_utf8(v).is_ok() => v,
+        _ => return write_error("search", "invalid_request", "invalid query"),
     };
 
     // Check if query is a pure number for ID lookup

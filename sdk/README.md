@@ -13,3 +13,5 @@
 ### Plain text entity adaptation
 
 `plain_text::append_entity_decoded_json_content` accepts the unquoted serialized content of a JSON string and appends valid JSON string content to a bounded caller buffer. It validates Unicode escape pairs, uses the existing HTML5 entity table once, and escapes literal angle brackets before parsing so they remain text. It introduces no host import beyond the established HTML ABI and does not normalize any existing source field automatically. Sources opt in only at the explicit text consumer; invalid input or capacity overflow returns failure.
+
+`plain_text::decode_json_content` decodes unquoted JSON string content into a bounded caller buffer, validating UTF-8 and Unicode pairs without HTML parsing or normalization. Callers choose their own whitespace and URL handling.

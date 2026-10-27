@@ -1,10 +1,10 @@
 # 再漫画
 
-当前源版本 `0.1.7`，稳定身份 `com.zaimanhua.koma`；官方移动主页 `https://m.zaimanhua.com`，API 保持 `https://v4api.zaimanhua.com/app/v1`。官方原图标及素材归属见 `ASSET_SOURCES.md`。
+当前源版本 `0.1.8`，稳定身份 `com.zaimanhua.koma`；官方移动主页 `https://m.zaimanhua.com`，API 保持 `https://v4api.zaimanhua.com/app/v1`。官方原图标及素材归属见 `ASSET_SOURCES.md`。
 
 ## 原有公开合同
 
-热门、最近更新、搜索、详情、目录、正文和图片请求沿用原源实现。目录完整数组、写入失败传播、PC 二次请求前的原章节快照、直接 JSON 成员解析及原分页规则保持。章节 language 不从未声明字段猜补。正文继续先检查 `canRead`；权限不足不返回正文或评论，不绕过账户与等级限制。原 ID、页序、默认图片选择、请求 UA、Platform 和超时保持。
+热门、最近更新、搜索、详情、目录、正文和图片请求沿用原源实现。搜索将请求 JSON 字符串解码后再编码为站点查询，保留用户输入的引号、反斜杠和 Unicode。目录完整数组、写入失败传播、PC 二次请求前的原章节快照、直接 JSON 成员解析及原分页规则保持。章节 language 不从未声明字段猜补。正文继续先检查 `canRead`；权限不足不返回正文或评论，不绕过账户与等级限制。原 ID、页序、默认图片选择、请求 UA、Platform 和超时保持。
 
 ## 章末吐槽页
 
