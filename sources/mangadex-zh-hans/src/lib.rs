@@ -7,7 +7,7 @@ use koma_source_sdk::{
 };
 type E = &'static str;
 const MAX: usize = 1048576;
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"org.mangadex.zh-hans.koma",name:"MangaDex",version:"0.1.2",api_version:"0.2",language:"zh-Hans",author:"Koma",description:"MangaDex public simplified-Chinese chapters. Usage unknown; followedCount listing is not a usage ranking.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"org.mangadex.zh-hans.koma",name:"MangaDex",version:"0.1.3",api_version:"0.2",language:"zh-Hans",author:"Koma",description:"MangaDex public simplified-Chinese chapters. Usage unknown; followedCount listing is not a usage ranking.",content_rating:"nsfw"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -1019,8 +1019,14 @@ fn chapter_key(r: &[u8]) -> Result<(&[u8], &[u8]), E> {
     };
     Ok((uuid(&k[..36])?, uuid(&k[37..])?))
 }
-fn descriptor(ch: &[u8]) -> Result<&'static [u8], E> {
-    fetch(make_url(&[API, b"/at-home/server/", ch])?)
+// Fixed MangaDex preference selects an at-home server via its API parameter.
+// False/absent keeps the original request; never rewrite a returned image URL.
+fn standard_https_enabled(req: &[u8]) -> bool {
+    matches!(json_object_member(req, b"settings").and_then(|v| json_object_member(v, b"usePort443_zh")), Some(b"true") | Some(br#""true""#))
+}
+fn descriptor(ch: &[u8], req: &[u8]) -> Result<&'static [u8], E> {
+    let suffix = if standard_https_enabled(req) { b"?forcePort443=true".as_slice() } else { b"".as_slice() };
+    fetch(make_url(&[API, b"/at-home/server/", ch, suffix])?)
 }
 fn validate_files(v: &[u8], saver: bool) -> Result<(), E> {
     let data = required(required(v, b"chapter")?, if saver { b"dataSaver" } else { b"data" })?;
@@ -1081,7 +1087,7 @@ fn pages(r: &[u8]) -> Result<usize, E> {
     let saver = data_saver(r)?;
     let (m, ch) = chapter_key(r)?;
     let (_, count) = feed(m, Some(ch))?;
-    let v = descriptor(ch)?;
+    let v = descriptor(ch, r)?;
     validate_files(v, false)?;
     if saver { validate_files(v, true)?; }
     let data = required(required(v, b"chapter")?, if saver { b"dataSaver" } else { b"data" })?;
@@ -1150,7 +1156,7 @@ fn image_request(r: &[u8]) -> Result<usize, E> {
     };
     let mut oldurl = [0; 2048];
     host_url(uq(required(a, b"url")?, &mut oldurl)?)?;
-    let v = descriptor(ch)?;
+    let v = descriptor(ch, r)?;
     validate_files(v, false)?;
     if saver { validate_files(v, true)?; }
     let out = payload_buf();
@@ -1199,7 +1205,7 @@ fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "not_supported", "not supported")
 }
 fn run_get_settings(_: &[u8]) -> u32 {
-    let data = r#"{"settings":[{"id":"thumbnailQuality_zh","name":"封面品質","kind":"select","options":[{"value":"original","label":"原圖"},{"value":".512.jpg","label":"中等"},{"value":".256.jpg","label":"低"}],"default":"original"},{"id":"dataSaverV5_zh","name":"省流量","kind":"toggle","default":"false"},{"id":"altTitlesInDesc_zh","name":"Alternative titles in description","kind":"toggle","description":"Include a manga's alternative titles at the end of its description","default":"false"}]}"#.as_bytes();
+    let data = r#"{"settings":[{"id":"thumbnailQuality_zh","name":"封面品質","kind":"select","options":[{"value":"original","label":"原圖"},{"value":".512.jpg","label":"中等"},{"value":".256.jpg","label":"低"}],"default":"original"},{"id":"dataSaverV5_zh","name":"省流量","kind":"toggle","default":"false"},{"id":"altTitlesInDesc_zh","name":"Alternative titles in description","kind":"toggle","description":"Include a manga's alternative titles at the end of its description","default":"false"},{"id":"usePort443_zh","name":"Use HTTPS port 443 only","kind":"toggle","description":"Enable to only request image servers that use port 443. This allows users with stricter firewall restrictions to access MangaDex images","default":"false"}]}"#.as_bytes();
     payload_buf()[..data.len()].copy_from_slice(data);
     write_success_payload("get_settings", data.len())
 }

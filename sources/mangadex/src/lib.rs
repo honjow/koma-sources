@@ -105,7 +105,7 @@ fn manga_title(obj: &[u8]) -> &[u8] {
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "org.mangadex.koma",
     name: "MangaDex",
-    version: "0.1.14",
+    version: "0.1.15",
     api_version: "0.2",
     language: "en",
     author: "Koma",
@@ -750,6 +750,11 @@ fn data_saver_enabled(req: &[u8]) -> bool {
     matches!(value, Some(b"true") | Some(br#""true""#))
 }
 
+// Fixed MangaDex preference selects an at-home server via its API parameter.
+// False/absent keeps the original request; never rewrite a returned image URL.
+fn standard_https_enabled(req: &[u8]) -> bool {
+    matches!(json_object_member(req, b"settings").and_then(|v| json_object_member(v, b"usePort443_en")), Some(b"true") | Some(br#""true""#))
+}
 fn run_get_pages(req: &[u8]) -> u32 {
     let data_saver = data_saver_enabled(req);
     let chapter_id = match extract_json_string(req, b"chapterId") {
@@ -767,7 +772,8 @@ fn run_get_pages(req: &[u8]) -> u32 {
     let mut url_cursor = 0usize;
     let ok = write_bytes(url_buf, &mut url_cursor, API_BASE)
         && write_bytes(url_buf, &mut url_cursor, b"/at-home/server/")
-        && write_bytes(url_buf, &mut url_cursor, ch_uuid);
+        && write_bytes(url_buf, &mut url_cursor, ch_uuid)
+        && (!standard_https_enabled(req) || write_bytes(url_buf, &mut url_cursor, b"?forcePort443=true"));
     if !ok { return write_error("get_pages", "internal_error", "url overflow"); }
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
 
@@ -1128,7 +1134,7 @@ fn run_get_home(req: &[u8]) -> u32 {
 
 fn run_get_settings(_req: &[u8]) -> u32 {
     // MangaDex settings: preferred language, content rating, data saver mode
-    const SETTINGS_JSON: &[u8] = br#"{"settings":[{"id":"thumbnailQuality_en","name":"Cover Quality","kind":"select","options":[{"value":"original","label":"Original"},{"value":".512.jpg","label":"Medium"},{"value":".256.jpg","label":"Low"}],"default":"original"},{"id":"language","name":"Preferred Language","kind":"select","options":[{"value":"en","label":"English"},{"value":"ja","label":"Japanese"},{"value":"zh","label":"Chinese (Simplified)"},{"value":"zh-hk","label":"Chinese (Traditional)"},{"value":"ko","label":"Korean"},{"value":"fr","label":"French"},{"value":"es","label":"Spanish"},{"value":"de","label":"German"},{"value":"pt-br","label":"Portuguese (Brazil)"}],"default":"en"},{"id":"dataSaver","name":"Data Saver","kind":"toggle","description":"Use compressed images to save bandwidth","default":"false"},{"id":"defaultContentRating","name":"Default Content Rating","kind":"select","options":[{"value":"safe","label":"Safe Only"},{"value":"suggestive","label":"Safe + Suggestive"},{"value":"erotica","label":"All (including Erotica)"}],"default":"suggestive"},{"id":"altTitlesInDesc_en","name":"Alternative titles in description","kind":"toggle","description":"Include a manga's alternative titles at the end of its description","default":"false"}]}"#;
+    const SETTINGS_JSON: &[u8] = br#"{"settings":[{"id":"thumbnailQuality_en","name":"Cover Quality","kind":"select","options":[{"value":"original","label":"Original"},{"value":".512.jpg","label":"Medium"},{"value":".256.jpg","label":"Low"}],"default":"original"},{"id":"language","name":"Preferred Language","kind":"select","options":[{"value":"en","label":"English"},{"value":"ja","label":"Japanese"},{"value":"zh","label":"Chinese (Simplified)"},{"value":"zh-hk","label":"Chinese (Traditional)"},{"value":"ko","label":"Korean"},{"value":"fr","label":"French"},{"value":"es","label":"Spanish"},{"value":"de","label":"German"},{"value":"pt-br","label":"Portuguese (Brazil)"}],"default":"en"},{"id":"dataSaver","name":"Data Saver","kind":"toggle","description":"Use compressed images to save bandwidth","default":"false"},{"id":"defaultContentRating","name":"Default Content Rating","kind":"select","options":[{"value":"safe","label":"Safe Only"},{"value":"suggestive","label":"Safe + Suggestive"},{"value":"erotica","label":"All (including Erotica)"}],"default":"suggestive"},{"id":"altTitlesInDesc_en","name":"Alternative titles in description","kind":"toggle","description":"Include a manga's alternative titles at the end of its description","default":"false"},{"id":"usePort443_en","name":"Use HTTPS port 443 only","kind":"toggle","description":"Enable to only request image servers that use port 443. This allows users with stricter firewall restrictions to access MangaDex images","default":"false"}]}"#;
 
     let payload = payload_buf();
     let flen = SETTINGS_JSON.len();
