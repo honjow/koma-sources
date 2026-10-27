@@ -35,7 +35,7 @@ static mut SELECT_BUFFER: [u8; 4096] = [0; 4096];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.webtoons.koma",
     name: "WEBTOON (English)",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "en",
     author: "Koma source contributors",
@@ -52,7 +52,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     manga_list: false,
     home: false,
     filters: false,
-    settings: false,
+    settings: true,
     credentials: false,
     image_request: true,
 };
@@ -823,6 +823,10 @@ fn run_get_manga(req: &[u8]) -> u32 {
 }
 
 fn run_get_chapters(req: &[u8]) -> u32 {
+    // Preserve this source's established API order and stable IDs. The reference
+    // reverses its list after assigning indices; adopting that reversal would change
+    // Koma's existing directory contract, so only explicit numbering is ported.
+    let sequential = setting_enabled(req,b"useSequentialNumbering");
     let id = extract_json_string(req, b"mangaId").unwrap_or(b"");
     let Some((title_no, route)) = manga_id_parts(id) else {
         return write_error(
@@ -858,6 +862,9 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         }
     };
     let cursor_value = parse_usize(cursor_bytes);
+    if sequential && cursor_value != 0 {
+        return write_error("get_chapters","invalid_cursor","sequential numbering requires a fresh complete catalogue request");
+    }
     let mut url = [0u8; 2048];
     let mut uc = 0;
     let mut ok = append_slice(&mut url, &mut uc, MOBILE)
@@ -865,7 +872,8 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         && append_slice(&mut url, &mut uc, kind)
         && append_slice(&mut url, &mut uc, b"/")
         && append_slice(&mut url, &mut uc, title_no)
-        && append_slice(&mut url, &mut uc, b"/episodes?pageSize=100");
+        && append_slice(&mut url, &mut uc, b"/episodes?pageSize=")
+        && append_slice(&mut url, &mut uc, if sequential { b"99999".as_slice() } else { b"100" });
     if ok && kind == b"canvas" {
         ok = append_slice(&mut url, &mut uc, b"&readingLanguageCode=en");
     }
@@ -925,6 +933,9 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         raw
     };
     let next_cursor = parse_usize(next_cursor_bytes);
+    if sequential && next_cursor != 0 {
+        return write_error("get_chapters","pagination_error","sequential numbering requires the complete provider catalogue; no partial list was returned");
+    }
     let mut episodes = match json_object_member(result, b"episodeList").and_then(EpisodeArray::new) {
         Some(it) => it,
         None => {
@@ -947,7 +958,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             Ok(None) => break,
             Err(()) => return write_error("get_chapters", "parse_error", "WEBTOON episodeList contains an unsupported or incomplete record; no partial list was returned"),
         };
-        if count >= 100 {
+        if !sequential && count >= 100 {
             return write_error(
                 "get_chapters",
                 "pagination_error",
@@ -989,7 +1000,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             && write_bytes(out, &mut c, br#"","title":""#)
             && append_json_unescaped_then_escaped(out, &mut c, title)
             && write_bytes(out, &mut c, br#"","chapterNumber":"#)
-            && append_title_chapter_number(out, &mut c, title)
+            && (if sequential { write_usize(out,&mut c,count+1) } else { append_title_chapter_number(out, &mut c, title) })
             && write_bytes(out, &mut c, br#","language":"en"}"#);
         if !item_ok {
             return write_error(
@@ -1039,6 +1050,114 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         return write_error("get_chapters", "internal_error", "response buffer overflow");
     }
     write_success_payload("get_chapters", c)
+}
+
+// Keep default image bytes; opt-in quality uses the already adopted query-pair adapter.
+fn maximum_quality_uri<'a>(uri: &'a [u8], enabled: bool, out: &'a mut [u8]) -> &'a [u8] {
+    if !enabled { return uri; }
+    let Some(query) = uri.iter().position(|b| *b == b'?') else { return uri; };
+    let end = uri.iter().position(|b| *b == b'#').unwrap_or(uri.len());
+    if query >= end { return uri; }
+    let mut n = query;
+    out[..query].copy_from_slice(&uri[..query]);
+    let mut first = true;
+    for pair in uri[query + 1..end].split(|b| *b == b'&') {
+        if pair == b"type=q90" { continue; }
+        out[n] = if first { b'?' } else { b'&' }; n += 1;
+        out[n..n + pair.len()].copy_from_slice(pair); n += pair.len();
+        first = false;
+    }
+    out[n..n + uri.len() - end].copy_from_slice(&uri[end..]);
+    n += uri.len() - end;
+    &out[..n]
+}
+fn setting_enabled(req: &[u8], key: &[u8]) -> bool {
+    json_object_member(req,b"settings").and_then(|v|json_object_member(v,key))
+        .map(|v|v==b"true" || v==b"\"true\"").unwrap_or(false)
+}
+
+fn supports_text_pages(req: &[u8]) -> bool {
+    let Some(v)=json_object_member(req,b"hostFeatures") else { return false; };
+    let v=trim_ascii(v);
+    v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|c|*c==b',')
+        .any(|v|trim_ascii(v)==b"\"text_page_image_v1\"")
+}
+// Jsoup .text() treats BR as whitespace. The established host text ABI only
+// joins text nodes, so replace BR in a second, notes-only DOM; original images
+// retain the original DOM. The existing HTTP buffer suffices: BR removal shrinks
+// the body and introduces no additional content-capacity or network policy.
+fn note_document(body_len: usize) -> Result<host::HtmlDescriptor,&'static str> {
+    let raw=&body_buf()[..body_len]; let out=http_out(); let mut n=0; let mut i=0;
+    while i<raw.len() {
+        if raw[i]!=b'<' || !matches!(raw.get(i+1),Some(b'a'..=b'z'|b'A'..=b'Z'|b'/'|b'!'|b'?')) {
+            if !write_bytes(out,&mut n,&raw[i..i+1]) { return Err("note HTML overflow"); } i+=1; continue;
+        }
+        let start=i; i+=1; let mut quote=0;
+        while i<raw.len() {
+            let c=raw[i]; i+=1;
+            if quote!=0 { if c==quote { quote=0; } }
+            else if c==b'\'' || c==b'"' { quote=c; }
+            else if c==b'>' { break; }
+        }
+        let tag=&raw[start..i]; let end=tag[1..].iter().position(|c|!c.is_ascii_alphanumeric()).unwrap_or(0)+1;
+        let piece=if tag[1..end].eq_ignore_ascii_case(b"br") { b" ".as_slice() } else { tag };
+        if !write_bytes(out,&mut n,piece) { return Err("note HTML overflow"); }
+    }
+    host::html_parse(&out[..n]).map_err(|_|"invalid note HTML")
+}
+fn note_text(doc: host::HtmlDescriptor, selector: &[u8], out: &mut [u8]) -> Result<usize,&'static str> {
+    let count=html_select_all(doc.raw(),selector,unsafe { &mut *core::ptr::addr_of_mut!(SELECT_BUFFER) });
+    if count<0 { return Err("note selection failed"); }
+    let descriptors=unsafe { &*core::ptr::addr_of!(SELECT_BUFFER) };let cap=descriptors.len()/4;
+    if count as usize>cap { close_html_descriptors(descriptors,0,cap); return Err("note selection overflow"); }
+    let mut n=0;let mut pending=false;
+    for i in 0..count as usize {
+        let at=i*4;let id=i32::from_le_bytes([descriptors[at],descriptors[at+1],descriptors[at+2],descriptors[at+3]]);
+        let node=host::HtmlDescriptor::from_raw(id);let mut text=[0u8;65536];
+        let len=host::html_text(node,&mut text);let _=host::html_close(node);
+        let len=match len { Ok(v) if v<text.len()=>v, _=>{ close_html_descriptors(descriptors,i+1,count as usize);return Err("note text overflow"); } };
+        let value=match core::str::from_utf8(&text[..len]) { Ok(v)=>v,Err(_)=>{ close_html_descriptors(descriptors,i+1,count as usize);return Err("invalid note UTF8"); } };
+        if n>0 { pending=true; }
+        for ch in value.chars() {
+            // Jsoup 1.22.2 text(): invisible soft-hyphen/zero-width-space are omitted; joiners stay.
+            if ch=='\u{200b}' || ch=='\u{00ad}' { continue; }
+            if matches!(ch, ' '|'\t'|'\n'|'\x0c'|'\r'|'\u{00a0}') { if n>0 { pending=true; } continue; }
+            let mut utf8=[0;4];
+            if (pending && !write_bytes(out,&mut n,b" ")) || !write_bytes(out,&mut n,ch.encode_utf8(&mut utf8).as_bytes()) {
+                close_html_descriptors(descriptors,i+1,count as usize);return Err("note text overflow");
+            }
+            pending=false;
+        }
+    }
+    Ok(n)
+}
+// Creator-note text follows Jsoup text(), which retains non-whitespace controls
+// such as VT. Escape them as Unicode rather than the legacy generic space fallback.
+fn append_note_json(out:&mut [u8], c:&mut usize, text:&[u8]) -> bool {
+    const HEX:&[u8]=b"0123456789abcdef";
+    for &ch in text {
+        if ch<0x20 {
+            if !write_bytes(out,c,&[b'\\',b'u',b'0',b'0',HEX[(ch>>4) as usize],HEX[(ch&15) as usize]]) { return false; }
+        } else if !koma_source_sdk::json_utils::append_json_escaped_byte(out,c,ch) { return false; }
+    }
+    true
+}
+fn append_author_note(body_len:usize,title_no:&[u8],episode_no:&[u8],route:&[u8],index:usize,out:&mut [u8],c:&mut usize) -> Result<(),&'static str> {
+    let doc=note_document(body_len)?;let mut note=[0u8;65536];let mut author=[0u8;4096];
+    let parsed=(|| {
+        let n=note_text(doc,b"div.creator_note p.author_text",&mut note)?;
+        if n==0 { return Ok((0,0)); }
+        let a=note_text(doc,b"div.creator_note .author_name span",&mut author)?;
+        Ok((n,a))
+    })();let _=host::html_close(doc);let (n,a)=parsed?;
+    if n==0 { return Ok(()); }
+    let ok=write_bytes(out,c,b",{\"id\":\"page:webtoons:") && append_json_escaped(out,c,title_no)
+        && write_bytes(out,c,b":") && append_json_escaped(out,c,episode_no) && write_bytes(out,c,b":author-note:")
+        && append_json_escaped(out,c,route) && write_bytes(out,c,b"\",\"index\":") && write_usize(out,c,index)
+        && write_bytes(out,c,b",\"image\":{\"kind\":\"text\",\"text\":{\"template\":\"webtoon-author-notes\",\"heading\":\"Author's Notes from ")
+        && append_note_json(out,c,&author[..a]) && write_bytes(out,c,b"\",\"paragraphs\":[\"")
+        && append_note_json(out,c,&note[..n]) && write_bytes(out,c,b"\"]}}}");
+    if ok { Ok(()) } else { Err("author note payload overflow") }
 }
 
 fn run_get_pages(req: &[u8]) -> u32 {
@@ -1156,6 +1275,8 @@ fn run_get_pages(req: &[u8]) -> u32 {
             let _ = host::html_close(doc);
             return write_error("get_pages", "internal_error", "response buffer overflow");
         }
+        let mut quality_uri = [0u8;4096];
+        let uri = maximum_quality_uri(&absolute[..absolute_len],setting_enabled(req,b"useMaxQuality"),&mut quality_uri);
         let page_id_ok = write_bytes(out, &mut c, br#"{"id":"page:webtoons:"#)
             && append_json_escaped(out, &mut c, title_no)
             && write_bytes(out, &mut c, b":")
@@ -1167,7 +1288,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
             && write_bytes(out, &mut c, br#"","index":"#)
             && write_usize(out, &mut c, written)
             && write_bytes(out, &mut c, b",\"image\":{\"kind\":\"url\",\"url\":\"")
-            && append_json_escaped(out, &mut c, &absolute[..absolute_len])
+            && append_json_escaped(out, &mut c, uri)
             && write_bytes(out, &mut c, br#""}}"#);
         if !page_id_ok {
             close_html_descriptors(descriptors, i + 1, max);
@@ -1176,14 +1297,20 @@ fn run_get_pages(req: &[u8]) -> u32 {
         }
         written += 1;
     }
-    let _ = host::html_close(doc);
     if written == 0 {
+        let _ = host::html_close(doc);
         return write_error(
             "get_pages",
             "unsupported_format",
             "no ordinary still images found; MotionToon and locked episodes are not supported",
         );
     }
+    if supports_text_pages(req) && setting_enabled(req,b"showAuthorsNotes") {
+        if let Err(message)=append_author_note(body_len,title_no,episode_no,route,written,out,&mut c) {
+            let _=host::html_close(doc);return write_error("get_pages","parse_error",message);
+        }
+    }
+    let _=host::html_close(doc);
     if !write_bytes(out, &mut c, b"]}") {
         return write_error("get_pages", "internal_error", "response buffer overflow");
     }
@@ -1287,12 +1414,16 @@ fn run_get_filters(_req: &[u8]) -> u32 {
         "search filters are not supported",
     )
 }
-fn run_get_settings(_req: &[u8]) -> u32 {
-    write_error(
-        "get_settings",
-        "not_implemented",
-        "account and source settings are not supported",
-    )
+fn run_get_settings(req: &[u8]) -> u32 {
+    let out=payload_buf();let mut n=0;
+    if !write_bytes(out,&mut n,br#"{"settings":["#) { return write_error("get_settings","internal_error","overflow"); }
+    if supports_text_pages(req) {
+        let note=br#"{"id":"showAuthorsNotes","name":"Show author's notes","kind":"toggle","description":"Enable to see the author's notes at the end of chapters (if they're there).","default":"false"},"#;
+        if !write_bytes(out,&mut n,note) { return write_error("get_settings","internal_error","overflow"); }
+    }
+    let rest=br#"{"id":"useMaxQuality","name":"Use maximum quality images","kind":"toggle","description":"Enable to load images in maximum quality.","default":"false"},{"id":"useSequentialNumbering","name":"Use sequential chapter numbering","kind":"toggle","description":"Enable to use sequential numbering instead of official episode numbers.","default":"false"}]}"#;
+    if !write_bytes(out,&mut n,rest) { return write_error("get_settings","internal_error","overflow"); }
+    write_success_payload("get_settings",n)
 }
 
 koma_source_sdk::koma_source_exports!("webtoons");

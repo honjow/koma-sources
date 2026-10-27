@@ -11,3 +11,9 @@ The Rust implementation is independently written and does not include upstream
 Kotlin code or assets. The upstream license applies to upstream code, not to
 WEBTOON content, marks, endpoints, or third-party comics. No comics are included.
 The separately obtained provider identity image is documented in ASSET_SOURCES.md.
+
+The optional quality, sequential-numbering and creator-note settings also use
+Keiyoushi tree 949dea252eb8e867b7b40834a26e13088764ff55 as a behavior reference
+(Webtoons.kt and the shared TextInterceptor helper), under Apache-2.0. The Rust
+source emits plain text descriptors for the existing host renderer and includes
+no upstream Kotlin renderer code.
