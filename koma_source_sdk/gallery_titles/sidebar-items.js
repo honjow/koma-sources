@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["display","enabled"]};
+window.SIDEBAR_ITEMS = {"fn":["display","display_short","enabled"]};
