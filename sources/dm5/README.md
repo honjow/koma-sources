@@ -1,4 +1,4 @@
-# 动漫屋 / DM5 0.1.20
+# 动漫屋 / DM5 0.1.21
 
 源 ID `com.dm5.koma`，语言 `zh`，NSFW 标记保持。普通网站及生产请求主站为 `https://www.dm5.cn`；中文显示名为动漫屋，英文身份仍为 DM5。图标身份与原字节见 [ASSET_SOURCES.md](ASSET_SOURCES.md)，不因设置接入更换素材或 App 样式。
 

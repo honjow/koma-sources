@@ -24,11 +24,11 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.dm5.koma",
     name: "DM5",
-    version: "0.1.20",
+    version: "0.1.21",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "DM5 HTML scraping source.",
+    description: "",
     content_rating: "nsfw",
 };
 
