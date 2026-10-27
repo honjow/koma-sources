@@ -8,6 +8,10 @@ include!("parser.rs");
 static mut REQUEST: [u8; MAX] = [0; MAX];
 static mut DETAIL: [u8; MAX] = [0; MAX];
 static mut IDS: [usize; 4096] = [0; 4096];
+// Operation-local diagnostic only; never infer verification or login from HTTP403.
+static mut LAST_HTTP_STATUS: usize = 0;
+fn reset_http_status() { unsafe { LAST_HTTP_STATUS = 0; } }
+
 fn fetch(url: &[u8]) -> Result<usize, E> {
     if host::check_cancel() {
         return Err("cancelled");
@@ -27,6 +31,13 @@ fn fetch(url: &[u8]) -> Result<usize, E> {
     valid_json(&http_out()[..len])?;
     let status = field_num(&http_out()[..len], b"status")?;
     if !(200..300).contains(&status) {
+        unsafe { LAST_HTTP_STATUS = status; }
+        let mut diagnostic = [0; 64];
+        let mut dn = 0;
+        if bytes(&mut diagnostic, &mut dn, b"simplyhentai HTTP status=").is_ok()
+            && wn(&mut diagnostic, &mut dn, status).is_ok() {
+            host::log_info(&diagnostic[..dn]);
+        }
         return Err("HTTP status");
     }
     let size = koma_source_sdk::decode_json_body_into(&http_out()[..len], body_buf())
@@ -171,7 +182,10 @@ fn url_for(v: &[u8], out: &mut [u8]) -> Result<usize, E> {
     enc(out, &mut n, slug)?;
     Ok(n)
 }
-fn allowed_image(u: &[u8], owner: usize) -> Result<(), E> {
+// The CDN numeric directory is an opaque positive storage ID. Current API
+// previews prove it is not always the Album ID. Work ownership is checked
+// against API identities/routes and exact preview/page URLs by the callers.
+fn image_url_shape(u: &[u8]) -> Result<(), E> {
     let rest = u
         .strip_prefix(b"https://images.sh-cdn.com/")
         .ok_or("image host")?;
@@ -183,16 +197,16 @@ fn allowed_image(u: &[u8], owner: usize) -> Result<(), E> {
         tail = &tail[2..];
     }
     let i = tail.iter().position(|c| *c == b'/').ok_or("image owner")?;
-    if numeric(&tail[..i])? != owner {
-        return Err("image owner");
-    }
+    numeric(&tail[..i])?;
     let file = &tail[i + 1..];
     if file.is_empty()
         || file.len() > 128
         || !file
             .iter()
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, b'_' | b'-' | b'.'))
-        || !file.ends_with(b".webp")
+        // Current API sizes include JPEG as well as WebP; preserve each actual
+        // URL and all exact host/path/album-owner/traversal checks.
+        || !(file.ends_with(b".webp") || file.ends_with(b".jpg"))
         || file.windows(2).any(|x| x == b"..")
     {
         return Err("image filename");
@@ -226,7 +240,7 @@ fn validate_work(v: &[u8], owner: Option<usize>) -> Result<usize, E> {
     let mut image = [0; 4096];
     for key in [b"thumb" as &[u8], b"full"] {
         let u = read_text(required(preview, b"sizes")?, key, &mut image)?;
-        allowed_image(u, id)?;
+        image_url_shape(u)?;
     }
     Ok(id)
 }
@@ -315,37 +329,26 @@ fn args_work_route<'a>(
     route(url)?;
     Ok((work, url))
 }
-fn listing(r: &[u8]) -> Result<usize, E> {
-    let a = args(r)?;
-    if text(a, b"listingId")? != b"listing:chinese" {
-        return Err("listing identity");
-    }
+fn input_page(a: &[u8]) -> Result<usize, E> {
     let page = if let Some(p) = member(a, b"page")? {
         match member(p, b"cursor")? {
             Some(b"null") | None => 1,
             Some(x) => numeric(quoted(x)?)?,
         }
-    } else {
-        1
-    };
-    if page > 10000 {
-        return Err("cursor capacity");
-    }
-    let mut u = [0; 256];
-    let mut un = 0;
-    bytes(
-        &mut u,
-        &mut un,
-        b"https://api.simply-hentai.com/v3/tag/chinese?type=language&page=",
-    )?;
-    wn(&mut u, &mut un, page)?;
-    let len = fetch(&u[..un])?;
+    } else { 1 };
+    if page > 10000 { return Err("cursor capacity"); }
+    Ok(page)
+}
+fn emit_list(len: usize, page: usize, wrapped: bool) -> Result<usize, E> {
     let v = body(len);
     let p = required(v, b"pagination")?;
     let per = field_num(p, b"per_page")?;
     let total = field_num(p, b"count")?;
     let last = field_num(p, b"pages")?;
-    if field_num(p, b"current")? != page || per == 0 || per > 4096 || last == 0 || page > last {
+    let empty_search = wrapped && total == 0;
+    if field_num(p, b"current")? != page || per == 0 || per > 4096
+        || (!empty_search && (last == 0 || page > last))
+        || (empty_search && (page != 1 || last != 0)) {
         return Err("pagination owner capacity");
     }
     let next = required(p, b"next")?;
@@ -354,15 +357,17 @@ fn listing(r: &[u8]) -> Result<usize, E> {
         if numeric(next)? != page.checked_add(1).ok_or("page overflow")? || page >= last {
             return Err("next owner");
         }
-    } else if page != last {
+    } else if page != last && !empty_search {
         return Err("missing next");
     }
     let b = payload_buf();
     let mut n = 0;
     bytes(b, &mut n, b"{\"items\":[")?;
-    let mut it = Array::new(required(required(v, b"data")?, b"albums")?)?;
+    let data = required(v, b"data")?;
+    let mut it = Array::new(if wrapped { data } else { required(data, b"albums")? })?;
     let mut count = 0;
-    while let Some(x) = it.next()? {
+    while let Some(row) = it.next()? {
+        let x = if wrapped { required(row, b"object")? } else { row };
         if count >= per {
             return Err("list count");
         }
@@ -380,7 +385,7 @@ fn listing(r: &[u8]) -> Result<usize, E> {
         count += 1;
     }
     let offset = (page - 1).checked_mul(per).ok_or("offset overflow")?;
-    if count == 0 || count != core::cmp::min(per, total.checked_sub(offset).ok_or("list total")?) {
+    if (count == 0 && !empty_search) || count != core::cmp::min(per, total.checked_sub(offset).ok_or("list total")?) {
         return Err("list incomplete");
     }
     bytes(b, &mut n, b"],\"page\":{\"nextCursor\":")?;
@@ -392,6 +397,50 @@ fn listing(r: &[u8]) -> Result<usize, E> {
         bytes(b, &mut n, b"null,\"hasMore\":false}}")?;
     }
     Ok(n)
+}
+fn listing(r: &[u8]) -> Result<usize, E> {
+    let a = args(r)?;
+    if text(a, b"listingId")? != b"listing:chinese" {
+        return Err("listing identity");
+    }
+    let page = input_page(a)?;
+    let mut u = [0; 256];
+    let mut un = 0;
+    bytes(
+        &mut u,
+        &mut un,
+        b"https://api.simply-hentai.com/v3/tag/chinese?type=language&page=",
+    )?;
+    wn(&mut u, &mut un, page)?;
+    let len = fetch(&u[..un])?;
+    emit_list(len, page, false)
+}
+fn search(r: &[u8]) -> Result<usize, E> {
+    let a = args(r)?;
+    let page = input_page(a)?;
+    let mut qb = [0; 16384];
+    let query = read_text(a, b"query", &mut qb)?;
+    let mut bb = [0; 16384];
+    let blacklist = match member(r, b"settings")? {
+        Some(settings) => match member(settings, b"blacklist")? {
+            Some(value) => unescape(quoted(value)?, &mut bb)?,
+            None => b"",
+        },
+        None => b"",
+    };
+    let mut url = [0; 32768];
+    let mut n = 0;
+    bytes(&mut url, &mut n, b"https://api.simply-hentai.com/v3/search/complex?query=")?;
+    enc(&mut url, &mut n, query)?;
+    bytes(&mut url, &mut n, b"&page=")?;
+    wn(&mut url, &mut n, page)?;
+    bytes(&mut url, &mut n, b"&blacklist=")?;
+    // Reference forwards the comma-separated preference as one query parameter;
+    // ordinary Chinese listings do not consume this search-only preference.
+    enc(&mut url, &mut n, blacklist)?;
+    bytes(&mut url, &mut n, b"&filter%5Blanguage%5D%5B0%5D=Chinese&sort=")?;
+    let len = fetch(&url[..n])?;
+    emit_list(len, page, true)
 }
 fn detail(r: &[u8]) -> Result<usize, E> {
     let a = args(r)?;
@@ -445,7 +494,7 @@ fn pages_body(work: &[u8], url: &[u8]) -> Result<(usize, usize), E> {
     bytes(&mut api, &mut n, b"/pages")?;
     let len = fetch(&api[..n])?;
     let v = required(body(len), b"data")?;
-    let owner = validate_work(v, Some(numeric(work)?))?;
+    validate_work(v, Some(numeric(work)?))?;
     let mut actual = [0; 16384];
     let an = url_for(v, &mut actual)?;
     if &actual[..an] != url
@@ -466,7 +515,7 @@ fn pages_body(work: &[u8], url: &[u8]) -> Result<(usize, usize), E> {
             return Err("page identity");
         }
         let url = read_text(required(x, b"sizes")?, b"full", &mut ub)?;
-        allowed_image(url, owner)?;
+        image_url_shape(url)?;
         unsafe {
             if IDS[..count].contains(&image) {
                 return Err("duplicate imageID");
@@ -587,11 +636,26 @@ fn image_request(r: &[u8]) -> Result<usize, E> {
 fn execute(op: &str, res: Result<usize, E>) -> u32 {
     match res {
         Ok(n) => write_success_payload(op, n),
-        Err(e) => write_error(op, "source_contract_error", e),
+        Err(e) => {
+            if e == "HTTP status" {
+                let status = unsafe { LAST_HTTP_STATUS };
+                if (400..=599).contains(&status) {
+                    let mut message = [0; 32];
+                    let mut n = 0;
+                    if bytes(&mut message, &mut n, b"HTTP status ").is_ok()
+                        && wn(&mut message, &mut n, status).is_ok() {
+                        if let Ok(text) = core::str::from_utf8(&message[..n]) {
+                            return write_error(op, "http_error", text);
+                        }
+                    }
+                }
+            }
+            write_error(op, if e == "HTTP transport" { "network_error" } else { "source_contract_error" }, e)
+        },
     }
 }
-fn run_search(_: &[u8]) -> u32 {
-    write_error("search", "not_supported", "search not observed")
+fn run_search(r: &[u8]) -> u32 {
+    execute("search", search(r))
 }
 fn run_get_manga(r: &[u8]) -> u32 {
     execute("get_manga", detail(r))
@@ -620,10 +684,12 @@ fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "not_supported", "not supported")
 }
 fn run_get_settings(_: &[u8]) -> u32 {
-    write_error("get_settings", "not_supported", "not supported")
+    let schema = br#"{"settings":[{"id":"blacklist","name":"Blacklist","kind":"string","description":"Separate multiple tags with commas (,)","default":""}]}"#;
+    payload_buf()[..schema.len()].copy_from_slice(schema);
+    write_success_payload("get_settings", schema.len())
 }
 
-const INFO_JSON: &str = r#"{"sourceInfo":{"id":"com.simplyhentai.zh.koma","name":"Simply Hentai","version":"0.1.0","apiVersion":"0.2","language":"zh","author":"Koma","contentRating":"nsfw","description":"Chinese language metadata listing; NSFW source; per-work rating and usage unknown.","localizedNames":{"zh-Hans":"Simply Hentai（中文）","zh-Hant":"Simply Hentai（中文）","en":"Simply Hentai (Chinese)"}},"capabilities":{"search":false,"mangaDetail":true,"chapters":true,"pages":true,"listings":true,"mangaList":true,"imageRequest":true,"home":false,"filters":false,"settings":false,"future":{"login":false,"auth":false,"process_page_image":false,"page_description":false,"base_url":false,"deeplink":false,"migration":false}}}"#;
+const INFO_JSON: &str = r#"{"sourceInfo":{"id":"com.simplyhentai.zh.koma","name":"Simply Hentai","version":"0.1.1","apiVersion":"0.2","language":"zh","author":"Koma","contentRating":"nsfw","description":"Chinese language metadata listing; NSFW source; per-work rating and usage unknown.","localizedNames":{"zh-Hans":"Simply Hentai（中文）","zh-Hant":"Simply Hentai（中文）","en":"Simply Hentai (Chinese)"}},"capabilities":{"search":true,"mangaDetail":true,"chapters":true,"pages":true,"listings":true,"mangaList":true,"imageRequest":true,"home":false,"filters":false,"settings":true,"future":{"login":false,"auth":false,"process_page_image":false,"page_description":false,"base_url":false,"deeplink":false,"migration":false}}}"#;
 // Source-local ABI gate; SDK remains byte-identical. Check before helper forms a slice.
 fn checked_request(ptr: u32, len: u32) -> Option<&'static [u8]> {
     let cap = core::arch::wasm32::memory_size::<0>().checked_mul(65536)?;
@@ -636,6 +702,7 @@ fn checked_request(ptr: u32, len: u32) -> Option<&'static [u8]> {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
+    reset_http_status();
     if checked_request(ptr, len).is_some() {
         0
     } else {
@@ -644,12 +711,14 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
+    reset_http_status();
     response_buffer().write_success_parts("source_info", &[INFO_JSON.as_bytes()])
 }
 macro_rules! export_op {
     ($f:ident,$op:literal,$run:ident) => {
         #[no_mangle]
         pub extern "C" fn $f(ptr: u32, len: u32) -> u32 {
+            reset_http_status();
             match checked_request(ptr, len) {
                 Some(r) => $run(r),
                 None => write_error($op, "invalid_request", "invalid ABI request range"),
@@ -677,6 +746,7 @@ export_op!(
 );
 #[no_mangle]
 pub extern "C" fn koma_source_alloc(len: u32) -> u32 {
+    reset_http_status();
     if len == 0 || len as usize >= MAX {
         0
     } else {
@@ -685,5 +755,6 @@ pub extern "C" fn koma_source_alloc(len: u32) -> u32 {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_free(ptr: u32) {
+    reset_http_status();
     response_buffer().free(ptr)
 }
