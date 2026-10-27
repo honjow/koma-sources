@@ -1,6 +1,6 @@
 # Comic Fury (Chinese) source
 
-Stable identity `com.comicfury.zh.koma`, version `0.1.4`, language `zh`, canonical origin `https://comicfury.com`. MIXED remains conservatively mapped to `nsfw=true`; this does not label every comic as adult. Source behavior follows the retained Keiyoushi ComicFury implementation and the fixed settings reference `949dea252eb8e867b7b40834a26e13088764ff55`.
+Stable identity `com.comicfury.zh.koma`, version `0.1.5`, language `zh`, canonical origin `https://comicfury.com`. MIXED remains conservatively mapped to `nsfw=true`; this does not label every comic as adult. Source behavior follows the retained Keiyoushi ComicFury implementation and the fixed settings reference `949dea252eb8e867b7b40834a26e13088764ff55`.
 
 ## Public behavior
 

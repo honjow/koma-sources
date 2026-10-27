@@ -10,7 +10,7 @@ const BASE: &[u8] = b"https://comicfury.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.comicfury.zh.koma",
     name: "Comic Fury",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -1355,7 +1355,7 @@ fn run_get_filters(_: &[u8]) -> u32 {
 }
 fn run_get_settings(r: &[u8]) -> u32 {
     let d = if supports_notes(r) {
-        "{\"settings\":[{\"id\":\"showAuthorsNotes\",\"name\":\"显示作者附言\",\"kind\":\"toggle\",\"default\":\"false\"}]}".as_bytes()
+        "{\"settings\":[{\"id\":\"showAuthorsNotes\",\"name\":\"显示作者附言\",\"kind\":\"toggle\",\"description\":\"在章节末尾显示作者附言（如有）\",\"default\":\"false\"}]}".as_bytes()
     } else {
         b"{\"settings\":[]}".as_slice()
     };
