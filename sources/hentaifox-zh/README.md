@@ -1,15 +1,19 @@
-The business-only recovery preserved the original 0.1.0 business and metadata without an icon. On 2026-10-20 the retained installed-package 16x16 official favicon PNG was restored to this primary source tree under the current icon-resource task. It matches the original format/dimensions/length declared in NOTICE and was not resized, repainted, cropped or masked. It remains too low-resolution for the quality goal. Standard packaging is not registered; historical 197 installation/no-clear cold evidence remains separate, and source reading/download/current-SDK Native remain unaccepted. Original documentation follows as history.
+# HentaiFox（中文）0.1.2
 
-# HentaiFox Chinese
+独立源身份 `com.hentaifox.zh.koma`，API 0.2。保留现有匿名中文画廊元数据、详情、单章及页面接口；能力声明不代表当前上游或所有正文已可用。成人或混合内容源分级、作品实际值/未知合同保持，语言不改变分级。
 
-Independent com.hentaifox.zh.koma 0.1.0 / API 0.2 / zh. minAppVersion 0.1.1. NSFW source; per-work rating and actual usage unknown. Chinese provider declaration (language code 6) is not proof of Chinese image text.
+## 短标题设置
 
-Supports published Chinese popular list, normalized basic search, gallery detail, one unnumbered album chapter, strict static ordered page descriptors and source-owned image requests. No latest, settings, accounts, favorites, sidebar POST, CSRF, scripts, retries or cross-language fallback. Missing/malformed descriptor JSON fails; no thumbnails-loader fallback or dummy pages. All source HTML and JSON stay below existing 1MiB host boundary.
+`pref_short_title`（Display Short Titles）默认关闭，保原长标题及请求合同。显式开启时，列表和详情按固定GalleryAdults表达式 `(\[[^]]*]|[({][^)}]*[)}])` 删除标签并沿Kotlin.trim修剪；详情附 `**Full title**:` 保留完整标题。状态说明沿参考为Showing Long Titles / Showing short Titles。章节名、ID、顺序、页表和图像URL不随此显示设置改变，不主动改写库内旧标题。
 
-Retained contract: popular 20 declared-Chinese cards and actual next P2 (P2 unrequested), Kurenai search 3 raw cards / 1 Chinese card, Master Piece search genuine 0 results, gallery 75170 static JSON keys 1..203, first reader descriptor matching derived first URL. No manga image bytes requested. Covers, reading, downloads and pagination remain unverified; current icon installation and appearance are recorded below.
+四源复用SDK唯一有界 `gallery_titles::display`，仅匹配上述固定分隔规则，不支持任意正则，不引入正则引擎或动态分配。非标签Unicode原字节保留；允许混合闭符是参考实际语义，不改成嵌套配对解析。未配置、false和错误作用域不清理。
 
-Historical 0.1.0 used the unmodified official 16x16 PNG favicon. Current icon is the restoration described below.
+## 提供方与权限边界
 
-## 0.1.1 identity restoration
+实际中文语言码6筛选、原查询规范化和下一页；单一未编号画廊章，完整静态页面描述，不加loader回退。 原完整分页、归属、UTF8/JSON、ABI指针和容量守卫保持；失败不发布截断或伪空结果。不登录、不提交账号/Cookie，不加UA、域名、重试或脚本回退。图像、封面与完整正文按具体证据分别记录；受控DOM/HTTP ABI回放和构建不冒当前站点或正文成功。
 
-Icon-only high-resolution restoration based on the official tiny H/fox identity and a clearer matching third-party reference; see NOTICE for exact provenance. Generated artwork is not an official high-resolution original or a pure vector. Package version changes only to deliver the new icon; provider operations and App clipping/slot/order remain unchanged. Device197 ALN-AL80, portrait 1260×2720: ordinary local import of 0.1.1 succeeded; Root inspected the new H/fox mark in both package management and Browse. The identity is clear in the existing small slot; 79 enabled sources and the surrounding order remain. Evidence: Koma `.hvigor/outputs/user-flow-audit/device197__ALN-AL80/not-applicable/portrait-1260x2720/source-icons/hentaifox011-manager-and-browse-001/manager.png` and `hentaifox011-browse-visible-003/browse.png`. This accepts only these two icon consumers, not source reading/download availability.
+## 图标与许可
+
+当前图标为512像素H/狐标记的已采用高清还原，参考官网16像素标识及扩展同身份，不声称官方发布高清资源。 本设置修复不改变资源或App外观。
+
+原公开合同独立适配自Apache-2.0 Keiyoushi `1319949ca9bc456908196e3ba2d104e94182c5d6`；短标题偏好及共同GalleryAdults消费者依据固定 `949dea252eb8e867b7b40834a26e13088764ff55`。当前归属及许可见 `NOTICE` 和 `LICENSE`，不宣称站点从属关系或内容所有权。

@@ -1,26 +1,19 @@
-# AsmHentai Chinese independent source candidate
+# AsmHentai（中文）0.1.2
 
-Stable ID com.asmhentai.zh.koma, version0.1.1, API0.2, languagezh; formal warning3/nsfw true. Provider per-work rating remainsunknown; non-h is not an allages override. Usageunknown.
+独立源身份 `com.asmhentai.zh.koma`，API 0.2。保留现有匿名中文画廊元数据、详情、单章及页面接口；能力声明不代表当前上游或所有正文已可用。成人或混合内容源分级、作品实际值/未知合同保持，语言不改变分级。
 
-Published anonymous Chinese popular and query pages are filtered by each actual Chinese flag; no nonChinese-first-card or speechless fallback. Query-bound actual Next cursor; single gallery chapter with null chapter/volume number. Detail10+published loader remaining56 actual metadata gives66 unique ordered URLs for retained419851. OriginalURLs use published thumbnailToFull; no dummy/sequential generation or incomplete success. First actual readerHTML matches original1.jpg. No work image binary retrieved, no visual/safety/availability or native acceptance claim.
+## 短标题设置
 
-The historical official49x35 logo remains byte-exact as official-header-logo-original.png; current icon delivery is described below. SDK/App/Reader unchanged, no login/cookies/challenge/retry/JS. Source-local buffers/UTF8/JSON/ABI/membership/capacity checks fail explicitly. Otherbooks/pages/rating, live metadata changes, device integration and rendered language remainOPEN. Root owns197 validation.
+`pref_short_title`（Display Short Titles）默认关闭，保原长标题及请求合同。显式开启时，列表和详情按固定GalleryAdults表达式 `(\[[^]]*]|[({][^)}]*[)}])` 删除标签并沿Kotlin.trim修剪；详情附 `**Full title**:` 保留完整标题。状态说明沿参考为Showing Long Titles / Showing short Titles。章节名、ID、顺序、页表和图像URL不随此显示设置改变，不主动改写库内旧标题。
 
+四源复用SDK唯一有界 `gallery_titles::display`，仅匹配上述固定分隔规则，不支持任意正则，不引入正则引擎或动态分配。非标签Unicode原字节保留；允许混合闭符是参考实际语义，不改成嵌套配对解析。未配置、false和错误作用域不清理。
 
-## Source-tree recovery boundary
+## 提供方与权限边界
 
-The original implementation and dated stage notes above remain preserved. The business-only recovery used the current canonical SDK without artwork. On 2026-10-20 the existing installed-package official icon was restored to this primary source tree; the original declared provenance above remains, with no new network request, image processing, hash check, version change or business change. Standard-package registration and new HTTP/native acceptance remain separate. Low resolution or narrow wordmark suitability is still OPEN.
+每卡中文旗标过滤、查询绑定下一页、单一未编号画廊章和完整loader页表。 原完整分页、归属、UTF8/JSON、ABI指针和容量守卫保持；失败不发布截断或伪空结果。不登录、不提交账号/Cookie，不加UA、域名、重试或脚本回退。图像、封面与完整正文按具体证据分别记录；受控DOM/HTTP ABI回放和构建不冒当前站点或正文成功。
 
-## 2026-10-22 retained official PNG embedded original
+## 图标与许可
 
-A read-only inspection of the existing official49×35 PNG found an embedded256×183 JPEG in its original EXIF IFD1 (JPEGInterchangeFormat offset358, JPEGInterchangeFormatLength7529). The7529B JPEG was extracted as original bytes, without decoding/reencoding, to Koma `.hvigor/outputs/user-flow-audit/asm-official-png-embedded-thumbnail.jpg`. Its AH/left-side character identity was visually checked against the current image; it is a larger retained resource inside the already bound official PNG, not a new website fetch or generated redraw. It includes an opaque black composite background; transparent-edge suitability/adoption was subsequently rejected below. The original PNG's main image/metadata, source version and package are unchanged, and the denied homepage and rejected generated candidates were not retried or reused.
+当前图标为744×597透明AH几何重建；官网AH拓扑的已采用近似重建，并非官方高清原件。 本设置修复不改变资源或App外观。
 
-One conservative native-size background-separation candidate was evaluated as `Koma/.hvigor/outputs/user-flow-audit/asm-embedded-background-cleanup-candidate.png` (256×183). The49px alpha was used only to distinguish background components from real dark character details, never enlarged into an edge mask. Exterior/H openings/A counters were separated with local black-matte edge recovery; the original frame, AH/white outline and character remained. White-background inspection still showed small grey counter specks, and transparent preview exposed JPEG colour fringe at the character edge. Root independently reviewed and rejected the candidate for red/green character-edge fringe and residual dots in the A counter/lower negative space. The candidate is retained as failed/not adopted; no source asset/version/package/device change followed. A clean high-resolution original alpha remains missing; the larger JPEG alone does not solve that boundary.
-
-This embedded-JPEG cleanup branch is closed at that rejection. Keep the existing49px PNG and failed candidate; do not retune thresholds, redraw, or enlarge the low-resolution alpha mask. Reopening requires a clean higher-resolution original alpha or a new independently reviewed identity resource.
-
-## 0.1.1 approved AH-only geometric identity
-
-The user explicitly accepted `asm-ah-geometric-candidate.png/.svg`: only the complete AH letter layer, omitting the character. Current `icon.png` is that unchanged744×597 transparent candidate and `ah-identity-reconstruction.svg` is its maintainable input. The old official49×35PNG, including its embedded original, remains byte-exact as `official-header-logo-original.png`.
-
-The candidate expresses the discernible connected AH topology with ideal straight/slanted edges, an enclosed A counter, open H negative spaces, smooth corners, grey gradient and native white outline. It is a2D approximate reconstruction, not an official high-resolution original, exact font restoration or enlarged pixel tracing. No generated character, background-separation rejection or image-generated whole-logo draft is reused; no new plate/shadow/mask is added. This explicit AH-only adoption is separate from the closed embedded-JPEG cleanup branch. Version0.1.0→0.1.1 only enables resource update delivery; provider code changes only SOURCE_INFO.version, with Cargo/lock aligned. Metadata, requests, identity/chapter/page behavior and App slot/radius are unchanged. Offline/locked single-source compilation and actual WASM info0.1.1 passed. The39570B standard package contains only manifest.json(477B), source.wasm(59689B) and icon.png(22488B), with registered nsfw=true/contentRating=nsfw/minAppVersion0.1.1 and original localized metadata. Original PNG/candidate preservation and icon validation passed without hashes; dist/index was not changed. Ordinary Native icon acceptance is pending Root's237 review; the latest58-source registry did not contain this source, so that path must be recorded as first installation if the current device confirms the same baseline.
+原公开合同独立适配自Apache-2.0 Keiyoushi `1319949ca9bc456908196e3ba2d104e94182c5d6`；短标题偏好及共同GalleryAdults消费者依据固定 `949dea252eb8e867b7b40834a26e13088764ff55`。当前归属及许可见 `NOTICE` 和 `LICENSE`，不宣称站点从属关系或内容所有权。

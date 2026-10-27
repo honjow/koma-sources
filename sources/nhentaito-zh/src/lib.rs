@@ -9,7 +9,7 @@ const WEB: &[u8] = b"https://nhentai.to";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.nhentaito.zh.koma",
     name: "NHentai.to",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -669,13 +669,15 @@ fn cover<'a>(d: HtmlDescriptor, b: &'a mut [u8]) -> R<&'a [u8]> {
     };
     Ok(s)
 }
-fn emit_work(o: &mut [u8], n: &mut usize, id: &[u8], t: &[u8], c: &[u8]) -> R<()> {
+fn emit_work(o: &mut [u8], n: &mut usize, id: &[u8], t: &[u8], c: &[u8], req: &[u8]) -> R<()> {
     let mut u = [0; 512];
     let url = work_url(id, &mut u)?;
     bytes(o, n, b"{\"id\":\"nht:zh:")?;
     bytes(o, n, id)?;
     bytes(o, n, b"\",\"title\":")?;
-    q(o, n, t)?;
+    let mut shortened = [0; 4096];
+    let shown = koma_source_sdk::gallery_titles::display(req, t, &mut shortened)?;
+    q(o, n, shown)?;
     bytes(o, n, b",\"url\":")?;
     q(o, n, url)?;
     bytes(o, n, b",\"cover\":{\"kind\":\"url\",\"url\":")?;
@@ -767,7 +769,7 @@ fn listing(r: &[u8]) -> R<usize> {
         if i > 0 {
             bytes(o, &mut n, b",")?
         };
-        emit_work(o, &mut n, id, t, url)?
+        emit_work(o, &mut n, id, t, url, r)?
     }
     bytes(o, &mut n, b"],\"page\":{\"hasMore\":")?;
     bytes(o, &mut n, if nxt.is_some() { b"true" } else { b"false" })?;
@@ -796,7 +798,7 @@ fn detail(r: &[u8]) -> R<usize> {
     let o = payload_buf();
     let mut n = 0;
     bytes(o, &mut n, b"{\"manga\":")?;
-    emit_work(o, &mut n, id, t, c)?;
+    emit_work(o, &mut n, id, t, c, r)?;
     n -= 1;
     bytes(o, &mut n, b",\"status\":\"unknown\",\"authors\":[")?;
     for i in 0..authors.len {
@@ -816,6 +818,10 @@ fn detail(r: &[u8]) -> R<usize> {
         b"],\"description\":\"Provider language: Chinese; Pages: ",
     )?;
     wn(o, &mut n, total)?;
+    if koma_source_sdk::gallery_titles::enabled(r) {
+        bytes(o, &mut n, br"\n\n**Full title**: ")?;
+        if !append_json_escaped(o, &mut n, t) { return Err("payload overflow"); }
+    }
     bytes(o, &mut n, b"\",\"tags\":[")?;
     for i in 0..tags.len {
         if i > 0 {
@@ -1189,8 +1195,15 @@ fn run_get_home(_: &[u8]) -> u32 {
 fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "not_implemented", "unsupported")
 }
-fn run_get_settings(_: &[u8]) -> u32 {
-    write_error("get_settings", "not_implemented", "unsupported")
+fn run_get_settings(req: &[u8]) -> u32 {
+    let prefix = br#"{"settings":[{"id":"pref_short_title","name":"Display Short Titles","kind":"toggle","default":"false","description":""#;
+    let state = if koma_source_sdk::gallery_titles::enabled(req) { b"Showing short Titles".as_slice() } else { b"Showing Long Titles".as_slice() };
+    let out = payload_buf();
+    let mut n = 0;
+    if !(write_bytes(out, &mut n, prefix) && write_bytes(out, &mut n, state) && write_bytes(out, &mut n, br#""}]}"#)) {
+        return write_error("get_settings", "internal_error", "payload overflow");
+    }
+    write_success_payload("get_settings", n)
 }
 fn checked_request(ptr: u32, len: u32) -> Option<&'static [u8]> {
     let cap = core::arch::wasm32::memory_size::<0>().checked_mul(65536)?;
@@ -1211,7 +1224,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
-    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.nhentaito.zh.koma\",\"name\":\"NHentai.to\",\"version\":\"0.1.2\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"NHentai.to 中文漫画目录源。\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"NHentai.to（中文）\",\"zh-Hant\":\"NHentai.to（中文）\",\"en\":\"NHentai.to (Chinese)\"}},\"capabilities\":{\"search\":false,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":false,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
+    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.nhentaito.zh.koma\",\"name\":\"NHentai.to\",\"version\":\"0.1.3\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"NHentai.to 中文漫画目录源。\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"NHentai.to（中文）\",\"zh-Hant\":\"NHentai.to（中文）\",\"en\":\"NHentai.to (Chinese)\"}},\"capabilities\":{\"search\":false,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
 }
 macro_rules! export_op {
     ($f:ident,$op:literal,$run:ident) => {

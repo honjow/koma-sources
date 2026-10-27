@@ -1,5 +1,7 @@
 #![cfg_attr(not(test), no_std)]
 
+pub mod gallery_titles;
+
 pub mod host {
     pub const LOG_INFO: u32 = 1;
 

@@ -10,7 +10,7 @@ type E = &'static str;
 type R<T> = Result<T, E>;
 const MAX: usize = 1048576;
 const WEB: &[u8] = b"https://asmhentai.com";
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.asmhentai.zh.koma",name:"AsmHentai",version:"0.1.1",api_version:"0.2",language:"zh",author:"Koma",description:"AsmHentai provider Chinese catalogue; per-work rating and usage unknown. Anonymous published metadata only.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.asmhentai.zh.koma",name:"AsmHentai",version:"0.1.2",api_version:"0.2",language:"zh",author:"Koma",description:"AsmHentai provider Chinese catalogue; per-work rating and usage unknown. Anonymous published metadata only.",content_rating:"nsfw"};
 #[allow(dead_code)]
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
@@ -22,7 +22,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     image_request: true,
     home: false,
     filters: false,
-    settings: false,
+    settings: true,
     credentials: false,
 };
 koma_source_sdk::koma_source_buffers! {payload:1048000,http_out:MAX,body:MAX,http_req:32768,scratch:8192,}
@@ -600,12 +600,14 @@ fn safe_text<'a>(d: HtmlDescriptor, s: &[u8], b: &'a mut [u8]) -> R<&'a [u8]> {
     };
     Ok(t)
 }
-fn emit_card(out: &mut [u8], n: &mut usize, d: HtmlDescriptor) -> R<usize> {
+fn emit_card(out: &mut [u8], n: &mut usize, d: HtmlDescriptor, req: &[u8]) -> R<usize> {
     let mut h = [0; 256];
     let id = work_href(sa(d, b".image a", b"href", &mut h)?)?;
     let wid = number(id).ok_or("work number")?;
     let mut title = [0; 4096];
     let title = safe_text(d, b".caption", &mut title)?;
+    let mut shortened = [0; 4096];
+    let title = koma_source_sdk::gallery_titles::display(req, title, &mut shortened)?;
     let image = child(d, b".image img")?;
     let mut raw = [0; 1024];
     let mut cover = [0; 1024];
@@ -698,7 +700,7 @@ fn list(r: &[u8], search: bool) -> R<usize> {
         if count > 0 {
             bytes(out, &mut n, b",")?
         };
-        emit_card(out, &mut n, d)?;
+        emit_card(out, &mut n, d, r)?;
         count += 1;
     }
     let next = All::new(
@@ -781,6 +783,9 @@ fn detail(r: &[u8], chapters: bool) -> R<usize> {
         )?;
         return Ok(n);
     };
+    let full_title = title;
+    let mut shortened = [0; 4096];
+    let title = koma_source_sdk::gallery_titles::display(r, title, &mut shortened)?;
     let im = child(book.0, b".cover img")?;
     let mut raw = [0; 1024];
     let mut ab = [0; 1024];
@@ -814,10 +819,16 @@ fn detail(r: &[u8], chapters: bool) -> R<usize> {
         let mut b = [0; 1024];
         q(out, &mut n, tag_name(txt(artists.at(i), &mut b)?))?
     }
+    bytes(out, &mut n, b"]")?;
+    if koma_source_sdk::gallery_titles::enabled(r) {
+        bytes(out, &mut n, b",\"description\":\"**Full title**: ")?;
+        if !append_json_escaped(out, &mut n, full_title) { return Err("payload overflow"); }
+        bytes(out, &mut n, b"\"")?;
+    }
     bytes(
         out,
         &mut n,
-        b"],\"links\":[{\"kind\":\"source\",\"url\":\"https://asmhentai.com/g/",
+        b",\"links\":[{\"kind\":\"source\",\"url\":\"https://asmhentai.com/g/",
     )?;
     bytes(out, &mut n, id)?;
     bytes(out, &mut n, b"/\"}]}}")?;
@@ -1067,13 +1078,20 @@ fn run_get_listings(_: &[u8]) -> u32 {
 fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_supported", "not supported")
 }
-fn run_get_settings(_: &[u8]) -> u32 {
-    write_error("get_settings", "not_supported", "not supported")
+fn run_get_settings(req: &[u8]) -> u32 {
+    let prefix = br#"{"settings":[{"id":"pref_short_title","name":"Display Short Titles","kind":"toggle","default":"false","description":""#;
+    let state = if koma_source_sdk::gallery_titles::enabled(req) { b"Showing short Titles".as_slice() } else { b"Showing Long Titles".as_slice() };
+    let out = payload_buf();
+    let mut n = 0;
+    if !(write_bytes(out, &mut n, prefix) && write_bytes(out, &mut n, state) && write_bytes(out, &mut n, br#""}]}"#)) {
+        return write_error("get_settings", "internal_error", "payload overflow");
+    }
+    write_success_payload("get_settings", n)
 }
 fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "not_supported", "not supported")
 }
-// Source-local ABI gate; SDK remains byte-identical. Check before helper forms a slice.
+// Source-local ABI gate. Check before the SDK helper forms a slice.
 fn checked_request(ptr: u32, len: u32) -> Option<&'static [u8]> {
     let cap = core::arch::wasm32::memory_size::<0>().checked_mul(65536)?;
     let start = ptr as usize;
@@ -1095,7 +1113,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 pub extern "C" fn koma_source_info() -> u32 {
     response_buffer().write_success_parts("source_info", &[
  b"{\"sourceInfo\":{\"id\":\"", SOURCE_INFO.id.as_bytes(), b"\",\"name\":\"", SOURCE_INFO.name.as_bytes(), b"\",\"version\":\"", SOURCE_INFO.version.as_bytes(), b"\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"",SOURCE_INFO.description.as_bytes(),
- "\",\"contentRating\":\"nsfw\",\"localizedNames\":{\"zh-Hans\":\"AsmHentai（中文）\",\"zh-Hant\":\"AsmHentai（中文）\",\"en\":\"AsmHentai (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":false,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes()
+ "\",\"contentRating\":\"nsfw\",\"localizedNames\":{\"zh-Hans\":\"AsmHentai（中文）\",\"zh-Hant\":\"AsmHentai（中文）\",\"en\":\"AsmHentai (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes()
  ])
 }
 macro_rules! export_op {
