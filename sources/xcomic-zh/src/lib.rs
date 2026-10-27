@@ -6,6 +6,8 @@ use regex::Regex;
 use alloc::{string::{String,ToString},vec::Vec,collections::{BTreeMap,BTreeSet}};
 #[path = "../chapter_editions.rs"]
 mod chapter_editions;
+#[path = "../probe_batches.rs"]
+mod probe_batches;
 // Independent modified adaptation of XCOMIC published JSON contract, Apache-2.0.
 // Keiyoushi primary1319949ca9bc456908196e3ba2d104e94182c5d6. No auth/premium fallback.
 use koma_source_sdk::{
@@ -16,7 +18,7 @@ use koma_source_sdk::{
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.xcomic.zh.koma",
     name: "XCOMIC",
-    version: "0.1.5",
+    version: "0.1.6",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -820,21 +822,28 @@ fn query(qry: &[u8], vars: &[u8]) -> Result<&'static [u8], E> {
         fetch(&POST_BODY[..n])
     }
 }
+fn append_http_request(b: &mut [u8], n: &mut usize, post: &[u8]) -> Result<(), E> {
+    bytes(b,n,b"{\"version\":1,\"method\":\"POST\",\"url\":\"https://xcomic.me/query/\",\"headers\":{\"User-Agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0\",\"Referer\":\"https://xcomic.me/\",\"Origin\":\"https://xcomic.me\",\"Content-Type\":\"application/json\"},\"timeoutMs\":15000,\"responseKind\":\"bodyText\",\"bodyBase64\":")?;
+    q(b, n, post)?;
+    bytes(b, n, b"}")?;
+    Ok(())
+}
 fn fetch(post: &[u8]) -> Result<&'static [u8], E> {
     if host::check_cancel() {
         return Err("cancelled");
     };
     let b = http_req_buf();
     let mut n = 0;
-    bytes(b,&mut n,b"{\"version\":1,\"method\":\"POST\",\"url\":\"https://xcomic.me/query/\",\"headers\":{\"User-Agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0\",\"Referer\":\"https://xcomic.me/\",\"Origin\":\"https://xcomic.me\",\"Content-Type\":\"application/json\"},\"timeoutMs\":15000,\"responseKind\":\"bodyText\",\"bodyBase64\":")?;
-    q(b, &mut n, post)?;
-    bytes(b, &mut n, b"}")?;
+    append_http_request(b, &mut n, post)?;
     let len = host::http_request(&b[..n], http_out()).map_err(|_| "network failure")?;
     if len == 0 || len > 2 * MAX {
         return Err("HTTP response capacity exceeded");
     };
     let resp =
         unsafe { core::slice::from_raw_parts(core::ptr::addr_of!(HTTP_OUT) as *const u8, len) };
+    decode_http_response(resp)
+}
+fn decode_http_response(resp: &[u8]) -> Result<&'static [u8], E> {
     valid_json(resp)?;
     if member(resp, b"ok")? != Some(b"true".as_slice()) {
         return Err("network failure");
@@ -910,7 +919,25 @@ fn live_zh(probe: &[u8]) -> Result<bool, E> {
     let state = optional_text(probe, b"dbStatus")?;
     Ok(public == b"true" && state == Some(b"normal".as_slice()) && lang == Some(b"zh".as_slice()))
 }
-fn resolve(title: &[u8]) -> Result<usize, E> {
+fn accept_probe(cid: Identity, data: &[u8], good: &mut usize) -> Result<(), E> {
+    let node = required(data, b"get_comicNode")?;
+    if node == b"null" {
+        return Err("edition missing");
+    };
+    if text(node, b"id")? != cid.as_bytes() {
+        return Err("edition identity mismatch");
+    };
+    let probe = required(node, b"data")?;
+    if probe == b"null" {
+        return Err("edition missing");
+    };
+    if live_zh(probe)? {
+        unsafe { EDITIONS[*good] = edition(cid, probe)? };
+        *good += 1
+    }
+    Ok(())
+}
+fn resolve(title: &[u8], req: &[u8]) -> Result<usize, E> {
     let mut a = Array::new(required(title, b"comic_ids")?)?;
     let mut count = 0;
     while let Some(v) = a.next()? {
@@ -927,23 +954,18 @@ fn resolve(title: &[u8]) -> Result<usize, E> {
         count += 1
     }
     let mut good = 0;
-    for i in 0..count {
-        let cid = unsafe { IDS[i] };
-        let data = query(COMIC_PROBE_QUERY, vars_id(cid.as_bytes())?)?;
-        let node = required(data, b"get_comicNode")?;
-        if node == b"null" {
-            return Err("edition missing");
-        };
-        if text(node, b"id")? != cid.as_bytes() {
-            return Err("edition identity mismatch");
-        };
-        let probe = required(node, b"data")?;
-        if probe == b"null" {
-            return Err("edition missing");
-        };
-        if live_zh(probe)? {
-            unsafe { EDITIONS[good] = edition(cid, probe)? };
-            good += 1
+    if probe_batches::supported(req) {
+        // Only independent probes are parallel. Keep the full catalogue and all
+        // ownership/language guards; no TTL cache or shortened validation.
+        for start in (0..count).step_by(probe_batches::MAX_REQUESTS) {
+            let end = core::cmp::min(start + probe_batches::MAX_REQUESTS, count);
+            probe_batches::collect(unsafe { &IDS[start..end] }, &mut good)?;
+        }
+    } else {
+        for i in 0..count {
+            let cid = unsafe { IDS[i] };
+            let data = query(COMIC_PROBE_QUERY, vars_id(cid.as_bytes())?)?;
+            accept_probe(cid, data, &mut good)?;
         }
     }
     unsafe {
@@ -1126,7 +1148,7 @@ fn detail(r: &[u8]) -> Result<usize, E> {
     let cleaner = title_cleaner(r)?;
     let work = manga_id(r)?;
     let title = copy_title(work)?;
-    let good = resolve(title)?;
+    let good = resolve(title, r)?;
     let mut best = None;
     let mut largest = 0;
     let mut comic_len = 0;
@@ -1341,7 +1363,7 @@ fn emit_chapter(
     }
     bytes(b, n, b"}")
 }
-fn collect(work: &[u8], target: Option<&[u8]>, normalize_labels: bool) -> Result<(usize, usize, Vec<String>), E> {
+fn collect(work: &[u8], target: Option<&[u8]>, normalize_labels: bool, r: &[u8]) -> Result<(usize, usize, Vec<String>), E> {
     let mut labels = Vec::new();
     let mut label_bytes = 0usize;
     let mut normalizer = if normalize_labels { Some(chapter_editions::Normalizer::new()?) } else { None };
@@ -1397,7 +1419,7 @@ fn collect(work: &[u8], target: Option<&[u8]>, normalize_labels: bool) -> Result
         }
         1
     } else {
-        resolve(title)?
+        resolve(title, r)?
     };
     let mut used = 0;
     let mut count = 0;
@@ -1533,7 +1555,7 @@ fn chapters(r: &[u8]) -> Result<usize, E> {
     let exact=if !selected.is_empty()&&member(args(r)?,b"chapterId")?.is_some(){Some(chapter_id(r)?)}else{None};
     let work=manga_id(r)?;
     if exact.is_some_and(|v|v.0!=work){return Err("chapter ownership mismatch");}
-    let (count, _, labels) = collect(work, exact.map(|v|v.1), !selected.is_empty()&&exact.is_none())?;
+    let (count, _, labels) = collect(work, exact.map(|v|v.1), !selected.is_empty()&&exact.is_none(), r)?;
     let mut collisions:BTreeMap<String,BTreeSet<String>>=BTreeMap::new();
     if !labels.is_empty(){
         for ch in unsafe{&CHS[..count]} {
@@ -1573,7 +1595,7 @@ fn chapters(r: &[u8]) -> Result<usize, E> {
 
 fn pages(r: &[u8]) -> Result<usize, E> {
     let (work, eid, cid) = chapter_id(r)?;
-    let (count, _, _) = collect(work, Some(eid), false)?;
+    let (count, _, _) = collect(work, Some(eid), false, r)?;
     let belongs = unsafe {
         CHS[..count]
             .iter()
