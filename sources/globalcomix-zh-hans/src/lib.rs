@@ -10,7 +10,7 @@ const BASE: &[u8] = b"https://globalcomix.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.globalcomix.zh-hans.koma",
     name: "GlobalComix",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -27,7 +27,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     manga_list: true,
     home: false,
     filters: false,
-    settings: false,
+    settings: true,
     image_request: true,
     credentials: false,
 };
@@ -597,6 +597,8 @@ fn image_valid(u: &[u8]) -> Result<(), &'static str> {
     if ![
         b"https://globalcomix.com/".as_slice(),
         b"https://globalcomix-comics-assets-files-desktop.nyc3.cdn.digitaloceanspaces.com/",
+        // Exact mobile CDN declared by readV2 page objects; no wildcard hosts.
+        b"https://globalcomix-comics-assets-files-mobile.nyc3.cdn.digitaloceanspaces.com/",
     ]
     .iter()
     .any(|host| u.starts_with(host))
@@ -897,7 +899,13 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
     )?;
     Ok(n)
 }
+// Default keeps desktop_image_url. The opt-in key follows the provider's cn
+// language code; free release/page and exact owner guards remain authoritative.
 fn pages(r: &[u8]) -> Result<usize, &'static str> {
+    let data_saver = json_object_member(r, b"settings")
+        .and_then(|v| json_object_member(v, b"dataSaver_cn"))
+        .map(|v| v == b"true" || v == b"\"true\"")
+        .unwrap_or(false);
     let mut cb = [0; 256];
     let cp = text(args(r), b"chapterId", &mut cb)?;
     let (comic, rid, key) = chapter_parts(cp)?;
@@ -941,7 +949,7 @@ fn pages(r: &[u8]) -> Result<usize, &'static str> {
         }
         seen[i] = pageid;
         let mut ub = [0; 8192];
-        let u = text(item, b"desktop_image_url", &mut ub)?;
+        let u = text(item, if data_saver { b"mobile_image_url".as_slice() } else { b"desktop_image_url".as_slice() }, &mut ub)?;
         image_valid(u)?;
         let mut pid = [0; 320];
         let mut j = 0;
@@ -1008,6 +1016,10 @@ fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "not_implemented", "not supported")
 }
 fn run_get_settings(_: &[u8]) -> u32 {
-    write_error("get_settings", "not_implemented", "not supported")
+    // showLockedChapters defaults true upstream but conflicts with this source's
+    // established free-only catalogue; do not expose a non-consuming switch.
+    let schema = br#"{"settings":[{"id":"dataSaver_cn","name":"Data saver","kind":"toggle","description":"Enables smaller, more compressed images","default":"false"}]}"#;
+    payload_buf()[..schema.len()].copy_from_slice(schema);
+    write_success_payload("get_settings", schema.len())
 }
 koma_source_sdk::koma_source_exports!("globalcomix_zh_hans");
