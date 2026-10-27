@@ -23,7 +23,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mangabz.koma",
     name: "Mangabz",
-    version: "0.1.7",
+    version: "0.1.8",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -40,17 +40,43 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     manga_list: true,
     home: false,
     filters: false,
-    settings: false,
+    settings: true,
     image_request: true,
     credentials: false,
 };
 
-fn fetch_body(url: &[u8], referer: Option<&[u8]>) -> Result<usize, FetchError> {
+// Reference language preference is a public site selector, never an account
+// Cookie. The host feature guarantees safe merge with an active web session.
+// The adopted supported-host default is explicitly Simplified (2); only old
+// hosts retain the legacy no-Cookie default. Keep this compatibility boundary.
+// Old hosts retain the original no-Cookie requests and do not expose the item.
+fn language_supported(req: &[u8]) -> bool {
+    json_object_member(req, b"hostFeatures").map(|v| {
+        let v = v.trim_ascii();
+        v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|b| *b == b',')
+            .any(|v| v.trim_ascii() == br#""mangabz_language_cookie_v1""#)
+    }).unwrap_or(false)
+}
+fn language_cookie(req: &[u8]) -> Option<&'static [u8]> {
+    if !language_supported(req) { return None; }
+    let value = json_object_member(req, b"settings").and_then(|v| json_object_member(v, b"showZhHantWebsite"));
+    Some(if matches!(value, Some(b"true") | Some(br#""true""#)) { b"mangabz_lang=1" } else { b"mangabz_lang=2" })
+}
+fn language_cookie_host(url: &[u8]) -> bool {
+    let rest = match url.strip_prefix(b"https://").or_else(|| url.strip_prefix(b"http://")) { Some(v) => v, None => return false };
+    let authority = &rest[..rest.iter().position(|b| matches!(*b,b'/'|b'?'|b'#')).unwrap_or(rest.len())];
+    if authority.contains(&b'@') { return false; }
+    let host = &authority[..authority.iter().position(|b| *b == b':').unwrap_or(authority.len())];
+    host.eq_ignore_ascii_case(b"mangabz.com") || (host.len() > b".mangabz.com".len() && host[host.len()-b".mangabz.com".len()..].eq_ignore_ascii_case(b".mangabz.com"))
+}
+fn fetch_body(url: &[u8], referer: Option<&[u8]>, cookie: Option<&[u8]>) -> Result<usize, FetchError> {
+    let cookie = cookie.filter(|_| language_cookie_host(url));
+    let headers: [(&[u8], &[u8]); 2] = [(b"User-Agent", b"Koma/0.1"), (b"Cookie", cookie.unwrap_or(b""))];
     let req_len = build_get_request(
         http_req_buf(),
         url,
         referer,
-        &[(b"User-Agent", b"Koma/0.1")],
+        &headers[..if cookie.is_some() { 2 } else { 1 }],
     )
     .ok_or(FetchError::Network)?;
     let mut resp_len = 0usize;
@@ -261,8 +287,8 @@ fn find_last_subslice(haystack: &[u8], needle: &[u8]) -> Option<usize> {
     result
 }
 
-fn write_manga_page_from_url(operation: &str, url: &[u8], page: usize) -> u32 {
-    let html_len = match fetch_body(url, None) {
+fn write_manga_page_from_url(operation: &str, url: &[u8], page: usize, cookie: Option<&[u8]>) -> u32 {
+    let html_len = match fetch_body(url, None, cookie) {
         Ok(n) => n,
         Err(e) => {
             let (c, m) = fetch_error_code(e);
@@ -322,7 +348,7 @@ fn run_search(req: &[u8]) -> u32 {
             None => return write_error("search", "internal_error", "url overflow"),
         };
         let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_len) };
-        return search_single_manga(url, id);
+        return search_single_manga(url, id, language_cookie(req));
     }
     let page = match request_page(req) {
         Some(v) => v,
@@ -339,11 +365,11 @@ fn run_search(req: &[u8]) -> u32 {
         return write_error("search", "internal_error", "url overflow");
     }
     let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), c) };
-    write_manga_page_from_url("search", url, page)
+    write_manga_page_from_url("search", url, page, language_cookie(req))
 }
 
-fn search_single_manga(url: &[u8], id: &[u8]) -> u32 {
-    let html_len = match fetch_body(url, None) {
+fn search_single_manga(url: &[u8], id: &[u8], cookie: Option<&[u8]>) -> u32 {
+    let html_len = match fetch_body(url, None, cookie) {
         Ok(n) => n,
         Err(e) => {
             let (c, m) = fetch_error_code(e);
@@ -503,6 +529,7 @@ fn write_detail_authors(html: &[u8], payload: &mut [u8], cursor: &mut usize) -> 
 }
 
 fn run_get_manga(req: &[u8]) -> u32 {
+    let cookie = language_cookie(req);
     let manga_id = match extract_json_string(req, b"mangaId") {
         Some(v) => v,
         None => return write_error("get_manga", "invalid_request", "missing mangaId"),
@@ -516,7 +543,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
         None => return write_error("get_manga", "internal_error", "url overflow"),
     };
     let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_len) };
-    let html_len = match fetch_body(url, None) {
+    let html_len = match fetch_body(url, None, cookie) {
         Ok(n) => n,
         Err(e) => {
             let (c, m) = fetch_error_code(e);
@@ -569,6 +596,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
 }
 
 fn run_get_chapters(req: &[u8]) -> u32 {
+    let cookie = language_cookie(req);
     let manga_id = match extract_json_string(req, b"mangaId") {
         Some(v) => v,
         None => return write_error("get_chapters", "invalid_request", "missing mangaId"),
@@ -582,7 +610,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         None => return write_error("get_chapters", "internal_error", "url overflow"),
     };
     let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_len) };
-    let html_len = match fetch_body(url, None) {
+    let html_len = match fetch_body(url, None, cookie) {
         Ok(n) => n,
         Err(e) => {
             let (c, m) = fetch_error_code(e);
@@ -786,7 +814,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
     let mut page = 1usize;
     let mut written = 0usize;
     while page <= page_count {
-        let got = match fetch_chapter_images(manga, cid, page, payload, &mut c, &mut written) {
+        let got = match fetch_chapter_images(manga, cid, page, payload, &mut c, &mut written, language_cookie(req)) {
             Ok(n) => n,
             Err(e) => {
                 let (code, msg) = fetch_error_code(e);
@@ -838,6 +866,7 @@ fn fetch_chapter_images(
     payload: &mut [u8],
     c: &mut usize,
     written: &mut usize,
+    cookie: Option<&[u8]>,
 ) -> Result<usize, FetchError> {
     let url_buf = scratch_a();
     let mut u = 0usize;
@@ -862,7 +891,7 @@ fn fetch_chapter_images(
         return Err(FetchError::Network);
     }
     let referer = unsafe { core::slice::from_raw_parts(SCRATCH_B.as_ptr(), r) };
-    let js_len = fetch_body(url, Some(referer))?;
+    let js_len = fetch_body(url, Some(referer), cookie)?;
     let js = unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), js_len) };
     unpack_and_write_images(js, manga, cid, payload, c, written)
 }
@@ -1075,7 +1104,7 @@ fn run_manga_list(req: &[u8], op: &str) -> u32 {
         return write_error(op, "internal_error", "url overflow");
     }
     let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), c) };
-    write_manga_page_from_url(op, url, page)
+    write_manga_page_from_url(op, url, page, language_cookie(req))
 }
 
 fn run_get_home(_req: &[u8]) -> u32 {
@@ -1099,14 +1128,15 @@ fn run_get_filters(_req: &[u8]) -> u32 {
     write_success_payload("get_filters", FILTERS.len())
 }
 
-fn run_get_settings(_req: &[u8]) -> u32 {
-    const SETTINGS: &[u8] = br#"{"settings":[]}"#;
+fn run_get_settings(req: &[u8]) -> u32 {
+    let schema = r#"{"settings":[{"id":"showZhHantWebsite","name":"使用繁体中文","kind":"toggle","default":"false","description":"新请求使用所选语言；不会因切换自动重写库内旧标题。"}]}"#.as_bytes();
+    let settings: &[u8] = if language_supported(req) { schema } else { br#"{"settings":[]}"# };
     let payload = payload_buf();
-    if SETTINGS.len() > payload.len() {
+    if settings.len() > payload.len() {
         return write_error("get_settings", "internal_error", "payload overflow");
     }
-    payload[..SETTINGS.len()].copy_from_slice(SETTINGS);
-    write_success_payload("get_settings", SETTINGS.len())
+    payload[..settings.len()].copy_from_slice(settings);
+    write_success_payload("get_settings", settings.len())
 }
 
 fn run_get_image_request(req: &[u8]) -> u32 {
@@ -1118,7 +1148,11 @@ fn run_get_image_request(req: &[u8]) -> u32 {
     let mut c = 0usize;
     let ok = write_bytes(payload, &mut c, br#"{"url":""#)
         && append_json_escaped(payload, &mut c, url)
-        && write_bytes(payload, &mut c, br#"","headers":{"Referer":"https://www.mangabz.com/","User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0"}}"#);
+        && write_bytes(payload, &mut c, br#"","headers":{"Referer":"https://www.mangabz.com/","User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0""#)
+        && if let Some(cookie) = language_cookie(req).filter(|_| language_cookie_host(url)) {
+            write_bytes(payload, &mut c, br#","Cookie":""#) && write_bytes(payload, &mut c, cookie) && write_bytes(payload, &mut c, b"\"")
+        } else { true }
+        && write_bytes(payload, &mut c, b"}}");
     if !ok {
         return write_error("get_image_request", "internal_error", "payload overflow");
     }
