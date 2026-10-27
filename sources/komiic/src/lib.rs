@@ -1,6 +1,8 @@
 #![no_std]
 
 extern crate koma_source_sdk;
+#[path = "../strict_json.rs"]
+mod strict_json;
 
 use koma_source_sdk::host::{http_request, log_info};
 use koma_source_sdk::json_utils::{
@@ -30,11 +32,11 @@ static mut GQL_BODY_BUF: [u8; GQL_BODY_CAP] = [0; GQL_BODY_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.komiic.koma",
     name: "Komiic",
-    version: "0.1.7",
+    version: "0.1.8",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "Komiic GraphQL API source.",
+    description: "",
     content_rating: "nsfw",
 };
 
@@ -557,6 +559,9 @@ fn run_get_manga(req: &[u8]) -> u32 {
     write_success_payload("get_manga", c)
 }
 
+fn direct_json_string<'a>(obj:&'a [u8],key:&[u8])->Option<&'a [u8]> {
+    json_object_member(obj,key)?.strip_prefix(b"\"")?.strip_suffix(b"\"")
+}
 fn run_get_chapters(req: &[u8]) -> u32 {
     let manga_id = match extract_json_string(req, b"mangaId") {
         Some(v) => v,
@@ -581,29 +586,54 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     let chapter_filter = json_object_member(req, b"settings")
         .and_then(|settings| extract_json_string(settings, b"CHAPTER_FILTER"))
         .unwrap_or(b"all");
+    let context=json_object_member(req,b"hostFeatures").map(|v|v.starts_with(b"[")&&v.ends_with(b"]")&&v[1..v.len()-1].split(|c|*c==b',').any(|s|s.trim_ascii()==br#""source_chapter_exclusions_v1""#)).unwrap_or(false);
+    let filtered=chapter_filter==b"chapter" || chapter_filter==b"book";
+    let exact=if context && filtered {json_object_member(req,b"args").and_then(|a|json_object_member(a,b"chapterId"))}else{None};
+    let target=match exact {None=>None,Some(v)=>match v.strip_prefix(b"\"kic-ch:").and_then(|v|v.strip_suffix(b"\"")){Some(v) if !v.is_empty()=>Some(v),_=>return write_error("get_chapters","invalid_request","invalid chapterId")}};
+    // Only the new Host exclusion path changes: validate the entire response,
+    // work ownership, entry types and uniqueness before hiding retained rows.
+    let strict_array=if context && filtered {
+        if !strict_json::valid(api_json){return write_error("get_chapters","parse_error","invalid complete response")}
+        let data=match json_object_member(api_json,b"data"){Some(v)=>v,None=>return write_error("get_chapters","parse_error","missing data")};
+        let comic=match json_object_member(data,b"comicById"){Some(v)=>v,None=>return write_error("get_chapters","parse_error","missing comic")};
+        let owner=json_object_member(comic,b"id").and_then(|v|v.strip_prefix(b"\"")).and_then(|v|v.strip_suffix(b"\""));
+        if owner!=Some(id){return write_error("get_chapters","parse_error","comic identity mismatch")}
+        let arr=match json_object_member(data,b"chaptersByComicId"){Some(v)=>v,None=>return write_error("get_chapters","parse_error","missing chapter array")};
+        let count=match strict_json::object_count(arr){Some(v) if v<=8192=>v,_=>return write_error("get_chapters","parse_error","invalid chapter array")};
+        let mut seen:[&[u8];8192]=[&[];8192];let mut used=0;
+        let mut it=match JsonArrayIter::from_raw_array(arr){Some(v)=>v,None=>return write_error("get_chapters","parse_error","invalid chapter array")};
+        while let Some(row)=it.next_object(){
+            let cid=match json_object_member(row,b"id").and_then(|v|v.strip_prefix(b"\"")).and_then(|v|v.strip_suffix(b"\"")){Some(v) if !v.is_empty() && v.iter().all(|c|c.is_ascii_alphanumeric() || matches!(*c,b'-'|b'_'))=>v,_=>return write_error("get_chapters","parse_error","invalid chapter identity")};
+            let typ=json_object_member(row,b"type").and_then(|v|v.strip_prefix(b"\"")).and_then(|v|v.strip_suffix(b"\""));
+            if !matches!(typ, Some(b"chapter") | Some(b"book")) || used>=count || seen[..used].contains(&cid){return write_error("get_chapters","parse_error","invalid chapter metadata")}
+            seen[used]=cid;used+=1;
+        }
+        if used!=count || target.is_some_and(|id|!seen[..used].contains(&id)){return write_error("get_chapters","not_found","chapter does not belong to manga")}
+        Some(arr)
+    } else {None};
     let payload = payload_buf();
     let mut c = 0usize;
     if !write_bytes(payload, &mut c, br#"{"items":["#) {
         return write_error("get_chapters", "internal_error", "overflow");
     }
-    let mut iter = match JsonArrayIter::new(api_json, b"chaptersByComicId") {
+    let mut iter = match if let Some(v)=strict_array {JsonArrayIter::from_raw_array(v)} else {JsonArrayIter::new(api_json,b"chaptersByComicId")} {
         Some(v) => v,
         None => return write_error("get_chapters", "parse_error", "missing chaptersByComicId"),
     };
     let mut written = 0usize;
     while let Some(obj) = iter.next_object() {
-        let ch_id = match extract_json_string(obj, b"id") {
+        let ch_id = match if strict_array.is_some() {direct_json_string(obj,b"id")} else {extract_json_string(obj,b"id")} {
             Some(v) => v,
             None => continue,
         };
-        let serial = extract_json_string(obj, b"serial").unwrap_or(b"");
-        let typ = extract_json_string(obj, b"type").unwrap_or(b"");
+        let serial = if strict_array.is_some() {direct_json_string(obj,b"serial")} else {extract_json_string(obj,b"serial")}.unwrap_or(b"");
+        let typ = if strict_array.is_some() {direct_json_string(obj,b"type")} else {extract_json_string(obj,b"type")}.unwrap_or(b"");
         // Only an explicit source preference filters the existing sequence.
         // The delivered default, IDs and all metadata remain unchanged.
-        if (chapter_filter == b"chapter" || chapter_filter == b"book") && typ != chapter_filter { continue; }
+        if let Some(target)=target {if ch_id!=target {continue}} else if filtered && typ!=chapter_filter {continue}
         let continuation_eligible = (typ == b"chapter" || typ == b"book") && valid_chapter_serial(serial);
-        let size = extract_json_number(obj, b"size").unwrap_or(b"0");
-        let date = extract_json_string(obj, b"dateCreated").unwrap_or(b"");
+        let size = if strict_array.is_some() {json_object_member(obj,b"size").filter(|v|!v.is_empty() && v.iter().all(u8::is_ascii_digit))} else {extract_json_number(obj,b"size")}.unwrap_or(b"0");
+        let date = if strict_array.is_some() {direct_json_string(obj,b"dateCreated")} else {extract_json_string(obj,b"dateCreated")}.unwrap_or(b"");
         if written > 0 && !write_bytes(payload, &mut c, b",") {
             return write_error("get_chapters", "internal_error", "overflow");
         }
@@ -641,7 +671,17 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         }
         written += 1;
     }
-    if !write_bytes(payload, &mut c, br#"],"page":{"nextCursor":null,"hasMore":false}}"#) {
+    if !write_bytes(payload,&mut c,b"]") {return write_error("get_chapters","internal_error","overflow")}
+    if let Some(arr)=strict_array.filter(|_|target.is_none()) {
+        if !write_bytes(payload,&mut c,br#", "excludedChapterIds":["#){return write_error("get_chapters","internal_error","overflow")}
+        let mut it=JsonArrayIter::from_raw_array(arr).unwrap();let mut excluded=0;
+        while let Some(row)=it.next_object(){let typ=direct_json_string(row,b"type").unwrap_or(b"");if typ==chapter_filter{continue}
+            let cid=direct_json_string(row,b"id").unwrap_or(b"");if excluded>0 && !write_bytes(payload,&mut c,b","){return write_error("get_chapters","internal_error","overflow")}
+            if !(write_bytes(payload,&mut c,br#""kic-ch:"#)&&append_json_escaped(payload,&mut c,cid)&&write_bytes(payload,&mut c,b"\"")){return write_error("get_chapters","internal_error","overflow")};excluded+=1;
+        }
+        if !write_bytes(payload,&mut c,b"]"){return write_error("get_chapters","internal_error","overflow")}
+    }
+    if !write_bytes(payload, &mut c, br#","page":{"nextCursor":null,"hasMore":false}}"#) {
         return write_error("get_chapters", "internal_error", "overflow");
     }
     write_success_payload("get_chapters", c)
