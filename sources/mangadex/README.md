@@ -1,4 +1,4 @@
-# MangaDex 0.1.13
+# MangaDex 0.1.14
 
 Independent source `org.mangadex.koma`, API 0.2, language en. Existing `mdx:` manga IDs, `ch:` chapter identities, original official icon and [asset attribution](ASSET_SOURCES.md) remain. Ordinary public search/list/detail/Home, exact chapter restoration and existing filters remain; no external provider body is followed.
 
@@ -6,4 +6,6 @@ Settings retain `language` (default en), `dataSaver` (default false) and `defaul
 
 Chapter IDs, title fallbacks and original directory order remain. Null/missing/empty/nonstring chapter numbers remain unknown; actual zero and fractional numbers retain their values. No dates are inferred. The existing mdxc1 pagination state preserves full external-only terminal detection; empty catalogues, hosted/external mixed results, pagination errors and unsupported external-only results remain distinct.
 
-Existing data-saver pages use the actual selected API filename array and corresponding data/data-saver path, retaining page index IDs. No account/token/Cookie flow, statistics side effect, new source/host grant, SDK or App style is introduced. Standard build: `bash build.sh --source mangadex`. Runtime/crate/package versions align at 0.1.13.
+Existing data-saver pages use the actual selected API filename array and corresponding data/data-saver path, retaining page index IDs. No account/token/Cookie flow, statistics side effect, new source/host grant or App style is introduced. Standard build: `bash build.sh --source mangadex`. Runtime/crate/package versions align at 0.1.14.
+
+`altTitlesInDesc_en` defaults false and is consumed only by manga detail descriptions. Explicit true appends the fixed reference `Alternative titles:` block: extension-language or original-language romanized maps, exactly one nonempty value per map, provider order, no sorting/deduplication. The shared SDK plain-text helper decodes JSON Unicode and HTML entities once while preserving literal markup; the original base description is retained. Missing/false leaves the prior description bytes, title fallback and all other fields unchanged. The default-true upstream title-priority/final-chapter settings are not exposed by this item.

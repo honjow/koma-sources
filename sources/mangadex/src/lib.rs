@@ -29,6 +29,38 @@ const JSON_BUF_CAP: usize = 512 * 1024;
 
 static mut JSON_BUF: [u8; JSON_BUF_CAP] = [0; JSON_BUF_CAP];
 
+const ALT_TITLE_LANG: &[u8] = b"en";
+const ALT_DESCRIPTION_KEY: &[u8] = b"altTitlesInDesc_en";
+
+fn alt_description_enabled(req: &[u8]) -> bool {
+    json_object_member(req,b"settings").and_then(|v|json_object_member(v,ALT_DESCRIPTION_KEY))
+        .map(|v|v==b"true" || v==b"\"true\"").unwrap_or(false)
+}
+// Source settings only append a description block. Titles, identity, chapter
+// order and the default description bytes are deliberately unchanged.
+fn append_description_content(out: &mut [u8], n: &mut usize, attributes: &[u8], base: &[u8], enabled: bool) -> bool {
+    if !enabled { return write_bytes(out,n,base); }
+    let original = json_object_member(attributes,b"originalLanguage").unwrap_or(b"null");
+    let romanized = match original { b"\"ja\""=>b"ja-ro".as_slice(), b"\"ko\""=>b"ko-ro", b"\"zh\"" | b"\"zh-hk\""=>b"zh-ro", _=>b"" };
+    if !write_bytes(out,n,base) { return false; }
+    let mut started=false;
+    if let Some(alts)=json_object_member(attributes,b"altTitles") {
+        let Some(mut alts)=JsonArrayIter::from_raw_array(alts) else { return false; };
+        while let Some(item)=alts.next_object() {
+            if json_object_member(item,ALT_TITLE_LANG).is_none() && json_object_member(item,romanized).is_none() { continue; }
+            let Some(mut values)=JsonObjectStringIter::new(item) else { return false; };
+            let Some(value)=values.next_string() else { continue; };
+            if value.is_empty() || values.next_string().is_some() { continue; }
+            if !started {
+                if !base.is_empty() && !write_bytes(out,n,b"\\n\\n") { return false; }
+                if !write_bytes(out,n,b"Alternative titles:\\n") { return false; }
+            } else if !write_bytes(out,n,b"\\n") { return false; }
+            if !write_bytes(out,n,"• ".as_bytes()) || !koma_source_sdk::plain_text::append_entity_decoded_json_content(out,n,value) { return false; }
+            started=true;
+        }
+    }
+    true
+}
 fn nonempty_title_string(value: &[u8]) -> Option<&[u8]> {
     if value.len() >= 2 && value.first() == Some(&b'"') && value.last() == Some(&b'"') {
         let title = &value[1..value.len() - 1];
@@ -73,7 +105,7 @@ fn manga_title(obj: &[u8]) -> &[u8] {
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "org.mangadex.koma",
     name: "MangaDex",
-    version: "0.1.13",
+    version: "0.1.14",
     api_version: "0.2",
     language: "en",
     author: "Koma",
@@ -411,7 +443,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
         && write_bytes(payload, &mut c, br#"","title":""#)
         && append_api_string(payload, &mut c, title)
         && write_bytes(payload, &mut c, br#"","alternateTitles":[],"description":""#)
-        && append_api_string(payload, &mut c, desc)
+        && append_description_content(payload, &mut c, attributes, desc, alt_description_enabled(req))
         && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":""#)
         && write_bytes(payload, &mut c, COVERS_BASE)
         && append_json_escaped(payload, &mut c, uuid)
@@ -1096,7 +1128,7 @@ fn run_get_home(req: &[u8]) -> u32 {
 
 fn run_get_settings(_req: &[u8]) -> u32 {
     // MangaDex settings: preferred language, content rating, data saver mode
-    const SETTINGS_JSON: &[u8] = br#"{"settings":[{"id":"thumbnailQuality_en","name":"Cover Quality","kind":"select","options":[{"value":"original","label":"Original"},{"value":".512.jpg","label":"Medium"},{"value":".256.jpg","label":"Low"}],"default":"original"},{"id":"language","name":"Preferred Language","kind":"select","options":[{"value":"en","label":"English"},{"value":"ja","label":"Japanese"},{"value":"zh","label":"Chinese (Simplified)"},{"value":"zh-hk","label":"Chinese (Traditional)"},{"value":"ko","label":"Korean"},{"value":"fr","label":"French"},{"value":"es","label":"Spanish"},{"value":"de","label":"German"},{"value":"pt-br","label":"Portuguese (Brazil)"}],"default":"en"},{"id":"dataSaver","name":"Data Saver","kind":"toggle","description":"Use compressed images to save bandwidth","default":"false"},{"id":"defaultContentRating","name":"Default Content Rating","kind":"select","options":[{"value":"safe","label":"Safe Only"},{"value":"suggestive","label":"Safe + Suggestive"},{"value":"erotica","label":"All (including Erotica)"}],"default":"suggestive"}]}"#;
+    const SETTINGS_JSON: &[u8] = br#"{"settings":[{"id":"thumbnailQuality_en","name":"Cover Quality","kind":"select","options":[{"value":"original","label":"Original"},{"value":".512.jpg","label":"Medium"},{"value":".256.jpg","label":"Low"}],"default":"original"},{"id":"language","name":"Preferred Language","kind":"select","options":[{"value":"en","label":"English"},{"value":"ja","label":"Japanese"},{"value":"zh","label":"Chinese (Simplified)"},{"value":"zh-hk","label":"Chinese (Traditional)"},{"value":"ko","label":"Korean"},{"value":"fr","label":"French"},{"value":"es","label":"Spanish"},{"value":"de","label":"German"},{"value":"pt-br","label":"Portuguese (Brazil)"}],"default":"en"},{"id":"dataSaver","name":"Data Saver","kind":"toggle","description":"Use compressed images to save bandwidth","default":"false"},{"id":"defaultContentRating","name":"Default Content Rating","kind":"select","options":[{"value":"safe","label":"Safe Only"},{"value":"suggestive","label":"Safe + Suggestive"},{"value":"erotica","label":"All (including Erotica)"}],"default":"suggestive"},{"id":"altTitlesInDesc_en","name":"Alternative titles in description","kind":"toggle","description":"Include a manga's alternative titles at the end of its description","default":"false"}]}"#;
 
     let payload = payload_buf();
     let flen = SETTINGS_JSON.len();
