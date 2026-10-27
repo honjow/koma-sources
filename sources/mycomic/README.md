@@ -12,10 +12,8 @@
 
 目录完整解析实际owner中的strict JSON chapters数组，保title/原序/notes；number/date未知不猜。分页next仅接受当前选定语言下实际下一页号。原狭窄ASCII slug规则、HTTPS图片、非2xx与容量/截断守卫保持；未知HTML或缺图明确失败，不把部分解析冒完整目录。
 
-现有具名Native公开请求曾返回HTTP403，原因未知；没有新的成功站点内容链。受控HTML/生产WASM只证明语言路径与本地解析合同，不冒当前HTTP、原图、下载或Native内容可用，不重复已拒绝请求。图标保留已采用红C去底重构与原件归属，不宣称新官方高清素材。
+具名公开请求曾返回 HTTP 403，当前站点内容链可用性未确认；不对受拒请求反复重试。红 C 是保留原身份的重绘图，不是官网原图。
 
 ## 实现来源
 
 独立Rust适配依据Apache-2.0 Keiyoushi `10f06eb833af5990bc5470c84c5e93edc159ad4e` 的 `src/zh/mycomic`；本次语言项核固定 `949dea252eb8e867b7b40834a26e13088764ff55` 的MyComic.kt/Dto.kt。许可见NOTICE/LICENSE，不复制Kotlin实现或图像。
-
-源简介仅说明当前源的内容范围；不把实现细节或未知状态显示给用户。
