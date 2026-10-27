@@ -6,8 +6,8 @@ use koma_source_sdk::host::{
     self, html_attr, html_close, html_parse, html_select, html_text, http_request, log_info,
 };
 use koma_source_sdk::json_utils::{
-    append_json_escaped, append_json_unescaped_then_escaped, extract_json_number,
-    extract_json_string, find_subslice, write_bytes, write_url_encoded, write_usize,
+    append_json_escaped, append_json_unescaped_then_escaped,
+    extract_json_string, find_subslice, json_object_member, write_bytes, write_url_encoded, write_usize,
 };
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{build_get_request, decode_json_body_into, fetch_error_code, FetchError};
@@ -85,17 +85,19 @@ fn strip_prefix_ascii<'a>(bytes: &'a [u8], prefix: &[u8]) -> &'a [u8] {
     }
 }
 
-fn parse_usize(bytes: &[u8]) -> Option<usize> {
-    let mut n = 0usize;
-    let mut any = false;
-    for &b in bytes {
-        if b < b'0' || b > b'9' {
-            return None;
-        }
-        n = n * 10 + (b - b'0') as usize;
-        any = true;
-    }
-    if any { Some(n) } else { None }
+// Numeric cursors identify pages. Older releases emitted only "next" while
+// repeatedly loading page one; an in-flight cursor resumes at page two.
+fn request_page(req: &[u8]) -> Option<usize> {
+    let args = json_object_member(req, b"args").unwrap_or(req);
+    let value = match json_object_member(args, b"page") { None | Some(b"null") => return Some(1), Some(v) => v };
+    let raw = if value.first() == Some(&b'{') {
+        match json_object_member(value, b"cursor") { None | Some(b"null") => return Some(1), Some(v) => v.strip_prefix(b"\"")?.strip_suffix(b"\"")? }
+    } else { value };
+    if raw == b"next" { return Some(2); }
+    if raw.is_empty() { return None; }
+    let mut page = 0usize;
+    for &digit in raw { if !digit.is_ascii_digit() { return None; } page = page.checked_mul(10)?.checked_add((digit-b'0') as usize)?; }
+    if page == 0 { None } else { Some(page) }
 }
 
 fn fetch_body(url: &[u8]) -> Result<usize, FetchError> {
@@ -177,7 +179,11 @@ fn write_manga_item(
         && write_bytes(payload, c, br#""},"authors":[],"status":"unknown","contentRating":"unknown","description":"","sourceTags":["jiuermanhua"]}"#)
 }
 
-fn parse_list(html: &[u8], operation: &str) -> u32 {
+fn parse_list(html: &[u8], operation: &str, page: usize) -> u32 {
+    // A bare self-redirect is not an empty search result and needs recovery.
+    if html.len() < 2048 && find_subslice(html, b"window.location.href").is_some() {
+        return write_error(operation, "parse_error", "site returned redirect script");
+    }
     let document = match html_parse(html) {
         Ok(d) => OwnedDescriptor(d),
         Err(_) => return write_error(operation, "parse_error", "html_parse failed"),
@@ -268,14 +274,21 @@ fn parse_list(html: &[u8], operation: &str) -> u32 {
         let _ = html_close(item_desc);
     }
 
+    // Only the provider's next-page link establishes another page; the
+    // cursor must encode the page identity consumed on the next request.
+    let has_more = match html_select(document.0, b"li.next a") {
+        Ok(next) => { let _owned = OwnedDescriptor(next); true },
+        Err(_) => false,
+    };
+    let next_page = if has_more { match page.checked_add(1) { Some(v) => v, None => return write_error(operation, "invalid_request", "invalid page cursor") } } else { 0 };
     if !write_bytes(payload, &mut c, br#"],"page":{"nextCursor":"#)
-        || !if written > 0 {
-            write_bytes(payload, &mut c, b"\"next\"")
+        || !if has_more {
+            write_bytes(payload, &mut c, b"\"") && write_usize(payload, &mut c, next_page) && write_bytes(payload, &mut c, b"\"")
         } else {
             write_bytes(payload, &mut c, b"null")
         }
         || !write_bytes(payload, &mut c, br#","hasMore":"#)
-        || !write_bytes(payload, &mut c, if written > 0 { b"true" as &[u8] } else { b"false" as &[u8] })
+        || !write_bytes(payload, &mut c, if has_more { b"true" as &[u8] } else { b"false" as &[u8] })
         || !write_bytes(payload, &mut c, b"}}")
     {
         return write_error(operation, "internal_error", "payload overflow");
@@ -296,7 +309,7 @@ fn run_search(req: &[u8]) -> u32 {
         Ok(v) => v,
         Err(_) => return write_error("search", "invalid_request", "invalid query"),
     };
-    let page = extract_json_number(req, b"page").and_then(parse_usize).unwrap_or(1);
+    let page = match request_page(req) { Some(v) => v, None => return write_error("search", "invalid_request", "invalid page cursor") };
 
     let url_buf = scratch_a();
     let mut c = 0usize;
@@ -318,11 +331,11 @@ fn run_search(req: &[u8]) -> u32 {
         }
     };
     let html = unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), html_len) };
-    parse_list(html, "search")
+    parse_list(html, "search", page)
 }
 
 fn run_get_manga_list(req: &[u8]) -> u32 {
-    let page = extract_json_number(req, b"page").and_then(parse_usize).unwrap_or(1);
+    let page = match request_page(req) { Some(v) => v, None => return write_error("get_manga_list", "invalid_request", "invalid page cursor") };
 
     let url_buf = scratch_a();
     let mut c = 0usize;
@@ -342,7 +355,7 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
         }
     };
     let html = unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), html_len) };
-    parse_list(html, "get_manga_list")
+    parse_list(html, "get_manga_list", page)
 }
 
 fn select_text<'a>(
