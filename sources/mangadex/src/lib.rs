@@ -35,6 +35,8 @@ mod original_language;
 mod content_rating;
 #[path = "../final_chapter_description.rs"]
 mod final_chapter_description;
+#[path = "../title_preference.rs"]
+mod title_preference;
 static mut COVER_JSON: [u8; JSON_BUF_CAP] = [0; JSON_BUF_CAP];
 
 static mut JSON_BUF: [u8; JSON_BUF_CAP] = [0; JSON_BUF_CAP];
@@ -117,10 +119,20 @@ fn manga_title(obj: &[u8]) -> &[u8] {
     b"Unknown"
 }
 
+// Only manga card/detail/Home titles consume this preference. Chapter titles
+// are a separate provider field and must never enter the manga selector.
+fn append_manga_title(out: &mut [u8], n: &mut usize, obj: &[u8], req: &[u8]) -> bool {
+    if title_preference::prefer(req, b"preferExtensionLangTitle_en") {
+        append_api_string(out, n, manga_title(obj))
+    } else {
+        title_preference::append_primary_first(out, n, api_attributes(obj), b"en")
+    }
+}
+
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "org.mangadex.koma",
     name: "MangaDex",
-    version: "0.1.19",
+    version: "0.1.20",
     api_version: "0.2",
     language: "en",
     author: "Koma",
@@ -378,7 +390,6 @@ fn run_search(req: &[u8]) -> u32 {
             None => continue,
         };
         // Title: look for "en":"..." inside "title":{...}
-        let title = manga_title(obj);
         let status = api_string(api_attributes(obj), b"status").unwrap_or(b"unknown");
 
         // Cover: find fileName in relationships where type=cover_art
@@ -390,7 +401,7 @@ fn run_search(req: &[u8]) -> u32 {
         let ok = write_bytes(payload, &mut c, br#"{"id":"mdx:"#)
             && append_api_string(payload, &mut c, id)
             && write_bytes(payload, &mut c, br#"","title":""#)
-            && append_api_string(payload, &mut c, title)
+            && append_manga_title(payload, &mut c, obj, req)
             && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":""#)
             && write_bytes(payload, &mut c, COVERS_BASE)
             && append_api_string(payload, &mut c, id)
@@ -475,7 +486,6 @@ fn run_get_manga(req: &[u8]) -> u32 {
         _ => return write_error("get_manga", "parse_error", "no data"),
     };
     let attributes = api_attributes(obj);
-    let title = manga_title(obj);
     let status = api_string(attributes, b"status").unwrap_or(b"unknown");
     let content_rating = api_string(attributes, b"contentRating").unwrap_or(b"unknown");
     let desc = json_object_member(attributes, b"description")
@@ -492,7 +502,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
     let ok = write_bytes(payload, &mut c, br#"{"manga":{"id":"mdx:"#)
         && append_json_escaped(payload, &mut c, uuid)
         && write_bytes(payload, &mut c, br#"","title":""#)
-        && append_api_string(payload, &mut c, title)
+        && append_manga_title(payload, &mut c, obj, req)
         && write_bytes(payload, &mut c, br#"","alternateTitles":[],"description":""#)
         && append_description_content(payload, &mut c, attributes, desc, alt_description_enabled(req), final_chapter_description::enabled(req, b"finalChapterInDesc_en"))
         && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":""#)
@@ -1021,7 +1031,6 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
             Some(v) => v,
             None => continue,
         };
-        let title = manga_title(obj);
         let st = api_string(api_attributes(obj), b"status").unwrap_or(b"unknown");
         let cover_fn = first_covers.file(id).or_else(|| extract_cover_filename(obj));
 
@@ -1031,7 +1040,7 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
         let ok = write_bytes(payload, &mut c, br#"{"id":"mdx:"#)
             && append_api_string(payload, &mut c, id)
             && write_bytes(payload, &mut c, br#"","title":""#)
-            && append_api_string(payload, &mut c, title)
+            && append_manga_title(payload, &mut c, obj, req)
             && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":""#)
             && write_bytes(payload, &mut c, COVERS_BASE)
             && append_api_string(payload, &mut c, id)
@@ -1150,7 +1159,6 @@ fn run_get_home(req: &[u8]) -> u32 {
                         Some(v) => v,
                         None => continue,
                     };
-                    let title = manga_title(obj);
                     let cover_fn = first_covers.file(id).or_else(|| extract_cover_filename(obj));
 
                     if item_count > 0 {
@@ -1159,7 +1167,7 @@ fn run_get_home(req: &[u8]) -> u32 {
                     let ok2 = write_bytes(payload, &mut c, br#"{"id":"mdx:"#)
                         && append_api_string(payload, &mut c, id)
                         && write_bytes(payload, &mut c, br#"","title":""#)
-                        && append_api_string(payload, &mut c, title)
+                        && append_manga_title(payload, &mut c, obj, req)
                         && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":""#)
                         && write_bytes(payload, &mut c, COVERS_BASE)
                         && append_api_string(payload, &mut c, id)
@@ -1189,7 +1197,7 @@ fn run_get_home(req: &[u8]) -> u32 {
 
 fn run_get_settings(req: &[u8]) -> u32 {
     // MangaDex settings: preferred language, content rating, data saver mode
-    const SETTINGS_JSON: &[u8] = br#"{"settings":[{"id":"thumbnailQuality_en","name":"Cover Quality","kind":"select","options":[{"value":"original","label":"Original"},{"value":".512.jpg","label":"Medium"},{"value":".256.jpg","label":"Low"}],"default":"original"},{"id":"language","name":"Preferred Language","kind":"select","options":[{"value":"en","label":"English"},{"value":"ja","label":"Japanese"},{"value":"zh","label":"Chinese (Simplified)"},{"value":"zh-hk","label":"Chinese (Traditional)"},{"value":"ko","label":"Korean"},{"value":"fr","label":"French"},{"value":"es","label":"Spanish"},{"value":"de","label":"German"},{"value":"pt-br","label":"Portuguese (Brazil)"}],"default":"en"},{"id":"dataSaver","name":"Data Saver","kind":"toggle","description":"Use compressed images to save bandwidth","default":"false"},{"id":"defaultContentRating","name":"Default Content Rating","kind":"select","options":[{"value":"safe","label":"Safe Only"},{"value":"suggestive","label":"Safe + Suggestive"},{"value":"erotica","label":"All (including Erotica)"}],"default":"suggestive"},{"id":"altTitlesInDesc_en","name":"Alternative titles in description","kind":"toggle","description":"Include a manga's alternative titles at the end of its description","default":"false"},{"id":"usePort443_en","name":"Use HTTPS port 443 only","kind":"toggle","description":"Enable to only request image servers that use port 443. This allows users with stricter firewall restrictions to access MangaDex images","default":"false"},{"id":"tryUsingFirstVolumeCover_en","name":"Attempt to use the first volume cover as cover","kind":"toggle","description":"Existing library entries may need a manual refresh to show changed covers","default":"false"},{"id":"originalLanguage_en","name":"Filter original languages","kind":"multiselect","description":"Only show content that was originally published in the selected languages in both latest and browse","default":[],"options":[{"value":"ja","label":"Japanese"},{"value":"zh","label":"Chinese"},{"value":"ko","label":"Korean"}]},{"id":"finalChapterInDesc_en","name":"Final chapter in description","kind":"toggle","description":"Include a manga's final chapter number at the end of its description","default":"false"}]}"#;
+    const SETTINGS_JSON: &[u8] = br#"{"settings":[{"id":"thumbnailQuality_en","name":"Cover Quality","kind":"select","options":[{"value":"original","label":"Original"},{"value":".512.jpg","label":"Medium"},{"value":".256.jpg","label":"Low"}],"default":"original"},{"id":"language","name":"Preferred Language","kind":"select","options":[{"value":"en","label":"English"},{"value":"ja","label":"Japanese"},{"value":"zh","label":"Chinese (Simplified)"},{"value":"zh-hk","label":"Chinese (Traditional)"},{"value":"ko","label":"Korean"},{"value":"fr","label":"French"},{"value":"es","label":"Spanish"},{"value":"de","label":"German"},{"value":"pt-br","label":"Portuguese (Brazil)"}],"default":"en"},{"id":"dataSaver","name":"Data Saver","kind":"toggle","description":"Use compressed images to save bandwidth","default":"false"},{"id":"defaultContentRating","name":"Default Content Rating","kind":"select","options":[{"value":"safe","label":"Safe Only"},{"value":"suggestive","label":"Safe + Suggestive"},{"value":"erotica","label":"All (including Erotica)"}],"default":"suggestive"},{"id":"altTitlesInDesc_en","name":"Alternative titles in description","kind":"toggle","description":"Include a manga's alternative titles at the end of its description","default":"false"},{"id":"usePort443_en","name":"Use HTTPS port 443 only","kind":"toggle","description":"Enable to only request image servers that use port 443. This allows users with stricter firewall restrictions to access MangaDex images","default":"false"},{"id":"tryUsingFirstVolumeCover_en","name":"Attempt to use the first volume cover as cover","kind":"toggle","description":"Existing library entries may need a manual refresh to show changed covers","default":"false"},{"id":"originalLanguage_en","name":"Filter original languages","kind":"multiselect","description":"Only show content that was originally published in the selected languages in both latest and browse","default":[],"options":[{"value":"ja","label":"Japanese"},{"value":"zh","label":"Chinese"},{"value":"ko","label":"Korean"}]},{"id":"finalChapterInDesc_en","name":"Final chapter in description","kind":"toggle","description":"Include a manga's final chapter number at the end of its description","default":"false"},{"id":"preferExtensionLangTitle_en","name":"Use alternative titles","kind":"toggle","description":"If there is an alternative title available which matches the extension language, it will be used","default":"true"}]}"#;
 
     let context=if rating_context_supported(req){json_object_member(req,b"args").and_then(|v|json_object_member(v,b"settingValues")).filter(|v|v.first()==Some(&b'{'))}else{None};
     if let Some(values)=context {

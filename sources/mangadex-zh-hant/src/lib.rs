@@ -7,7 +7,7 @@ use koma_source_sdk::{
 };
 type E = &'static str;
 const MAX: usize = 1048576;
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"org.mangadex.zh-hant.koma",name:"MangaDex",version:"0.1.7",api_version:"0.2",language:"zh-Hant",author:"Koma",description:"MangaDex provider traditional-Chinese catalogue (zh-hk); page scripts vary. Usage unknown; followedCount listing is not a usage ranking.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"org.mangadex.zh-hant.koma",name:"MangaDex",version:"0.1.8",api_version:"0.2",language:"zh-Hant",author:"Koma",description:"MangaDex provider traditional-Chinese catalogue (zh-hk); page scripts vary. Usage unknown; followedCount listing is not a usage ranking.",content_rating:"nsfw"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -31,6 +31,8 @@ mod original_language;
 mod content_rating;
 #[path = "../../mangadex/final_chapter_description.rs"]
 mod final_chapter_description;
+#[path = "../../mangadex/title_preference.rs"]
+mod title_preference;
 static mut COVER_BODY: [u8; MAX] = [0; MAX];
 static mut REQUEST: [u8; MAX] = [0; MAX];
 static mut URL: [u8; 32768] = [0; 32768];
@@ -658,7 +660,7 @@ fn data_saver(r: &[u8]) -> Result<bool, E> {
     let settings = member(r, b"settings")?.unwrap_or(b"{}");
     Ok(matches!(member(settings, b"dataSaverV5_zh-hk")?, Some(b"true" | b"\"true\"")))
 }
-fn card(b: &mut [u8], n: &mut usize, v: &[u8], expected: Option<&[u8]>, quality: &[u8], alt_description: bool, final_description: bool, first_covers: &first_volume_cover::Covers) -> Result<(), E> {
+fn card(b: &mut [u8], n: &mut usize, v: &[u8], expected: Option<&[u8]>, quality: &[u8], alt_description: bool, final_description: bool, prefer_alternatives: bool, first_covers: &first_volume_cover::Covers) -> Result<(), E> {
     if text(v, b"type")? != b"manga" {
         return Err("manga type");
     };
@@ -667,11 +669,14 @@ fn card(b: &mut [u8], n: &mut usize, v: &[u8], expected: Option<&[u8]>, quality:
         return Err("manga identity mismatch");
     };
     let a = required(v, b"attributes")?;
-    let t = title(a)?;
     bytes(b, n, b"{\"id\":\"mdhant:")?;
     bytes(b, n, id)?;
     bytes(b, n, b"\",\"title\":")?;
-    rawq(b, n, t)?;
+    if prefer_alternatives { rawq(b, n, title(a)?)?; } else {
+        bytes(b,n,b"\"")?;
+        if !title_preference::append_primary_first(b,n,a,b"zh-hk") { return Err("invalid primary title or overflow"); }
+        bytes(b,n,b"\"")?;
+    }
     let old_cover = relation(v, b"cover_art")?.map(|c| required(c, b"attributes").and_then(|ca| text(ca, b"fileName"))).transpose()?;
     if let Some(raw) = old_cover { filename(raw)?; }
     if let Some(raw) = first_covers.file(id).or(old_cover) {
@@ -820,7 +825,7 @@ fn listing(r: &[u8], search: bool) -> Result<usize, E> {
         if count > 0 {
             bytes(output, &mut n, b",")?
         };
-        card(output, &mut n, x, None, quality, false, false, &first_covers)?;
+        card(output, &mut n, x, None, quality, false, false, title_preference::prefer(r, b"preferExtensionLangTitle_zh-hk"), &first_covers)?;
         count += 1
     }
     let end = offset.checked_add(count).ok_or("listing count overflow")?;
@@ -861,7 +866,7 @@ fn detail(r: &[u8]) -> Result<usize, E> {
     let out = payload_buf();
     let mut n = 0;
     bytes(out, &mut n, b"{\"manga\":")?;
-    card(out, &mut n, required(v, b"data")?, Some(id), quality, alt_description_enabled(r), final_chapter_description::enabled(r, b"finalChapterInDesc_zh-hk"), &first_covers)?;
+    card(out, &mut n, required(v, b"data")?, Some(id), quality, alt_description_enabled(r), final_chapter_description::enabled(r, b"finalChapterInDesc_zh-hk"), title_preference::prefer(r, b"preferExtensionLangTitle_zh-hk"), &first_covers)?;
     bytes(out, &mut n, b"}")?;
     Ok(n)
 }
@@ -1231,7 +1236,7 @@ fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "not_supported", "not supported")
 }
 fn run_get_settings(_: &[u8]) -> u32 {
-    let data = r#"{"settings":[{"id":"thumbnailQuality_zh-hk","name":"封面品質","kind":"select","options":[{"value":"original","label":"原圖"},{"value":".512.jpg","label":"中等"},{"value":".256.jpg","label":"低"}],"default":"original"},{"id":"dataSaverV5_zh-hk","name":"省流量","kind":"toggle","default":"false"},{"id":"altTitlesInDesc_zh-hk","name":"Alternative titles in description","kind":"toggle","description":"Include a manga's alternative titles at the end of its description","default":"false"},{"id":"usePort443_zh-hk","name":"Use HTTPS port 443 only","kind":"toggle","description":"Enable to only request image servers that use port 443. This allows users with stricter firewall restrictions to access MangaDex images","default":"false"},{"id":"tryUsingFirstVolumeCover_zh-hk","name":"Attempt to use the first volume cover as cover","kind":"toggle","description":"Existing library entries may need a manual refresh to show changed covers","default":"false"},{"id":"originalLanguage_zh-hk","name":"Filter original languages","kind":"multiselect","description":"Only show content that was originally published in the selected languages in both latest and browse","default":[],"options":[{"value":"ja","label":"Japanese"},{"value":"zh","label":"Chinese"},{"value":"ko","label":"Korean"}]},{"id":"contentRating_zh-hk","name":"Default content rating","kind":"multiselect","description":"Show content with the selected ratings by default","default":["safe","suggestive"],"options":[{"value":"safe","label":"Safe"},{"value":"suggestive","label":"Suggestive"},{"value":"erotica","label":"Erotica"},{"value":"pornographic","label":"Pornographic"}]},{"id":"finalChapterInDesc_zh-hk","name":"Final chapter in description","kind":"toggle","description":"Include a manga's final chapter number at the end of its description","default":"false"}]}"#.as_bytes();
+    let data = r#"{"settings":[{"id":"thumbnailQuality_zh-hk","name":"封面品質","kind":"select","options":[{"value":"original","label":"原圖"},{"value":".512.jpg","label":"中等"},{"value":".256.jpg","label":"低"}],"default":"original"},{"id":"dataSaverV5_zh-hk","name":"省流量","kind":"toggle","default":"false"},{"id":"altTitlesInDesc_zh-hk","name":"Alternative titles in description","kind":"toggle","description":"Include a manga's alternative titles at the end of its description","default":"false"},{"id":"usePort443_zh-hk","name":"Use HTTPS port 443 only","kind":"toggle","description":"Enable to only request image servers that use port 443. This allows users with stricter firewall restrictions to access MangaDex images","default":"false"},{"id":"tryUsingFirstVolumeCover_zh-hk","name":"Attempt to use the first volume cover as cover","kind":"toggle","description":"Existing library entries may need a manual refresh to show changed covers","default":"false"},{"id":"originalLanguage_zh-hk","name":"Filter original languages","kind":"multiselect","description":"Only show content that was originally published in the selected languages in both latest and browse","default":[],"options":[{"value":"ja","label":"Japanese"},{"value":"zh","label":"Chinese"},{"value":"ko","label":"Korean"}]},{"id":"contentRating_zh-hk","name":"Default content rating","kind":"multiselect","description":"Show content with the selected ratings by default","default":["safe","suggestive"],"options":[{"value":"safe","label":"Safe"},{"value":"suggestive","label":"Suggestive"},{"value":"erotica","label":"Erotica"},{"value":"pornographic","label":"Pornographic"}]},{"id":"finalChapterInDesc_zh-hk","name":"Final chapter in description","kind":"toggle","description":"Include a manga's final chapter number at the end of its description","default":"false"},{"id":"preferExtensionLangTitle_zh-hk","name":"Use alternative titles","kind":"toggle","description":"If there is an alternative title available which matches the extension language, it will be used","default":"true"}]}"#.as_bytes();
     payload_buf()[..data.len()].copy_from_slice(data);
     write_success_payload("get_settings", data.len())
 }
