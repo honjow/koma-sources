@@ -5,7 +5,7 @@ extern crate koma_source_sdk;
 use koma_source_sdk::host::{self, http_request, log_info};
 use koma_source_sdk::json_utils::{
     append_json_escaped, append_json_unescaped_then_escaped, contains_bytes, extract_json_number,
-    extract_json_string, find_subslice, write_bytes, write_url_encoded, write_usize,
+    extract_json_string, find_subslice, json_object_member, write_bytes, write_url_encoded, write_usize,
 };
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{FetchError, fetch_error_code};
@@ -24,7 +24,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.noyacg.koma",
     name: "NoyAcg",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -41,7 +41,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     manga_list: true,
     home: false,
     filters: false,
-    settings: false,
+    settings: true,
     image_request: false,
     credentials: false,
 };
@@ -784,11 +784,29 @@ fn run_get_listings(_req: &[u8]) -> u32 {
     write_success_payload("get_listings", LISTINGS.len())
 }
 
+// Fixed NoyAcg preference: only the popular navigation consumes this value.
+// Explicit day/week/month listings retain their original override and request contract.
+fn popular_type(req: &[u8]) -> &'static [u8] {
+    match json_object_member(req, b"settings")
+        .and_then(|s| json_object_member(s, b"POPULAR_MANGAS"))
+    {
+        Some(br#""week""#) => b"week",
+        Some(br#""month""#) => b"month",
+        _ => b"day",
+    }
+}
+
+fn run_get_settings(_req: &[u8]) -> u32 {
+    const SETTINGS: &str = r#"{"settings":[{"id":"POPULAR_MANGAS","name":"熱門漫畫顯示內容","kind":"select","default":"day","options":[{"value":"day","label":"日閱讀榜"},{"value":"week","label":"周閱讀榜"},{"value":"month","label":"月閱讀榜"}]}]}"#;
+    payload_buf()[..SETTINGS.len()].copy_from_slice(SETTINGS.as_bytes());
+    write_success_payload("get_settings", SETTINGS.len())
+}
+
 fn run_get_manga_list(req: &[u8]) -> u32 {
     let page = request_page(req);
     let listing = extract_json_string(req, b"listingId").unwrap_or(b"latest");
     if listing == b"popular" || listing == b"day" || listing == b"week" || listing == b"month" {
-        let typ = if listing == b"popular" { b"day" as &[u8] } else { listing };
+        let typ = if listing == b"popular" { popular_type(req) } else { listing };
         fetch_leaderboard("get_manga_list", page, typ)
     } else {
         fetch_latest("get_manga_list", page)
@@ -903,6 +921,15 @@ pub extern "C" fn koma_source_get_manga_list(req_ptr: u32, req_len: u32) -> u32 
     };
     log_info(b"noyacg get_manga_list");
     run_get_manga_list(req)
+}
+
+#[no_mangle]
+pub extern "C" fn koma_source_get_settings(req_ptr: u32, req_len: u32) -> u32 {
+    let req = match read_request(req_ptr, req_len) {
+        Some(r) => r,
+        None => return write_error("get_settings", "invalid_request", "empty request"),
+    };
+    run_get_settings(req)
 }
 
 #[no_mangle]
