@@ -1,4 +1,10 @@
 #![no_std]
+extern crate alloc;
+use alloc::{string::String, vec::Vec};
+// Full Unicode lowercase (including contextual sigma) follows the adopted
+// reference. Reuse Rust alloc rather than approximate per-character folding.
+#[global_allocator]
+static ALLOCATOR: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
 // Public contract: Keiyoushi MangaBall.kt and Dto.kt, Apache-2.0, revision
 // 1319949ca9bc456908196e3ba2d104e94182c5d6. No authentication/mirror/JS processing.
 use koma_source_sdk::{
@@ -10,7 +16,7 @@ const BASE: &[u8] = b"https://mangaball.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mangaball.zh.koma",
     name: "Manga Ball",
-    version: "0.1.1",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -27,7 +33,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     manga_list: true,
     home: false,
     filters: false,
-    settings: false,
+    settings: true,
     image_request: true,
     credentials: false,
 };
@@ -193,6 +199,60 @@ fn json_value_end(s: &[u8], p: usize, depth: usize) -> Option<usize> {
 }
 fn args(r: &[u8]) -> &[u8] {
     json_object_member(r, b"args").unwrap_or(r)
+}
+const NSFW_KEY: &[u8] = b"nsfw_pref";
+const BLACKLIST_KEY: &[u8] = b"scanlator_blacklist_pref";
+const KNOWN_KEY: &[u8] = b"known_scanlators_pref";
+fn host_feature(r: &[u8], feature: &[u8]) -> bool {
+    json_object_member(r,b"hostFeatures").map(|v| {
+        let v=trim_ascii(v);
+        v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|c| *c==b',')
+            .map(trim_ascii).any(|v|v.len()==feature.len()+2 && v.first()==Some(&b'"') && v.last()==Some(&b'"') && &v[1..v.len()-1]==feature)
+    }).unwrap_or(false)
+}
+fn observations_supported(r: &[u8]) -> bool {host_feature(r,b"source_setting_observations_v1")}
+fn blacklist_supported(r: &[u8]) -> bool {
+    observations_supported(r) && host_feature(r,b"source_chapter_exclusions_v1")
+}
+fn setting<'a>(r: &'a [u8], key: &[u8]) -> Option<&'a [u8]> {
+    json_object_member(r,b"settings").and_then(|v|json_object_member(v,key))
+}
+fn hide_nsfw(r: &[u8]) -> bool {
+    // Explicit human adoption preserves Koma's existing no_18 default. Only
+    // false opts into the reference all request; unknown adult flags still fail.
+    !matches!(setting(r,NSFW_KEY),Some(b"false" | b"\"false\""))
+}
+fn public_name(value: &[u8]) -> Result<String, &'static str> {
+    let value=core::str::from_utf8(value).map_err(|_|"invalid scanlator UTF8")?;
+    if value.encode_utf16().count()>256 || value.chars().any(|c|c<' ' || c=='\u{7f}') {
+        return Err("invalid scanlator name");
+    }
+    Ok(String::from(value))
+}
+fn names_array(raw: &[u8]) -> Result<Vec<String>, &'static str> {
+    let mut spans=[(0,0);512];let count=array_spans(raw,&mut spans)?;let mut names=Vec::new();
+    for (a,z) in &spans[..count] {
+        let v=&raw[*a..*z];if v.first()!=Some(&b'"') || v.last()!=Some(&b'"') {return Err("invalid scanlator setting");}
+        let mut buf=[0;1024];let name=public_name(unescape(&v[1..v.len()-1],&mut buf)?)?;
+        if !name.trim().is_empty() && !names.contains(&name) {names.push(name);}
+    }
+    Ok(names)
+}
+fn scanlator_blacklist(r: &[u8]) -> Result<Vec<String>, &'static str> {
+    if !blacklist_supported(r) {return Ok(Vec::new());}
+    let names=names_array(setting(r,BLACKLIST_KEY).unwrap_or(b"[]"))?;
+    Ok(names.iter().map(|v|v.trim().to_lowercase()).collect())
+}
+fn chapter_scanlator(o: &[u8]) -> Result<Option<String>, &'static str> {
+    let Some(group)=json_object_member(o,b"group") else {return Ok(None);};
+    if group==b"null" {return Ok(None);}
+    let mut buf=[0;1024];let name=public_name(text(group,b"name",&mut buf)?)?;
+    Ok(Some(name))
+}
+fn write_names(out: &mut [u8], n: &mut usize, names: &[String]) -> Result<(), &'static str> {
+    bytes(out,n,b"[")?;
+    for (i,name) in names.iter().enumerate() {if i>0 {bytes(out,n,b",")?;}q(out,n,name.as_bytes())?;}
+    bytes(out,n,b"]")
 }
 fn page(r: &[u8]) -> Result<usize, &'static str> {
     let a = args(r);
@@ -799,8 +859,10 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
         bytes(
             &mut path,
             &mut n,
-            b"&tag_mode=AND&adult_mode=no_18&keyword=",
+            b"&tag_mode=AND&adult_mode=",
         )?;
+        bytes(&mut path,&mut n,if hide_nsfw(r) {b"no_18"} else {b"all"})?;
+        bytes(&mut path,&mut n,b"&keyword=")?;
         if !write_url_encoded(&mut path, &mut n, query) {
             return Err("payload overflow");
         }
@@ -816,7 +878,8 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
                 _ => return Err("unknown listing"),
             },
         )?;
-        bytes(&mut path, &mut n, b"&tag_mode=AND&adult_mode=no_18")?;
+        bytes(&mut path, &mut n, b"&tag_mode=AND&adult_mode=")?;
+        bytes(&mut path,&mut n,if hide_nsfw(r) {b"no_18"} else {b"all"})?;
     }
     let root = fetch(&path[..n], None)?;
     let data = member(root, b"data")?;
@@ -844,7 +907,8 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
                 return Err("duplicate manga ID");
             }
         }
-        if strict_bool(o, b"is18plus")? != Some(false) {
+        let adult=strict_bool(o,b"is18plus")?.ok_or("unexpected adult listing")?;
+        if hide_nsfw(r) && adult {
             return Err("unexpected adult listing");
         }
         if i > 0 {
@@ -901,6 +965,12 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
     json_complete(r)?;
     let mut mb = [0; 64];
     let id = input_mid(r, &mut mb)?;
+    let mut wanted_buf=[0;128];
+    let wanted=if json_object_member(args(r),b"chapterId").is_some() {
+        let (owner,cid)=input_ch(r,&mut wanted_buf)?;
+        if owner!=id {return Err("chapter owner mismatch");}
+        Some(cid)
+    } else {None};
     let mut body = [0; 128];
     let mut n = 0;
     bytes(&mut body, &mut n, b"{\"title_id\":")?;
@@ -916,6 +986,11 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
     if count == 0 {
         return Err("empty catalogue");
     }
+    let observe=observations_supported(r);
+    let blacklist=scanlator_blacklist(r)?;
+    let mut excluded: Vec<String>=Vec::new();
+    let mut known: Vec<String>=Vec::new();
+    let mut chinese=0;
     let b = payload_buf();
     let mut n = 0;
     let mut written = 0;
@@ -941,6 +1016,17 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
         if string(o, b"status") != Some(b"published") {
             return Err("permission denied");
         }
+        chinese+=1;
+        let mut blacklisted=false;
+        if observe {
+            if let Some(name)=chapter_scanlator(o)? {
+                if !name.trim().is_empty() && !known.contains(&name) {
+                    if known.len()==512 {return Err("too many scanlators");}
+                    known.push(name.clone());
+                }
+                blacklisted=blacklist.contains(&name.trim().to_lowercase());
+            }
+        }
         let mut tb = [0; 4096];
         let title = match string(o, b"name") {
             Some(v) => unescape(v, &mut tb)?,
@@ -948,6 +1034,19 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
         };
         if title.is_empty() {
             return Err("empty chapter title");
+        }
+        let volume = json_object_member(o, b"volume").unwrap_or(b"null");
+        decimal(volume)?;
+        // A selected group never hides a malformed/forbidden source entity.
+        if let Some(wanted)=wanted {
+            // Resume restores only its exact valid chapter. It is not a full
+            // directory and cannot erase the saved progress via a list filter.
+            if cid!=wanted {continue;}
+        } else if blacklisted {
+            let mut full=String::from("mbc:");
+            full.push_str(core::str::from_utf8(id).map_err(|_|"invalid request")?);full.push(':');
+            full.push_str(core::str::from_utf8(cid).map_err(|_|"invalid request")?);
+            excluded.push(full);continue;
         }
         if written > 0 {
             bytes(b, &mut n, b",")?;
@@ -963,20 +1062,27 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
         bytes(b, &mut n, b",\"chapterNumber\":")?;
         bytes(b, &mut n, num)?;
         bytes(b, &mut n, b",\"volumeNumber\":")?;
-        let volume = json_object_member(o, b"volume").unwrap_or(b"null");
-        decimal(volume)?;
         bytes(b, &mut n, volume)?;
         bytes(b, &mut n, b",\"language\":\"zh\"}")?;
         written += 1;
     }
-    if written == 0 {
+    if chinese == 0 {
         return Err("no Chinese chapters");
     }
+    if wanted.is_some() && written==0 {return Err("not found");}
     bytes(
         b,
         &mut n,
-        b"],\"page\":{\"nextCursor\":null,\"hasMore\":false}}",
+        b"],\"page\":{\"nextCursor\":null,\"hasMore\":false}",
     )?;
+    if observe {
+        bytes(b,&mut n,b",\"settingObservations\":{\"known_scanlators_pref\":")?;
+        write_names(b,&mut n,&known)?;bytes(b,&mut n,b"}")?;
+    }
+    if blacklist_supported(r) {
+        bytes(b,&mut n,b",\"excludedChapterIds\":")?;write_names(b,&mut n,&excluded)?;
+    }
+    bytes(b,&mut n,b"}")?;
     Ok(n)
 }
 fn pages(r: &[u8]) -> Result<usize, &'static str> {
@@ -1106,7 +1212,24 @@ fn run_get_home(_: &[u8]) -> u32 {
 fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "not_implemented", "not supported")
 }
-fn run_get_settings(_: &[u8]) -> u32 {
-    write_error("get_settings", "not_implemented", "not supported")
+fn settings_schema(r: &[u8]) -> Result<usize, &'static str> {
+    json_complete(r)?;let out=payload_buf();let mut n=0;
+    bytes(out,&mut n,br#"{"settings":[{"id":"nsfw_pref","name":"Hide NSFW content","kind":"toggle","description":"Hide titles marked as 18+","default":"true"}"#)?;
+    if blacklist_supported(r) {
+        let raw=json_object_member(args(r),b"settingObservations").and_then(|v|json_object_member(v,KNOWN_KEY)).unwrap_or(b"[]");
+        let mut known=names_array(raw)?;
+        // Kotlin String ordering is UTF-16; retain raw displayed names and only
+        // lowercase for its stable ordering, never casefold/deduplicate aliases.
+        known.sort_by(|a,b|a.to_lowercase().encode_utf16().cmp(b.to_lowercase().encode_utf16()));
+        bytes(out,&mut n,br#",{"id":"scanlator_blacklist_pref","name":"Scanlator blacklist","kind":"multiselect","description":"Hide chapters from the selected scanlators. The list fills up automatically as you browse titles.","default":[],"options":["#)?;
+        for (i,name) in known.iter().enumerate() {
+            if i>0 {bytes(out,&mut n,b",")?;}
+            bytes(out,&mut n,b"{\"value\":")?;q(out,&mut n,name.as_bytes())?;
+            bytes(out,&mut n,b",\"label\":")?;q(out,&mut n,name.as_bytes())?;bytes(out,&mut n,b"}")?;
+        }
+        bytes(out,&mut n,b"]}")?;
+    }
+    bytes(out,&mut n,b"]}")?;Ok(n)
 }
+fn run_get_settings(r: &[u8]) -> u32 {execute("get_settings",settings_schema(r))}
 koma_source_sdk::koma_source_exports!("mangaball_zh");
