@@ -9,12 +9,12 @@ use koma_source_sdk::{
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.namicomi.zh-hans.koma",
     name: "NamiComi",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh-Hans",
     author: "Koma",
     description:
-        "NamiComi Simplified Chinese public API; anonymous accessible chapters only. Usage unknown.",
+        "NamiComi Simplified Chinese public API; anonymous readable pages; optional locked chapter metadata. Usage unknown.",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
@@ -989,10 +989,18 @@ fn chapter_number(v: Option<&[u8]>) -> Result<Option<&[u8]>, E> {
     }
     Ok(Some(v))
 }
+fn exclusions_supported(r:&[u8])->bool {
+    let Some(raw)=json_object_member(r,b"hostFeatures") else{return false};
+    raw.starts_with(b"[")&&raw.ends_with(b"]")&&raw[1..raw.len()-1].split(|b|*b==b',').any(|v|v.trim_ascii()==br#""source_chapter_exclusions_v1""#)
+}
+fn show_locked_chapters(r:&[u8])->bool {
+    exclusions_supported(r)&&matches!(json_object_member(r,b"settings").and_then(|v|json_object_member(v,b"showLockedChapters_zh-hans")),Some(b"true"|b"\"true\""))
+}
 fn emit_chapter(
     e: &[u8],
     title: &[u8],
     index: usize,
+    locked: bool,
     b: &mut [u8],
     n: &mut usize,
 ) -> Result<(), E> {
@@ -1000,6 +1008,7 @@ fn emit_chapter(
     let a = required(e, b"attributes")?;
     let mut name = [0; 8192];
     let mut nn = 0;
+    if locked {bytes(&mut name,&mut nn,"🔒 ".as_bytes())?;}
     for (key, prefix) in [
         (b"volume".as_slice(), b"Vol.".as_slice()),
         (b"chapter".as_slice(), b"Ch.".as_slice()),
@@ -1009,7 +1018,7 @@ fn emit_chapter(
                 let mut decoded = [0; 4096];
                 let v = unescape(quoted(v)?, &mut decoded)?;
                 if !trim_ascii(v).is_empty() {
-                    if nn > 0 {
+                    if nn > 0 && !(locked && key == b"volume") {
                         bytes(&mut name, &mut nn, b" ")?;
                     }
                     bytes(&mut name, &mut nn, prefix)?;
@@ -1030,9 +1039,9 @@ fn emit_chapter(
             }
         }
     }
-    // A published chapter may have null name/volume/chapter. Upstream emits
-    // an empty title; Host owns its existing localized unnamed label. Never
-    // invent a chapter number or reject the whole valid catalogue for this.
+    // A published chapter may have null name/volume/chapter. Accessible chapters
+    // keep an empty title for Host's existing unnamed label; locked ones retain
+    // the reference lock prefix. Never infer a chapter number from missing data.
     bytes(b, n, b"{\"id\":")?;
     qid(b, n, CP, title, Some(cid))?;
     bytes(b, n, b",\"mangaId\":")?;
@@ -1066,6 +1075,13 @@ fn emit_chapter(
 }
 fn chapters(r: &[u8]) -> Result<usize, E> {
     let title = manga_id(r)?;
+    let supports=exclusions_supported(r);
+    let show_locked=show_locked_chapters(r);
+    let wanted=if supports&&member(args(r)?,b"chapterId")?.is_some(){
+        let (owner,cid)=chapter_id(r)?;
+        if owner!=title{return Err("chapter title mismatch");}
+        Some(cid)
+    }else{None};
     if page(r)? != 1 {
         return Err("invalid request");
     }
@@ -1162,20 +1178,31 @@ fn chapters(r: &[u8]) -> Result<usize, E> {
     let mut n = 0;
     let mut emitted = 0;
     bytes(b, &mut n, b"{\"chapters\":[")?;
+    // Complete owner/language/pagination and gating validation precedes visibility.
+    // Visibility never removes retained Library/Reader data or changes page access.
     for rr in &records[..count] {
-        if rr.accessible {
-            if emitted > 0 {
-                bytes(b, &mut n, b",")?;
-            }
-            emit_chapter(record(*rr, chbytes), title, emitted, b, &mut n)?;
-            emitted += 1;
-        }
+        let raw=record(*rr,chbytes);
+        if let Some(cid)=wanted {
+            if text(raw,b"id")?!=cid{continue;}
+        }else if !rr.accessible&&!show_locked{continue;}
+        if emitted > 0 {bytes(b, &mut n, b",")?;}
+        emit_chapter(raw,title,emitted,!rr.accessible,b,&mut n)?;
+        emitted += 1;
     }
-    bytes(
-        b,
-        &mut n,
-        b"],\"page\":{\"nextCursor\":null,\"hasMore\":false}}",
-    )?;
+    if wanted.is_some()&&emitted!=1{return Err("chapter ownership mismatch");}
+    bytes(b,&mut n,b"]")?;
+    if supports&&wanted.is_none(){
+        bytes(b,&mut n,b",\"excludedChapterIds\":[")?;let mut excluded=0;
+        if !show_locked {
+            for rr in &records[..count] {
+                if rr.accessible{continue;}
+                if excluded>0{bytes(b,&mut n,b",")?;}
+                qid(b,&mut n,CP,title,Some(text(record(*rr,chbytes),b"id")?))?;excluded+=1;
+            }
+        }
+        bytes(b,&mut n,b"]")?;
+    }
+    bytes(b,&mut n,b",\"page\":{\"nextCursor\":null,\"hasMore\":false}}")?;
     Ok(n)
 }
 fn pages(r: &[u8]) -> Result<usize, E> {
@@ -1293,9 +1320,11 @@ fn run_get_home(_: &[u8]) -> u32 {
 fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "not_implemented", "not supported")
 }
-fn run_get_settings(_: &[u8]) -> u32 {
+fn run_get_settings(r: &[u8]) -> u32 {
     let data = r#"{"settings":[{"id":"thumbnailQuality_zh-hans","name":"封面品質","kind":"select","options":[{"value":"original","label":"原圖"},{"value":".512.jpg","label":"中等"},{"value":".256.jpg","label":"低"}],"default":"original"},{"id":"dataSaver_zh-hans","name":"省流量","kind":"toggle","default":"false"}]}"#.as_bytes();
-    payload_buf()[..data.len()].copy_from_slice(data);
-    write_success_payload("get_settings", data.len())
+    if !exclusions_supported(r){payload_buf()[..data.len()].copy_from_slice(data);return write_success_payload("get_settings",data.len());}
+    let out=payload_buf();let mut n=0;
+    let result=bytes(out,&mut n,&data[..data.len()-2]).and_then(|_|bytes(out,&mut n,br#",{"id":"showLockedChapters_zh-hans","name":"Show locked/paywalled chapters","description":"Display chapters that require an account with a premium subscription","kind":"toggle","default":"false"}]}"#));
+    match result{Ok(())=>write_success_payload("get_settings",n),Err(e)=>write_error("get_settings","internal_error",e)}
 }
 koma_source_sdk::koma_source_exports!("namicomi-zh-hans");
