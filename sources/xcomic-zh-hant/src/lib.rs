@@ -16,7 +16,7 @@ use koma_source_sdk::{
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.xcomic.zh-hant.koma",
     name: "XCOMIC",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -1214,8 +1214,14 @@ fn list(r: &[u8], search: bool) -> Result<usize, E> {
     bytes(
         &mut vars,
         &mut v,
-        b",\"where\":\"browse\",\"incTLangs\":[\"zh_hk\"]}}",
+        b",\"where\":\"browse\",\"incTLangs\":[\"zh_hk\"]",
     )?;
+    // The reference flag is a server-side browse preference. Preserve the old
+    // omitted/default request; only explicit true opts out of its genre list.
+    if json_object_member(r,b"settings").and_then(|s|json_object_member(s,b"IGNORE_GENRE_BLOCKLIST"))==Some(b"true") {
+        bytes(&mut vars,&mut v,b",\"ignoreGlobalGenres\":true")?;
+    }
+    bytes(&mut vars,&mut v,b"}}")?;
     let data = query(TITLE_BROWSE_QUERY, &vars[..v])?;
     let items = required(data, b"get_title_browse_items")?;
     let len = items.len();
@@ -1667,7 +1673,7 @@ fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "not_implemented", "not supported")
 }
 fn run_get_settings(req: &[u8]) -> u32 {
-    let schema = r#"{"settings":[{"id":"REMOVE_TITLE_VERSION","name":"Remove Version Information From Entry Titles","kind":"toggle","default":"false","description":"This removes version tags like '(Official)' or '(Yaoi)' from entry titles."}]}"#.as_bytes();
+    let schema = r#"{"settings":[{"id":"REMOVE_TITLE_VERSION","name":"Remove Version Information From Entry Titles","kind":"toggle","default":"false","description":"This removes version tags like '(Official)' or '(Yaoi)' from entry titles."},{"id":"IGNORE_GENRE_BLOCKLIST","name":"Ignore WebView Genre Blocklist","kind":"toggle","default":"false"}]}"#.as_bytes();
     let out=payload_buf();let mut n=0;
     if !chapter_editions::supported(req){out[..schema.len()].copy_from_slice(schema);return write_success_payload("get_settings",schema.len());}
     if bytes(out,&mut n,&schema[..schema.len()-2]).is_err() || bytes(out,&mut n,br#",{"id":"SOURCE_INCLUDE","name":"Chapter Editions To Include","kind":"text","default":"","description":"Comma-separated edition labels; a base label includes matching editions, while a suffixed label selects one. Empty includes all editions."}]}"#).is_err(){return write_error("get_settings","internal_error","payload overflow");}

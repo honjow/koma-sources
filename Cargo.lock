@@ -1601,7 +1601,7 @@ dependencies = [
 
 [[package]]
 name = "koma_xcomic_zh_hant_source"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -3642,7 +3642,7 @@ dependencies = [
 
 [[package]]
 name = "koma_xcomic_zh_source"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
