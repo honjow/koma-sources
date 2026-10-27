@@ -31,6 +31,8 @@ const JSON_BUF_CAP: usize = 512 * 1024;
 mod first_volume_cover;
 #[path = "../original_language.rs"]
 mod original_language;
+#[path = "../content_rating.rs"]
+mod content_rating;
 static mut COVER_JSON: [u8; JSON_BUF_CAP] = [0; JSON_BUF_CAP];
 
 static mut JSON_BUF: [u8; JSON_BUF_CAP] = [0; JSON_BUF_CAP];
@@ -111,7 +113,7 @@ fn manga_title(obj: &[u8]) -> &[u8] {
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "org.mangadex.koma",
     name: "MangaDex",
-    version: "0.1.17",
+    version: "0.1.18",
     api_version: "0.2",
     language: "en",
     author: "Koma",
@@ -289,6 +291,32 @@ fn content_rating_query(req: &[u8], use_filter: bool) -> &'static [u8] {
     }
 }
 
+// Public settings migration is request-scoped. Old Hosts retain the published
+// three-value selector; only the context-capable Host consumes the new array.
+fn rating_context_supported(req:&[u8])->bool {
+    let Some(raw)=json_object_member(req,b"hostFeatures") else{return false};
+    raw.starts_with(b"[")&&raw.ends_with(b"]")&&raw[1..raw.len()-1].split(|b|*b==b',').any(|v|v.trim_ascii()==br#""source_settings_context_v1""#)
+}
+fn append_content_rating_query(out:&mut [u8],n:&mut usize,req:&[u8],use_filter:bool)->bool {
+    let args=json_object_member(req,b"args").unwrap_or(req);
+    let filters=if use_filter{json_object_member(args,b"filters").unwrap_or(args)}else{b"{}"};
+    let explicit=json_object_member(filters,b"contentRating").and_then(nonempty_title_string);
+    let modern=json_object_member(req,b"settings").and_then(|v|json_object_member(v,b"contentRating_en"));
+    if !rating_context_supported(req)||modern.is_none()||matches!(explicit,Some(b"safe"|b"suggestive"|b"erotica")) {
+        write_bytes(out,n,content_rating_query(req,use_filter))
+    } else {
+        content_rating::append_query(out,n,req,b"contentRating_en")
+    }
+}
+fn schema_rating_default(values:&[u8])->&'static [u8] {
+    if json_object_member(values,b"contentRating_en").is_some(){return br#"["safe","suggestive"]"#;}
+    match json_object_member(values,b"defaultContentRating").and_then(nonempty_title_string) {
+        Some(b"safe")=>br#"["safe"]"#,
+        Some(b"erotica")=>br#"["safe","suggestive","erotica"]"#,
+        _=>br#"["safe","suggestive"]"#,
+    }
+}
+
 
 
 fn run_search(req: &[u8]) -> u32 {
@@ -311,7 +339,7 @@ fn run_search(req: &[u8]) -> u32 {
         && write_bytes(url_buf, &mut url_cursor, b"&limit=20&offset=")
         && write_usize(url_buf, &mut url_cursor, offset)
         && write_bytes(url_buf, &mut url_cursor, b"&includes%5B%5D=cover_art")
-        && write_bytes(url_buf, &mut url_cursor, content_rating_query(req, true))
+        && append_content_rating_query(url_buf, &mut url_cursor, req, true)
         && write_bytes(url_buf, &mut url_cursor, original_language::query(req, b"originalLanguage_en", true));
     if !ok { return write_error("search", "internal_error", "url overflow"); }
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
@@ -935,7 +963,7 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
             && write_bytes(url_buf, &mut url_cursor, status);
         if !ok2 { return write_error("get_manga_list", "internal_error", "url overflow"); }
     }
-    if !(write_bytes(url_buf, &mut url_cursor, content_rating_query(req, true))
+    if !(append_content_rating_query(url_buf, &mut url_cursor, req, true)
         && write_bytes(url_buf, &mut url_cursor, original_language::query(req, b"originalLanguage_en", false))) {
         return write_error("get_manga_list", "internal_error", "url overflow");
     }
@@ -1090,7 +1118,7 @@ fn run_get_home(req: &[u8]) -> u32 {
         let url_buf = scratch_a();
         let mut url_len = 0usize;
         if !(write_bytes(url_buf, &mut url_len, url)
-            && write_bytes(url_buf, &mut url_len, content_rating_query(req, false))
+            && append_content_rating_query(url_buf, &mut url_len, req, false)
             && write_bytes(url_buf, &mut url_len, original_language::query(req, b"originalLanguage_en", false))) {
             return write_error("get_home", "internal_error", "url overflow");
         }
@@ -1152,10 +1180,28 @@ fn run_get_home(req: &[u8]) -> u32 {
 
 // --- get_settings: source-level user preferences ---
 
-fn run_get_settings(_req: &[u8]) -> u32 {
+fn run_get_settings(req: &[u8]) -> u32 {
     // MangaDex settings: preferred language, content rating, data saver mode
     const SETTINGS_JSON: &[u8] = br#"{"settings":[{"id":"thumbnailQuality_en","name":"Cover Quality","kind":"select","options":[{"value":"original","label":"Original"},{"value":".512.jpg","label":"Medium"},{"value":".256.jpg","label":"Low"}],"default":"original"},{"id":"language","name":"Preferred Language","kind":"select","options":[{"value":"en","label":"English"},{"value":"ja","label":"Japanese"},{"value":"zh","label":"Chinese (Simplified)"},{"value":"zh-hk","label":"Chinese (Traditional)"},{"value":"ko","label":"Korean"},{"value":"fr","label":"French"},{"value":"es","label":"Spanish"},{"value":"de","label":"German"},{"value":"pt-br","label":"Portuguese (Brazil)"}],"default":"en"},{"id":"dataSaver","name":"Data Saver","kind":"toggle","description":"Use compressed images to save bandwidth","default":"false"},{"id":"defaultContentRating","name":"Default Content Rating","kind":"select","options":[{"value":"safe","label":"Safe Only"},{"value":"suggestive","label":"Safe + Suggestive"},{"value":"erotica","label":"All (including Erotica)"}],"default":"suggestive"},{"id":"altTitlesInDesc_en","name":"Alternative titles in description","kind":"toggle","description":"Include a manga's alternative titles at the end of its description","default":"false"},{"id":"usePort443_en","name":"Use HTTPS port 443 only","kind":"toggle","description":"Enable to only request image servers that use port 443. This allows users with stricter firewall restrictions to access MangaDex images","default":"false"},{"id":"tryUsingFirstVolumeCover_en","name":"Attempt to use the first volume cover as cover","kind":"toggle","description":"Existing library entries may need a manual refresh to show changed covers","default":"false"},{"id":"originalLanguage_en","name":"Filter original languages","kind":"multiselect","description":"Only show content that was originally published in the selected languages in both latest and browse","default":[],"options":[{"value":"ja","label":"Japanese"},{"value":"zh","label":"Chinese"},{"value":"ko","label":"Korean"}]}]}"#;
 
+    let context=if rating_context_supported(req){json_object_member(req,b"args").and_then(|v|json_object_member(v,b"settingValues")).filter(|v|v.first()==Some(&b'{'))}else{None};
+    if let Some(values)=context {
+        let payload=payload_buf();let mut n=0;
+        let Some(mut settings)=json_object_member(SETTINGS_JSON,b"settings").and_then(JsonArrayIter::from_raw_array)else{return write_error("get_settings","internal_error","invalid settings schema")};
+        if !write_bytes(payload,&mut n,br#"{"settings":["#){return write_error("get_settings","internal_error","payload overflow");}
+        let mut first=true;
+        while let Some(field)=settings.next_object(){
+            if !first&&!write_bytes(payload,&mut n,b","){return write_error("get_settings","internal_error","payload overflow");}first=false;
+            let ok=if api_string(field,b"id")==Some(b"defaultContentRating"){
+                write_bytes(payload,&mut n,br#"{"id":"contentRating_en","name":"Default content rating","kind":"multiselect","description":"Show content with the selected ratings by default","default":"#)
+                &&write_bytes(payload,&mut n,schema_rating_default(values))
+                &&write_bytes(payload,&mut n,br#", "options":[{"value":"safe","label":"Safe"},{"value":"suggestive","label":"Suggestive"},{"value":"erotica","label":"Erotica"},{"value":"pornographic","label":"Pornographic"}]}"#)
+            }else{write_bytes(payload,&mut n,field)};
+            if !ok{return write_error("get_settings","internal_error","payload overflow");}
+        }
+        if !write_bytes(payload,&mut n,b"]}"){return write_error("get_settings","internal_error","payload overflow");}
+        return write_success_payload("get_settings",n);
+    }
     let payload = payload_buf();
     let flen = SETTINGS_JSON.len();
     if flen > payload.len() {
