@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["append_entity_decoded_json_content"]};
+window.SIDEBAR_ITEMS = {"fn":["append_entity_decoded_json_content","decode_json_content"]};
