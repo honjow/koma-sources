@@ -48,15 +48,18 @@ koma_source_sdk::koma_source_buffers! {
 }
 koma_source_sdk::koma_source_helpers!();
 
+// 官网 www.92mh.com 标题和版权均用“92漫画网”；保留现有 92 字标、ID 和地址。
+// 现有字标不是本次新核实的官网素材，站点身份或图标需新依据才调整。
+// 固定上游为 MIXED，官网可见 R-18，源级保守标记 nsfw；未取得作品级分级时用 unknown。
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.jiuermanhua.koma",
-    name: "92漫画",
-    version: "0.1.1",
+    name: "92漫画网",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "92漫画 HTML scraping source.",
-    content_rating: "safe",
+    description: "",
+    content_rating: "nsfw",
 };
 
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
@@ -171,7 +174,7 @@ fn write_manga_item(
         && append_json_escaped(payload, c, title)
         && write_bytes(payload, c, br#"","cover":{"kind":"url","url":""#)
         && write_json_url(payload, c, cover)
-        && write_bytes(payload, c, br#""},"authors":[],"status":"unknown","contentRating":"safe","description":"","sourceTags":["jiuermanhua"]}"#)
+        && write_bytes(payload, c, br#""},"authors":[],"status":"unknown","contentRating":"unknown","description":"","sourceTags":["jiuermanhua"]}"#)
 }
 
 fn parse_list(html: &[u8]) -> u32 {
@@ -467,7 +470,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
         }
         && write_bytes(payload, &mut c, br#"],"artists":[],"status":""#)
         && write_bytes(payload, &mut c, status)
-        && write_bytes(payload, &mut c, br#"","contentRating":"safe","language":"zh","tags":[],"links":[{"kind":"source","url":""#)
+        && write_bytes(payload, &mut c, br#"","contentRating":"unknown","language":"zh","tags":[],"links":[{"kind":"source","url":""#)
         && append_json_escaped(payload, &mut c, url)
         && write_bytes(payload, &mut c, br#""}]}}"#);
 

@@ -1,4 +1,4 @@
-# LINE WEBTOON（繁体中文）0.1.7
+# LINE WEBTOON（繁体中文）0.1.8
 
 独立源 ID `com.webtoons.zh-hant.koma`、内容语言 `zh-Hant`；英文 WEBTOON 与简体咚漫是另外的源，不别名迁移或共用历史。普通网站为 `https://www.webtoons.com`，图标与身份资源保持，素材依据见 [ASSET_SOURCES.md](ASSET_SOURCES.md)。上游 SAFE 是源级标记，不是逐作品分类或使用验收。
 
@@ -21,3 +21,5 @@ Manga 身份保语言、类型、真实 title_no 及 list 路径；章节身份�
 ## 官方中文站品牌
 
 繁中官网 [原創頁](https://www.webtoons.com/zh-hant/originals) 与 [官方公告](https://www.webtoons.com/zh-hant/notice/list?page=1) 使用 `LINE WEBTOON`。本源显示名保留该完整品牌与繁体中文区分；英文源独立采用自身官网WEBTOON品牌，不联动改名。ID、语言、正文与设置合同、图标字节保持。
+
+源简介仅说明当前源的内容范围；不把实现细节或未知状态显示给用户。

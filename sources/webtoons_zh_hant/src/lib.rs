@@ -11,12 +11,12 @@ const MOBILE: &[u8] = b"https://m.webtoons.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.webtoons.zh-hant.koma",
     name: "LINE WEBTOON (Traditional Chinese)",
-    version: "0.1.7",
+    version: "0.1.8",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma source contributors",
     description:
-        "Public Traditional Chinese WEBTOON source. Upstream SAFE; individual works unclassified.",
+        "",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
