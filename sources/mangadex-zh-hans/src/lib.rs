@@ -7,7 +7,7 @@ use koma_source_sdk::{
 };
 type E = &'static str;
 const MAX: usize = 1048576;
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"org.mangadex.zh-hans.koma",name:"MangaDex",version:"0.1.5",api_version:"0.2",language:"zh-Hans",author:"Koma",description:"MangaDex public simplified-Chinese chapters. Usage unknown; followedCount listing is not a usage ranking.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"org.mangadex.zh-hans.koma",name:"MangaDex",version:"0.1.6",api_version:"0.2",language:"zh-Hans",author:"Koma",description:"MangaDex public simplified-Chinese chapters. Usage unknown; followedCount listing is not a usage ranking.",content_rating:"nsfw"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -27,6 +27,8 @@ koma_source_sdk::koma_source_helpers!();
 mod first_volume_cover;
 #[path = "../../mangadex/original_language.rs"]
 mod original_language;
+#[path = "../../mangadex/content_rating.rs"]
+mod content_rating;
 static mut COVER_BODY: [u8; MAX] = [0; MAX];
 static mut REQUEST: [u8; MAX] = [0; MAX];
 static mut URL: [u8; 32768] = [0; 32768];
@@ -596,8 +598,8 @@ fn rating<'a>(a: &'a [u8]) -> Result<&'a [u8], E> {
         }
     }
 }
-fn safe(a: &[u8]) -> Result<(), E> {
-    if !matches!(rating(a)?, b"safe" | b"suggestive") {
+fn listing_rating(a: &[u8], req: &[u8]) -> Result<(), E> {
+    if !content_rating::accepts(req, b"contentRating_zh", rating(a)?) {
         return Err("list rating outside public scope");
     }
     Ok(())
@@ -772,7 +774,8 @@ fn listing(r: &[u8], search: bool) -> Result<usize, E> {
     bytes(b, &mut n, API)?;
     bytes(b, &mut n, b"/manga?limit=20&offset=")?;
     wn(b, &mut n, offset)?;
-    bytes(b,&mut n,b"&includes%5B%5D=cover_art&hasAvailableChapters=true&availableTranslatedLanguage%5B%5D=zh&contentRating%5B%5D=safe&contentRating%5B%5D=suggestive")?;
+    bytes(b,&mut n,b"&includes%5B%5D=cover_art&hasAvailableChapters=true&availableTranslatedLanguage%5B%5D=zh")?;
+    if !content_rating::append_query(b, &mut n, r, b"contentRating_zh") { return Err("payload overflow"); }
     bytes(b, &mut n, original_language::query(r, b"originalLanguage_zh", search))?;
     if search {
         let mut querybuf = [0; 8192];
@@ -806,7 +809,7 @@ fn listing(r: &[u8], search: bool) -> Result<usize, E> {
             return Err("same-page duplicate");
         };
         ids[count].copy_from_slice(id);
-        safe(required(x, b"attributes")?)?;
+        listing_rating(required(x, b"attributes")?, r)?;
         if count > 0 {
             bytes(output, &mut n, b",")?
         };
@@ -1221,7 +1224,7 @@ fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "not_supported", "not supported")
 }
 fn run_get_settings(_: &[u8]) -> u32 {
-    let data = r#"{"settings":[{"id":"thumbnailQuality_zh","name":"封面品質","kind":"select","options":[{"value":"original","label":"原圖"},{"value":".512.jpg","label":"中等"},{"value":".256.jpg","label":"低"}],"default":"original"},{"id":"dataSaverV5_zh","name":"省流量","kind":"toggle","default":"false"},{"id":"altTitlesInDesc_zh","name":"Alternative titles in description","kind":"toggle","description":"Include a manga's alternative titles at the end of its description","default":"false"},{"id":"usePort443_zh","name":"Use HTTPS port 443 only","kind":"toggle","description":"Enable to only request image servers that use port 443. This allows users with stricter firewall restrictions to access MangaDex images","default":"false"},{"id":"tryUsingFirstVolumeCover_zh","name":"Attempt to use the first volume cover as cover","kind":"toggle","description":"Existing library entries may need a manual refresh to show changed covers","default":"false"},{"id":"originalLanguage_zh","name":"Filter original languages","kind":"multiselect","description":"Only show content that was originally published in the selected languages in both latest and browse","default":[],"options":[{"value":"ja","label":"Japanese"},{"value":"zh","label":"Chinese"},{"value":"ko","label":"Korean"}]}]}"#.as_bytes();
+    let data = r#"{"settings":[{"id":"thumbnailQuality_zh","name":"封面品質","kind":"select","options":[{"value":"original","label":"原圖"},{"value":".512.jpg","label":"中等"},{"value":".256.jpg","label":"低"}],"default":"original"},{"id":"dataSaverV5_zh","name":"省流量","kind":"toggle","default":"false"},{"id":"altTitlesInDesc_zh","name":"Alternative titles in description","kind":"toggle","description":"Include a manga's alternative titles at the end of its description","default":"false"},{"id":"usePort443_zh","name":"Use HTTPS port 443 only","kind":"toggle","description":"Enable to only request image servers that use port 443. This allows users with stricter firewall restrictions to access MangaDex images","default":"false"},{"id":"tryUsingFirstVolumeCover_zh","name":"Attempt to use the first volume cover as cover","kind":"toggle","description":"Existing library entries may need a manual refresh to show changed covers","default":"false"},{"id":"originalLanguage_zh","name":"Filter original languages","kind":"multiselect","description":"Only show content that was originally published in the selected languages in both latest and browse","default":[],"options":[{"value":"ja","label":"Japanese"},{"value":"zh","label":"Chinese"},{"value":"ko","label":"Korean"}]},{"id":"contentRating_zh","name":"Default content rating","kind":"multiselect","description":"Show content with the selected ratings by default","default":["safe","suggestive"],"options":[{"value":"safe","label":"Safe"},{"value":"suggestive","label":"Suggestive"},{"value":"erotica","label":"Erotica"},{"value":"pornographic","label":"Pornographic"}]}]}"#.as_bytes();
     payload_buf()[..data.len()].copy_from_slice(data);
     write_success_payload("get_settings", data.len())
 }
