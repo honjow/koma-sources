@@ -4,12 +4,12 @@ use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.bilibili.fgo.zh.koma",
-    name: "FGO国服官方漫画",
-    version: "0.1.2",
+    name: "从漫画了解！Fate/Grand Order",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "Public Chinese Fate/Grand Order manga from its official bilibili game website.",
+    description: "仅收录第一系列。",
     content_rating: "unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

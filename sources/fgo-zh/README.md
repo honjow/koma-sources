@@ -1,3 +1,7 @@
+# 从漫画了解！Fate/Grand Order · 0.1.3 官网系列名称
+
+官网 manga01 标题使用“从漫画了解！Fate/Grand Order”；本源仅收录该第一系列，保留源、书目和章节身份、地址、官网 shareImage 图标与内容行为。
+
 # FGO国服官方漫画 · 0.1.2 数组元素/终态错误传播
 
 当前标准生产入口：仓库根 `bash build.sh --source fgo-zh`。当前012在源局部对象数组读取中区分合法终态与无效元素，覆盖NUXT单data对象、目录comList、封面meta查找、正文comList、banner单图行与样式数组。无效元素在被读取时整次parse_error；保留封面og:image首匹配提前返回与非章节业务组件过滤。下方011章节语义及历史原件/官方素材出处继续适用。
