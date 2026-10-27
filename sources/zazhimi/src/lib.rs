@@ -185,6 +185,7 @@ fn write_list_from_array(
     operation: &str,
     json: &[u8],
     key: &[u8],
+    page: usize,
     limit: usize,
     tag: &[u8],
 ) -> u32 {
@@ -210,16 +211,21 @@ fn write_list_from_array(
         }
         written += 1;
     }
-    let has_more = if written >= limit {
-        b"true" as &[u8]
-    } else {
-        b"false" as &[u8]
-    };
-    if !(write_bytes(
-        payload,
-        &mut c,
-        br#"],"page":{"nextCursor":null,"hasMore":"#,
-    ) && write_bytes(payload, &mut c, has_more)
+    // The index endpoint keeps returning entries past its own latest issue and
+    // eventually clamps to a long-empty tail, so a full page alone cannot prove
+    // another page exists. Only an actual following page can continue.
+    let has_more = written >= limit && page < usize::MAX;
+    let next_cursor = page.saturating_add(1);
+    if !(write_bytes(payload, &mut c, br#"],"page":{"nextCursor":"#)
+        && (if has_more {
+            write_bytes(payload, &mut c, b"\"")
+                && write_usize(payload, &mut c, next_cursor)
+                && write_bytes(payload, &mut c, b"\"")
+        } else {
+            write_bytes(payload, &mut c, b"null")
+        })
+        && write_bytes(payload, &mut c, br#","hasMore":"#)
+        && write_bytes(payload, &mut c, if has_more { b"true" } else { b"false" })
         && write_bytes(payload, &mut c, br#"}}"#))
     {
         return write_error(operation, "internal_error", "payload overflow");
@@ -247,6 +253,7 @@ fn run_list(req: &[u8], operation: &str) -> u32 {
         operation,
         body_slice(body_len),
         b"new",
+        page,
         limit,
         b"zazhimi",
     )
@@ -301,6 +308,7 @@ fn run_search(req: &[u8]) -> u32 {
         "search",
         body_slice(body_len),
         b"magazine",
+        page,
         limit,
         b"zazhimi",
     )
