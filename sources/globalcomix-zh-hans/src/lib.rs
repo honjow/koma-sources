@@ -10,12 +10,12 @@ const BASE: &[u8] = b"https://globalcomix.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.globalcomix.zh-hans.koma",
     name: "GlobalComix",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
     description:
-        "GlobalComix Chinese public JSON; upstream MIXED; only explicit free releases/pages. Usage unknown.",
+        "GlobalComix Chinese public JSON; upstream MIXED; public catalogue settings, explicit free pages only. Usage unknown.",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
@@ -799,11 +799,68 @@ fn free_release(o: &[u8], comic: usize) -> Result<(), &'static str> {
     }
     Ok(())
 }
+fn exclusions_supported(r: &[u8]) -> bool {
+    json_object_member(r, b"hostFeatures")
+        .map(|v| {
+            let v = trim_ascii(v);
+            v.starts_with(b"[")
+                && v.ends_with(b"]")
+                && v[1..v.len() - 1]
+                    .split(|c| *c == b',')
+                    .any(|v| trim_ascii(v) == b"\"source_chapter_exclusions_v1\"")
+        })
+        .unwrap_or(false)
+}
+fn show_locked_chapters(r: &[u8]) -> bool {
+    // The explicitly adopted default is enabled only with the host contract
+    // that can exclude retained Library chapters without deleting their data.
+    exclusions_supported(r)
+        && !matches!(
+            json_object_member(r, b"settings")
+                .and_then(|v| json_object_member(v, b"showLockedChapters_cn")),
+            Some(b"false" | b"\"false\"")
+        )
+}
+fn release_chapter_id<'a>(
+    o: &[u8],
+    comic: usize,
+    out: &'a mut [u8],
+) -> Result<&'a [u8], &'static str> {
+    let rid = uint(o, b"id")?;
+    if rid == 0 {
+        return Err("invalid release identity");
+    }
+    let mut kb = [0; 64];
+    let key = text(o, b"key", &mut kb)?;
+    if !uuid_valid(key) {
+        return Err("invalid release identity");
+    }
+    let mut n = 0;
+    bytes(out, &mut n, b"gcr:")?;
+    write_num(out, &mut n, comic)?;
+    bytes(out, &mut n, b":")?;
+    write_num(out, &mut n, rid)?;
+    bytes(out, &mut n, b":")?;
+    bytes(out, &mut n, key)?;
+    Ok(&out[..n])
+}
 fn chapters(r: &[u8]) -> Result<usize, &'static str> {
     let mut ib = [0; 512];
     let len = input_mid(r, &mut ib)?;
     let mid = &ib[..len];
     let (comic, _) = mid_parts(mid)?;
+    let supports = exclusions_supported(r);
+    let show_locked = show_locked_chapters(r);
+    let mut wanted_buf = [0; 256];
+    let wanted = if supports && json_object_member(args(r), b"chapterId").is_some() {
+        let wanted = text(args(r), b"chapterId", &mut wanted_buf)?;
+        if chapter_parts(wanted)?.0 != comic {
+            return Err("release owner mismatch");
+        }
+        Some(wanted)
+    } else {
+        None
+    };
     let mut path = [0; 1024];
     let mut n = 0;
     bytes(&mut path, &mut n, b"/comics/")?;
@@ -821,12 +878,13 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
     {
         return Err("incomplete catalogue");
     }
+    let mut excluded = [false; 2048];
     let out = payload_buf();
     let mut n = 0;
-    bytes(out, &mut n, b"{\"chapters\":[")?;
     let mut emitted = 0;
-    for (s, e) in &spans[..count] {
-        let o = &a[*s..*e];
+    bytes(out, &mut n, b"{\"chapters\":[")?;
+    for (i, (start, end)) in spans[..count].iter().enumerate() {
+        let o = &a[*start..*end];
         if !is(o, b"entity_type", b"\"Release\"")
             || uint(o, b"comic_id")? != comic
             || !is(o, b"lang_id", b"\"cn\"")
@@ -835,44 +893,60 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
         }
         let premium = member(o, b"premium_only")?;
         let free = member(o, b"is_free")?;
-        if premium == b"1" || free == b"false" {
+        let paid = premium == b"1" || free == b"false";
+        // Older hosts retain the published .3 free-only catalogue and schema.
+        if !supports && paid {
             continue;
         }
-        free_release(o, comic)?;
-        let rid = uint(o, b"id")?;
-        if rid == 0 {
-            return Err("invalid release identity");
-        }
-        let mut kb = [0; 64];
-        let key = text(o, b"key", &mut kb)?;
-        if !uuid_valid(key) {
-            return Err("invalid release identity");
+        if supports {
+            if !matches!(premium, b"0" | b"1") || !matches!(free, b"true" | b"false") {
+                return Err("permission denied");
+            }
+        } else {
+            free_release(o, comic)?;
         }
         let mut cid = [0; 256];
-        let mut cn = 0;
-        bytes(&mut cid, &mut cn, b"gcr:")?;
-        write_num(&mut cid, &mut cn, comic)?;
-        bytes(&mut cid, &mut cn, b":")?;
-        write_num(&mut cid, &mut cn, rid)?;
-        bytes(&mut cid, &mut cn, b":")?;
-        bytes(&mut cid, &mut cn, key)?;
+        let cid = release_chapter_id(o, comic, &mut cid)?;
         let mut tb = [0; 4096];
         let title = text(o, b"title", &mut tb)?;
         if title.is_empty() {
             return Err("empty chapter title");
         }
+        let mut num = [0; 128];
+        let value = text(o, b"chapter", &mut num)?;
+        let page_count = uint(o, b"page_count")?;
+        // Explicit exclusions are emitted only after validating this full entity.
+        if let Some(wanted) = wanted {
+            if cid != wanted {
+                continue;
+            }
+        } else if !show_locked && paid {
+            excluded[i] = true;
+            continue;
+        }
         if emitted > 0 {
             bytes(out, &mut n, b",")?;
         }
         bytes(out, &mut n, b"{\"id\":")?;
-        q(out, &mut n, &cid[..cn])?;
+        q(out, &mut n, cid)?;
         bytes(out, &mut n, b",\"mangaId\":")?;
         q(out, &mut n, mid)?;
         bytes(out, &mut n, b",\"title\":")?;
-        q(out, &mut n, title)?;
+        if premium == b"1" {
+            let mut title_buf = [0; 4352];
+            let mut tn = 0;
+            bytes(&mut title_buf, &mut tn, "🔒".as_bytes())?;
+            if !value.is_empty() {
+                bytes(&mut title_buf, &mut tn, b" Ch.")?;
+                bytes(&mut title_buf, &mut tn, value)?;
+            }
+            bytes(&mut title_buf, &mut tn, b" - ")?;
+            bytes(&mut title_buf, &mut tn, title)?;
+            q(out, &mut n, &title_buf[..tn])?;
+        } else {
+            q(out, &mut n, title)?;
+        }
         bytes(out, &mut n, b",\"chapterNumber\":")?;
-        let mut num = [0; 128];
-        let value = text(o, b"chapter", &mut num)?;
         if let Some(v) = number(value) {
             write_num(out, &mut n, v)?;
         } else {
@@ -883,20 +957,41 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
             &mut n,
             b",\"volumeNumber\":null,\"language\":\"zh\",\"pageCount\":",
         )?;
-        write_num(out, &mut n, uint(o, b"page_count")?)?;
+        write_num(out, &mut n, page_count)?;
         bytes(out, &mut n, b",\"index\":")?;
-        write_num(out, &mut n, emitted)?;
+        write_num(out, &mut n, if wanted.is_some() { i } else { emitted })?;
         bytes(out, &mut n, b"}")?;
         emitted += 1;
     }
-    if emitted == 0 {
+    if wanted.is_some() && emitted == 0 {
+        return Err("not found");
+    }
+    if !supports && emitted == 0 {
         return Err("permission denied");
     }
     bytes(
         out,
         &mut n,
-        b"],\"page\":{\"nextCursor\":null,\"hasMore\":false}}",
+        b"],\"page\":{\"nextCursor\":null,\"hasMore\":false}",
     )?;
+    if supports {
+        bytes(out, &mut n, b",\"excludedChapterIds\":[")?;
+        let mut written = 0;
+        for (i, (start, end)) in spans[..count].iter().enumerate() {
+            if !excluded[i] {
+                continue;
+            }
+            let mut cid = [0; 256];
+            let cid = release_chapter_id(&a[*start..*end], comic, &mut cid)?;
+            if written > 0 {
+                bytes(out, &mut n, b",")?;
+            }
+            q(out, &mut n, cid)?;
+            written += 1;
+        }
+        bytes(out, &mut n, b"]")?;
+    }
+    bytes(out, &mut n, b"}")?;
     Ok(n)
 }
 // Default keeps desktop_image_url. The opt-in key follows the provider's cn
@@ -1015,11 +1110,18 @@ fn run_get_home(_: &[u8]) -> u32 {
 fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "not_implemented", "not supported")
 }
-fn run_get_settings(_: &[u8]) -> u32 {
-    // showLockedChapters defaults true upstream but conflicts with this source's
-    // established free-only catalogue; do not expose a non-consuming switch.
-    let schema = br#"{"settings":[{"id":"dataSaver_cn","name":"Data saver","kind":"toggle","description":"Enables smaller, more compressed images","default":"false"}]}"#;
-    payload_buf()[..schema.len()].copy_from_slice(schema);
-    write_success_payload("get_settings", schema.len())
+fn run_get_settings(r: &[u8]) -> u32 {
+    let out = payload_buf();
+    let mut n = 0;
+    let result = (|| -> Result<usize, &'static str> {
+        bytes(out,&mut n,br#"{"settings":[{"id":"dataSaver_cn","name":"Data saver","kind":"toggle","description":"Enables smaller, more compressed images","default":"false"}"#)?;
+        if exclusions_supported(r) {
+            bytes(out,&mut n,br#",{"id":"showLockedChapters_cn","name":"Show chapters with pay-walled pages","kind":"toggle","description":"Display chapters that require an account with a premium subscription","default":"true"}"#)?;
+        }
+        bytes(out, &mut n, b"]}")?;
+        Ok(n)
+    })();
+    execute("get_settings", result)
 }
+
 koma_source_sdk::koma_source_exports!("globalcomix_zh_hans");
