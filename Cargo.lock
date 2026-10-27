@@ -1601,11 +1601,12 @@ dependencies = [
 
 [[package]]
 name = "koma_xcomic_zh_hant_source"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
  "regex",
+ "unicode_titlecase",
 ]
 
 [[package]]
@@ -3641,11 +3642,12 @@ dependencies = [
 
 [[package]]
 name = "koma_xcomic_zh_source"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
  "regex",
+ "unicode_titlecase",
 ]
 
 [[package]]
@@ -3700,3 +3702,9 @@ name = "regex-syntax"
 version = "0.8.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
+
+[[package]]
+name = "unicode_titlecase"
+version = "2.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de023a2c2eb3e07fdf1be663df7010e23968a3b9a5e94d1a860f620bdfd233e2"

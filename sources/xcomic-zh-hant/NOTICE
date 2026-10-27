@@ -4,3 +4,4 @@ Title-version setting and fixed expression: 949dea252eb8e867b7b40834a26e13088764
 Original icon reference: src/all/xcomic/res/mipmap-xxxhdpi/ic_launcher.png, Git blob 7e70247a2191d6a00135605d784a679409094934, SHA256337a7c924fdf7afa325906c7cd6c8042a0387d2a0875e4c369b369e338223390. Current asset retains the adopted two-colour X after approved backing/shadow removal; it is not byte-identical to that original and does not establish xcomic.me approval.
 All original notices remain in LICENSE. JSON bounded parsing was adapted from existing Koma NamiComi source.
 regex, regex-automata, regex-syntax and dlmalloc are used under their MIT OR Apache-2.0 licenses.
+SOURCE_INCLUDE edition filtering and label normalization follow fixed Keiyoushi949dea XCOMIC.kt/Dto.kt, Apache-2.0. Unicode titlecase uses unicode_titlecase2.5.0 by Carl Raffaele, MIT OR Apache-2.0; lowercase uses Rust alloc Unicode behavior.

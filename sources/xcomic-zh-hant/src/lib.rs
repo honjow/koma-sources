@@ -3,6 +3,9 @@ extern crate alloc;
 #[global_allocator]
 static ALLOCATOR: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
 use regex::Regex;
+use alloc::{string::{String,ToString},vec::Vec,collections::{BTreeMap,BTreeSet}};
+#[path = "../../xcomic-zh/chapter_editions.rs"]
+mod chapter_editions;
 // Independent modified adaptation of XCOMIC published JSON contract, Apache-2.0.
 // Keiyoushi primary1319949ca9bc456908196e3ba2d104e94182c5d6. No auth/premium fallback.
 use koma_source_sdk::{
@@ -13,7 +16,7 @@ use koma_source_sdk::{
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.xcomic.zh-hant.koma",
     name: "XCOMIC",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -1348,7 +1351,10 @@ fn emit_chapter(
     }
     bytes(b, n, b"}")
 }
-fn collect(work: &[u8], target: Option<&[u8]>) -> Result<(usize, usize), E> {
+fn collect(work: &[u8], target: Option<&[u8]>, normalize_labels: bool) -> Result<(usize, usize, Vec<String>), E> {
+    let mut labels = Vec::new();
+    let mut label_bytes = 0usize;
+    let mut normalizer = if normalize_labels { Some(chapter_editions::Normalizer::new()?) } else { None };
     let title = copy_title(work)?;
     let good = if let Some(target) = target {
         let mut a = Array::new(required(title, b"comic_ids")?)?;
@@ -1448,6 +1454,13 @@ fn collect(work: &[u8], target: Option<&[u8]>) -> Result<(usize, usize), E> {
                     }
                 };
                 let num = numeric(member(data, b"chaNum")?)?.or(numeric(member(data, b"serial")?)?);
+                if let Some(normalizer) = normalizer.as_mut() {
+                    let mut label = normalizer.edition(&current_edition.label[..current_edition.label_len])?;
+                    if label.is_empty() { label = normalizer.uploader(optional_text(data, b"srcName")?.unwrap_or(b""))?; }
+                    label_bytes = label_bytes.checked_add(label.len()).ok_or("catalogue capacity exceeded")?;
+                    if label_bytes > MAX { return Err("catalogue capacity exceeded"); }
+                    labels.push(label);
+                }
                 let start = used;
                 unsafe {
                     emit_chapter(
@@ -1500,28 +1513,64 @@ fn collect(work: &[u8], target: Option<&[u8]>) -> Result<(usize, usize), E> {
                 .then_with(|| a.ordinal.cmp(&b.ordinal))
         })
     };
-    Ok((count, used))
+    Ok((count, used, labels))
+}
+fn emit_edition_chapter(b:&mut [u8],n:&mut usize,raw:&[u8],label:&str)->Result<(),E> {
+    if let Some(old)=member(raw,b"scanlator")? {
+        let offset=old.as_ptr() as usize-raw.as_ptr() as usize;
+        bytes(b,n,&raw[..offset])?;q(b,n,label.as_bytes())?;bytes(b,n,&raw[offset+old.len()..])
+    } else {
+        bytes(b,n,&raw[..raw.len()-1])?;bytes(b,n,b",\"scanlator\":")?;q(b,n,label.as_bytes())?;bytes(b,n,b"}")
+    }
 }
 fn chapters(r: &[u8]) -> Result<usize, E> {
-    let (count, _) = collect(manga_id(r)?, None)?;
-    let b = payload_buf();
-    let mut n = 0;
-    bytes(b, &mut n, b"{\"items\":[")?;
-    for i in 0..count {
-        if i > 0 {
-            bytes(b, &mut n, b",")?
-        };
-        unsafe {
-            let ch = CHS[i];
-            bytes(b, &mut n, &CH_BYTES[ch.off..ch.off + ch.len])?
+    let selected=chapter_editions::selection(r)?;
+    // Exact continuation is not a filtered catalogue. Restore only the validated
+    // requested original identity; keep the old default branch byte-for-byte.
+    let exact=if !selected.is_empty()&&member(args(r)?,b"chapterId")?.is_some(){Some(chapter_id(r)?)}else{None};
+    let work=manga_id(r)?;
+    if exact.is_some_and(|v|v.0!=work){return Err("chapter ownership mismatch");}
+    let (count, _, labels) = collect(work, exact.map(|v|v.1), !selected.is_empty()&&exact.is_none())?;
+    let mut collisions:BTreeMap<String,BTreeSet<String>>=BTreeMap::new();
+    if !labels.is_empty(){
+        for ch in unsafe{&CHS[..count]} {
+            let label=&labels[ch.ordinal];if label.is_empty(){continue;}
+            collisions.entry(label.to_lowercase()).or_default().insert(core::str::from_utf8(ch.edition.as_bytes()).map_err(|_|"invalid identity")?.to_string());
         }
     }
-    bytes(b, &mut n, b"]}")?;
-    Ok(n)
+    let b = payload_buf();let mut n = 0;let mut written=0;let mut excluded=Vec::new();
+    bytes(b, &mut n, b"{\"items\":[")?;
+    for (index,ch) in unsafe{&CHS[..count]}.iter().enumerate() {
+        if let Some((_,edition,chapter))=exact {
+            if ch.edition.as_bytes()!=edition||ch.id.as_bytes()!=chapter{continue;}
+        }
+        let raw=unsafe{&CH_BYTES[ch.off..ch.off+ch.len]};
+        let mut label=if labels.is_empty(){String::new()}else{labels[ch.ordinal].clone()};
+        if !labels.is_empty(){
+            if collisions.get(&label.to_lowercase()).is_some_and(|ids|ids.len()>1){label=alloc::format!("{} [{}]",label,core::str::from_utf8(ch.edition.as_bytes()).map_err(|_|"invalid identity")?);}
+            if !chapter_editions::matches(&selected,&label){excluded.push(index);continue;}
+        }
+        if written>0{bytes(b,&mut n,b",")?;}
+        if labels.is_empty(){bytes(b,&mut n,raw)?;}else{emit_edition_chapter(b,&mut n,raw,&label)?;}
+        written+=1;
+    }
+    if exact.is_some()&&written!=1{return Err("chapter ownership mismatch");}
+    bytes(b,&mut n,b"]")?;
+    if !selected.is_empty()&&exact.is_none(){
+        bytes(b,&mut n,b",\"excludedChapterIds\":[")?;
+        for (i,index) in excluded.iter().enumerate(){
+            if i>0{bytes(b,&mut n,b",")?;}
+            let ch=unsafe{CHS[*index]};
+            let raw=unsafe{&CH_BYTES[ch.off..ch.off+ch.len]};rawq(b,&mut n,required(raw,b"id")?)?;
+        }
+        bytes(b,&mut n,b"]")?;
+    }
+    bytes(b,&mut n,b"}")?;Ok(n)
 }
+
 fn pages(r: &[u8]) -> Result<usize, E> {
     let (work, eid, cid) = chapter_id(r)?;
-    let (count, _) = collect(work, Some(eid))?;
+    let (count, _, _) = collect(work, Some(eid), false)?;
     let belongs = unsafe {
         CHS[..count]
             .iter()
@@ -1617,10 +1666,12 @@ fn run_get_home(_: &[u8]) -> u32 {
 fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "not_implemented", "not supported")
 }
-fn run_get_settings(_: &[u8]) -> u32 {
+fn run_get_settings(req: &[u8]) -> u32 {
     let schema = r#"{"settings":[{"id":"REMOVE_TITLE_VERSION","name":"Remove Version Information From Entry Titles","kind":"toggle","default":"false","description":"This removes version tags like '(Official)' or '(Yaoi)' from entry titles."}]}"#.as_bytes();
-    payload_buf()[..schema.len()].copy_from_slice(schema);
-    write_success_payload("get_settings", schema.len())
+    let out=payload_buf();let mut n=0;
+    if !chapter_editions::supported(req){out[..schema.len()].copy_from_slice(schema);return write_success_payload("get_settings",schema.len());}
+    if bytes(out,&mut n,&schema[..schema.len()-2]).is_err() || bytes(out,&mut n,br#",{"id":"SOURCE_INCLUDE","name":"Chapter Editions To Include","kind":"text","default":"","description":"Comma-separated edition labels; a base label includes matching editions, while a suffixed label selects one. Empty includes all editions."}]}"#).is_err(){return write_error("get_settings","internal_error","payload overflow");}
+    write_success_payload("get_settings",n)
 }
 // Source-local ABI gate; SDK remains byte-identical. Check before helper forms a slice.
 fn checked_request(ptr: u32, len: u32) -> Option<&'static [u8]> {
