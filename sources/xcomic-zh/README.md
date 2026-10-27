@@ -18,4 +18,4 @@
 
 原公开数据合同独立适配自 Apache-2.0 的 Keiyoushi `1319949ca9bc456908196e3ba2d104e94182c5d6`；新增标题偏好及表达式依据固定 `949dea252eb8e867b7b40834a26e13088764ff55`。原JSON有界解析来源及许可见 `NOTICE`/`LICENSE`。当前图标沿已采用的192×192双颜色X去底处理；参考扩展资源归属保留，不声称获得站点官方认可或新增高清资源。
 
-`SOURCE_INCLUDE`（Chapter Editions To Include）仅在Host声明 `source_chapter_exclusions_v1` 时展示/消费，默认空保留原完整目录、请求、标签、ID和相对顺序。显式非空按固定949dea逗号拆分、Kotlin trim与完整Unicode lowercase全等匹配；版本标签复用SDK实体解码和成熟Unicode titlecase，沿参考归一化并为同名不同版本加 `[版本ID]` 区分。基本标签包含同名版本，带后缀标签选择对应版本。源先完成全部原归属/权限/完整分页检查，再返回保留项及实际 `excludedChapterIds`，不把缺失/未加载章当排除。宿主只控制本次可见目录，原Library/下载/读态不删除；显式旧章恢复只返回其合法原身份，页面恢复保持原校验并忽略目录过滤。旧Host即使保存过此字段也保持旧目录。输入格式description保留schema，Host沿当前原文本控件样式，不声称已显示摘要。
+`SOURCE_INCLUDE`（Chapter Editions To Include）仅在Host声明 `source_chapter_exclusions_v1` 时展示/消费，默认空保留原完整目录、请求、标签、ID和相对顺序。显式非空按固定949dea逗号拆分、Kotlin trim与完整Unicode lowercase全等匹配；版本标签复用SDK实体解码和成熟Unicode titlecase，沿参考归一化并为同名不同版本加 `[版本ID]` 区分。基本标签包含同名版本，带后缀标签选择对应版本。源先完成全部原归属/权限/完整分页检查，再返回保留项及实际 `excludedChapterIds`，不把缺失/未加载章当排除。宿主只控制本次可见目录，原Library/下载/读态不删除；显式旧章恢复只返回其合法原身份，页面恢复保持原校验并忽略目录过滤。旧Host即使保存过此字段也保持旧目录。格式说明在schema.description，当前Host文本字段尚未显示。
