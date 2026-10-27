@@ -5,7 +5,7 @@ extern crate koma_source_sdk;
 use koma_source_sdk::host::{self, html_attr, html_close, html_parse, html_select, html_text,
     http_request, log_info};
 use koma_source_sdk::json_utils::{
-    append_json_escaped, contains_bytes, extract_json_number, extract_json_string, find_subslice,
+    append_json_escaped, contains_bytes, extract_json_string, find_subslice, json_object_member,
     write_bytes, write_url_encoded, write_usize,
 };
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
@@ -47,7 +47,7 @@ static mut B64_BUF: [u8; B64_CAP] = [0; B64_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hanman18.koma",
     name: "HANMAN18",
-    version: "0.1.1",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -104,13 +104,19 @@ fn path_from_href(href: &[u8]) -> Option<&[u8]> {
     None
 }
 
-fn parse_usize(bytes: &[u8]) -> Option<usize> {
-    let mut n = 0; let mut any = false;
-    for &b in bytes {
-        if b < b'0' || b > b'9' { return None; }
-        n = n * 10 + (b - b'0') as usize; any = true;
-    }
-    if any { Some(n) } else { None }
+// Numeric cursors identify pages. Older releases emitted only "next" while
+// repeatedly loading page one; an in-flight cursor resumes at page two.
+fn request_page(req: &[u8]) -> Option<usize> {
+    let args = json_object_member(req, b"args").unwrap_or(req);
+    let value = match json_object_member(args, b"page") { None | Some(b"null") => return Some(1), Some(v) => v };
+    let raw = if value.first() == Some(&b'{') {
+        match json_object_member(value, b"cursor") { None | Some(b"null") => return Some(1), Some(v) => v.strip_prefix(b"\"")?.strip_suffix(b"\"")? }
+    } else { value };
+    if raw == b"next" { return Some(2); }
+    if raw.is_empty() { return None; }
+    let mut page = 0usize;
+    for &digit in raw { if !digit.is_ascii_digit() { return None; } page = page.checked_mul(10)?.checked_add((digit-b'0') as usize)?; }
+    if page == 0 { None } else { Some(page) }
 }
 
 const B64: [i8; 128] = [
@@ -123,6 +129,7 @@ const B64: [i8; 128] = [
     -1,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,
     41,42,43,44,45,46,47,48,49,50,51,-1,-1,-1,-1,-1,
 ];
+
 
 fn base64_decode(input: &[u8], out: &mut [u8]) -> Option<usize> {
     let mut p = 0; let mut b = [0u8; 4]; let mut bc = 0;
@@ -149,7 +156,7 @@ fn base64_decode(input: &[u8], out: &mut [u8]) -> Option<usize> {
 // Operations
 // ============================================================
 
-fn parse_manga_list(html: &[u8], op: &str) -> u32 {
+fn parse_manga_list(html: &[u8], op: &str, page: usize) -> u32 {
     let document = match html_parse(html) {
         Ok(d) => OwnedDescriptor(d),
         Err(_) => return write_error(op, "parse_error", "html_parse failed"),
@@ -159,7 +166,7 @@ fn parse_manga_list(html: &[u8], op: &str) -> u32 {
     let payload = payload_buf();
     let mut c = 0usize;
     if !write_bytes(payload, &mut c, br#"{"items":["#) {
-        return write_error("parse", "internal_error", "payload overflow");
+        return write_error(op, "internal_error", "payload overflow");
     }
     let max_items = count.min(500) as usize;
     let mut written = 0usize;
@@ -218,9 +225,14 @@ fn parse_manga_list(html: &[u8], op: &str) -> u32 {
         }
         let _ = html_close(item_desc);
     }
-    let has_more = written > 0;
+    // A provider rel=next link, not a nonempty page, proves continuation.
+    let has_more = match html_select(document.0, b"a[rel=next]") {
+        Ok(next) => { let _owned = OwnedDescriptor(next); true },
+        Err(_) => false,
+    };
+    let next_page = if has_more { match page.checked_add(1) { Some(v) => v, None => return write_error(op, "invalid_request", "invalid page cursor") } } else { 0 };
     if !write_bytes(payload, &mut c, br#"],"page":{"nextCursor":"#)
-        || !if has_more { write_bytes(payload, &mut c, b"\"next\"") }
+        || !if has_more { write_bytes(payload, &mut c, b"\"") && write_usize(payload, &mut c, next_page) && write_bytes(payload, &mut c, b"\"") }
            else { write_bytes(payload, &mut c, b"null") }
         || !write_bytes(payload, &mut c, br#","hasMore":"#)
         || !write_bytes(payload, &mut c, if has_more { b"true" } else { b"false" })
@@ -231,12 +243,19 @@ fn parse_manga_list(html: &[u8], op: &str) -> u32 {
     write_success_payload(op, c)
 }
 
+// Keep decoded query separate from URL and HTTP buffers and off the WAMR stack.
+static mut SEARCH_QUERY: [u8; 8192] = [0; 8192];
 fn run_search(req: &[u8]) -> u32 {
     let query = match extract_json_string(req, b"query") {
         Some(q) => q,
         None => return write_error("search", "invalid_request", "missing query"),
     };
-    let page = extract_json_number(req, b"page").and_then(parse_usize).unwrap_or(1);
+    let decoded = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
+    let query = match koma_source_sdk::plain_text::decode_json_content(query, decoded) {
+        Ok(v) => v,
+        Err(_) => return write_error("search", "invalid_request", "invalid query"),
+    };
+    let page = match request_page(req) { Some(v) => v, None => return write_error("search", "invalid_request", "invalid page cursor") };
     let url_buf = scratch_a();
     let mut url_cursor = 0usize;
     if !(write_bytes(url_buf, &mut url_cursor, BASE_URL)
@@ -253,11 +272,11 @@ fn run_search(req: &[u8]) -> u32 {
         Err(e) => { let (c, m) = fetch_error_code(e); return write_error("search", c, m); }
     };
     let html = unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), html_len) };
-    parse_manga_list(html, "search")
+    parse_manga_list(html, "search", page)
 }
 
 fn run_get_manga_list(req: &[u8]) -> u32 {
-    let page = extract_json_number(req, b"page").and_then(parse_usize).unwrap_or(1);
+    let page = match request_page(req) { Some(v) => v, None => return write_error("get_manga_list", "invalid_request", "invalid page cursor") };
     let url_buf = scratch_a();
     let mut url_cursor = 0usize;
     if !(write_bytes(url_buf, &mut url_cursor, BASE_URL)
@@ -273,7 +292,7 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
         Err(e) => { let (c, m) = fetch_error_code(e); return write_error("get_manga_list", c, m); }
     };
     let html = unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), html_len) };
-    parse_manga_list(html, "get_manga_list")
+    parse_manga_list(html, "get_manga_list", page)
 }
 
 fn run_get_manga(req: &[u8]) -> u32 {
