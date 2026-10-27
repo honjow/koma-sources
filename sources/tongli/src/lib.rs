@@ -28,6 +28,9 @@ koma_source_sdk::koma_source_buffers! {
 }
 koma_source_sdk::koma_source_helpers!();
 
+// Keep decoded multipart content out of the form scratch buffer and bounded WASM stack.
+static mut SEARCH_QUERY: [u8; 16384] = [0; 16384];
+
 // icon.jpg: unmodified 600x600 TongLiComic publisher profile JPEG.
 // Official account declared by https://www.tongli.com.tw/Epaper_PreView.aspx?E=20240531113412
 // and linked back to tongli.com.tw by https://www.facebook.com/TongLiComic .
@@ -35,7 +38,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.tongli.koma",
     name: "東立",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -529,7 +532,16 @@ fn run_latest_list(operation: &str, page: usize) -> u32 {
 }
 
 fn run_search(req: &[u8]) -> u32 {
-    let query = extract_json_string(req, b"query").unwrap_or(b"");
+    let raw = extract_json_string(req, b"query").unwrap_or(b"");
+    let output = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
+    let query = match koma_source_sdk::plain_text::decode_json_content(raw, output) {
+        Ok(v) if core::str::from_utf8(v).is_ok() => v,
+        _ => return write_error("search", "invalid_request", "invalid query"),
+    };
+    // A value that contains our fixed multipart delimiter would create extra parts.
+    if query.starts_with(b"--BOUNDARY") || contains_bytes(query, b"\r\n--BOUNDARY") {
+        return write_error("search", "invalid_request", "invalid query");
+    }
     if query.is_empty() {
         return run_popular_list("search");
     }
