@@ -10,7 +10,7 @@ type E = &'static str;
 type R<T> = Result<T, E>;
 const MAX: usize = 1048576;
 const WEB: &[u8] = b"https://www.cartoon18.com";
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.cartoon18.zh.koma",name:"Cartoon18",version:"0.1.0",api_version:"0.2",language:"zh",author:"Koma",description:"Cartoon18 published Chinese interface and anonymous manga metadata. Per-work rating, artwork availability and usage unknown.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.cartoon18.zh.koma",name:"Cartoon18",version:"0.1.1",api_version:"0.2",language:"zh",author:"Koma",description:"Cartoon18 published Chinese interface and anonymous manga metadata. Per-work rating, artwork availability and usage unknown.",content_rating:"nsfw"};
 #[allow(dead_code)]
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
@@ -22,7 +22,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     image_request: true,
     home: false,
     filters: false,
-    settings: false,
+    settings: true,
     credentials: false,
 };
 koma_source_sdk::koma_source_buffers! {payload:1048000,http_out:MAX,body:MAX,http_req:32768,scratch:8192,}
@@ -483,19 +483,30 @@ fn cid(v: &[u8]) -> R<&[u8]> {
         Ok(v)
     }
 }
-fn work_href(v: &[u8]) -> R<&[u8]> {
+// Reference ZH_HANT defaults false. IDs omit the interface-language route;
+// resolve the selected route from each request snapshot without changing IDs.
+fn language_prefix(r: &[u8]) -> &'static [u8] {
+    let traditional = json_object_member(r, b"settings")
+        .and_then(|v| json_object_member(v, b"ZH_HANT"))
+        .map(|v| v == b"true" || v == b"\"true\"")
+        .unwrap_or(false);
+    if traditional { b"" } else { b"/zh-hans" }
+}
+fn work_href<'a>(v: &'a [u8], prefix: &[u8]) -> R<&'a [u8]> {
     slug(
         v.strip_prefix(WEB)
             .unwrap_or(v)
-            .strip_prefix(b"/zh-hans/v/")
+            .strip_prefix(prefix)
+            .and_then(|x| x.strip_prefix(b"/v/"))
             .ok_or("work href")?,
     )
 }
-fn chapter_href(v: &[u8]) -> R<&[u8]> {
+fn chapter_href<'a>(v: &'a [u8], prefix: &[u8]) -> R<&'a [u8]> {
     cid(v
         .strip_prefix(WEB)
         .unwrap_or(v)
-        .strip_prefix(b"/zh-hans/story/")
+        .strip_prefix(prefix)
+        .and_then(|x| x.strip_prefix(b"/story/"))
         .and_then(|x| x.strip_suffix(b"/full"))
         .ok_or("chapter href")?)
 }
@@ -564,9 +575,9 @@ fn canonical(d: HtmlDescriptor, path: &[u8]) -> R<()> {
     }
     Ok(())
 }
-fn detail_doc(w: &[u8]) -> R<Owned> {
+fn detail_doc(w: &[u8], prefix: &[u8]) -> R<Owned> {
     let mut b = [0; 512];
-    let path = make(&[b"/zh-hans/v/", w], &mut b)?;
+    let path = make(&[prefix, b"/v/", w], &mut b)?;
     let mut u = [0; 1024];
     let d = fetch(make(&[WEB, path], &mut u)?)?;
     canonical(d.0, path)?;
@@ -614,14 +625,14 @@ fn metadata_text<'a>(d: HtmlDescriptor, s: &[u8], b: &'a mut [u8]) -> R<&'a [u8]
     };
     txt(x.at(1), b)
 }
-fn catalogue(d: HtmlDescriptor) -> R<All> {
+fn catalogue(d: HtmlDescriptor, prefix: &[u8]) -> R<All> {
     let a = All::new(d, b"div.content h1.title + div a")?;
     if a.len == 0 {
         return Err("empty/gated catalogue");
     };
     for i in 0..a.len {
         let mut h = [0; 512];
-        let id = chapter_href(attr(a.at(i), b"href", &mut h)?)?;
+        let id = chapter_href(attr(a.at(i), b"href", &mut h)?, prefix)?;
         let mut t = [0; 4096];
         nonempty(txt(a.at(i), &mut t)?)?;
         unsafe {
@@ -656,17 +667,18 @@ fn chapter_number(t: &[u8]) -> Option<&[u8]> {
     Some(&digits[lead..])
 }
 fn detail(r: &[u8], chapters: bool) -> R<usize> {
+    let prefix = language_prefix(r);
     let w = work(r)?;
-    let d = detail_doc(w)?;
+    let d = detail_doc(w, prefix)?;
     let out = payload_buf();
     let mut n = 0;
     if chapters {
-        let a = catalogue(d.0)?;
+        let a = catalogue(d.0, prefix)?;
         bytes(out, &mut n, b"{\"chapters\":[")?;
         for i in 0..a.len {
             let index = a.len - 1 - i;
             let mut h = [0; 512];
-            let c = chapter_href(attr(a.at(index), b"href", &mut h)?)?;
+            let c = chapter_href(attr(a.at(index), b"href", &mut h)?, prefix)?;
             let mut t = [0; 4096];
             let name = nonempty(txt(a.at(index), &mut t)?)?;
             if i > 0 {
@@ -723,29 +735,35 @@ fn detail(r: &[u8], chapters: bool) -> R<usize> {
             d.0,
             b"div.content h1.title ~ div.row div.my-2 i.fa-tag ~ span a",
         )?;
+        let mut written_tags = 0;
         for i in 0..tags.len {
             let mut b = [0; 1024];
-            let tag = nonempty(txt(tags.at(i), &mut b)?)?;
-            if i > 0 {
+            let tag = txt(tags.at(i), &mut b)?;
+            // The published metadata may contain an empty /q placeholder link.
+            // Reference mangaDetailsParse filters empty genre text, not the work.
+            if tag.is_empty() { continue; }
+            if written_tags > 0 {
                 bytes(out, &mut n, b",")?
             };
-            q(out, &mut n, tag)?
+            q(out, &mut n, tag)?;
+            written_tags += 1;
         }
         bytes(out, &mut n, b"],\"links\":[{\"kind\":\"source\",\"url\":\"")?;
         bytes(out, &mut n, WEB)?;
-        bytes(out, &mut n, b"/zh-hans/v/")?;
+        bytes(out, &mut n, prefix)?;
+        bytes(out, &mut n, b"/v/")?;
         bytes(out, &mut n, w)?;
         bytes(out, &mut n, b"\"}]}}")?
     };
     Ok(n)
 }
-fn chapter_doc(w: &[u8], c: &[u8]) -> R<Owned> {
-    let d = detail_doc(w)?;
-    let a = catalogue(d.0)?;
+fn chapter_doc(w: &[u8], c: &[u8], prefix: &[u8]) -> R<Owned> {
+    let d = detail_doc(w, prefix)?;
+    let a = catalogue(d.0, prefix)?;
     let mut found = false;
     for i in 0..a.len {
         let mut h = [0; 512];
-        if chapter_href(attr(a.at(i), b"href", &mut h)?)? == c {
+        if chapter_href(attr(a.at(i), b"href", &mut h)?, prefix)? == c {
             found = true
         }
     }
@@ -755,12 +773,12 @@ fn chapter_doc(w: &[u8], c: &[u8]) -> R<Owned> {
     drop(a);
     drop(d);
     let mut pb = [0; 512];
-    let path = make(&[b"/zh-hans/story/", c, b"/full"], &mut pb)?;
+    let path = make(&[prefix, b"/story/", c, b"/full"], &mut pb)?;
     let mut ub = [0; 1024];
     let doc = fetch(make(&[WEB, path], &mut ub)?)?;
     canonical(doc.0, path)?;
     let mut hb = [0; 512];
-    let wh = make(&[b"/zh-hans/v/", w], &mut hb)?;
+    let wh = make(&[prefix, b"/v/", w], &mut hb)?;
     let mut sel = [0; 600];
     let selector = make(&[b"a[href=\"", wh, b"\"]"], &mut sel)?;
     let backlinks = All::new(doc.0, selector)?;
@@ -816,7 +834,7 @@ fn page_collect(d: HtmlDescriptor) -> R<usize> {
 }
 fn pages(r: &[u8]) -> R<usize> {
     let (w, c) = chapter(r)?;
-    let d = chapter_doc(w, c)?;
+    let d = chapter_doc(w, c, language_prefix(r))?;
     let count = page_collect(d.0)?;
     let out = payload_buf();
     let mut n = 0;
@@ -847,7 +865,7 @@ fn image_request(r: &[u8]) -> R<usize> {
     let mut ub = [0; 1024];
     let url = uq(required(a, b"url")?, &mut ub)?;
     if let Some(w) = p.strip_prefix(b"c18:zh:") {
-        let d = detail_doc(slug(w)?)?;
+        let d = detail_doc(slug(w)?, language_prefix(r))?;
         let mut b = [0; 1024];
         if cover(d.0, &mut b)? != url {
             return Err("cover owner");
@@ -860,7 +878,7 @@ fn image_request(r: &[u8]) -> R<usize> {
         let z = p.iter().position(|x| *x == b':').ok_or("page parts")?;
         let c = cid(&p[..z])?;
         let i = number(&p[z + 1..]).ok_or("page index")?;
-        let d = chapter_doc(w, c)?;
+        let d = chapter_doc(w, c, language_prefix(r))?;
         let count = page_collect(d.0)?;
         if i >= count {
             return Err("page range");
@@ -891,7 +909,7 @@ fn encoded<'a>(v: &[u8], b: &'a mut [u8]) -> R<&'a [u8]> {
     };
     Ok(&b[..n])
 }
-fn next_path(v: &[u8], query: &[u8], search: bool) -> R<usize> {
+fn next_path(v: &[u8], query: &[u8], search: bool, prefix: &[u8]) -> R<usize> {
     let p = v.strip_prefix(WEB).unwrap_or(v);
     if p.len() > 2048 || p.contains(&b'#') {
         return Err("cursor path");
@@ -903,10 +921,10 @@ fn next_path(v: &[u8], query: &[u8], search: bool) -> R<usize> {
     let eq = encoded(query, &mut encoded_query)?;
     let mut qb = [0; 2100];
     if search {
-        if route != make(&[b"/zh-hans/q/", eq], &mut qb)? {
+        if route != make(&[prefix, b"/q/", eq], &mut qb)? {
             return Err("cursor query owner");
         }
-    } else if route != b"/zh-hans" {
+    } else if route != if prefix.is_empty() { b"/".as_slice() } else { prefix } {
         return Err("cursor listing owner");
     };
     let (mut pg, mut sort, mut per) = (None, false, false);
@@ -951,6 +969,7 @@ fn next_path(v: &[u8], query: &[u8], search: bool) -> R<usize> {
     Ok(pg)
 }
 fn list(r: &[u8], search: bool) -> R<usize> {
+    let prefix = language_prefix(r);
     let a = args(r)?;
     let mut qb = [0; 512];
     let query = if search {
@@ -991,14 +1010,15 @@ fn list(r: &[u8], search: bool) -> R<usize> {
                 };
                 let mut href = [0; 2048];
                 let v = uq(required(cur, b"href")?, &mut href)?;
-                page = next_path(v, query, search)?;
+                page = next_path(v, query, search, prefix)?;
                 let v = v.strip_prefix(WEB).unwrap_or(v);
                 bytes(&mut path, &mut pathn, v)?
             }
         }
     };
     if pathn == 0 {
-        bytes(&mut path, &mut pathn, b"/zh-hans?")?;
+        bytes(&mut path, &mut pathn, if prefix.is_empty() { b"/" } else { prefix })?;
+        bytes(&mut path, &mut pathn, b"?")?;
         if search {
             bytes(&mut path, &mut pathn, b"q=")?;
             bytes(&mut path, &mut pathn, encoded(query, &mut queryenc)?)?;
@@ -1029,7 +1049,7 @@ fn list(r: &[u8], search: bool) -> R<usize> {
             };
             let mut hb = [0; 2048];
             let h = attr(links.at(0), b"href", &mut hb)?;
-            if next_path(h, query, search)? != page.checked_add(1).ok_or("next page overflow")? {
+            if next_path(h, query, search, prefix)? != page.checked_add(1).ok_or("next page overflow")? {
                 return Err("next page progress");
             };
             bytes(&mut next, &mut nextn, h.strip_prefix(WEB).unwrap_or(h))?
@@ -1047,7 +1067,7 @@ fn list(r: &[u8], search: bool) -> R<usize> {
             return Err("card title template");
         };
         let mut h = [0; 512];
-        let w = work_href(attr(links.at(0), b"href", &mut h)?)?;
+        let w = work_href(attr(links.at(0), b"href", &mut h)?, prefix)?;
         unsafe {
             for j in 0..i {
                 let prev = SEEN[j].split(|c| *c == 0).next().unwrap_or(b"");
@@ -1161,7 +1181,9 @@ fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_implemented", "not supported")
 }
 fn run_get_settings(_: &[u8]) -> u32 {
-    write_error("get_settings", "not_implemented", "not supported")
+    let schema = br#"{"settings":[{"id":"ZH_HANT","name":"Use Traditional Chinese","kind":"toggle","default":"false"}]}"#;
+    payload_buf()[..schema.len()].copy_from_slice(schema);
+    write_success_payload("get_settings", schema.len())
 }
 fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "not_implemented", "not supported")
@@ -1187,7 +1209,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 pub extern "C" fn koma_source_info() -> u32 {
     response_buffer().write_success_parts("source_info", &[
  b"{\"sourceInfo\":{\"id\":\"", SOURCE_INFO.id.as_bytes(), b"\",\"name\":\"", SOURCE_INFO.name.as_bytes(), b"\",\"version\":\"", SOURCE_INFO.version.as_bytes(), b"\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"",SOURCE_INFO.description.as_bytes(),
- "\",\"contentRating\":\"nsfw\",\"localizedNames\":{\"zh-Hans\":\"色漫网\",\"zh-Hant\":\"色漫網\",\"en\":\"Cartoon18 (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":false,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes()
+ "\",\"contentRating\":\"nsfw\",\"localizedNames\":{\"zh-Hans\":\"色漫网\",\"zh-Hant\":\"色漫網\",\"en\":\"Cartoon18 (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes()
  ])
 }
 macro_rules! export_op {
