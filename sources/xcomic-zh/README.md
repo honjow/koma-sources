@@ -1,28 +1,19 @@
-# XCOMIC Chinese (com.xcomic.zh.koma)
+# XCOMIC 0.1.2（中文 / API zh）
 
-Independent zh entity, v0.1.0 / API0.2 / canonical XCOMIC. MIXED source package is nsfw; each book uses actual title content_rating_id, fallback comic contentRating, unknown when absent. Browse lacks rating and remains unknown. Usage unknown.
+独立源身份 `com.xcomic.zh.koma`，API 0.2，主页 `https://xcomic.me`。保持原匿名公开 GraphQL、12卡分页、语言筛选、作品/版本/章/页 ID 和原图顺序。混合内容源标记 nsfw，作品分级依实际响应，缺值保未知；不登录、不取 token、不发 mutation、不换域或变换图像。
 
-Anonymous published GraphQL queries only on canonical xcomic.me/query/. No login, tokens, mutation, view counter, mirror, JS or image transform. Popular/latest/search preserve published 12-card paging and zh translation filter. Work ID stays title identity; all actual comic_ids are resolved individually, regardless of inaccurate declared total_comics. Only exact zh/public/normal editions contribute chapters. All chapter pages require complete next/total/accumulated-count checks; duplicate IDs, no progress, changed totals or capacity failures fail the whole operation. Same chapter numbers across editions retain distinct work+edition+chapter identities and stable ties. Pages validate complete title ID membership, current target edition identity/public/normal/zh and complete target catalogue to verify chapter ownership, then preserve original direct image URL array order.
+## 设置
 
-Existing SDK remains byte-identical. Source-local ABI exports validate real linear-memory range, checked ptr+len and <1MiB input before SDK helper dereference; independent request buffer avoids aliasing output. Complete JSON/UTF8, host returned length and body/output capacities are bounded. No HTML descriptors are used. Details and catalogue operations with large edition counts make many normal metadata queries; pages avoid unrelated edition I/O and native deadline acceptance remains OPEN.
+`REMOVE_TITLE_VERSION`（Remove Version Information From Entry Titles）默认关闭。显式开启时，列表、搜索和详情的共同标题输出按固定 Keiyoushi `949dea252eb8e867b7b40834a26e13088764ff55` 删除版本标签并 trim；关闭和未配置保持原 JSON 标题逐字输出。清理后为空的列表标题沿参考回退到实际作品 ID。设置不改变身份、目录或页面，也不主动改写库内旧标题。
 
-Read-only actual contract: source title xdj9b/native 错撩 has 39 actual edition IDs vs declared37. All39 actual probe bodies retained; one zh edition mkzqa8/public/normal, complete 2 chapters. Chapter1 5xbbxdl has145 originalURL entries. First3 actual WebP images fetched; images2/3 visually show simplified Chinese dialogue. This proves only named images;142 remaining image bytes, other titles, latest/search network calls and native acceptance remain unproven. Production WASM retained-body replay is separate from live/device evidence.
+使用成熟 `regex` 的无 std 引擎执行固定表达式；Java负向前瞻的方括号分支改写为等价排除字符类，保留 Java 行终止符边界；`Official` 的大小写匹配保留 Java UnicodeCase 的 I/i/İ/ı。每次列表/详情操作只编译一次，默认关闭不编译。自定义正则、网页分类黑名单、服务器去重、版本包含与分组设置尚未接入，不用空 schema 冒实现。
 
-Materials and exact receipts: /private/tmp/koma-xcomic-readonly-20261011. Build wrapper is local-only and pins borrowed packaging compatibility bytes. No publication or deployment authorization is implied.
+## 归属与可用性
 
+所有实际版本 ID 均逐个核对，不信任声明的版本总数。只接受本语言、public/normal 的版本；详情、目录和页面仍校验作品/版本/章节归属。完整分页的总数、进展、重复 ID 和容量守卫保持，失败不发布截断目录。跨版本同号章节保持不同身份和稳定顺序。页面保留真实原图 URL，权限和 HTTPS 图像校验不变。
 
-## Source-tree recovery boundary
+标题清理的受控生产 WASM/JDK 对照不代表当前上游 HTTP 或正文可用；原已保全样本只证明其具名范围，当前未验路径继续保留。SDK、App 样式和图标未改变。
 
-The original implementation and its dated stage notes above are preserved. This recovery uses the current canonical SDK and does not add artwork, standard-package registration or new HTTP/native acceptance. Original named runtime evidence remains separately bound to its original version and package.
+## 实现来源
 
-## 2026-10-21 official identity follow-up
-
-The canonical public homepage `https://xcomic.me/` was requested once through the available web reader and returned `403 Forbidden`. This request yielded no successful parent HTML or official image declaration. No retry, alternate client/domain, challenge handling or artwork substitution followed. The missing official resource remains OPEN; this homepage result does not classify the independent GraphQL endpoint, the Traditional source, or any reading path as failed. No source code, asset, version or package changed.
-
-## 2026-10-22 distribution asset restoration
-
-0.1.0 restored the unchanged original from the installed device197 package, received as `xcomic-zh-installed197-icon.png`. This restores the required package asset for remote installation/update; it does not claim a new official high-resolution resource, resolved icon quality, or new provider/content acceptance. At that checkpoint plate/shadow/small-slot limitations remained OPEN, with no image processing, source identity, request, chapter or App presentation changes. Prior business-only/missing-file statements above describe the earlier recovery checkpoint; the original source documents and notices are retained.
-
-## 0.1.1 icon cleanup
-
-The existing fixed-extension192×192 two-colour X is retained as the current identity reference. Neutral white board/shadow pixels are removed and local foreground alpha is recovered at the edges; original size, geometry and coloured gradients remain, without redraw or enlargement. Both Chinese source entities use the same cleaned resource while retaining their separate IDs/languages and all business requests. This is asset cleanup, not a new official or high-resolution logo; approval by xcomic.me remains unproved. On2026-10-22, device237 ordinary local import installed both0.1.1 entities (neither was previously installed):56→58 sources, only these two IDs added; original56 relative ID order/enabled values remained identical. Full Manager/Browse screens show both enabled0.1.1 icons without the original white board/shadow. Only these icon consumers were reviewed, with no provider requests or reading acceptance. Evidence: Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/xcomic011-icon-awake237-001/{manager-xcomic011.png,browse-xcomic011.png}`; registry/owned-transfer cleanup: `xcomic011-icon-restored237-001`. Original Browse Miaoqu group restored (`xcomic011-position-awake237-001/browse-original-group-restored.png`), final10000ms/AWAKE read back (`xcomic011-icon-final-power237-001`), and the owned lease released.
+原公开数据合同独立适配自 Apache-2.0 的 Keiyoushi `1319949ca9bc456908196e3ba2d104e94182c5d6`；新增标题偏好及表达式依据固定 `949dea252eb8e867b7b40834a26e13088764ff55`。原JSON有界解析来源及许可见 `NOTICE`/`LICENSE`。当前图标沿已采用的192×192双颜色X去底处理；参考扩展资源归属保留，不声称获得站点官方认可或新增高清资源。

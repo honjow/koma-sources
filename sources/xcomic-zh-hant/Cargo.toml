@@ -1,8 +1,10 @@
 [package]
 name = "koma_xcomic_zh_hant_source"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 [lib]
 crate-type = ["cdylib"]
 [dependencies]
 koma_source_sdk = { path = "../../sdk" }
+regex = { version = "=1.13.1", default-features = false, features = [] }
+dlmalloc = { version = "=0.2.14", features = ["global"] }

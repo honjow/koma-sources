@@ -1,4 +1,8 @@
 #![no_std]
+extern crate alloc;
+#[global_allocator]
+static ALLOCATOR: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
+use regex::Regex;
 // Independent modified adaptation of XCOMIC published JSON contract, Apache-2.0.
 // Keiyoushi primary1319949ca9bc456908196e3ba2d104e94182c5d6. No auth/premium fallback.
 use koma_source_sdk::{
@@ -9,7 +13,7 @@ use koma_source_sdk::{
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.xcomic.zh-hant.koma",
     name: "XCOMIC",
-    version: "0.1.1",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -26,7 +30,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     manga_list: true,
     home: false,
     filters: false,
-    settings: false,
+    settings: true,
     image_request: true,
     credentials: false,
 };
@@ -1020,18 +1024,43 @@ fn emit_strings(b: &mut [u8], n: &mut usize, title: &[u8], key: &[u8]) -> Result
     };
     bytes(b, n, b"]")
 }
+// Fixed Keiyoushi 949dea titleRegex, enabled only by explicit preference.
+// Java's (?:(?!]).)* is exactly a class excluding ']' and Java line terminators;
+// .+? has the same line exclusions. Only /Official contains letters, so explicit
+// I/i/İ/ı preserves Java UNICODE_CASE instead of a different Unicode case-fold.
+const VERSION_PATTERN: &str = r"\([^()]*\)|\{[^{}]*\}|\[[^\]\n\r\u{85}\u{2028}\u{2029}]*\]|«[^»]*»|〘[^〙]*〙|「[^」]*」|『[^』]*』|≪[^≫]*≫|﹛[^﹜]*﹜|〖[^〖〗]*〗|\u{1690D}[^\n\r\u{85}\u{2028}\u{2029}]+?\u{1690D}|《[^》]*》|⌜[^\n\r\u{85}\u{2028}\u{2029}]+?⌝|⟨[^⟩]*⟩|/[Oo][Ff][Ff][Iiİı][Cc][Iiİı][Aa][Ll]|/ [Oo][Ff][Ff][Iiİı][Cc][Iiİı][Aa][Ll]";
+fn title_cleaner(r: &[u8]) -> Result<Option<Regex>, E> {
+    if json_object_member(r, b"settings")
+        .and_then(|v| json_object_member(v, b"REMOVE_TITLE_VERSION")) == Some(b"true")
+    {
+        Regex::new(VERSION_PATTERN).map(Some).map_err(|_| "invalid title pattern")
+    } else {
+        Ok(None)
+    }
+}
+fn emit_title(b: &mut [u8], n: &mut usize, raw: &[u8], cleaner: Option<&Regex>, fallback: Option<&[u8]>) -> Result<(), E> {
+    let Some(cleaner) = cleaner else { return rawq(b, n, raw) };
+    let mut decoded = alloc::vec![0; raw.len()];
+    let original = core::str::from_utf8(unescape(quoted(raw)?, &mut decoded)?).map_err(|_| "invalid UTF8")?;
+    let removed = cleaner.replace_all(original, "");
+    // Kotlin Char.isWhitespace = Java isWhitespace || isSpaceChar.
+    let trimmed = removed.trim_matches(|c: char| (c.is_whitespace() && c != '\u{85}') || ('\u{1c}'..='\u{1f}').contains(&c));
+    q(b, n, if trimmed.is_empty() { fallback.unwrap_or(b"") } else { trimmed.as_bytes() })
+}
 fn emit_manga(
     b: &mut [u8],
     n: &mut usize,
     title: &[u8],
     comic: Option<&[u8]>,
     work: &[u8],
+    cleaner: Option<&Regex>,
+    browse: bool,
 ) -> Result<(), E> {
     id(work)?;
     bytes(b, n, b"{\"id\":")?;
     qid(b, n, MP, work, None)?;
     bytes(b, n, b",\"title\":")?;
-    rawq(b, n, required(title, b"title")?)?;
+    emit_title(b, n, required(title, b"title")?, cleaner, if browse { Some(work) } else { None })?;
     let cover = optional_text(title, b"cover_local_url")?.or(optional_text(title, b"cover_url")?);
     if let Some(c) = cover {
         let mut u = [0; 2048];
@@ -1093,6 +1122,7 @@ fn full_edition(work: &[u8], eid: &[u8]) -> Result<&'static [u8], E> {
     Ok(comic)
 }
 fn detail(r: &[u8]) -> Result<usize, E> {
+    let cleaner = title_cleaner(r)?;
     let work = manga_id(r)?;
     let title = copy_title(work)?;
     let good = resolve(title)?;
@@ -1120,14 +1150,15 @@ fn detail(r: &[u8]) -> Result<usize, E> {
     bytes(b, &mut n, b"{\"manga\":")?;
     if best.is_some() {
         let c = unsafe { &COMIC[..comic_len] };
-        emit_manga(b, &mut n, title, Some(c), work)?
+        emit_manga(b, &mut n, title, Some(c), work, cleaner.as_ref(), false)?
     } else {
-        emit_manga(b, &mut n, title, None, work)?
+        emit_manga(b, &mut n, title, None, work, cleaner.as_ref(), false)?
     };
     bytes(b, &mut n, b"}")?;
     Ok(n)
 }
 fn list(r: &[u8], search: bool) -> Result<usize, E> {
+    let cleaner = title_cleaner(r)?;
     let a = args(r)?;
     let p = page(r)?;
     let mut term = [0; 4096];
@@ -1212,7 +1243,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, E> {
         if count > 0 {
             bytes(b, &mut n, b",")?
         };
-        emit_manga(b, &mut n, t, None, ident.as_bytes())?;
+        emit_manga(b, &mut n, t, None, ident.as_bytes(), cleaner.as_ref(), true)?;
         count += 1
     }
     if (next != 0 && count != 12) || ((p - 1) * 12 + count > total) {
@@ -1569,7 +1600,9 @@ fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "not_implemented", "not supported")
 }
 fn run_get_settings(_: &[u8]) -> u32 {
-    write_error("get_settings", "not_implemented", "not supported")
+    let schema = r#"{"settings":[{"id":"REMOVE_TITLE_VERSION","name":"Remove Version Information From Entry Titles","kind":"toggle","default":"false","description":"This removes version tags like '(Official)' or '(Yaoi)' from entry titles."}]}"#.as_bytes();
+    payload_buf()[..schema.len()].copy_from_slice(schema);
+    write_success_payload("get_settings", schema.len())
 }
 // Source-local ABI gate; SDK remains byte-identical. Check before helper forms a slice.
 fn checked_request(ptr: u32, len: u32) -> Option<&'static [u8]> {
@@ -1593,7 +1626,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 pub extern "C" fn koma_source_info() -> u32 {
     response_buffer().write_success_parts("source_info", &[
  b"{\"sourceInfo\":{\"id\":\"", SOURCE_INFO.id.as_bytes(), b"\",\"name\":\"", SOURCE_INFO.name.as_bytes(), b"\",\"version\":\"", SOURCE_INFO.version.as_bytes(), b"\",\"apiVersion\":\"0.2\",\"language\":\"zh-Hant\",\"author\":\"Koma\",\"description\":\"",SOURCE_INFO.description.as_bytes(),
- "\",\"contentRating\":\"nsfw\",\"localizedNames\":{\"zh-Hans\":\"XCOMIC（繁体中文）\",\"zh-Hant\":\"XCOMIC（繁體中文）\",\"en\":\"XCOMIC (Traditional Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":false,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes()
+ "\",\"contentRating\":\"nsfw\",\"localizedNames\":{\"zh-Hans\":\"XCOMIC（繁体中文）\",\"zh-Hant\":\"XCOMIC（繁體中文）\",\"en\":\"XCOMIC (Traditional Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes()
  ])
 }
 macro_rules! export_op {
