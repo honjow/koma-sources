@@ -1,4 +1,4 @@
-# MangaDex — Traditional Chinese 0.1.3
+# MangaDex — Traditional Chinese 0.1.4
 
 Independent source `org.mangadex.zh-hant.koma`, API 0.2, content language zh-Hant, provider API language `zh-hk`. Other language-source IDs remain independent; no alias or migration. Provider language metadata does not guarantee the writing system of every image. Implementation/license and original official icon attribution remain in NOTICE/LICENSE; icon bytes/background/mask are unchanged.
 
@@ -8,8 +8,10 @@ Listing 关注较多 is all-time followedCount, not 30-day popularity or usage. 
 
 `dataSaverV5_zh-hk` defaults false. Only explicit true selects actual `chapter.dataSaver` filenames and `/data-saver/`; otherwise original ordered `chapter.data` and `/data/` remain. get_pages still validates the complete owned feed and declared page count; stable page IDs carry the original chapter UUID/index. Every image request still makes its existing fresh normal at-home GET and resolves the selected quality by index. Both selected and original file sets retain safe filename, capacity and duplicate guards; no filename is guessed.
 
-Image HTTPS hosts remain uploads.mangadex.org or the actual descriptor-provided mangadex.network subdomain. Cover requests remain bound to the same manga UUID. No tokens, Cookie handling, statistics POST, auth/retry fallback, new host grants or App/style changes. Standard build: `bash build.sh --source mangadex-zh-hant`. Runtime/crate/package versions align at 0.1.3.
+Image HTTPS hosts remain uploads.mangadex.org or the actual descriptor-provided mangadex.network subdomain. Cover requests remain bound to the same manga UUID. No tokens, Cookie handling, statistics POST, auth/retry fallback, new host grants or App/style changes. Standard build: `bash build.sh --source mangadex-zh-hant`. Runtime/crate/package versions align at 0.1.4.
 
 `altTitlesInDesc_zh-hk` defaults false and is consumed only by manga detail descriptions. Explicit true appends the fixed reference `Alternative titles:` block: extension-language or original-language romanized maps, exactly one nonempty value per map, provider order, no sorting/deduplication. The shared SDK plain-text helper decodes JSON Unicode and HTML entities once while preserving literal markup; the original base description is retained. Missing/false leaves the prior description bytes, title fallback and all other fields unchanged. The default-true upstream title-priority/final-chapter settings are not exposed by this item.
 
 `usePort443_zh-hk`（Use HTTPS port 443 only）默认false。沿固定Keiyoushi949dea的实际消费者，只在显式开启时给at-home服务器查询追加 `?forcePort443=true`；默认请求原样。图片URL、页ID/序和校验仍取真实响应，不向URL硬写端口，不改其它API、封面、认证、网络、超时或重试。中文图片请求复用同一descriptor/settings合同。
+
+`tryUsingFirstVolumeCover_zh-hk` defaults false. Explicit true follows the fixed reference bulk `/cover` query ordered by volume, selecting the first cover related to each returned manga with its original-language locale. Search/list/detail consume it before applying the existing cover-quality suffix. Missing locale, no matching cover, unsafe filename or optional HTTP/parse failure keeps the original cover. Default requests and cover URLs remain unchanged; no chapter/page/identity or Library data is rewritten. Existing library covers require their ordinary explicit refresh. The shared provider implementation is `sources/mangadex/first_volume_cover.rs`.

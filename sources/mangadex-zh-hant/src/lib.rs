@@ -7,7 +7,7 @@ use koma_source_sdk::{
 };
 type E = &'static str;
 const MAX: usize = 1048576;
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"org.mangadex.zh-hant.koma",name:"MangaDex",version:"0.1.3",api_version:"0.2",language:"zh-Hant",author:"Koma",description:"MangaDex provider traditional-Chinese catalogue (zh-hk); page scripts vary. Usage unknown; followedCount listing is not a usage ranking.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"org.mangadex.zh-hant.koma",name:"MangaDex",version:"0.1.4",api_version:"0.2",language:"zh-Hant",author:"Koma",description:"MangaDex provider traditional-Chinese catalogue (zh-hk); page scripts vary. Usage unknown; followedCount listing is not a usage ranking.",content_rating:"nsfw"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -23,6 +23,9 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
 };
 koma_source_sdk::koma_source_buffers! {payload:1048000,http_out:MAX,body:MAX,http_req:32768,scratch:8192,}
 koma_source_sdk::koma_source_helpers!();
+#[path = "../../mangadex/first_volume_cover.rs"]
+mod first_volume_cover;
+static mut COVER_BODY: [u8; MAX] = [0; MAX];
 static mut REQUEST: [u8; MAX] = [0; MAX];
 static mut URL: [u8; 32768] = [0; 32768];
 static mut SEEN: [[u8; 36]; 4096] = [[0; 36]; 4096];
@@ -450,6 +453,14 @@ fn make_url(parts: &[&[u8]]) -> Result<&'static [u8], E> {
     }
 }
 fn fetch(url: &[u8]) -> Result<&'static [u8], E> {
+    fetch_into(url, body_buf())
+}
+fn first_covers(req: &[u8], json: &[u8]) -> first_volume_cover::Covers {
+    first_volume_cover::load(req, b"tryUsingFirstVolumeCover_zh-hk", json, |url| {
+        fetch_into(url, unsafe { &mut *core::ptr::addr_of_mut!(COVER_BODY) }).ok()
+    })
+}
+fn fetch_into(url: &[u8], target: &'static mut [u8]) -> Result<&'static [u8], E> {
     if host::check_cancel() {
         return Err("cancelled");
     }
@@ -491,7 +502,7 @@ fn fetch(url: &[u8]) -> Result<&'static [u8], E> {
             _ => "HTTP status failure",
         });
     }
-    let body = unescape(text(envelope, b"bodyText")?, body_buf())?;
+    let body = unescape(text(envelope, b"bodyText")?, target)?;
     if body.len() >= MAX {
         return Err("body capacity");
     };
@@ -636,7 +647,7 @@ fn data_saver(r: &[u8]) -> Result<bool, E> {
     let settings = member(r, b"settings")?.unwrap_or(b"{}");
     Ok(matches!(member(settings, b"dataSaverV5_zh-hk")?, Some(b"true" | b"\"true\"")))
 }
-fn card(b: &mut [u8], n: &mut usize, v: &[u8], expected: Option<&[u8]>, quality: &[u8], alt_description: bool) -> Result<(), E> {
+fn card(b: &mut [u8], n: &mut usize, v: &[u8], expected: Option<&[u8]>, quality: &[u8], alt_description: bool, first_covers: &first_volume_cover::Covers) -> Result<(), E> {
     if text(v, b"type")? != b"manga" {
         return Err("manga type");
     };
@@ -650,9 +661,9 @@ fn card(b: &mut [u8], n: &mut usize, v: &[u8], expected: Option<&[u8]>, quality:
     bytes(b, n, id)?;
     bytes(b, n, b"\",\"title\":")?;
     rawq(b, n, t)?;
-    if let Some(c) = relation(v, b"cover_art")? {
-        let ca = required(c, b"attributes")?;
-        let raw = text(ca, b"fileName")?;
+    let old_cover = relation(v, b"cover_art")?.map(|c| required(c, b"attributes").and_then(|ca| text(ca, b"fileName"))).transpose()?;
+    if let Some(raw) = old_cover { filename(raw)?; }
+    if let Some(raw) = first_covers.file(id).or(old_cover) {
         filename(raw)?;
         bytes(
             b,
@@ -776,6 +787,7 @@ fn listing(r: &[u8], search: bool) -> Result<usize, E> {
         return Err("listing pagination mismatch");
     };
     let total = field_num(v, b"total")?;
+    let first_covers = first_covers(r, v);
     let mut arr = Array::new(required(v, b"data")?)?;
     let output = payload_buf();
     let mut n = 0;
@@ -795,7 +807,7 @@ fn listing(r: &[u8], search: bool) -> Result<usize, E> {
         if count > 0 {
             bytes(output, &mut n, b",")?
         };
-        card(output, &mut n, x, None, quality, false)?;
+        card(output, &mut n, x, None, quality, false, &first_covers)?;
         count += 1
     }
     let end = offset.checked_add(count).ok_or("listing count overflow")?;
@@ -832,10 +844,11 @@ fn detail(r: &[u8]) -> Result<usize, E> {
         b"?includes%5B%5D=cover_art&includes%5B%5D=author&includes%5B%5D=artist",
     ])?;
     let v = fetch(url)?;
+    let first_covers = first_covers(r, v);
     let out = payload_buf();
     let mut n = 0;
     bytes(out, &mut n, b"{\"manga\":")?;
-    card(out, &mut n, required(v, b"data")?, Some(id), quality, alt_description_enabled(r))?;
+    card(out, &mut n, required(v, b"data")?, Some(id), quality, alt_description_enabled(r), &first_covers)?;
     bytes(out, &mut n, b"}")?;
     Ok(n)
 }
@@ -1205,7 +1218,7 @@ fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "not_supported", "not supported")
 }
 fn run_get_settings(_: &[u8]) -> u32 {
-    let data = r#"{"settings":[{"id":"thumbnailQuality_zh-hk","name":"封面品質","kind":"select","options":[{"value":"original","label":"原圖"},{"value":".512.jpg","label":"中等"},{"value":".256.jpg","label":"低"}],"default":"original"},{"id":"dataSaverV5_zh-hk","name":"省流量","kind":"toggle","default":"false"},{"id":"altTitlesInDesc_zh-hk","name":"Alternative titles in description","kind":"toggle","description":"Include a manga's alternative titles at the end of its description","default":"false"},{"id":"usePort443_zh-hk","name":"Use HTTPS port 443 only","kind":"toggle","description":"Enable to only request image servers that use port 443. This allows users with stricter firewall restrictions to access MangaDex images","default":"false"}]}"#.as_bytes();
+    let data = r#"{"settings":[{"id":"thumbnailQuality_zh-hk","name":"封面品質","kind":"select","options":[{"value":"original","label":"原圖"},{"value":".512.jpg","label":"中等"},{"value":".256.jpg","label":"低"}],"default":"original"},{"id":"dataSaverV5_zh-hk","name":"省流量","kind":"toggle","default":"false"},{"id":"altTitlesInDesc_zh-hk","name":"Alternative titles in description","kind":"toggle","description":"Include a manga's alternative titles at the end of its description","default":"false"},{"id":"usePort443_zh-hk","name":"Use HTTPS port 443 only","kind":"toggle","description":"Enable to only request image servers that use port 443. This allows users with stricter firewall restrictions to access MangaDex images","default":"false"},{"id":"tryUsingFirstVolumeCover_zh-hk","name":"Attempt to use the first volume cover as cover","kind":"toggle","description":"Existing library entries may need a manual refresh to show changed covers","default":"false"}]}"#.as_bytes();
     payload_buf()[..data.len()].copy_from_slice(data);
     write_success_payload("get_settings", data.len())
 }

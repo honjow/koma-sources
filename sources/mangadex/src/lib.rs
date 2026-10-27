@@ -18,7 +18,7 @@ koma_source_sdk::koma_source_buffers! {
     payload: 128 * 1024,
     http_out: 512 * 1024,
     body: 2 * 1024 * 1024,
-    http_req: 1024,
+    http_req: 8192,
     scratch: 2048,
 }
 koma_source_sdk::koma_source_helpers!();
@@ -26,6 +26,10 @@ koma_source_sdk::koma_source_helpers!();
 // relationship metadata are included. Keep the decoded JSON buffer below the
 // host response capacity while preserving the page size expected by Koma.
 const JSON_BUF_CAP: usize = 512 * 1024;
+
+#[path = "../first_volume_cover.rs"]
+mod first_volume_cover;
+static mut COVER_JSON: [u8; JSON_BUF_CAP] = [0; JSON_BUF_CAP];
 
 static mut JSON_BUF: [u8; JSON_BUF_CAP] = [0; JSON_BUF_CAP];
 
@@ -105,7 +109,7 @@ fn manga_title(obj: &[u8]) -> &[u8] {
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "org.mangadex.koma",
     name: "MangaDex",
-    version: "0.1.15",
+    version: "0.1.16",
     api_version: "0.2",
     language: "en",
     author: "Koma",
@@ -175,6 +179,14 @@ fn append_api_string(dst: &mut [u8], cursor: &mut usize, raw: &[u8]) -> bool {
 }
 
 fn fetch_json(url_bytes: &[u8]) -> Result<&'static [u8], FetchError> {
+    fetch_json_into(url_bytes, json_buf())
+}
+fn first_covers(req: &[u8], json: &[u8]) -> first_volume_cover::Covers {
+    first_volume_cover::load(req, b"tryUsingFirstVolumeCover_en", json, |url| {
+        fetch_json_into(url, unsafe { &mut *core::ptr::addr_of_mut!(COVER_JSON) }).ok()
+    })
+}
+fn fetch_json_into(url_bytes: &[u8], out: &'static mut [u8]) -> Result<&'static [u8], FetchError> {
     let req_len = build_get_request(
         http_req_buf(),
         url_bytes,
@@ -222,7 +234,6 @@ fn fetch_json(url_bytes: &[u8]) -> Result<&'static [u8], FetchError> {
     }
     let body_marker = b"\"bodyText\":\"";
     let body_start = find_subslice(resp, body_marker).ok_or(FetchError::Network)? + body_marker.len();
-    let out = json_buf();
     let mut out_cursor = 0usize;
     let mut i = body_start;
     let mut body_closed = false;
@@ -248,7 +259,7 @@ fn fetch_json(url_bytes: &[u8]) -> Result<&'static [u8], FetchError> {
         i += 1;
     }
     if !body_closed { return Err(FetchError::Network); }
-    Ok(unsafe { core::slice::from_raw_parts(JSON_BUF.as_ptr(), out_cursor) })
+    Ok(unsafe { core::slice::from_raw_parts(out.as_ptr(), out_cursor) })
 }
 
 // --- Operations ---
@@ -307,6 +318,7 @@ fn run_search(req: &[u8]) -> u32 {
         Err(e) => { let (c, m) = fetch_error_code(e); return write_error("search", c, m); }
     };
 
+    let first_covers = first_covers(req, api_json);
     // Parse the "data" array
     let payload = payload_buf();
     let mut c = 0usize;
@@ -332,7 +344,7 @@ fn run_search(req: &[u8]) -> u32 {
         let status = api_string(api_attributes(obj), b"status").unwrap_or(b"unknown");
 
         // Cover: find fileName in relationships where type=cover_art
-        let cover_fn = extract_cover_filename(obj);
+        let cover_fn = first_covers.file(id).or_else(|| extract_cover_filename(obj));
 
         if written > 0 {
             if !write_bytes(payload, &mut c, b",") { return write_error("search", "internal_error", "overflow"); }
@@ -419,6 +431,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
         Err(e) => { let (c, m) = fetch_error_code(e); return write_error("get_manga", c, m); }
     };
 
+    let first_covers = first_covers(req, api_json);
     let obj = match json_object_member(api_json, b"data") {
         Some(obj) if obj.first() == Some(&b'{') => obj,
         _ => return write_error("get_manga", "parse_error", "no data"),
@@ -429,7 +442,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
     let content_rating = api_string(attributes, b"contentRating").unwrap_or(b"unknown");
     let desc = json_object_member(attributes, b"description")
         .and_then(|value| api_string(value, b"en")).unwrap_or(b"");
-    let cover_fn = extract_cover_filename(obj);
+    let cover_fn = first_covers.file(uuid).or_else(|| extract_cover_filename(obj));
 
     // Extract author names from relationships
     let author_name = extract_author_name(obj);
@@ -941,6 +954,7 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
         Err(e) => { let (c, m) = fetch_error_code(e); return write_error("get_manga_list", c, m); }
     };
 
+    let first_covers = first_covers(req, api_json);
     // Parse total from response for hasMore
     let total = match api_number(api_json, b"total")
         .and_then(|bytes| core::str::from_utf8(bytes).ok())
@@ -970,7 +984,7 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
         };
         let title = manga_title(obj);
         let st = api_string(api_attributes(obj), b"status").unwrap_or(b"unknown");
-        let cover_fn = extract_cover_filename(obj);
+        let cover_fn = first_covers.file(id).or_else(|| extract_cover_filename(obj));
 
         if written > 0 {
             if !write_bytes(payload, &mut c, b",") { return write_error("get_manga_list", "internal_error", "overflow"); }
@@ -1083,6 +1097,7 @@ fn run_get_home(req: &[u8]) -> u32 {
                 return write_error("get_home", code, message);
             }
         };
+        let first_covers = first_covers(req, api_json);
         let mut iter = match api_array(api_json, b"data") {
             Some(iter) => iter,
             None => return write_error("get_home", "parse_error", "no data array"),
@@ -1096,7 +1111,7 @@ fn run_get_home(req: &[u8]) -> u32 {
                         None => continue,
                     };
                     let title = manga_title(obj);
-                    let cover_fn = extract_cover_filename(obj);
+                    let cover_fn = first_covers.file(id).or_else(|| extract_cover_filename(obj));
 
                     if item_count > 0 {
                         if !write_bytes(payload, &mut c, b",") { return write_error("get_home", "internal_error", "overflow"); }
@@ -1134,7 +1149,7 @@ fn run_get_home(req: &[u8]) -> u32 {
 
 fn run_get_settings(_req: &[u8]) -> u32 {
     // MangaDex settings: preferred language, content rating, data saver mode
-    const SETTINGS_JSON: &[u8] = br#"{"settings":[{"id":"thumbnailQuality_en","name":"Cover Quality","kind":"select","options":[{"value":"original","label":"Original"},{"value":".512.jpg","label":"Medium"},{"value":".256.jpg","label":"Low"}],"default":"original"},{"id":"language","name":"Preferred Language","kind":"select","options":[{"value":"en","label":"English"},{"value":"ja","label":"Japanese"},{"value":"zh","label":"Chinese (Simplified)"},{"value":"zh-hk","label":"Chinese (Traditional)"},{"value":"ko","label":"Korean"},{"value":"fr","label":"French"},{"value":"es","label":"Spanish"},{"value":"de","label":"German"},{"value":"pt-br","label":"Portuguese (Brazil)"}],"default":"en"},{"id":"dataSaver","name":"Data Saver","kind":"toggle","description":"Use compressed images to save bandwidth","default":"false"},{"id":"defaultContentRating","name":"Default Content Rating","kind":"select","options":[{"value":"safe","label":"Safe Only"},{"value":"suggestive","label":"Safe + Suggestive"},{"value":"erotica","label":"All (including Erotica)"}],"default":"suggestive"},{"id":"altTitlesInDesc_en","name":"Alternative titles in description","kind":"toggle","description":"Include a manga's alternative titles at the end of its description","default":"false"},{"id":"usePort443_en","name":"Use HTTPS port 443 only","kind":"toggle","description":"Enable to only request image servers that use port 443. This allows users with stricter firewall restrictions to access MangaDex images","default":"false"}]}"#;
+    const SETTINGS_JSON: &[u8] = br#"{"settings":[{"id":"thumbnailQuality_en","name":"Cover Quality","kind":"select","options":[{"value":"original","label":"Original"},{"value":".512.jpg","label":"Medium"},{"value":".256.jpg","label":"Low"}],"default":"original"},{"id":"language","name":"Preferred Language","kind":"select","options":[{"value":"en","label":"English"},{"value":"ja","label":"Japanese"},{"value":"zh","label":"Chinese (Simplified)"},{"value":"zh-hk","label":"Chinese (Traditional)"},{"value":"ko","label":"Korean"},{"value":"fr","label":"French"},{"value":"es","label":"Spanish"},{"value":"de","label":"German"},{"value":"pt-br","label":"Portuguese (Brazil)"}],"default":"en"},{"id":"dataSaver","name":"Data Saver","kind":"toggle","description":"Use compressed images to save bandwidth","default":"false"},{"id":"defaultContentRating","name":"Default Content Rating","kind":"select","options":[{"value":"safe","label":"Safe Only"},{"value":"suggestive","label":"Safe + Suggestive"},{"value":"erotica","label":"All (including Erotica)"}],"default":"suggestive"},{"id":"altTitlesInDesc_en","name":"Alternative titles in description","kind":"toggle","description":"Include a manga's alternative titles at the end of its description","default":"false"},{"id":"usePort443_en","name":"Use HTTPS port 443 only","kind":"toggle","description":"Enable to only request image servers that use port 443. This allows users with stricter firewall restrictions to access MangaDex images","default":"false"},{"id":"tryUsingFirstVolumeCover_en","name":"Attempt to use the first volume cover as cover","kind":"toggle","description":"Existing library entries may need a manual refresh to show changed covers","default":"false"}]}"#;
 
     let payload = payload_buf();
     let flen = SETTINGS_JSON.len();
