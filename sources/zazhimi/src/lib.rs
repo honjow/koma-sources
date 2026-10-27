@@ -5,7 +5,7 @@ extern crate koma_source_sdk;
 use koma_source_sdk::host::{self, http_request, log_info};
 use koma_source_sdk::json_utils::{
     append_json_escaped, append_json_unescaped_then_escaped, contains_bytes, extract_json_number,
-    extract_json_string, write_bytes, write_url_encoded, write_usize, JsonArrayIter,
+    extract_json_string, request_page_number, write_bytes, write_url_encoded, write_usize, JsonArrayIter,
 };
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{build_get_request, decode_json_body_into, fetch_error_code, FetchError};
@@ -28,7 +28,7 @@ static mut URL_BUF: [u8; URL_CAP] = [0; URL_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.zazhimi.koma",
     name: "杂志迷",
-    version: "0.1.0",
+    version: "0.1.1",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -68,16 +68,9 @@ fn parse_usize(bytes: &[u8]) -> usize {
     }
     n
 }
-fn request_page(req: &[u8]) -> usize {
-    let page = extract_json_number(req, b"page")
-        .map(parse_usize)
-        .unwrap_or(1);
-    if page == 0 {
-        1
-    } else {
-        page
-    }
-}
+// Honor the host's numeric page cursor instead of replaying the first page.
+fn request_page(req: &[u8]) -> usize { request_page_number(req) }
+
 fn request_limit(req: &[u8]) -> usize {
     let limit = extract_json_number(req, b"limit")
         .map(parse_usize)
@@ -234,12 +227,12 @@ fn write_list_from_array(
     write_success_payload(operation, c)
 }
 
-fn run_get_manga_list(req: &[u8]) -> u32 {
+fn run_list(req: &[u8], operation: &str) -> u32 {
     let page = request_page(req);
     let limit = request_limit(req);
     let url_len = match build_index_url(page, limit) {
         Some(v) => v,
-        None => return write_error("get_manga_list", "internal_error", "url overflow"),
+        None => return write_error(operation, "internal_error", "url overflow"),
     };
     let url =
         unsafe { core::slice::from_raw_parts(core::ptr::addr_of!(URL_BUF) as *const u8, url_len) };
@@ -247,11 +240,11 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
         Ok(v) => v,
         Err(e) => {
             let (code, message) = fetch_error_code(e);
-            return write_error("get_manga_list", code, message);
+            return write_error(operation, code, message);
         }
     };
     write_list_from_array(
-        "get_manga_list",
+        operation,
         body_slice(body_len),
         b"new",
         limit,
@@ -259,12 +252,21 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     )
 }
 
+fn run_get_manga_list(req: &[u8]) -> u32 { run_list(req, "get_manga_list") }
+
+// Keep decoded query separate from URL and HTTP buffers and off the WAMR stack.
+static mut SEARCH_QUERY: [u8; 8192] = [0; 8192];
 fn run_search(req: &[u8]) -> u32 {
     let query = extract_json_string(req, b"query").unwrap_or(b"");
+    let decoded = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
+    let query = match koma_source_sdk::plain_text::decode_json_content(query, decoded) {
+        Ok(v) => v,
+        Err(_) => return write_error("search", "invalid_request", "invalid query"),
+    };
     let page = request_page(req);
     let limit = request_limit(req);
     if query.is_empty() {
-        return run_get_manga_list(req);
+        return run_list(req, "search");
     }
     let url_len = match build_search_url(query, page, limit) {
         Some(v) => v,
