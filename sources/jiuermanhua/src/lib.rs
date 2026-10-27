@@ -54,7 +54,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.jiuermanhua.koma",
     name: "92漫画网",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -177,10 +177,10 @@ fn write_manga_item(
         && write_bytes(payload, c, br#""},"authors":[],"status":"unknown","contentRating":"unknown","description":"","sourceTags":["jiuermanhua"]}"#)
 }
 
-fn parse_list(html: &[u8]) -> u32 {
+fn parse_list(html: &[u8], operation: &str) -> u32 {
     let document = match html_parse(html) {
         Ok(d) => OwnedDescriptor(d),
-        Err(_) => return write_error("parse", "parse_error", "html_parse failed"),
+        Err(_) => return write_error(operation, "parse_error", "html_parse failed"),
     };
 
     let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
@@ -189,7 +189,7 @@ fn parse_list(html: &[u8]) -> u32 {
     let payload = payload_buf();
     let mut c = 0usize;
     if !write_bytes(payload, &mut c, br#"{"items":["#) {
-        return write_error("parse", "internal_error", "payload overflow");
+        return write_error(operation, "internal_error", "payload overflow");
     }
 
     let total = if count > 0 { count as usize } else { 0 };
@@ -278,16 +278,23 @@ fn parse_list(html: &[u8]) -> u32 {
         || !write_bytes(payload, &mut c, if written > 0 { b"true" as &[u8] } else { b"false" as &[u8] })
         || !write_bytes(payload, &mut c, b"}}")
     {
-        return write_error("parse", "internal_error", "payload overflow");
+        return write_error(operation, "internal_error", "payload overflow");
     }
 
-    write_success_payload("parse", c)
+    write_success_payload(operation, c)
 }
 
+// Keep decoded query separate from URL and HTTP buffers and off the WAMR stack.
+static mut SEARCH_QUERY: [u8; 8192] = [0; 8192];
 fn run_search(req: &[u8]) -> u32 {
     let query = match extract_json_string(req, b"query") {
         Some(q) => q,
         None => return write_error("search", "invalid_request", "missing query"),
+    };
+    let decoded = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
+    let query = match koma_source_sdk::plain_text::decode_json_content(query, decoded) {
+        Ok(v) => v,
+        Err(_) => return write_error("search", "invalid_request", "invalid query"),
     };
     let page = extract_json_number(req, b"page").and_then(parse_usize).unwrap_or(1);
 
@@ -311,7 +318,7 @@ fn run_search(req: &[u8]) -> u32 {
         }
     };
     let html = unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), html_len) };
-    parse_list(html)
+    parse_list(html, "search")
 }
 
 fn run_get_manga_list(req: &[u8]) -> u32 {
@@ -335,7 +342,7 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
         }
     };
     let html = unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), html_len) };
-    parse_list(html)
+    parse_list(html, "get_manga_list")
 }
 
 fn select_text<'a>(
