@@ -8,7 +8,7 @@ const BASE: &[u8] = b"https://mycomic.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mycomic.koma",
     name: "MyComic",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -25,7 +25,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     image_request: true,
     home: false,
     filters: false,
-    settings: false,
+    settings: true,
     credentials: false,
 };
 koma_source_sdk::koma_source_buffers! { payload:1024*1024,http_out:5*1024*1024,body:2*1024*1024,http_req:16*1024,scratch:512*1024, }
@@ -575,11 +575,20 @@ fn image_url<'a>(node: &Node, out: &'a mut [u8]) -> Result<&'a [u8], &'static st
     };
     absolute(node.attr(b"src", &mut attr)?, out)
 }
+// Keep Koma's current cn default; fixed reference defaults unprefixed.
+// The ABI select requires nonempty values, so original represents its empty prefix.
+fn comics_path(r: &[u8]) -> &'static [u8] {
+    let lang = json_object_member(r, b"settings").and_then(|v| string(v, b"pref_key_lang"));
+    match lang {
+        Some(b"original") | Some(b"") | Some(b"zh-hant") => b"/comics",
+        _ => b"/cn/comics",
+    }
+}
 fn list(r: &[u8], query: bool) -> Result<usize, &'static str> {
     let p = page(r)?;
     let mut path = [0; 8192];
     let mut len = 0;
-    bytes(&mut path, &mut len, b"/cn/comics")?;
+    bytes(&mut path, &mut len, comics_path(r))?;
     if query {
         let raw = string(args(r), b"query").ok_or("missing query")?;
         let mut decoded = [0; 4096];
@@ -649,7 +658,7 @@ fn list(r: &[u8], query: bool) -> Result<usize, &'static str> {
         let mut href = [0; 8192];
         let href = next.attr(b"href", &mut href)?;
         let path = canonical_path(href).ok_or("invalid next page URL")?;
-        if !path.starts_with(b"/cn/comics?") {
+        if !path.strip_prefix(comics_path(r)).is_some_and(|tail|tail.starts_with(b"?")) {
             return Err("unexpected next page path");
         };
         let mut target = None;
@@ -672,16 +681,17 @@ fn list(r: &[u8], query: bool) -> Result<usize, &'static str> {
     }
     Ok(n)
 }
-fn manga_doc(id: &[u8]) -> Result<Node, &'static str> {
+fn manga_doc(id: &[u8], r: &[u8]) -> Result<Node, &'static str> {
     let mut p = [0; 512];
     let mut n = 0;
-    bytes(&mut p, &mut n, b"/cn/comics/")?;
+    bytes(&mut p, &mut n, comics_path(r))?;
+    bytes(&mut p, &mut n, b"/")?;
     bytes(&mut p, &mut n, id)?;
     fetch(&p[..n])
 }
 fn detail(r: &[u8]) -> Result<usize, &'static str> {
     let id = manga_id(r)?;
-    let root = manga_doc(id)?;
+    let root = manga_doc(id, r)?;
     let card = root.select(b"div[data-flux-card]")?;
     let heading = card.select(b"div[data-flux-heading]")?;
     let mut text = [0; 32768];
@@ -790,7 +800,7 @@ fn chapter_array(s: &[u8]) -> Result<&[u8], &'static str> {
 }
 fn chapters(r: &[u8]) -> Result<usize, &'static str> {
     let id = manga_id(r)?;
-    let root = manga_doc(id)?;
+    let root = manga_doc(id, r)?;
     let groups = Nodes::get(&root, b"div[data-flux-card] + div div[x-data]")?;
     if groups.n == 0 {
         return Err("complete chapter owner missing");
@@ -968,6 +978,8 @@ fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "not_implemented", "not supported")
 }
 fn run_get_settings(_: &[u8]) -> u32 {
-    write_error("get_settings", "not_implemented", "not supported")
+    let data = r#"{"settings":[{"id":"pref_key_lang","name":"設置首選語言","kind":"select","default":"cn","options":[{"value":"original","label":"繁體中文"},{"value":"cn","label":"简体中文"}]}]}"#.as_bytes();
+    payload_buf()[..data.len()].copy_from_slice(data);
+    write_success_payload("get_settings", data.len())
 }
 koma_source_sdk::koma_source_exports!("mycomic");

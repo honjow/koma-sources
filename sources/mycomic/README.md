@@ -1,23 +1,19 @@
-# MyComic 0.1.1 diagnostic candidate
+# MyComic 0.1.3
 
-Source-only public HTML adapter; `com.mycomic.koma`, canonical MyComic, Chinese content (`/cn/comics`) and source-wide `nsfw` with index `nsfw: true` map Keiyoushi MIXED conservatively. All localized brand values remain MyComic; no invented Chinese alias. Work-specific content rating is unknown. Actual usage and quantitative demand are unknown.
+独立公开HTML适配 `com.mycomic.koma`，API0.2，主页 `https://mycomic.com`。中文内容、源级nsfw，单作品分级和用量未知；品牌保持MyComic，不造中文别名。popular、latest、search、详情、目录、页描述与图像请求已实现；home/filters/credentials不开放。不登录、不改Cookie、UA、网络或权限。
 
-Primary contract: Keiyoushi/extensions-source at `10f06eb833af5990bc5470c84c5e93edc159ad4e`, `src/zh/mycomic/{build.gradle.kts,src/eu/kanade/tachiyomi/extension/zh/mycomic/{MyComic.kt,Dto.kt,Filters.kt}}` (Apache-2.0 reference). The Rust implementation is independently written; no Kotlin, images, or icons are copied.
+## 首选语言
 
-Popular `sort=-views`, latest `sort=-update`, ordinary search `q` and page requests use existing SDK standard GET. HTML grid entries retain their real ASCII slug identities; `rel=next` controls terminal paging. Detail uses the `data-flux-card` owner. Catalogue parses each owner’s `chapters:` strict JSON array completely, preserving real positive signed-64-bit ID/title, original order and notes; chapter number/date stay unknown, never guessed. Chapter requests use the actual `/chapters/<id>` contract, and `img[x-ref]` uses `data-src` or `src`; stable page IDs are `page:<chapterID>:<one-based index>`. Missing public images, unknown HTML, malformed arrays, overflow/truncation or non-2xx HTTP responses return explicit errors. HTTP status/statusCode is classified separately from transport `ok`, with bounded status diagnostics. Existing native `html_select_all` ABI is used without SDK/App changes; owned descriptors close even on capacity rejection. Home/filters/settings/credentials are false.
+`pref_key_lang`（設置首選語言）提供繁體中文与简体中文，默认 `cn` 保留Koma原简体路径；固定Keiyoushi `949dea252eb8e867b7b40834a26e13088764ff55` 默认是空前缀繁体，这里按保当前默认适配。ABI选项不允许空值，`original`表示参考空前缀，也兼容已有空值及zh-hant；cn/未配置保持 `/cn/comics`，显式original使用 `/comics`。
 
-Evidence boundary: normal WASM/package build, info/listings ABI output, local pure algorithm boundaries and replay of the saved real public search HTTP403 prove only those local contracts. No successful current MyComic public HTML exists in this task; **no listing/detail/catalogue/page/image content chain is accepted**. The prior `/cn/comics` and `/cn/comics?q=鬼灭` denials constrain their precise requests, not other branches. No further public requests occurred during implementation. The finite root197 observation is recorded below.
+列表、搜索、分页与详情/目录的共同manga_doc均消费所选前缀。Koma作品ID一直为无语言前缀的slug，因此详情与目录从当前设置派生路径，保持原作品身份；不主动重写已入库标题。参考Dto章地址始终 `/chapters/<id>`，正文请求保此无前缀路线，不按语言设置擅加cn；图像URL和请求头保持原输出。原正整数字符串章ID、页ID `page:<chapterID>:<index>`、目录顺序及读态不变；App沿已采用设置摘要合同按需重新取页，不清图片缓存。
 
-Unaccepted risks: without real href samples, the ASCII alphanumeric/`-`/`_` slug restriction is deliberately narrow and explicitly rejects percent-encoded/Unicode slugs; this must be checked against actual ordinary responses before extending it. No real empty-results, next-link, full chapter-group/note topology or image host contract has been accepted. Existing date values are not converted without real samples. Images use their provided HTTPS URL without authentication or response transformation; no accounts, sessions, arbitrary JS, new ABI, domain/UA variants, paid-content access, challenge handling or publication.
+## 解析与可用性
 
-0.1.1 adds only finite fetch-stage/HTTP-number and known operation/code host logs, plus the source version bump. Requests, selectors, IDs, capabilities and returned semantics are unchanged. 0.1.0 ordinary197 popular failed with unknown cause; its package/source/receipt remain frozen in ignored artifacts. Root executed one named diagnostic observation; it does not accept a content chain or permit repetition of denied requests.
+目录完整解析实际owner中的strict JSON chapters数组，保title/原序/notes；number/date未知不猜。分页next仅接受当前选定语言下实际下一页号。原狭窄ASCII slug规则、HTTPS图片、非2xx与容量/截断守卫保持；未知HTML或缺图明确失败，不把部分解析冒完整目录。
 
-Root197 boundary: ordinary0.1.0 subscription install, physical package/WASM identity and no-clear cold metadata persistence were observed; its first native popular failure remains historically unknown. Ordinary0.1.1 update and physical package/WASM identity were observed, and the one ordinary popular request at2026-10-10 14:43:11 returned HTTP403 with `get_manga_list/permission_denied`, before body or HTML parsing. Server-side cause remains unknown; this precise request and the prior denied unparameterized/search requests must not be retried without a material external change. Cold30698→31352 preserved all four JSON states, original14 installed source objects and Library/Reader/Queue. Only the temporaryowned index was removed, originalthree repositories/selectedURL and poweroverride10000ms were restored, bothowned deliveryservers stopped, and the finite197lease released. This is a candidate/checkpoint, not a usable-source or full-site claim.
+现有具名Native公开请求曾返回HTTP403，原因未知；没有新的成功站点内容链。受控HTML/生产WASM只证明语言路径与本地解析合同，不冒当前HTTP、原图、下载或Native内容可用，不重复已拒绝请求。图标保留已采用红C去底重构与原件归属，不宣称新官方高清素材。
 
-## 2026-10-22 distribution asset restoration
+## 实现来源
 
-The current `icon.png` restores the unchanged original from the installed device197 package, received as `mycomic-installed197-icon.png`. This restores the required package asset for remote installation/update; it does not claim a new official high-resolution resource, resolved icon quality, or new provider/content acceptance. Existing plate/shadow/small-slot limitations remain OPEN. No image processing, source identity, request, chapter or App presentation changes. Prior business-only/missing-file statements above describe the earlier recovery checkpoint; the original source documents and notices are retained.
-
-## 0.1.2 retained-identity icon cleanup
-
-The icon is a 2D reconstruction preserving the single red C identity while removing the former grey-black backing and shadow. It is not a new official high-resolution original; the unmodified installed image is retained as `original-installed-icon.png`. Provider behaviour and App presentation are unchanged; device237 ordinary installation verified the mark in management and Browse without the former backing/shadow; this accepts only these icon consumers, not provider content.
+独立Rust适配依据Apache-2.0 Keiyoushi `10f06eb833af5990bc5470c84c5e93edc159ad4e` 的 `src/zh/mycomic`；本次语言项核固定 `949dea252eb8e867b7b40834a26e13088764ff55` 的MyComic.kt/Dto.kt。许可见NOTICE/LICENSE，不复制Kotlin实现或图像。
