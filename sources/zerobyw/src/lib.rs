@@ -46,6 +46,9 @@ koma_source_sdk::koma_source_buffers! {
     scratch: 8192,
 }
 koma_source_sdk::koma_source_helpers!();
+
+// Decode search input separately from URL scratch and the bounded WASM stack.
+static mut SEARCH_QUERY: [u8; 8192] = [0; 8192];
 const SELECT_CAP: usize = 4096 * 4;
 
 static mut SELECT_BUF: [u8; SELECT_CAP] = [0; SELECT_CAP];
@@ -53,7 +56,7 @@ static mut SELECT_BUF: [u8; SELECT_CAP] = [0; SELECT_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.zerobyw.koma",
     name: "Zerobyw",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -267,9 +270,15 @@ fn write_manga_item(
 }
 
 fn run_search(req: &[u8]) -> u32 {
-    let query = match extract_json_string(req, b"query") {
-        Some(q) => trim_ascii(q),
+    let raw = match extract_json_string(req, b"query") {
+        Some(q) => q,
         None => return write_error("search", "invalid_request", "missing query"),
+    };
+    // Trim the decoded user term, then encode it for the provider URL.
+    let output = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
+    let query = match koma_source_sdk::plain_text::decode_json_content(raw, output) {
+        Ok(v) if core::str::from_utf8(v).is_ok() => trim_ascii(v),
+        _ => return write_error("search", "invalid_request", "invalid query"),
     };
     let page = extract_json_number(req, b"page").unwrap_or(b"1");
     let mut base_buf = [0u8; 512];
