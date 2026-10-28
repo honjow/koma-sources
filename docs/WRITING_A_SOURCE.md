@@ -411,6 +411,8 @@ fn run_search(req: &[u8]) -> u32 {
 | `html_text(element, out, cap) -> Result<usize, i32>` | Written length | Get text content |
 | `html_close(descriptor) -> Result<(), i32>` | — | Free descriptor. **Always close documents when done.** |
 
+Selected element descriptors refer to nodes in their original parsed document. Closing an element releases only that descriptor; closing its document invalidates all selected descriptors from that document.
+
 ## Source Settings
 
 For sources that need user-provided values (cookies, tokens, quality preferences):

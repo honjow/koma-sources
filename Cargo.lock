@@ -1161,6 +1161,7 @@ dependencies = [
  "anyhow",
  "axum",
  "clap",
+ "ego-tree",
  "getrandom 0.2.17",
  "mime_guess",
  "scraper",

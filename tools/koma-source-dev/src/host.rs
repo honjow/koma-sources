@@ -16,20 +16,70 @@ pub fn set_setting(key: &str, value: &str) {
     }
 }
 
+/// A selected descriptor points into its original document; it is never reparsed.
+#[derive(Clone, Copy)]
+struct HtmlHandle { owner: usize, node: Option<ego_tree::NodeId> }
+
 /// State stored inside the wasmtime Store
 pub struct HostState {
-    /// Accumulated log messages
     pub logs: Vec<String>,
-    /// HTML documents held by descriptors
     html_docs: Vec<Option<scraper::Html>>,
+    html_handles: Vec<Option<HtmlHandle>>,
 }
 
 impl HostState {
-    fn new() -> Self {
-        Self {
-            logs: Vec::new(),
-            html_docs: vec![None], // index 0 unused
+    fn new() -> Self { Self { logs: Vec::new(), html_docs: vec![None], html_handles: vec![None] } }
+    fn parse_html(&mut self, html: &str) -> i32 {
+        let owner = self.html_docs.len();
+        self.html_docs.push(Some(scraper::Html::parse_document(html)));
+        self.add_handle(HtmlHandle { owner, node: None })
+    }
+    fn add_handle(&mut self, handle: HtmlHandle) -> i32 {
+        let id = self.html_handles.len(); self.html_handles.push(Some(handle)); id as i32
+    }
+    fn handle(&self, id: i32) -> Option<HtmlHandle> {
+        if id <= 0 { return None; } self.html_handles.get(id as usize)?.as_ref().copied()
+    }
+    fn select_ids(&self, id: i32, selector: &scraper::Selector) -> Option<(usize, Vec<ego_tree::NodeId>)> {
+        let h = self.handle(id)?; let doc = self.html_docs.get(h.owner)?.as_ref()?;
+        let root = match h.node { Some(node) => doc.tree.get(node)?, None => doc.tree.root() };
+        let scope = match h.node { Some(_) => Some(scraper::ElementRef::wrap(root)?), None => None };
+        // Malformed source HTML can cause ego-tree's traversal iterator to
+        // leave the selected scope early. Follow only the original child links.
+        let mut stack: Vec<_> = root.children().collect(); stack.reverse();
+        let mut seen = std::collections::HashSet::new();
+        let mut ids = Vec::new();
+        while let Some(current) = stack.pop() {
+            if !seen.insert(current.id()) { continue; }
+            if let Some(el) = scraper::ElementRef::wrap(current) {
+                if selector.matches_with_scope(&el, scope) { ids.push(el.id()); }
+            }
+            let mut children: Vec<_> = current.children().collect(); children.reverse(); stack.extend(children);
         }
+        Some((h.owner, ids))
+    }
+    fn attr(&self, id: i32, name: &str) -> Option<String> {
+        let h = self.handle(id)?; let doc = self.html_docs.get(h.owner)?.as_ref()?;
+        let el = scraper::ElementRef::wrap(doc.tree.get(h.node?)?)?; Some(el.value().attr(name)?.to_owned())
+    }
+    fn text(&self, id: i32) -> Option<String> {
+        let h = self.handle(id)?; let doc = self.html_docs.get(h.owner)?.as_ref()?;
+        let root = match h.node { Some(node) => doc.tree.get(node)?, None => doc.tree.root() };
+        let mut stack = vec![root]; let mut seen = std::collections::HashSet::new(); let mut text = String::new();
+        while let Some(current) = stack.pop() {
+            if !seen.insert(current.id()) { continue; }
+            if let scraper::Node::Text(value) = current.value() { text.push_str(value); }
+            let mut children: Vec<_> = current.children().collect(); children.reverse(); stack.extend(children);
+        }
+        Some(text)
+    }
+    fn close(&mut self, id: i32) -> bool {
+        let Some(h) = self.handle(id) else { return false; };
+        if h.node.is_none() {
+            self.html_docs[h.owner] = None;
+            for slot in &mut self.html_handles { if slot.as_ref().is_some_and(|x| x.owner == h.owner) { *slot = None; } }
+        } else { self.html_handles[id as usize] = None; }
+        true
     }
 }
 
@@ -396,205 +446,53 @@ fn register_host_imports(linker: &mut Linker<HostState>) -> Result<()> {
         response_json.len() as i32
     })?;
 
-    // koma_host.html_parse
-    linker.func_wrap("koma_host", "html_parse", |mut caller: Caller<'_, HostState>, html_ptr: i32, html_len: i32| -> i32 {
-        let memory = match caller.get_export("memory").and_then(|e| e.into_memory()) {
-            Some(m) => m,
-            None => return -1,
-        };
-        let data = memory.data(&caller);
-        let start = html_ptr as usize;
-        let end = start + html_len as usize;
-        if end > data.len() { return -1; }
-        let html_bytes = data[start..end].to_vec();
-
-        let html_str = String::from_utf8_lossy(&html_bytes).to_string();
-        let doc = scraper::Html::parse_document(&html_str);
-
-        let state = caller.data_mut();
-        let idx = state.html_docs.len();
-        state.html_docs.push(Some(doc));
-        idx as i32
+    // DOM descriptors retain the original tree and node identity; closing its
+    // document invalidates all descendants, as in the production host.
+    linker.func_wrap("koma_host", "html_parse", |mut caller: Caller<'_, HostState>, ptr: i32, len: i32| -> i32 {
+        let Some(memory) = caller.get_export("memory").and_then(|e| e.into_memory()) else { return -1; };
+        if ptr < 0 || len <= 0 { return -1; }
+        let Ok(bytes) = read_guest_bytes(&memory, &caller, ptr as u32, len as u32) else { return -1; };
+        caller.data_mut().parse_html(&String::from_utf8_lossy(&bytes))
     })?;
-
-    // koma_host.html_select
-    linker.func_wrap("koma_host", "html_select", |mut caller: Caller<'_, HostState>, descriptor: i32, selector_ptr: i32, selector_len: i32| -> i32 {
-        let memory = match caller.get_export("memory").and_then(|e| e.into_memory()) {
-            Some(m) => m,
-            None => return -1,
-        };
-        let data = memory.data(&caller);
-        let sel_start = selector_ptr as usize;
-        let sel_end = sel_start + selector_len as usize;
-        if sel_end > data.len() { return -1; }
-        let sel_bytes = data[sel_start..sel_end].to_vec();
-        let selector_str = String::from_utf8_lossy(&sel_bytes).to_string();
-
-        let selector = match scraper::Selector::parse(&selector_str) {
-            Ok(s) => s,
-            Err(_) => return -1,
-        };
-
-        let state = caller.data_mut();
-        let idx = descriptor as usize;
-        if idx >= state.html_docs.len() { return -1; }
-
-        let first_html = {
-            let doc = match &state.html_docs[idx] {
-                Some(d) => d,
-                None => return -1,
-            };
-            doc.select(&selector).next().map(|el| el.html())
-        };
-
-        match first_html {
-            Some(html) => {
-                let subdoc = scraper::Html::parse_fragment(&html);
-                let new_idx = state.html_docs.len();
-                state.html_docs.push(Some(subdoc));
-                new_idx as i32
-            }
-            None => -1,
-        }
+    linker.func_wrap("koma_host", "html_select", |mut caller: Caller<'_, HostState>, id: i32, ptr: i32, len: i32| -> i32 {
+        let Some(memory) = caller.get_export("memory").and_then(|e| e.into_memory()) else { return -1; };
+        if ptr < 0 || len <= 0 { return -1; }
+        let Ok(bytes) = read_guest_bytes(&memory, &caller, ptr as u32, len as u32) else { return -1; };
+        let Ok(selector) = scraper::Selector::parse(&String::from_utf8_lossy(&bytes)) else { return -1; };
+        let Some((owner, ids)) = caller.data().select_ids(id, &selector) else { return -1; };
+        match ids.first() { Some(node) => caller.data_mut().add_handle(HtmlHandle { owner, node: Some(*node) }), None => -1 }
     })?;
-
-    // koma_host.html_select_all — returns count of matches, stores each as a fragment doc.
-    // Guest passes an output buffer (out_ptr, out_cap) to receive descriptor i32s.
-    // Returns: number of matches found (descriptors written = min(count, out_cap/4)).
-    linker.func_wrap("koma_host", "html_select_all", |mut caller: Caller<'_, HostState>, descriptor: i32, selector_ptr: i32, selector_len: i32, out_ptr: i32, out_cap: i32| -> i32 {
-        let memory = match caller.get_export("memory").and_then(|e| e.into_memory()) {
-            Some(m) => m,
-            None => return -1,
-        };
-        let data = memory.data(&caller);
-        let sel_start = selector_ptr as usize;
-        let sel_end = sel_start + selector_len as usize;
-        if sel_end > data.len() { return -1; }
-        let sel_bytes = data[sel_start..sel_end].to_vec();
-        let selector_str = String::from_utf8_lossy(&sel_bytes).to_string();
-
-        let selector = match scraper::Selector::parse(&selector_str) {
-            Ok(s) => s,
-            Err(_) => return -1,
-        };
-
-        let state = caller.data_mut();
-        let idx = descriptor as usize;
-        if idx >= state.html_docs.len() { return -1; }
-
-        // Collect all matching elements as HTML fragments
-        let matched_htmls: Vec<String> = {
-            let doc = match &state.html_docs[idx] {
-                Some(d) => d,
-                None => return -1,
-            };
-            doc.select(&selector).map(|el| el.html()).collect()
-        };
-
-        let count = matched_htmls.len();
-        let max_write = (out_cap as usize) / 4; // each descriptor is i32 = 4 bytes
-
-        // Store each match as a fragment doc and write descriptor to guest memory
-        let mut descriptors = Vec::new();
-        for html in matched_htmls {
-            let subdoc = scraper::Html::parse_fragment(&html);
-            let new_idx = state.html_docs.len();
-            state.html_docs.push(Some(subdoc));
-            descriptors.push(new_idx as i32);
+    linker.func_wrap("koma_host", "html_select_all", |mut caller: Caller<'_, HostState>, id: i32, ptr: i32, len: i32, out: i32, cap: i32| -> i32 {
+        let Some(memory) = caller.get_export("memory").and_then(|e| e.into_memory()) else { return -1; };
+        if ptr < 0 || len <= 0 || out < 0 || cap < 0 { return -1; }
+        let Ok(bytes) = read_guest_bytes(&memory, &caller, ptr as u32, len as u32) else { return -1; };
+        let Ok(selector) = scraper::Selector::parse(&String::from_utf8_lossy(&bytes)) else { return -1; };
+        let Some((owner, ids)) = caller.data().select_ids(id, &selector) else { return -1; };
+        let count = ids.len(); let written = count.min(cap as usize / 4);
+        if (out as usize).checked_add(written * 4).map_or(true, |end| end > memory.data_size(&caller)) { return -1; }
+        for (i, node) in ids.into_iter().take(written).enumerate() {
+            let desc = caller.data_mut().add_handle(HtmlHandle { owner, node: Some(node) });
+            if write_guest_bytes(&memory, &mut caller, out as u32 + (i * 4) as u32, &desc.to_le_bytes()).is_err() { return -1; }
         }
-
-        // Write descriptors to guest output buffer
-        let memory = match caller.get_export("memory").and_then(|e| e.into_memory()) {
-            Some(m) => m,
-            None => return count as i32,
-        };
-        let write_count = descriptors.len().min(max_write);
-        let out_start = out_ptr as usize;
-        let mem_data = memory.data_mut(&mut caller);
-        for (i, desc) in descriptors[..write_count].iter().enumerate() {
-            let offset = out_start + i * 4;
-            if offset + 4 <= mem_data.len() {
-                mem_data[offset..offset + 4].copy_from_slice(&desc.to_le_bytes());
-            }
-        }
-
         count as i32
     })?;
-
-    // koma_host.html_attr
-    linker.func_wrap("koma_host", "html_attr", |mut caller: Caller<'_, HostState>, descriptor: i32, attr_ptr: i32, attr_len: i32, out_ptr: i32, out_cap: i32| -> i32 {
-        let memory = match caller.get_export("memory").and_then(|e| e.into_memory()) {
-            Some(m) => m,
-            None => return -1,
-        };
-        let data = memory.data(&caller);
-        let a_start = attr_ptr as usize;
-        let a_end = a_start + attr_len as usize;
-        if a_end > data.len() { return -1; }
-        let attr_str = String::from_utf8_lossy(&data[a_start..a_end]).to_string();
-
-        let state = caller.data_mut();
-        let idx = descriptor as usize;
-        if idx >= state.html_docs.len() { return -1; }
-
-        let val = {
-            let doc = match &state.html_docs[idx] {
-                Some(d) => d,
-                None => return -1,
-            };
-            let sel = scraper::Selector::parse("*").unwrap();
-            doc.select(&sel)
-                .find_map(|el| el.value().attr(&attr_str).map(|s| s.to_string()))
-                .unwrap_or_default()
-        };
-
-        let val_bytes = val.as_bytes();
-        if val_bytes.len() > out_cap as usize { return -3; }
-
-        let out_start = out_ptr as usize;
-        let out_end = out_start + val_bytes.len();
-        // Need to re-borrow memory for write
-        let memory = caller.get_export("memory").and_then(|e| e.into_memory()).unwrap();
-        let data = memory.data_mut(&mut caller);
-        if out_end > data.len() { return -1; }
-        data[out_start..out_end].copy_from_slice(val_bytes);
-        val_bytes.len() as i32
+    linker.func_wrap("koma_host", "html_attr", |mut caller: Caller<'_, HostState>, id: i32, ptr: i32, len: i32, out: i32, cap: i32| -> i32 {
+        let Some(memory) = caller.get_export("memory").and_then(|e| e.into_memory()) else { return -1; };
+        if ptr < 0 || len <= 0 || out < 0 || cap < 0 { return -1; }
+        let Ok(bytes) = read_guest_bytes(&memory, &caller, ptr as u32, len as u32) else { return -1; };
+        let Some(value) = caller.data().attr(id, &String::from_utf8_lossy(&bytes)) else { return -1; };
+        let bytes = value.as_bytes(); let n = bytes.len().min(cap as usize);
+        if write_guest_bytes(&memory, &mut caller, out as u32, &bytes[..n]).is_err() { return -1; } n as i32
     })?;
-
-    // koma_host.html_text
-    linker.func_wrap("koma_host", "html_text", |mut caller: Caller<'_, HostState>, descriptor: i32, out_ptr: i32, out_cap: i32| -> i32 {
-        let state = caller.data_mut();
-        let idx = descriptor as usize;
-        if idx >= state.html_docs.len() { return -1; }
-
-        let text = {
-            let doc = match &state.html_docs[idx] {
-                Some(d) => d,
-                None => return -1,
-            };
-            doc.root_element().text().collect::<String>()
-        };
-
-        let text_bytes = text.as_bytes();
-        if text_bytes.len() > out_cap as usize { return -3; }
-
-        let memory = caller.get_export("memory").and_then(|e| e.into_memory()).unwrap();
-        let data = memory.data_mut(&mut caller);
-        let out_start = out_ptr as usize;
-        let out_end = out_start + text_bytes.len();
-        if out_end > data.len() { return -1; }
-        data[out_start..out_end].copy_from_slice(text_bytes);
-        text_bytes.len() as i32
+    linker.func_wrap("koma_host", "html_text", |mut caller: Caller<'_, HostState>, id: i32, out: i32, cap: i32| -> i32 {
+        let Some(memory) = caller.get_export("memory").and_then(|e| e.into_memory()) else { return -1; };
+        if out < 0 || cap < 0 { return -1; }
+        let Some(value) = caller.data().text(id) else { return -1; };
+        let bytes = value.as_bytes(); let n = bytes.len().min(cap as usize);
+        if write_guest_bytes(&memory, &mut caller, out as u32, &bytes[..n]).is_err() { return -1; } n as i32
     })?;
-
-    // koma_host.html_close
-    linker.func_wrap("koma_host", "html_close", |mut caller: Caller<'_, HostState>, descriptor: i32| -> i32 {
-        let state = caller.data_mut();
-        let idx = descriptor as usize;
-        if idx < state.html_docs.len() {
-            state.html_docs[idx] = None;
-        }
-        0
+    linker.func_wrap("koma_host", "html_close", |mut caller: Caller<'_, HostState>, id: i32| -> i32 {
+        if caller.data_mut().close(id) { 0 } else { -1 }
     })?;
 
     // koma_host.get_setting
@@ -636,4 +534,42 @@ fn register_host_imports(linker: &mut Linker<HostState>) -> Result<()> {
     )?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod html_descriptor_tests {
+    use super::*;
+
+    #[test]
+    fn unclosed_anchor_does_not_hide_selected_article_descendants() {
+        let mut host = HostState::new();
+        let doc = host.parse_html("<p><a href='social'><img></p><div id='area'><div id='box'><div class='article' id='article-1'><ul class='article-head'><li class='title' data-article-link='/1'><h2>Title</h2></li></ul><div class='article-content-inner'><img alt='#漫畫'></div></div></div></div>");
+        let (owner, rows) = host.select_ids(doc, &scraper::Selector::parse("#area > #box > div.article[id]").unwrap()).unwrap();
+        assert_eq!(rows.len(), 1);
+        let row = host.add_handle(HtmlHandle { owner, node: Some(rows[0]) });
+        assert_eq!(host.select_ids(row, &scraper::Selector::parse("ul.article-head > li.title[data-article-link]").unwrap()).unwrap().1.len(), 1);
+        assert_eq!(host.select_ids(row, &scraper::Selector::parse("div.article-content-inner img").unwrap()).unwrap().1.len(), 1);
+    }
+
+    #[test]
+    fn selected_nodes_keep_owner_scope_and_document_lifetime() {
+        let mut host = HostState::new();
+        let doc = host.parse_html("<div id='outside' title='outer'><article id='a'><ul><li title='inner'>X</li></ul></article><article id='b'></article></div>");
+        let (owner, rows) = host.select_ids(doc, &scraper::Selector::parse("article").unwrap()).unwrap();
+        assert_eq!(rows.len(), 2);
+        let first = host.add_handle(HtmlHandle { owner, node: Some(rows[0]) });
+        let second = host.add_handle(HtmlHandle { owner, node: Some(rows[1]) });
+        assert_eq!(host.attr(first, "title"), None);
+        let (_, children) = host.select_ids(first, &scraper::Selector::parse("ul > li[title]").unwrap()).unwrap();
+        assert_eq!(children.len(), 1);
+        let child = host.add_handle(HtmlHandle { owner, node: Some(children[0]) });
+        assert_eq!(host.attr(child, "title").as_deref(), Some("inner"));
+        assert_eq!(host.text(child).as_deref(), Some("X"));
+        assert!(host.close(first));
+        assert_eq!(host.text(child).as_deref(), Some("X"));
+        assert!(host.close(doc));
+        assert!(host.text(child).is_none());
+        assert!(host.text(second).is_none());
+        assert!(!host.close(child));
+    }
 }
