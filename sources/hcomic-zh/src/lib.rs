@@ -10,7 +10,7 @@ const MAX: usize = 1048576;
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hcomic.zh.koma",
     name: "H-Comic",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -26,7 +26,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     manga_list: true,
     image_request: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: false,
     credentials: false,
 };
@@ -566,8 +566,8 @@ fn work(v: &[u8]) -> Result<Work, E> {
         let mut tmp = [0; 2048];
         decoded(refv(tag, b"type")?, &mut tmp)?;
         decoded(refv(tag, b"name")?, &mut tmp)?;
-        if member(tag, b"name_zh")?.is_some() {
-            decoded(refv(tag, b"name_zh")?, &mut tmp)?;
+        if let Some(raw) = member(tag, b"name_zh")? {
+            if idx(num(raw)?)? != b"null" { decoded(refv(tag, b"name_zh")?, &mut tmp)?; }
         }
     }
     Ok(w)
@@ -655,7 +655,7 @@ fn emit_work(b: &mut [u8], n: &mut usize, w: &Work) -> Result<(), E> {
         let tag = idx(num(t)?)?;
         let kl = tagtext(tag, b"type", &mut kind)?;
         if &kind[..kl] == b"artist" {
-            let name = if member(tag, b"name_zh")?.is_some() {
+            let name = if match member(tag, b"name_zh")? { Some(raw) => idx(num(raw)?)? != b"null", None => false } {
                 b"name_zh".as_slice()
             } else {
                 b"name"
@@ -675,7 +675,7 @@ fn emit_work(b: &mut [u8], n: &mut usize, w: &Work) -> Result<(), E> {
         let tag = idx(num(t)?)?;
         let kl = tagtext(tag, b"type", &mut kind)?;
         if &kind[..kl] == b"tag" {
-            let name = if member(tag, b"name_zh")?.is_some() {
+            let name = if match member(tag, b"name_zh")? { Some(raw) => idx(num(raw)?)? != b"null", None => false } {
                 b"name_zh".as_slice()
             } else {
                 b"name"
@@ -694,7 +694,7 @@ fn emit_work(b: &mut [u8], n: &mut usize, w: &Work) -> Result<(), E> {
         let tag = idx(num(t)?)?;
         let kl = tagtext(tag, b"type", &mut kind)?;
         if matches!(&kind[..kl], b"parody" | b"character" | b"group") {
-            let name = if member(tag, b"name_zh")?.is_some() {
+            let name = if match member(tag, b"name_zh")? { Some(raw) => idx(num(raw)?)? != b"null", None => false } {
                 b"name_zh".as_slice()
             } else {
                 b"name"
@@ -895,17 +895,47 @@ fn listing(r: &[u8], search: bool) -> Result<usize, E> {
     if search && (query.is_empty() || query.iter().any(|c| *c < 32)) {
         return Err("query invalid");
     };
-    let page = page_num(r, search, query)?;
-    let mut u = [0; 32768];
-    let mut un = 0;
-    bytes(&mut u, &mut un, WEB)?;
-    if search {
-        bytes(&mut u, &mut un, b"/__data.json?tag=&q=")?;
-        form_encode(&mut u, &mut un, query)?;
-        bytes(&mut u, &mut un, b"&page=")?
-    } else {
-        bytes(&mut u, &mut un, b"/__data.json?page=")?
+    // Keep the published cursor unchanged when no filters are selected. Filtered
+    // cursors also bind their selection, so a later edit cannot reuse an old page.
+    let filters = match member(a, b"filters")? {
+        None | Some(b"null") => b"{}".as_slice(),
+        Some(v) if v.first() == Some(&b'{') => v,
+        _ => return Err("invalid filters"),
     };
+    let sort = match member(filters, b"sort")? {
+        None | Some(b"null") => b"latest".as_slice(),
+        Some(v) => quoted(v)?,
+    };
+    if sort != b"latest" && sort != b"random" { return Err("invalid sort"); }
+    let allowed: &[&[u8]] = &[b"full color",b"big breasts",b"stockings",b"netorare",b"footjob",b"schoolgirl uniform",b"glasses",b"blowjob",b"shotacon",b"incest",b"milf",b"yaoi",b"dark skin",b"swimsuit",b"masturbation",b"muscle",b"sister",b"bondage",b"femdom",b"mind control",b"exhibitionism",b"group",b"anal",b"bestiality"];
+    let mut tagsbuf = [0u8; 1024]; let mut tn = 0;
+    if let Some(v) = member(filters, b"tags")? {
+        if v != b"null" {
+            let mut array = Array::new(v)?;
+            while let Some(raw) = array.next()? {
+                let mut tmp = [0u8; 128]; let tag = decoded(raw, &mut tmp)?;
+                if !allowed.contains(&tag) { return Err("invalid tag"); }
+                if tn > 0 { bytes(&mut tagsbuf, &mut tn, b",")?; }
+                bytes(&mut tagsbuf, &mut tn, tag)?;
+            }
+        }
+    }
+    let filtered = sort == b"random" || tn > 0;
+    let mut identity = [0u8; 8192]; let mut idn = 0;
+    bytes(&mut identity, &mut idn, query)?;
+    if filtered { bytes(&mut identity, &mut idn, b"\x00")?; bytes(&mut identity, &mut idn, sort)?; bytes(&mut identity, &mut idn, b"\x00")?; bytes(&mut identity, &mut idn, &tagsbuf[..tn])?; }
+    let identity = &identity[..idn];
+    let page = page_num(r, search, identity)?;
+    let mut u = [0; 32768]; let mut un = 0;
+    bytes(&mut u, &mut un, WEB)?;
+    if sort == b"random" { bytes(&mut u, &mut un, b"/random")?; }
+    if search || filtered {
+        bytes(&mut u, &mut un, b"/__data.json?tag=")?;
+        form_encode(&mut u, &mut un, &tagsbuf[..tn])?;
+        bytes(&mut u, &mut un, b"&q=")?;
+        form_encode(&mut u, &mut un, query)?;
+        bytes(&mut u, &mut un, b"&page=")?;
+    } else { bytes(&mut u, &mut un, b"/__data.json?page=")?; }
     wn(&mut u, &mut un, page)?;
     fetch(&u[..un])?;
     let root = idx(0)?;
@@ -953,7 +983,7 @@ fn listing(r: &[u8], search: bool) -> Result<usize, E> {
         bytes(out, &mut n, b":")?;
         wn(out, &mut n, page.checked_add(1).ok_or("page overflow")?)?;
         bytes(out, &mut n, b":")?;
-        hexemit(out, &mut n, query)?;
+        hexemit(out, &mut n, identity)?;
         bytes(out, &mut n, b"\"")?
     } else {
         bytes(out, &mut n, b"null")?
@@ -1085,7 +1115,9 @@ fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_supported", "not supported")
 }
 fn run_get_filters(_: &[u8]) -> u32 {
-    write_error("get_filters", "not_supported", "not supported")
+    let data = r#"{"filters":[{"id":"sort","name":"排序","type":"select","options":[{"value":"latest","label":"最近更新"},{"value":"random","label":"隨機排序"}]},{"id":"tags","name":"人氣標籤","type":"multiselect","options":[{"value":"full color","label":"全彩"},{"value":"big breasts","label":"巨乳"},{"value":"stockings","label":"黑絲 / 白襪"},{"value":"netorare","label":"NTR"},{"value":"footjob","label":"足交 / 腳交"},{"value":"schoolgirl uniform","label":"女學生"},{"value":"glasses","label":"眼鏡控"},{"value":"blowjob","label":"口交"},{"value":"shotacon","label":"正太控"},{"value":"incest","label":"亂倫"},{"value":"milf","label":"熟女 / 人妻"},{"value":"yaoi","label":"同志 BL"},{"value":"dark skin","label":"黑肉"},{"value":"swimsuit","label":"泳裝"},{"value":"masturbation","label":"手淫"},{"value":"muscle","label":"肌肉"},{"value":"sister","label":"姐姐 / 妹妹"},{"value":"bondage","label":"捆綁"},{"value":"femdom","label":"調教"},{"value":"mind control","label":"催眠"},{"value":"exhibitionism","label":"露出"},{"value":"group","label":"群交"},{"value":"anal","label":"肛交"},{"value":"bestiality","label":"獸交"}]}]}"#.as_bytes();
+    payload_buf()[..data.len()].copy_from_slice(data);
+    write_success_payload("get_filters", data.len())
 }
 fn run_get_settings(_: &[u8]) -> u32 {
     write_error("get_settings", "not_supported", "not supported")
