@@ -25,3 +25,5 @@
 ## 版本探测调度
 
 宿主声明 `source_http_batch_v1` 时，详情和目录的独立版本probe沿固定参考每批最多5个，使用原HTTP import的requests/responses合同；原单请求方法、地址、头、正文和超时保持。按输入顺序逐项检查状态、GraphQL和版本身份，全部成功后才发布原目录，保留取消、容量、语言及后续作品/章节归属检查和原排序。无该能力的旧宿主继续原逐次请求，不复用跨操作缓存，不把多个GraphQL根字段拼进一个请求。
+
+`source_detail_chapter_context_v1` permits the host to carry the non-sensitive version resolution from a successful detail request only to the immediately following chapter request in the same live transaction. The source re-fetches the work, verifies the source version, work identity, complete ordered edition IDs and every result shape, and falls back to fresh probes if the context is absent or invalid. Exact chapter recovery never uses it; no source-side cache or persistence is added.

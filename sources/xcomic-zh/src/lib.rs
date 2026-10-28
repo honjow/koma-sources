@@ -8,6 +8,8 @@ use alloc::{string::{String,ToString},vec::Vec,collections::{BTreeMap,BTreeSet}}
 mod chapter_editions;
 #[path = "../probe_batches.rs"]
 mod probe_batches;
+#[path = "../detail_context.rs"]
+mod detail_context;
 // Independent modified adaptation of XCOMIC published JSON contract, Apache-2.0.
 // Keiyoushi primary1319949ca9bc456908196e3ba2d104e94182c5d6. No auth/premium fallback.
 use koma_source_sdk::{
@@ -18,7 +20,7 @@ use koma_source_sdk::{
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.xcomic.zh.koma",
     name: "XCOMIC",
-    version: "0.1.6",
+    version: "0.1.7",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -1181,6 +1183,7 @@ fn detail(r: &[u8]) -> Result<usize, E> {
     } else {
         emit_manga(b, &mut n, title, None, work, cleaner.as_ref(), false)?
     };
+    detail_context::emit(b,&mut n,r,title,work,good)?;
     bytes(b, &mut n, b"}")?;
     Ok(n)
 }
@@ -1418,6 +1421,8 @@ fn collect(work: &[u8], target: Option<&[u8]>, normalize_labels: bool, r: &[u8])
             EDITIONS[0] = edition(Identity::new(target)?, comic)?;
         }
         1
+    } else if let Some(good)=detail_context::load(r,title,work) {
+        good
     } else {
         resolve(title, r)?
     };
