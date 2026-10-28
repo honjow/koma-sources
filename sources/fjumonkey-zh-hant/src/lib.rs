@@ -3,11 +3,11 @@ use koma_source_sdk::json_utils::*;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
- id:"com.fjumonkey.pixnet.zh-hant.koma", name:"輔大猴・四格漫畫", version:"0.1.1", api_version:"0.2", language:"zh-Hant", author:"Koma",
+ id:"com.fjumonkey.pixnet.zh-hant.koma", name:"輔大猴・四格漫畫", version:"0.1.2", api_version:"0.2", language:"zh-Hant", author:"Koma",
  description:"收錄輔大猴作者部落格「[專欄]四格漫畫」的漫畫，依原欄目分頁瀏覽。每篇獨立閱讀，作品評級尚未確認。", content_rating:"unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
-    search: false,
+    search: true,
     manga_detail: true,
     chapters: true,
     pages: true,
@@ -196,6 +196,78 @@ fn arg_string<'a>(s: &'a [u8], key: &[u8]) -> R<Option<&'a [u8]>> {
         }
         _ => Err("invalid_request"),
     }
+}
+
+fn hex4(s: &[u8]) -> Option<u32> {
+    if s.len() != 4 {
+        return None;
+    };
+    let mut n = 0;
+    for &c in s {
+        n = n * 16
+            + match c {
+                b'0'..=b'9' => (c - b'0') as u32,
+                b'a'..=b'f' => (c - b'a' + 10) as u32,
+                b'A'..=b'F' => (c - b'A' + 10) as u32,
+                _ => return None,
+            };
+    }
+    Some(n)
+}
+fn unescape<'a>(s: &[u8], out: &'a mut [u8]) -> Result<&'a [u8], &'static str> {
+    let mut i = 0;
+    let mut n = 0;
+    while i < s.len() {
+        let c = s[i];
+        i += 1;
+        if c != b'\\' {
+            if c < 32 || c == b'"' {
+                return Err("invalid JSON string");
+            };
+            w(out, &mut n, &[c])?;
+            continue;
+        }
+        let c = *s.get(i).ok_or("invalid JSON escape")?;
+        i += 1;
+        let c = match c {
+            b'"' => b'"',
+            b'\\' => b'\\',
+            b'/' => b'/',
+            b'n' => b'\n',
+            b'r' => b'\r',
+            b't' => b'\t',
+            b'b' => 8,
+            b'f' => 12,
+            b'u' => {
+                let mut cp = hex4(s.get(i..i + 4).ok_or("invalid unicode escape")?)
+                    .ok_or("invalid unicode escape")?;
+                i += 4;
+                if (0xd800..=0xdbff).contains(&cp) {
+                    if s.get(i..i + 2) != Some(b"\\u") {
+                        return Err("invalid unicode pair");
+                    };
+                    i += 2;
+                    let low = hex4(s.get(i..i + 4).ok_or("invalid unicode pair")?)
+                        .ok_or("invalid unicode pair")?;
+                    i += 4;
+                    if !(0xdc00..=0xdfff).contains(&low) {
+                        return Err("invalid unicode pair");
+                    };
+                    cp = 0x10000 + ((cp - 0xd800) << 10) + (low - 0xdc00)
+                } else if (0xdc00..=0xdfff).contains(&cp) {
+                    return Err("invalid unicode pair");
+                };
+                let ch = char::from_u32(cp).ok_or("invalid unicode scalar")?;
+                let mut tmp = [0; 4];
+                w(out, &mut n, ch.encode_utf8(&mut tmp).as_bytes())?;
+                continue;
+            }
+            _ => return Err("invalid JSON escape"),
+        };
+        w(out, &mut n, &[c])?;
+    }
+    core::str::from_utf8(&out[..n]).map_err(|_| "invalid UTF8")?;
+    Ok(&out[..n])
 }
 
 fn member<'a>(v: &'a [u8], k: &[u8]) -> R<&'a [u8]> {
@@ -1271,8 +1343,138 @@ fn run_get_image_request(req: &[u8]) -> u32 {
     }
     result("get_image_request", inner(req))
 }
-fn run_search(_req: &[u8]) -> u32 {
-    write_error("search", "not_implemented", "此來源不提供搜尋")
+fn run_search(req: &[u8]) -> u32 {
+    fn inner(req: &[u8]) -> R<usize> {
+        let mut query_buf = [0u8; 2048];
+        let query = unescape(
+            arg_string(req, b"query")?.ok_or("invalid_request")?,
+            &mut query_buf,
+        )?;
+        if query.is_empty() {
+            return Err("invalid_request");
+        }
+        let pn = match direct(req, b"page")? {
+            None | Some(b"null") => 1,
+            Some(page) if page.first() == Some(&b'{') => match direct(page, b"cursor")? {
+                None | Some(b"null") => 1,
+                Some(v) if v.len() >= 2 && v[0] == b'"' && v[v.len() - 1] == b'"' => {
+                    positive(&v[1..v.len() - 1])?
+                }
+                _ => return Err("invalid_request"),
+            },
+            Some(v) => positive(v)?,
+        };
+        let mut url = [0u8; 4096];
+        let mut len = 0;
+        w(&mut url, &mut len, CATEGORY)?;
+        w(&mut url, &mut len, b"?q=")?;
+        if !write_url_encoded(&mut url, &mut len, query) {
+            return Err("capacity_exceeded");
+        }
+        if pn > 1 {
+            w(&mut url, &mut len, b"&page=")?;
+            if !write_usize(&mut url, &mut len, pn) {
+                return Err("capacity_exceeded");
+            }
+        }
+        let n = fetch(&url[..len])?;
+        let doc = host::html_parse(&body_buf()[..n]).map_err(|_| "html_error")?;
+        let r = (|| {
+            validate_identity(doc, CATEGORY, b"0")?;
+            validate_author_json(doc)?;
+            pagination(doc, pn)?;
+            let sel = b"#article-area > #article-box > div.article[id]";
+            let total = count(doc, sel)?;
+            if total > 24 || count(doc, b"#article-area > #article-box > div.article")? != total {
+                return Err("parse_error");
+            }
+            let mut raw = [0; 24 * 4];
+            let got = unsafe {
+                select_all_raw(
+                    doc.raw(),
+                    sel.as_ptr(),
+                    sel.len() as u32,
+                    raw.as_mut_ptr(),
+                    raw.len() as u32,
+                )
+            };
+            if got != total as i32 {
+                close_raw(&raw, got);
+                return Err("html_error");
+            }
+            let p = payload_buf();
+            let mut c = 0;
+            w(p, &mut c, b"{\"items\":[")?;
+            let mut error = None;
+            let mut seen = [[0; 24]; 24];
+            let mut seen_len = [0usize; 24];
+            for i in 0..total {
+                let off = i * 4;
+                let node = host::HtmlDescriptor::from_raw(i32::from_le_bytes([
+                    raw[off],
+                    raw[off + 1],
+                    raw[off + 2],
+                    raw[off + 3],
+                ]));
+                let r = (|| {
+                    let mut s = [0; 64];
+                    let n = host::html_attr(node, b"id", &mut s).map_err(|_| "html_error")?;
+                    let post = id(&s[..n], b"article-").map_err(|_| "parse_error")?;
+                    for before in 0..i {
+                        if seen_len[before] == post.len() && &seen[before][..post.len()] == post {
+                            return Err("duplicate_identity");
+                        }
+                    }
+                    seen[i][..post.len()].copy_from_slice(post);
+                    seen_len[i] = post.len();
+                    article_node(node, post, false)?;
+                    if i > 0 {
+                        w(p, &mut c, b",")?;
+                    }
+                    book(p, &mut c, post, false)
+                })();
+                let close = host::html_close(node).map_err(|_| "html_error");
+                if let Err(e) = r.and(close) {
+                    if error.is_none() {
+                        error = Some(e);
+                    }
+                }
+            }
+            if let Some(e) = error {
+                return Err(e);
+            }
+            w(p, &mut c, b"],\"hasNextPage\":")?;
+            w(
+                p,
+                &mut c,
+                if unsafe { NL } > 0 { b"true" } else { b"false" },
+            )?;
+            w(p, &mut c, b",\"page\":{\"nextCursor\":")?;
+            if unsafe { NL } > 0 {
+                w(p, &mut c, b"\"")?;
+                if !write_usize(p, &mut c, pn + 1) {
+                    return Err("capacity_exceeded");
+                }
+                w(p, &mut c, b"\"")?;
+            } else {
+                w(p, &mut c, b"null")?;
+            }
+            w(p, &mut c, b",\"hasMore\":")?;
+            w(
+                p,
+                &mut c,
+                if unsafe { NL } > 0 { b"true" } else { b"false" },
+            )?;
+            w(p, &mut c, b"}}")?;
+            Ok(c)
+        })();
+        let close = host::html_close(doc).map_err(|_| "html_error");
+        match (r, close) {
+            (Ok(n), Ok(())) => Ok(n),
+            (Err(e), _) | (_, Err(e)) => Err(e),
+        }
+    }
+    result("search", inner(req))
 }
 fn run_get_home(_req: &[u8]) -> u32 {
     write_error("get_home", "not_implemented", "")

@@ -2,7 +2,7 @@
 
 作者原部落格「[專欄]四格漫畫」：https://fjumonkey.pixnet.net/blog/categories/1708975 。僅這個個人漫畫分類，按實際next逐頁瀏覽，不掃6頁、不把頁數乘每頁數當總量。每post獨立作品、一個完整閱讀單元，原標題不改；chapterNumber/volumeNumber=null，readingGroup=該作品MID，continuationEligible=false。Holly Plus標題中的59等數字不作全源章序。作者自署「輔大猴部落格」，正式作品評級/連載狀態/usage unknown。
 
-source ID `com.fjumonkey.pixnet.zh-hant.koma`，0.1.1，ABI0.2，zh-Hant。能力僅listings/mangaList/detail/chapters/pages/imageRequest；不提供search/home/filter/settings/credentials。short postID保原字符串，最多24位正數字，不經f64/usize；MID=`fjumonkey:zh-hant:post:<post>`、CID=`fjumonkeyread:zh-hant:post:<post>`、PID=`fjumonkeypage:zh-hant:post:<post>:<0-based ordinal>`，只有本地ordinal/頁計數轉整數。
+source ID `com.fjumonkey.pixnet.zh-hant.koma`，0.1.2，ABI0.2，zh-Hant。能力為search/listings/mangaList/detail/chapters/pages/imageRequest；不提供home/filter/settings/credentials。short postID保原字符串，最多24位正數字，不經f64/usize；MID=`fjumonkey:zh-hant:post:<post>`、CID=`fjumonkeyread:zh-hant:post:<post>`、PID=`fjumonkeypage:zh-hant:post:<post>:<0-based ordinal>`，只有本地ordinal/頁計數轉整數。
 
 目錄限定主`#article-area > #article-box > div.article[id]`，逐項原ID/data-article-link/h2 URL/標題/個人分類/直接img封面一致，按post去重。兩頁各12原身份已核，合併24；24作品只有14個不同cover URI，原49/48及47至39共11篇共享同一封面，合法保留所有作品。原next完整URI作cursor，驗可見當前頁、back/next連續；canonical/og只鎖原分類基礎URL（page2原站不含query）。末6僅原導航，後4頁/終態未核，不能假終態。
 
@@ -31,3 +31,7 @@ source ID `com.fjumonkey.pixnet.zh-hant.koma`，0.1.1，ABI0.2，zh-Hant。能�
 普通系统选择器首次导入正式0.1.1，登记64→65只新增本源，原64条完整记录及相对顺序保持。普通Browse显示12本，首篇《Holly Plus 59 - 夏日玩水須知》详情1章；开始阅读实际显示标题1/5，正常下一页显示完整绿狮老师提醒玩水安全的叙事图2/5，文字、人物与原版权行完整可见，无加载层。自然Back后详情立即显示继续第2/5页；持久会话精确绑定post38769301、正文ordinal1、pageIndex=1、totalPages=5、progressRatio=0.4、completed=false，原全部其他阅读对象保持。只接受本篇标题和首张叙事正文、自然返回及读态，不外推其余三正文、其他作品、全分页、下载或cold。
 
 原件沿Koma既有237 category-membership的`fjumonkey011-native237-{gate,imported,browse,detail,title-reader,body,return}-001`与`fjumonkey011-native237-restored-anchor-002`；body/return保留完整原图、布局和命令回执，return另有reader.json。最终Browse原M组喵趣锚点、65项登记、10000ms/AWAKE、本轮传包与两scratch不存在均读回，租约已释放、哈希关闭。仅保留正常新装源及自然读态，未改源/App代码、版本、图标、偏好或新增下载。
+
+## 分類搜索
+
+搜索限定原「[專欄]四格漫畫」分類，以q及獨立數字游標重建查詢；站方next連結省略q，不能直接作下一次搜索。保原作者、分類、作品ID與標題。2026-10-28生產WASM真站「四格」首頁、次頁及第6末頁成功，隨機無匹配為空，JSON雙引號正確編碼；首項38769301與原目錄ID/標題一致，詳情和頁表成功。公開包及Native另驗。
