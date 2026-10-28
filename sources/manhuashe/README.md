@@ -62,3 +62,9 @@ The retained successful 800-title catalogue plus this same exact work’s single
 237 ordinary picker 0.1.6→0.1.7 update succeeded, with Browse and registry both reading 0.1.7. In the same 672-entry work, descending now begins 669/668/667; ascending shows the unnumbered 请假条 followed by chapters 1/2/3. This accepts the corrected numbered metadata and numbered ordering only: the current App’s treatment of unknown chapter numbers remains an observed issue, not a full sorting pass. Evidence is Koma’s existing237 `category-membership/manhuashe017-number237-{desc,asc-oldconsumer}-001/{screen.png,layout.json}`; the earlier first-reading and natural-return evidence is `manhuashe016-number237-{firstread,firstreturn}-001`.
 
 `manhuashe017-number237-final-restored-001` retains the normal Browse anchor, 63 source records in the original relative order, and only this source’s version/package references changed. All previous progress records are unchanged; only comic_13836’s natural P1/24 progress was added. The temporary order override was reset through the ordinary control; AWAKE/10000ms and absence of both uploaded installers and both scratch files were read back before lease release. Source image/identity, App UI and MH160 were not modified by this source delivery.
+
+## 0.1.9 显式镜像设置
+
+固定参考 949dea252eb8e867b7b40834a26e13088764ff55 的镜像选择首项为 `https://www.311s.com`，另可选 `https://www.m206.com`。`preferredMirror` 默认原地址，未设置或未知值沿旧请求；仅用户显式选择备用地址时，列表、搜索、详情、章节、正文及图片请求 Referer/Origin 使用该地址。不自动试探或切换镜像；旧路径形式的漫画和章节 ID 保持。两站是否对每个作品均同一身份不能推定。
+
+备用站实际返回的搜索第一页无 `/1` 链接；仅将精确匹配查询路径且无页号的链接识别为第一页，其他分页仍校验精确查询和页序。现有用户身份、图标和默认域不变。仅真实站点/WASM与具名旧作品测试，普通 Native 设置持久和设备阅读仍需独立验证。

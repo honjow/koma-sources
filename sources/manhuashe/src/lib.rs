@@ -1,13 +1,21 @@
 #![no_std]
 // Public contract: Keiyoushi Manhuashe.kt, Apache-2.0, revision
-// 10f06eb833af5990bc5470c84c5e93edc159ad4e. No authentication/mirror/JS processing.
+// 10f06eb833af5990bc5470c84c5e93edc159ad4e. No authentication, automatic mirror failover or JS processing.
 use koma_source_sdk::{
     host,
     json_utils::*,
     source::{SourceCapabilities, SourceInfo},
 };
 const BASE: &[u8] = b"https://www.311s.com";
-const SOURCE_INFO: SourceInfo = SourceInfo { id:"com.manhuashe.koma", name:"漫画社 (Manhuashe)", version:"0.1.8", api_version:"0.2",language:"zh",author:"Koma",description:"",content_rating:"nsfw" };
+const MIRROR: &[u8] = b"https://www.m206.com";
+// Explicit selection keeps the established default and path identities. Unknown values never expand hosts.
+fn selected_base(r: &[u8]) -> &'static [u8] {
+    match json_object_member(r, b"settings").and_then(|v| extract_json_string(v, b"preferredMirror")) {
+        Some(b"https://www.m206.com") => MIRROR,
+        _ => BASE,
+    }
+}
+const SOURCE_INFO: SourceInfo = SourceInfo { id:"com.manhuashe.koma", name:"漫画社 (Manhuashe)", version:"0.1.9", api_version:"0.2",language:"zh",author:"Koma",description:"",content_rating:"nsfw" };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -17,7 +25,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     manga_list: true,
     home: false,
     filters: false,
-    settings: false,
+    settings: true,
     image_request: true,
     credentials: false,
 };
@@ -455,21 +463,21 @@ fn execute(op: &str, r: Result<usize, &'static str>) -> u32 {
 fn valid_status(s: &[u8]) -> Option<usize> {
     number(s).filter(|n| (100..=599).contains(n))
 }
-fn fetch(path: &[u8]) -> Result<Node, &'static str> {
+fn fetch(base: &[u8], path: &[u8]) -> Result<Node, &'static str> {
     host::log_info(b"manhuashe stage=fetch_begin");
     let mut url = [0; 8192];
     let mut n = 0;
-    bytes(&mut url, &mut n, BASE)?;
+    bytes(&mut url, &mut n, base)?;
     bytes(&mut url, &mut n, path)?;
     let mut referer = [0; 256];
     let mut rn = 0;
-    bytes(&mut referer, &mut rn, BASE)?;
+    bytes(&mut referer, &mut rn, base)?;
     bytes(&mut referer, &mut rn, b"/")?;
     let len = koma_source_sdk::build_get_request(
         http_req_buf(),
         &url[..n],
         Some(&referer[..rn]),
-        &[(b"Origin", BASE)],
+        &[(b"Origin", base)],
     )
     .ok_or_else(|| {
         diagnostic(b"request_build", b"network_error");
@@ -536,7 +544,7 @@ fn fetch(path: &[u8]) -> Result<Node, &'static str> {
     Ok(root)
 }
 fn canonical<'a>(s: &'a [u8]) -> Result<&'a [u8], &'static str> {
-    let p = s.strip_prefix(BASE).unwrap_or(s);
+    let p = s.strip_prefix(BASE).or_else(|| s.strip_prefix(MIRROR)).unwrap_or(s);
     if !p.starts_with(b"/")
         || p.starts_with(b"//")
         || p.len() > 1024
@@ -647,7 +655,7 @@ fn qid(b: &mut [u8], n: &mut usize, prefix: &[u8], path: &[u8]) -> Result<(), &'
     }
     bytes(b, n, b"\"")
 }
-fn absolute<'a>(url: &[u8], out: &'a mut [u8]) -> Result<&'a [u8], &'static str> {
+fn absolute<'a>(base: &[u8], url: &[u8], out: &'a mut [u8]) -> Result<&'a [u8], &'static str> {
     core::str::from_utf8(url).map_err(|_| "invalid UTF8")?;
     if url.is_empty() || url.iter().any(|v| *v <= 32 || *v == 127) {
         return Err("invalid image URL");
@@ -659,7 +667,7 @@ fn absolute<'a>(url: &[u8], out: &'a mut [u8]) -> Result<&'a [u8], &'static str>
         bytes(out, &mut n, b"https:")?;
         bytes(out, &mut n, url)?;
     } else if url.starts_with(b"/") {
-        bytes(out, &mut n, BASE)?;
+        bytes(out, &mut n, base)?;
         bytes(out, &mut n, url)?;
     } else {
         return Err("unknown image URL");
@@ -717,7 +725,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
             return Err("payload overflow");
         }
     }
-    let root = fetch(&path[..n])?;
+    let root = fetch(selected_base(r), &path[..n])?;
     let _parent = root.select(b"div.comic-list")?;
     let nodes = Nodes::get(&root, b"div.comic-list > div.comic-item")?;
     let mut next = [0; 1024];
@@ -749,14 +757,13 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
         let mut tb = [0; 8192];
         let mut pb = [0; 8192];
         let prefix = url_decode(prefix, &mut pb)?;
-        let c = url_decode(canonical(current)?, &mut cb)?
-            .strip_prefix(prefix)
-            .and_then(number)
-            .ok_or("invalid search pagination")?;
-        let t = url_decode(canonical(next)?, &mut tb)?
-            .strip_prefix(prefix)
-            .and_then(number)
-            .ok_or("invalid search pagination")?;
+        // The website's first-page links may omit the trailing /1 entirely.
+        // Accept only the exact decoded query route; later pages still require an explicit number.
+        let parse_search_page = |url: &[u8]| -> Option<usize> {
+            if url == prefix.strip_suffix(b"/")? { Some(1) } else { url.strip_prefix(prefix).and_then(number) }
+        };
+        let c = parse_search_page(url_decode(canonical(current)?, &mut cb)?).ok_or("invalid search pagination")?;
+        let t = parse_search_page(url_decode(canonical(next)?, &mut tb)?).ok_or("invalid search pagination")?;
         if c != pn || has_more && t != pn.checked_add(1).ok_or("invalid pagination number")? {
             return Err("search pagination mismatch");
         }
@@ -778,7 +785,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
         let mp = manga_path(card.select(b"a")?.attr(b"href", &mut href)?)?;
         let mut src = [0; 8192];
         let mut abs = [0; 8192];
-        let cover = absolute(card.select(b"img")?.attr(b"src", &mut src)?, &mut abs)?;
+        let cover = absolute(selected_base(r), card.select(b"img")?.attr(b"src", &mut src)?, &mut abs)?;
         if i > 0 {
             bytes(b, &mut n, b",")?;
         }
@@ -808,7 +815,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
 }
 fn detail(r: &[u8]) -> Result<usize, &'static str> {
     let mp = manga_id(r)?;
-    let root = fetch(mp)?;
+    let root = fetch(selected_base(r), mp)?;
     let parent = root.select(b"div.comic-meta-info")?;
     let mut text = [0; 32768];
     let title = parent.select(b"h1")?.text(&mut text)?;
@@ -824,6 +831,7 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
     let mut src = [0; 8192];
     let mut abs = [0; 8192];
     let cover = absolute(
+        selected_base(r),
         root.select(b"div.comic-cover-large > img")?
             .attr(b"src", &mut src)?,
         &mut abs,
@@ -886,14 +894,14 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
         root.select(b"div.comic-description > p")?.text(&mut text)?,
     )?;
     bytes(b, &mut n, br#","links":[{"kind":"source","url":""#)?;
-    bytes(b, &mut n, BASE)?;
+    bytes(b, &mut n, selected_base(r))?;
     bytes(b, &mut n, mp)?;
     bytes(b, &mut n, br#""}]}}"#)?;
     Ok(n)
 }
 fn chapters(r: &[u8]) -> Result<usize, &'static str> {
     let mp = manga_id(r)?;
-    let root = fetch(mp)?;
+    let root = fetch(selected_base(r), mp)?;
     let _owner = root.select(b"#chapter-list")?;
     let nodes = Nodes::get(&root, b"#chapter-list > div.chapter-item > a")?;
     if nodes.n == 0 {
@@ -963,7 +971,7 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
 }
 fn pages(r: &[u8]) -> Result<usize, &'static str> {
     let cp = chapter_id(r)?;
-    let root = fetch(cp)?;
+    let root = fetch(selected_base(r), cp)?;
     let _owner = root.select(b"div.comic-content")?;
     let nodes = Nodes::get(&root, b"div.comic-content > img")?;
     if nodes.n == 0 {
@@ -982,7 +990,7 @@ fn pages(r: &[u8]) -> Result<usize, &'static str> {
         let img = selected(&nodes, i);
         let mut src = [0; 8192];
         let mut abs = [0; 8192];
-        let url = absolute(img.attr(b"src", &mut src)?, &mut abs)?;
+        let url = absolute(selected_base(r), img.attr(b"src", &mut src)?, &mut abs)?;
         if i > 0 {
             bytes(b, &mut n, b",")?;
         }
@@ -1028,7 +1036,9 @@ fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "not_implemented", "not supported")
 }
 fn run_get_settings(_: &[u8]) -> u32 {
-    write_error("get_settings", "not_implemented", "not supported")
+    let p = r#"{"settings":[{"id":"preferredMirror","name":"首选镜像","kind":"select","default":"https://www.311s.com","options":[{"value":"https://www.311s.com","label":"www.311s.com"},{"value":"https://www.m206.com","label":"www.m206.com"}]}]}"#.as_bytes();
+    payload_buf()[..p.len()].copy_from_slice(p);
+    write_success_payload("get_settings", p.len())
 }
 fn image_request(r: &[u8]) -> Result<usize, &'static str> {
     let raw = string(args(r), b"url").ok_or("missing image URL")?;
@@ -1092,7 +1102,11 @@ fn image_request(r: &[u8]) -> Result<usize, &'static str> {
     let mut n = 0;
     bytes(b, &mut n, b"{\"url\":")?;
     q(b, &mut n, url)?;
-    bytes(b,&mut n,b",\"headers\":{\"Referer\":\"https://www.311s.com/\",\"Origin\":\"https://www.311s.com\"}}")?;
+    bytes(b, &mut n, b",\"headers\":{\"Referer\":\"")?;
+    bytes(b, &mut n, selected_base(r))?;
+    bytes(b, &mut n, b"/\",\"Origin\":\"")?;
+    bytes(b, &mut n, selected_base(r))?;
+    bytes(b, &mut n, b"\"}}")?;
     Ok(n)
 }
 fn run_get_image_request(r: &[u8]) -> u32 {
