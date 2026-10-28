@@ -8,15 +8,15 @@ const BASE: &[u8] = b"https://www.liumanhua.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.sixmh.koma",
     name: "六漫画",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "六漫画公开 HTML 目录适配；搜索暂未实现。",
+    description: "六漫画公开 HTML 目录与搜索适配。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
-    search: false,
+    search: true,
     manga_detail: true,
     chapters: true,
     pages: true,
@@ -457,6 +457,9 @@ fn diagnostic_error(op: &str, code: &str) {
 }
 static mut LAST_HTTP_STATUS: u16 = 0;
 fn fetch_body(path: &[u8]) -> Result<usize, &'static str> {
+    fetch_body_with_ua(path, PC_UA)
+}
+fn fetch_body_with_ua(path: &[u8], ua: &[u8]) -> Result<usize, &'static str> {
     unsafe { LAST_HTTP_STATUS = 0 };
     host::log_info(b"sixmh fetch stage=enter");
     if host::check_cancel() {
@@ -465,7 +468,7 @@ fn fetch_body(path: &[u8]) -> Result<usize, &'static str> {
     let mut url = [0; 8192];
     let u = absolute(path, &mut url)?;
     let b = http_req_buf();
-    let n = pc_request(b, u)?;
+    let n = request(b, u, ua)?;
     host::log_info(b"sixmh fetch stage=request_ready");
     let size = host::http_request(&b[..n], http_out()).map_err(|_| "network request failed")?;
     host::log_info(b"sixmh fetch stage=http_return");
@@ -565,12 +568,13 @@ fn execute(op: &str, result: Result<usize, &'static str>) -> u32 {
 
 const PC_UA: &[u8] =
     b"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:150.0) Gecko/20100101 Firefox/150.0";
-fn pc_request(b: &mut [u8], u: &[u8]) -> Result<usize, &'static str> {
+const MOBILE_UA: &[u8] = b"Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36";
+fn request(b: &mut [u8], u: &[u8], ua: &[u8]) -> Result<usize, &'static str> {
     let mut n = 0;
     bytes(b, &mut n, b"{\"version\":1,\"method\":\"GET\",\"url\":")?;
     q(b, &mut n, u)?;
     bytes(b, &mut n, b",\"headers\":{\"User-Agent\":")?;
-    q(b, &mut n, PC_UA)?;
+    q(b, &mut n, ua)?;
     bytes(
         b,
         &mut n,
@@ -631,23 +635,57 @@ fn listing_prefix(r: &[u8]) -> Result<&'static [u8], &'static str> {
         _ => Err("unknown listing"),
     }
 }
-fn list(r: &[u8]) -> Result<usize, &'static str> {
+fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
     let p = page(r)?;
     if p > 1_000_000 {
         return Err("invalid page cursor");
     }
-    let prefix = listing_prefix(r)?;
-    let mut route = [0; 256];
+    let mut route = [0; 8192];
     let mut z = 0;
-    bytes(&mut route, &mut z, prefix)?;
+    let mut decoded = [0; 2048];
+    let term = if search {
+        let raw = string(args(r), b"query").ok_or("missing query")?;
+        let term = trim_ascii(unescape(raw, &mut decoded)?);
+        if term.is_empty() {
+            return Err("empty query");
+        }
+        bytes(&mut route, &mut z, b"/search/")?;
+        if !write_url_encoded(&mut route, &mut z, term) {
+            return Err("query overflow");
+        }
+        bytes(&mut route, &mut z, b"/")?;
+        term
+    } else {
+        bytes(&mut route, &mut z, listing_prefix(r)?)?;
+        b"".as_slice()
+    };
     if !write_usize(&mut route, &mut z, p) {
         return Err("page overflow");
     }
-    let root = fetch_doc(&route[..z])?;
-    let _container = root.select(b"div.cy_list_mh")?;
+    let root = if search {
+        let count = fetch_body_with_ua(&route[..z], MOBILE_UA)?;
+        let root = Node::parse(&body_buf()[..count])?;
+        if root.select(b"#code-div").is_ok() {
+            return Err("captcha unsupported");
+        }
+        root
+    } else {
+        fetch_doc(&route[..z])?
+    };
+    let container = root.select(b"div.cy_list_mh")?;
     let cards = Nodes::get(&root, b"div.cy_list_mh ul")?;
     if cards.n == 0 {
-        return Err("public listing empty or unknown");
+        if !search {
+            return Err("public listing empty or unknown");
+        }
+        let mut text = [0; 8192];
+        if !container
+            .text(&mut text)?
+            .windows("没有找到相关漫画".len())
+            .any(|w| w == "没有找到相关漫画".as_bytes())
+        {
+            return Err("unknown empty search response");
+        }
     }
     let nav = root.select(b"#Pagination, .NewPages")?;
     let links = Nodes::get(&nav, b"a")?;
@@ -657,23 +695,55 @@ fn list(r: &[u8]) -> Result<usize, &'static str> {
     let mut h = [0; 8192];
     let mut last = [0; 4096];
     let mut next = [0; 4096];
-    let v = path(selected(&links, links.n - 1).attr(b"href", &mut h)?)?;
+    let v = selected(&links, links.n - 1).attr(b"href", &mut h)?;
+    if v.len() > last.len() {
+        return Err("pagination overflow");
+    }
     let nl = v.len();
     last[..nl].copy_from_slice(v);
-    let v = path(selected(&links, links.n - 2).attr(b"href", &mut h)?)?;
+    let v = selected(&links, links.n - 2).attr(b"href", &mut h)?;
+    if v.len() > next.len() {
+        return Err("pagination overflow");
+    }
     let nn = v.len();
     next[..nn].copy_from_slice(v);
-    let target = if last[..nl] == next[..nn] {
+    // Search's next link may equal the last link when there are exactly two pages.
+    // Compare against the currently selected page instead of the last-page link.
+    let at_end = if search {
+        let mut current = [0; 4096];
+        let href = nav.select(b"a.on")?.attr(b"href", &mut current)?;
+        href == &next[..nn]
+    } else {
+        last[..nl] == next[..nn]
+    };
+    let target = if at_end {
         None
     } else {
-        let v = &next[..nn];
-        let n = number(v.strip_prefix(prefix).ok_or("unexpected pagination path")?)
-            .ok_or("invalid pagination number")?;
+        let n = if search {
+            let v = next[..nn]
+                .strip_prefix(b"/search/")
+                .ok_or("unexpected search pagination")?;
+            let v = v
+                .strip_prefix(term)
+                .and_then(|v| v.strip_prefix(b"/"))
+                .ok_or("unexpected search query")?;
+            number(v).ok_or("invalid pagination number")?
+        } else {
+            let v = path(&next[..nn])?;
+            number(
+                v.strip_prefix(listing_prefix(r)?)
+                    .ok_or("unexpected pagination path")?,
+            )
+            .ok_or("invalid pagination number")?
+        };
         if n != p.checked_add(1).ok_or("page overflow")? {
             return Err("unexpected next page number");
         }
         Some(n)
     };
+    if cards.n == 0 && target.is_some() {
+        return Err("empty search has next page");
+    }
     let b = payload_buf();
     let mut n = 0;
     bytes(b, &mut n, b"{\"items\":[")?;
@@ -1057,17 +1127,13 @@ fn image_request(r: &[u8]) -> Result<usize, &'static str> {
     bytes(b, &mut n, b"}}")?;
     Ok(n)
 }
-fn run_search(_: &[u8]) -> u32 {
-    diagnostic_error("search", "not_implemented");
-    write_error(
-        "search",
-        "not_implemented",
-        "Upstream search requires system HTTP agent; faithful client contract unresolved",
-    )
+fn run_search(r: &[u8]) -> u32 {
+    unsafe { LAST_HTTP_STATUS = 0 };
+    execute("search", list(r, true))
 }
 fn run_get_manga_list(r: &[u8]) -> u32 {
     unsafe { LAST_HTTP_STATUS = 0 };
-    execute("get_manga_list", list(r))
+    execute("get_manga_list", list(r, false))
 }
 fn run_get_manga(r: &[u8]) -> u32 {
     unsafe { LAST_HTTP_STATUS = 0 };
