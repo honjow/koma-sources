@@ -9,7 +9,7 @@ const WEB: &[u8] = b"https://nhentai.to";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.nhentaito.zh.koma",
     name: "NHentai.to",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -782,6 +782,148 @@ fn listing(r: &[u8]) -> R<usize> {
     bytes(o, &mut n, b"}}")?;
     Ok(n)
 }
+fn search(r: &[u8]) -> R<usize> {
+    let a = args(r)?;
+    let mut qb = [0u8; 4096];
+    let query = uq(required(a, b"query")?, &mut qb)?;
+    if query.is_empty() {
+        return Err("empty query");
+    }
+    let current = if let Some(page) = member(a, b"page")? {
+        if page.first() == Some(&b'{') {
+            match member(page, b"cursor")? {
+                Some(v) if v != b"null" => num(v)?,
+                _ => 1,
+            }
+        } else if page == b"null" {
+            1
+        } else {
+            num(page)?
+        }
+    } else {
+        1
+    };
+    if current == 0 || current > 10000 {
+        return Err("search page range");
+    }
+    // Reference GalleryAdults resolves numeric queries directly. The existing
+    // detail contract checks canonical owner and Chinese language before use.
+    if query.iter().all(|c| c.is_ascii_digit()) {
+        ident(query)?;
+        if current != 1 {
+            return Err("numeric search has one page");
+        }
+        let d = detail_doc(query)?;
+        let mut tb = [0u8; 4096];
+        let t = st(d.0, b"#info h1", &mut tb)?;
+        if t.is_empty() {
+            return Err("detail title");
+        }
+        let mut cb = [0u8; 2048];
+        let c = cover(d.0, &mut cb)?;
+        let o = payload_buf();
+        let mut n = 0;
+        bytes(o, &mut n, b"{\"items\":[")?;
+        emit_work(o, &mut n, query, t, c, r)?;
+        bytes(
+            o,
+            &mut n,
+            b"],\"page\":{\"hasMore\":false,\"nextCursor\":null}}",
+        )?;
+        return Ok(n);
+    }
+    let mut uri = [0u8; 8192];
+    let mut z = 0;
+    bytes(&mut uri, &mut z, b"https://nhentai.to/search?q=")?;
+    if !write_url_encoded(&mut uri, &mut z, query) {
+        return Err("query overflow");
+    }
+    bytes(&mut uri, &mut z, b"&lang=chinese")?;
+    if current > 1 {
+        bytes(&mut uri, &mut z, b"&page=")?;
+        wn(&mut uri, &mut z, current)?;
+    }
+    let d = fetch(&uri[..z])?;
+    let cards = All::new(d.0, b".gallery a:not([rel~=sponsored])")?;
+    if cards.len == 0 {
+        let mut hb = [0u8; 8192];
+        if !st(d.0, b"h1.search-h1", &mut hb)?.starts_with(b"0 Results for ") {
+            return Err("unknown empty search response");
+        }
+    }
+    let next = All::new(d.0, b"a.next")?;
+    if next.len > 1 {
+        return Err("search next ambiguity");
+    }
+    let nxt = if next.len == 1 {
+        let mut nb = [0u8; 8192];
+        let href = attr(next.at(0), b"href", &mut nb)?;
+        if !href.starts_with(b"https://nhentai.to/search?") {
+            return Err("search cursor owner");
+        }
+        let marker = b"&page=";
+        let at = href
+            .windows(marker.len())
+            .position(|x| x == marker)
+            .ok_or("search cursor page")?
+            + marker.len();
+        let end = href[at..]
+            .iter()
+            .position(|c| *c == b'&')
+            .map(|n| at + n)
+            .unwrap_or(href.len());
+        let n = number(&href[at..end]).ok_or("search cursor page")?;
+        if n != current.checked_add(1).ok_or("page overflow")? || cards.len == 0 {
+            return Err("search next discontinuity");
+        }
+        Some(n)
+    } else {
+        None
+    };
+    let mut seen = [[0; 20]; 1000];
+    let mut lens = [0; 1000];
+    let o = payload_buf();
+    let mut n = 0;
+    bytes(o, &mut n, b"{\"items\":[")?;
+    for i in 0..cards.len {
+        let c = cards.at(i);
+        let mut hb = [0; 1024];
+        let mut full = [0; 1024];
+        let id = work_href(absolute(attr(c, b"href", &mut hb)?, &mut full)?)?;
+        if (0..i).any(|j| &seen[j][..lens[j]] == id) {
+            return Err("duplicate work");
+        };
+        seen[i][..id.len()].copy_from_slice(id);
+        lens[i] = id.len();
+        let mut tb = [0; 4096];
+        let t = st(c, b".caption", &mut tb)?;
+        if t.is_empty() {
+            return Err("empty card title");
+        };
+        let mut cb = [0; 2048];
+        let url = image_attr(c, b"img", &mut cb)?;
+        let ac = asset(url)?;
+        if !matches!(ac.file, b"thumb.jpg" | b"thumb.webp" | b"thumb.png") {
+            return Err("cover template");
+        };
+        if i > 0 {
+            bytes(o, &mut n, b",")?
+        };
+        emit_work(o, &mut n, id, t, url, r)?
+    }
+    bytes(o, &mut n, b"],\"page\":{\"hasMore\":")?;
+    bytes(o, &mut n, if nxt.is_some() { b"true" } else { b"false" })?;
+    bytes(o, &mut n, b",\"nextCursor\":")?;
+    if let Some(v) = nxt {
+        bytes(o, &mut n, b"\"")?;
+        wn(o, &mut n, v)?;
+        bytes(o, &mut n, b"\"")?
+    } else {
+        bytes(o, &mut n, b"null")?
+    };
+    bytes(o, &mut n, b"}}")?;
+    Ok(n)
+}
 fn detail(r: &[u8]) -> R<usize> {
     let id = key(r, b"mangaId", b"nht:zh:")?;
     let d = detail_doc(id)?;
@@ -820,7 +962,9 @@ fn detail(r: &[u8]) -> R<usize> {
     wn(o, &mut n, total)?;
     if koma_source_sdk::gallery_titles::enabled(r) {
         bytes(o, &mut n, br"\n\n**Full title**: ")?;
-        if !append_json_escaped(o, &mut n, t) { return Err("payload overflow"); }
+        if !append_json_escaped(o, &mut n, t) {
+            return Err("payload overflow");
+        }
     }
     bytes(o, &mut n, b"\",\"tags\":[")?;
     for i in 0..tags.len {
@@ -1164,12 +1308,8 @@ fn execute(op: &str, r: R<usize>) -> u32 {
         Err(e) => write_error(op, "source_contract_error", e),
     }
 }
-fn run_search(_: &[u8]) -> u32 {
-    write_error(
-        "search",
-        "not_implemented",
-        "search actual contract unverified",
-    )
+fn run_search(r: &[u8]) -> u32 {
+    execute("search", search(r))
 }
 fn run_get_manga_list(r: &[u8]) -> u32 {
     execute("get_manga_list", listing(r))
@@ -1197,10 +1337,17 @@ fn run_get_filters(_: &[u8]) -> u32 {
 }
 fn run_get_settings(req: &[u8]) -> u32 {
     let prefix = br#"{"settings":[{"id":"pref_short_title","name":"Display Short Titles","kind":"toggle","default":"false","description":""#;
-    let state = if koma_source_sdk::gallery_titles::enabled(req) { b"Showing short Titles".as_slice() } else { b"Showing Long Titles".as_slice() };
+    let state = if koma_source_sdk::gallery_titles::enabled(req) {
+        b"Showing short Titles".as_slice()
+    } else {
+        b"Showing Long Titles".as_slice()
+    };
     let out = payload_buf();
     let mut n = 0;
-    if !(write_bytes(out, &mut n, prefix) && write_bytes(out, &mut n, state) && write_bytes(out, &mut n, br#""}]}"#)) {
+    if !(write_bytes(out, &mut n, prefix)
+        && write_bytes(out, &mut n, state)
+        && write_bytes(out, &mut n, br#""}]}"#))
+    {
         return write_error("get_settings", "internal_error", "payload overflow");
     }
     write_success_payload("get_settings", n)
@@ -1224,7 +1371,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
-    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.nhentaito.zh.koma\",\"name\":\"NHentai.to\",\"version\":\"0.1.3\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"NHentai.to 中文漫画目录源。\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"NHentai.to（中文）\",\"zh-Hant\":\"NHentai.to（中文）\",\"en\":\"NHentai.to (Chinese)\"}},\"capabilities\":{\"search\":false,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
+    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.nhentaito.zh.koma\",\"name\":\"NHentai.to\",\"version\":\"0.1.4\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"NHentai.to 中文漫画目录源。\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"NHentai.to（中文）\",\"zh-Hant\":\"NHentai.to（中文）\",\"en\":\"NHentai.to (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
 }
 macro_rules! export_op {
     ($f:ident,$op:literal,$run:ident) => {
