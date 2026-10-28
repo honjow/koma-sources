@@ -37,7 +37,10 @@ fn html_select_all(descriptor: i32, selector: &[u8], out: &mut [u8]) -> i32 {
     }
 }
 
-const DEFAULT_BASE_URL: &[u8] = b"http://www.zerobywgbo2.com";
+// Match the provider homepage redirect and the adopted reference default.
+// The former default remains recognizable for existing explicit settings.
+const DEFAULT_BASE_URL: &[u8] = b"http://www.zerobyw33.com";
+const LEGACY_BASE_URL: &[u8] = b"http://www.zerobywgbo2.com";
 koma_source_sdk::koma_source_buffers! {
     payload: 1024 * 1024,
     http_out: 2 * 1024 * 1024,
@@ -56,7 +59,7 @@ static mut SELECT_BUF: [u8; SELECT_CAP] = [0; SELECT_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.zerobyw.koma",
     name: "Zerobyw",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -324,7 +327,7 @@ fn run_search(req: &[u8]) -> u32 {
         && write_bytes(
             url_buf,
             &mut uc,
-            if base == DEFAULT_BASE_URL {
+            if base == LEGACY_BASE_URL {
                 b"/comic/search?query="
             } else {
                 b"/pc/pc/?keyword="
@@ -356,7 +359,7 @@ fn run_search(req: &[u8]) -> u32 {
     let selects = select_buf();
     let count = html_select_all(
         doc.0.raw(),
-        if base == DEFAULT_BASE_URL {
+        if base == LEGACY_BASE_URL {
             b"a.uk-card, div.uk-card, a[href*=\"/comic/\"]"
         } else {
             b"a[href*=\"/details/?kuid=\"]"
@@ -1039,7 +1042,7 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
         && write_bytes(
             url_buf,
             &mut uc,
-            if base == DEFAULT_BASE_URL {
+            if base == LEGACY_BASE_URL {
                 b"/comic/category/order/hit/page/"
             } else {
                 b"/pc/pc/?page="
@@ -1068,7 +1071,7 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     let selects = select_buf();
     let count = html_select_all(
         doc.0.raw(),
-        if base == DEFAULT_BASE_URL {
+        if base == LEGACY_BASE_URL {
             b"a.uk-card, div.uk-card, a[href*=\"/comic/\"]"
         } else {
             b"a[href*=\"/details/?kuid=\"]"
@@ -1176,7 +1179,7 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
 }
 
 fn run_get_settings(_req: &[u8]) -> u32 {
-    const SETTINGS: &[u8] = br#"{"settings":[{"id":"baseUrl","name":"Base URL","kind":"text","default":"http://www.zerobywgbo2.com","hint":"Override Zerobyw host without trailing slash"}]}"#;
+    const SETTINGS: &[u8] = br#"{"settings":[{"id":"baseUrl","name":"Base URL","kind":"text","default":"http://www.zerobyw33.com","hint":"Override Zerobyw host without trailing slash"}]}"#;
     let payload = payload_buf();
     if SETTINGS.len() > payload.len() {
         return write_error("get_settings", "internal_error", "payload overflow");
