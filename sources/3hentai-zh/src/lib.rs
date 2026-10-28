@@ -9,7 +9,7 @@ const WEB: &[u8] = b"https://3hentai.net";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hentai3.zh.koma",
     name: "3Hentai",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -546,7 +546,7 @@ fn work_href(s: &[u8]) -> R<&[u8]> {
 fn asset<'a>(s: &'a [u8]) -> R<(&'a [u8], &'a [u8])> {
     let rest = s.strip_prefix(b"https://s").ok_or("asset scheme or host")?;
     let z = rest.iter().position(|c| *c == b'.').ok_or("asset host")?;
-    if !matches!(&rest[..z], b"2" | b"4" | b"9") {
+    if !matches!(&rest[..z], b"1" | b"2" | b"4" | b"9") {
         return Err("unobserved asset host");
     }
     // Preserve the original CDN and the same shards now declared by the site.
@@ -650,7 +650,8 @@ fn emit_work(out: &mut [u8], n: &mut usize, id: &[u8], t: &[u8], c: &[u8], req: 
     // Keep Koma's adopted full title default; fixed reference defaults short.
     // Only an explicit false requests the fixed shortenTitle algorithm.
     let short = json_object_member(req, b"settings")
-        .and_then(|v| json_object_member(v, b"full_title")) == Some(b"false");
+        .and_then(|v| json_object_member(v, b"full_title"))
+        == Some(b"false");
     let mut shown = [0u8; 4096];
     let t = koma_source_sdk::gallery_titles::display_short(short, t, &mut shown)?;
     q(out, n, t)?;
@@ -746,6 +747,122 @@ fn listing(r: &[u8]) -> R<usize> {
     bytes(out, &mut n, b",\"nextCursor\":")?;
     if let Some(v) = nxt {
         q(out, &mut n, v)?
+    } else {
+        bytes(out, &mut n, b"null")?
+    };
+    bytes(out, &mut n, b"}}")?;
+    Ok(n)
+}
+fn search(r: &[u8]) -> R<usize> {
+    let a = args(r)?;
+    let mut query_buf = [0u8; 4096];
+    let query = uq(required(a, b"query")?, &mut query_buf)?;
+    if query.is_empty() {
+        return Err("empty query");
+    }
+    let current = if let Some(page) = member(a, b"page")? {
+        if page.first() == Some(&b'{') {
+            match member(page, b"cursor")? {
+                Some(v) if v != b"null" => num(v)?,
+                _ => 1,
+            }
+        } else if page == b"null" {
+            1
+        } else {
+            num(page)?
+        }
+    } else {
+        1
+    };
+    if current == 0 || current > 10000 {
+        return Err("search page range");
+    }
+    let mut u = [0u8; 8192];
+    let mut z = 0;
+    bytes(&mut u, &mut z, b"https://3hentai.net/search?q=")?;
+    if !write_url_encoded(&mut u, &mut z, query) {
+        return Err("query overflow");
+    }
+    // Reference Chinese source adds its language constraint to every query.
+    bytes(&mut u, &mut z, b"%20language%3Achinese")?;
+    if current > 1 {
+        bytes(&mut u, &mut z, b"&page=")?;
+        wn(&mut u, &mut z, current)?;
+    }
+    bytes(&mut u, &mut z, b"&sort=")?;
+    let d = fetch(&u[..z])?;
+    let cards = All::new(d.0, b"a[href*='/d/']")?;
+    let mut result_buf = [0u8; 512];
+    let result_text = st(d.0, b".search-result-nb-result", &mut result_buf)?;
+    if cards.len == 0 && result_text != b"0 results" && result_text != b"0 result" {
+        return Err("unknown empty search response");
+    }
+    let next = All::new(d.0, b"a[rel=next]")?;
+    if next.len > 1 {
+        return Err("search next ambiguity");
+    }
+    let nxt = if next.len == 1 {
+        let mut b = [0u8; 8192];
+        let href = attr(next.at(0), b"href", &mut b)?;
+        if !href.starts_with(b"https://3hentai.net/search?") {
+            return Err("search cursor owner");
+        }
+        let marker = b"&page=";
+        let at = href
+            .windows(marker.len())
+            .position(|v| v == marker)
+            .ok_or("search cursor page")?
+            + marker.len();
+        let end = href[at..]
+            .iter()
+            .position(|c| *c == b'&')
+            .map(|n| at + n)
+            .unwrap_or(href.len());
+        let n = number(&href[at..end]).ok_or("search cursor page")?;
+        if n != current.checked_add(1).ok_or("page overflow")? || cards.len == 0 {
+            return Err("search next discontinuity");
+        }
+        Some(n)
+    } else {
+        None
+    };
+    let mut seen = [[0u8; 20]; 1000];
+    let mut lens = [0usize; 1000];
+    let out = payload_buf();
+    let mut n = 0;
+    bytes(out, &mut n, b"{\"items\":[")?;
+    for i in 0..cards.len {
+        let d = cards.at(i);
+        let mut h = [0u8; 1024];
+        let id = work_href(attr(d, b"href", &mut h)?)?;
+        if (0..i).any(|j| &seen[j][..lens[j]] == id) {
+            return Err("duplicate work");
+        };
+        seen[i][..id.len()].copy_from_slice(id);
+        lens[i] = id.len();
+        let mut tb = [0u8; 4096];
+        let t = st(d, b"div.title", &mut tb)?;
+        if t.is_empty() {
+            return Err("card title");
+        };
+        let mut cb = [0u8; 2048];
+        let c = sa(d, b"img[data-src]", b"data-src", &mut cb)?;
+        let (_, file) = asset(c)?;
+        if file != b"thumb.jpg" {
+            return Err("card cover template");
+        };
+        if i > 0 {
+            bytes(out, &mut n, b",")?
+        };
+        emit_work(out, &mut n, id, t, c, r)?;
+    }
+    bytes(out, &mut n, b"],\"page\":{\"hasMore\":")?;
+    bytes(out, &mut n, if nxt.is_some() { b"true" } else { b"false" })?;
+    bytes(out, &mut n, b",\"nextCursor\":")?;
+    if let Some(v) = nxt {
+        bytes(out, &mut n, b"\"")?;
+        wn(out, &mut n, v)?;
+        bytes(out, &mut n, b"\"")?
     } else {
         bytes(out, &mut n, b"null")?
     };
@@ -935,12 +1052,8 @@ fn execute(op: &str, r: R<usize>) -> u32 {
         Err(e) => write_error(op, "source_contract_error", e),
     }
 }
-fn run_search(_: &[u8]) -> u32 {
-    write_error(
-        "search",
-        "not_implemented",
-        "search actual contract unverified",
-    )
+fn run_search(r: &[u8]) -> u32 {
+    execute("search", search(r))
 }
 fn run_get_manga_list(r: &[u8]) -> u32 {
     execute("get_manga_list", listing(r))
@@ -988,7 +1101,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
-    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.hentai3.zh.koma\",\"name\":\"3Hentai\",\"version\":\"0.1.3\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"3Hentai（中文）\",\"zh-Hant\":\"3Hentai（中文）\",\"en\":\"3Hentai (Chinese)\"}},\"capabilities\":{\"search\":false,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
+    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.hentai3.zh.koma\",\"name\":\"3Hentai\",\"version\":\"0.1.4\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"3Hentai（中文）\",\"zh-Hant\":\"3Hentai（中文）\",\"en\":\"3Hentai (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
 }
 macro_rules! export_op {
     ($f:ident,$op:literal,$run:ident) => {
