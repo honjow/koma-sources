@@ -9,7 +9,7 @@ const WEB: &[u8] = b"https://nhentai.to";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.nhentaito.zh.koma",
     name: "NHentai.to",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -690,6 +690,49 @@ fn emit_work(o: &mut [u8], n: &mut usize, id: &[u8], t: &[u8], c: &[u8], req: &[
     q(o, n, url)?;
     bytes(o, n, b"}]}")
 }
+fn search_filters<'a>(a: &[u8], buffer: &'a mut [u8]) -> R<(Option<&'static [u8]>, &'a [u8])> {
+    let f = match member(a, b"filters")? { None | Some(b"null") => b"{}".as_slice(), Some(v) if v.first() == Some(&b'{') => v, _ => return Err("invalid filters") };
+    let sort = match member(f, b"sort")? {
+        None | Some(b"null") => None,
+        Some(v) => Some(match quoted(v)? { b"relevance" => b"relevance".as_slice(), b"newest" => b"newest", b"most-favorited" => b"most-favorited", b"most-liked" => b"most-liked", _ => return Err("invalid sort filter") }),
+    };
+    let exclude = match member(f, b"exclude")? { None | Some(b"null") => b"".as_slice(), Some(v) => uq(v, buffer)? };
+    if core::str::from_utf8(exclude).is_err() { return Err("invalid exclude filter"); }
+    Ok((sort, exclude))
+}
+
+// Compare the provider's actual next link to the same query and filters;
+// accepting the page number alone could silently advance to another search.
+fn filtered_next(href: &[u8], query: &[u8], sort: Option<&[u8]>, exclude: &[u8], page: usize) -> R<()> {
+    let params = href.strip_prefix(b"https://nhentai.to/search?").ok_or("search cursor owner")?;
+    let mut seen = 0u8;
+    for part in params.split(|b| *b == b'&') {
+        let at = part.iter().position(|b| *b == b'=').ok_or("invalid search cursor")?;
+        let key = &part[..at]; let encoded = &part[at+1..]; let mut decoded = [0u8; 4096]; let mut i = 0; let mut n = 0;
+        while i < encoded.len() {
+            let c = match encoded[i] {
+                b'%' => { if i + 2 >= encoded.len() { return Err("invalid search cursor"); } let digit = |x: u8| -> Option<u8> { match x { b'0'..=b'9' => Some(x-b'0'), b'a'..=b'f' => Some(x-b'a'+10), b'A'..=b'F' => Some(x-b'A'+10), _ => None } }; let v = digit(encoded[i+1]).zip(digit(encoded[i+2])).map(|(a,b)|a*16+b).ok_or("invalid search cursor")?; i += 3; v },
+                b'+' => { i += 1; b' ' },
+                c => { i += 1; c },
+            };
+            if n == decoded.len() { return Err("invalid search cursor"); } decoded[n] = c; n += 1;
+        }
+        let v = &decoded[..n];
+        let flag = match key {
+            b"q" if v == query => 1,
+            b"sort" if Some(v) == sort => 2,
+            b"exclude" if !exclude.is_empty() && v == exclude => 4,
+            b"lang" if v == b"chinese" => 8,
+            b"page" if number(v) == Some(page) => 16,
+            _ => return Err("invalid search cursor"),
+        };
+        if seen & flag != 0 { return Err("invalid search cursor"); } seen |= flag;
+    }
+    let expected = 1 | 8 | 16 | if sort.is_some() { 2 } else { 0 } | if !exclude.is_empty() { 4 } else { 0 };
+    if seen != expected { return Err("invalid search cursor"); }
+    Ok(())
+}
+
 fn cursor_page(s: &[u8]) -> R<usize> {
     let p = s
         .strip_prefix(b"https://nhentai.to/search?q=%2A&sort=most-favorited&lang=chinese&page=")
@@ -707,9 +750,26 @@ fn listing(r: &[u8]) -> R<usize> {
     if text(a, b"listingId")? != b"listing:popular" {
         return Err("unsupported listing");
     };
+    let mut filter_buf = [0; 2048];
+    let (sort, exclude) = search_filters(a, &mut filter_buf)?;
+    let filtered = sort.is_some() || !exclude.is_empty();
     let mut ub = [0; 2048];
+    let mut built = [0; 8192];
     let mut current = 1;
-    let uri = if let Some(p) = member(a, b"page")? {
+    let uri = if filtered {
+        if let Some(p) = member(a, b"page")? {
+            if p != b"null" {
+                if let Some(v) = member(p, b"cursor")? { if v != b"null" { current = num(v)?; } }
+            }
+        }
+        if current == 0 || current > 10000 { return Err("listing page range"); }
+        let mut n = 0;
+        bytes(&mut built, &mut n, b"https://nhentai.to/search?q=%2A&sort=")?;
+        bytes(&mut built, &mut n, sort.unwrap_or(b"most-favorited"))?;
+        if !exclude.is_empty() { bytes(&mut built, &mut n, b"&exclude=")?; if !write_url_encoded(&mut built, &mut n, exclude) { return Err("query overflow"); } }
+        bytes(&mut built, &mut n, b"&lang=chinese&page=")?; wn(&mut built, &mut n, current)?;
+        &built[..n]
+    } else if let Some(p) = member(a, b"page")? {
         match member(p, b"cursor")? {
             Some(v) if v != b"null" => {
                 let s = uq(v, &mut ub)?;
@@ -730,9 +790,9 @@ fn listing(r: &[u8]) -> R<usize> {
     let mut nb = [0; 2048];
     let nxt = if next.len == 1 {
         let v = attr(next.at(0), b"href", &mut nb)?;
-        if cursor_page(v)? != current.checked_add(1).ok_or("page overflow")? {
-            return Err("next discontinuity");
-        };
+        let next_page = current.checked_add(1).ok_or("page overflow")?;
+        if filtered { filtered_next(v, b"*", Some(sort.unwrap_or(b"most-favorited")), exclude, next_page)?; }
+        else if cursor_page(v)? != next_page { return Err("next discontinuity"); }
         if cards.len == 0 {
             return Err("listing no progress");
         };
@@ -775,7 +835,7 @@ fn listing(r: &[u8]) -> R<usize> {
     bytes(o, &mut n, if nxt.is_some() { b"true" } else { b"false" })?;
     bytes(o, &mut n, b",\"nextCursor\":")?;
     if let Some(v) = nxt {
-        q(o, &mut n, v)?
+        if filtered { bytes(o, &mut n, b"\"")?; wn(o, &mut n, current+1)?; bytes(o, &mut n, b"\"")?; } else { q(o, &mut n, v)?; }
     } else {
         bytes(o, &mut n, b"null")?
     };
@@ -806,6 +866,8 @@ fn search(r: &[u8]) -> R<usize> {
     if current == 0 || current > 10000 {
         return Err("search page range");
     }
+    let mut filter_buf = [0; 2048];
+    let (sort, exclude) = search_filters(a, &mut filter_buf)?;
     // Reference GalleryAdults resolves numeric queries directly. The existing
     // detail contract checks canonical owner and Chinese language before use.
     if query.iter().all(|c| c.is_ascii_digit()) {
@@ -838,6 +900,8 @@ fn search(r: &[u8]) -> R<usize> {
     if !write_url_encoded(&mut uri, &mut z, query) {
         return Err("query overflow");
     }
+    if let Some(sort) = sort { bytes(&mut uri, &mut z, b"&sort=")?; bytes(&mut uri, &mut z, sort)?; }
+    if !exclude.is_empty() { bytes(&mut uri, &mut z, b"&exclude=")?; if !write_url_encoded(&mut uri, &mut z, exclude) { return Err("query overflow"); } }
     bytes(&mut uri, &mut z, b"&lang=chinese")?;
     if current > 1 {
         bytes(&mut uri, &mut z, b"&page=")?;
@@ -876,6 +940,7 @@ fn search(r: &[u8]) -> R<usize> {
         if n != current.checked_add(1).ok_or("page overflow")? || cards.len == 0 {
             return Err("search next discontinuity");
         }
+        if sort.is_some() || !exclude.is_empty() { filtered_next(href, query, sort, exclude, n)?; }
         Some(n)
     } else {
         None
@@ -1333,7 +1398,9 @@ fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_implemented", "unsupported")
 }
 fn run_get_filters(_: &[u8]) -> u32 {
-    write_error("get_filters", "not_implemented", "unsupported")
+    // No universal sort default: search and popular retain their existing
+    // different routes until the user explicitly selects a sort.
+    response_buffer().write_success("get_filters", br#"{"filters":[{"id":"exclude","name":"Exclude Tags (separate by comma)","type":"text"},{"id":"sort","name":"Sort By","type":"select","options":[{"value":"relevance","label":"Relevance"},{"value":"newest","label":"Newest"},{"value":"most-favorited","label":"Most favorited"},{"value":"most-liked","label":"Most Liked"}]}]}"#)
 }
 fn run_get_settings(req: &[u8]) -> u32 {
     let prefix = br#"{"settings":[{"id":"pref_short_title","name":"Display Short Titles","kind":"toggle","default":"false","description":""#;
@@ -1371,7 +1438,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
-    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.nhentaito.zh.koma\",\"name\":\"NHentai.to\",\"version\":\"0.1.4\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"NHentai.to 中文漫画目录源。\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"NHentai.to（中文）\",\"zh-Hant\":\"NHentai.to（中文）\",\"en\":\"NHentai.to (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
+    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.nhentaito.zh.koma\",\"name\":\"NHentai.to\",\"version\":\"0.1.5\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"NHentai.to 中文漫画目录源。\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"NHentai.to（中文）\",\"zh-Hant\":\"NHentai.to（中文）\",\"en\":\"NHentai.to (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":true,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
 }
 macro_rules! export_op {
     ($f:ident,$op:literal,$run:ident) => {
