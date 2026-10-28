@@ -12,8 +12,17 @@ use koma_source_sdk::json_utils::{
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{build_post_request, parse_status_code};
 
-const API_URL: &[u8] = b"https://komiic.com/api/query";
+const BASE: &[u8] = b"https://komiic.com";
+const MIRROR: &[u8] = b"https://komiic.cc";
 const IMAGE_BASE: &[u8] = b"https://komiic.com/api/image/";
+const MIRROR_IMAGE_BASE: &[u8] = b"https://komiic.cc/api/image/";
+// Explicit selection retains the old default, source homepage and chapter/page identities.
+fn selected_base(req: &[u8]) -> &'static [u8] {
+    match json_object_member(req, b"settings").and_then(|s| extract_json_string(s, b"preferredMirror")) {
+        Some(b"https://komiic.cc") => MIRROR,
+        _ => BASE,
+    }
+}
 koma_source_sdk::koma_source_buffers! {
     payload: 1024 * 1024,
     http_out: 2 * 1024 * 1024,
@@ -32,7 +41,7 @@ static mut GQL_BODY_BUF: [u8; GQL_BODY_CAP] = [0; GQL_BODY_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.komiic.koma",
     name: "Komiic",
-    version: "0.1.8",
+    version: "0.1.9",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -162,8 +171,11 @@ fn fetch_error_code(e: FetchError) -> (&'static str, &'static str) {
     }
 }
 
-fn post_graphql(body: &[u8]) -> Result<&'static [u8], FetchError> {
-    let req_len = build_post_request(http_req_buf(), API_URL, body, b"application/json", None)
+fn post_graphql(req: &[u8], body: &[u8]) -> Result<&'static [u8], FetchError> {
+    let mut api_url = [0u8; 64];
+    let mut n = 0;
+    if !write_bytes(&mut api_url, &mut n, selected_base(req)) || !write_bytes(&mut api_url, &mut n, b"/api/query") { return Err(FetchError::Network); }
+    let req_len = build_post_request(http_req_buf(), &api_url[..n], body, b"application/json", None)
         .ok_or(FetchError::Network)?;
     let mut resp_len = 0usize;
     let mut failed = true;
@@ -427,7 +439,7 @@ fn run_search(req: &[u8]) -> u32 {
         None => return write_error("search", "internal_error", "body overflow"),
     };
     let body = &gql_body_buf()[..body_len];
-    let api_json = match post_graphql(body) {
+    let api_json = match post_graphql(req, body) {
         Ok(v) => v,
         Err(e) => {
             let (c, m) = fetch_error_code(e);
@@ -444,7 +456,7 @@ fn run_popular_list(operation: &str, req: &[u8]) -> u32 {
         None => return write_error(operation, "internal_error", "body overflow"),
     };
     let body = &gql_body_buf()[..body_len];
-    let api_json = match post_graphql(body) {
+    let api_json = match post_graphql(req, body) {
         Ok(v) => v,
         Err(e) => {
             let (c, m) = fetch_error_code(e);
@@ -470,12 +482,12 @@ fn run_get_listings(_req: &[u8]) -> u32 {
 // Home and listings are independent App contracts. Show real cards here;
 // do not rely on the App secretly loading a second listing for an empty Home.
 // 2026-10-27: user reported the advertised Home was completely blank.
-fn run_get_home(_req: &[u8]) -> u32 {
+fn run_get_home(req: &[u8]) -> u32 {
     let body_len = match build_popular_body(1) {
         Some(v) => v,
         None => return write_error("get_home", "internal_error", "body overflow"),
     };
-    let api_json = match post_graphql(&gql_body_buf()[..body_len]) {
+    let api_json = match post_graphql(req, &gql_body_buf()[..body_len]) {
         Ok(v) => v,
         Err(e) => { let (code, message) = fetch_error_code(e); return write_error("get_home", code, message); }
     };
@@ -519,7 +531,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
         None => return write_error("get_manga", "internal_error", "body overflow"),
     };
     let body = &gql_body_buf()[..body_len];
-    let api_json = match post_graphql(body) {
+    let api_json = match post_graphql(req, body) {
         Ok(v) => v,
         Err(e) => {
             let (c, m) = fetch_error_code(e);
@@ -550,7 +562,9 @@ fn run_get_manga(req: &[u8]) -> u32 {
         && write_bytes(payload, &mut c, status)
         && write_bytes(payload, &mut c, br#"","contentRating":"nsfw","language":"zh","tags":["#)
         && write_names_from_array(payload, &mut c, obj, b"categories")
-        && write_bytes(payload, &mut c, br#"],"links":[{"kind":"source","url":"https://komiic.com/comic/"#)
+        && write_bytes(payload, &mut c, br#"],"links":[{"kind":"source","url":""#)
+        && write_bytes(payload, &mut c, selected_base(req))
+        && write_bytes(payload, &mut c, b"/comic/")
         && append_json_escaped(payload, &mut c, id)
         && write_bytes(payload, &mut c, br#""}]}}"#);
     if !ok {
@@ -576,7 +590,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         None => return write_error("get_chapters", "internal_error", "body overflow"),
     };
     let body = &gql_body_buf()[..body_len];
-    let api_json = match post_graphql(body) {
+    let api_json = match post_graphql(req, body) {
         Ok(v) => v,
         Err(e) => {
             let (c, m) = fetch_error_code(e);
@@ -712,7 +726,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
         None => return write_error("get_pages", "internal_error", "body overflow"),
     };
     let body = &gql_body_buf()[..body_len];
-    let api_json = match post_graphql(body) {
+    let api_json = match post_graphql(req, body) {
         Ok(v) => v,
         Err(e) => {
             let (c, m) = fetch_error_code(e);
@@ -745,7 +759,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
             && write_bytes(payload, &mut c, br#"","index":"#)
             && write_usize(payload, &mut c, index)
             && write_bytes(payload, &mut c, br#","image":{"kind":"url","url":""#)
-            && write_bytes(payload, &mut c, IMAGE_BASE)
+            && write_bytes(payload, &mut c, if selected_base(req) == MIRROR { MIRROR_IMAGE_BASE } else { IMAGE_BASE })
             && append_json_escaped(payload, &mut c, kid)
             && write_bytes(payload, &mut c, br#""}}"#);
         if !ok {
@@ -766,13 +780,13 @@ fn run_get_image_request(req: &[u8]) -> u32 {
     };
     // Keep the existing page:index identity. The original image URL carries kid;
     // pageId is also used by persisted reader and download cache entries.
-    let kid = strip_prefix(url, IMAGE_BASE);
+    let kid = strip_prefix(url, IMAGE_BASE).or_else(|| strip_prefix(url, MIRROR_IMAGE_BASE));
     let ticket_response = if let Some(kid) = kid {
         let body_len = match build_image_ticket_body(kid) {
             Some(v) => v,
             None => return write_error("get_image_request", "internal_error", "body overflow"),
         };
-        let api_json = match post_graphql(&gql_body_buf()[..body_len]) {
+        let api_json = match post_graphql(req, &gql_body_buf()[..body_len]) {
             Ok(v) => v,
             Err(e) => {
                 let (code, message) = fetch_error_code(e);
@@ -809,7 +823,9 @@ fn run_get_image_request(req: &[u8]) -> u32 {
         // Covers and unrelated URLs retain the existing request contract.
         write_bytes(payload, &mut c, br#"{"url":""#)
             && append_json_escaped(payload, &mut c, url)
-            && write_bytes(payload, &mut c, br#"","headers":{"accept":"image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8","referer":"https://komiic.com/"}}"#)
+            && write_bytes(payload, &mut c, br#"","headers":{"accept":"image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8","referer":""#)
+            && write_bytes(payload, &mut c, selected_base(req))
+            && write_bytes(payload, &mut c, br#"/"}}"#)
     };
     if !ok {
         return write_error("get_image_request", "internal_error", "overflow");
@@ -915,7 +931,7 @@ pub extern "C" fn koma_source_free(result_ptr: u32) {
 #[no_mangle]
 pub extern "C" fn koma_source_get_settings(req_ptr: u32, req_len: u32) -> u32 {
     if read_request(req_ptr, req_len).is_none() { return write_error("get_settings", "invalid_request", "empty"); }
-    let p = "{\"settings\":[{\"id\":\"CHAPTER_FILTER\",\"name\":\"章節列表顯示\",\"kind\":\"select\",\"options\":[{\"value\":\"all\",\"label\":\"同時顯示卷和章節\"},{\"value\":\"chapter\",\"label\":\"僅顯示章節\"},{\"value\":\"book\",\"label\":\"僅顯示卷\"}],\"default\":\"all\"}]}".as_bytes();
+    let p = "{\"settings\":[{\"id\":\"CHAPTER_FILTER\",\"name\":\"章節列表顯示\",\"kind\":\"select\",\"options\":[{\"value\":\"all\",\"label\":\"同時顯示卷和章節\"},{\"value\":\"chapter\",\"label\":\"僅顯示章節\"},{\"value\":\"book\",\"label\":\"僅顯示卷\"}],\"default\":\"all\"},{\"id\":\"preferredMirror\",\"name\":\"首選鏡像\",\"kind\":\"select\",\"options\":[{\"value\":\"https://komiic.com\",\"label\":\"komiic.com\"},{\"value\":\"https://komiic.cc\",\"label\":\"komiic.cc\"}],\"default\":\"https://komiic.com\"}]}".as_bytes();
     payload_buf()[..p.len()].copy_from_slice(p);
     write_success_payload("get_settings", p.len())
 }
