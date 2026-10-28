@@ -38,7 +38,7 @@ static mut SEARCH_QUERY: [u8; 16384] = [0; 16384];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.tongli.koma",
     name: "東立",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -451,7 +451,9 @@ where
 {
     let payload = payload_buf();
     let mut c = 0usize;
-    if !write_bytes(payload, &mut c, br#"{"items":["#) {
+    // Home retains its existing destination and reuses the reference weekly ranking.
+    let header = if operation == "get_home" { br#"{"sections":[{"id":"popular","title":"Popular","kind":"mangaList","listingId":"popular","items":["#.as_slice() } else { br#"{"items":["#.as_slice() };
+    if !write_bytes(payload, &mut c, header) {
         return write_error(operation, "internal_error", "overflow");
     }
     let mut written = 0usize;
@@ -466,6 +468,11 @@ where
             return write_error(operation, "internal_error", "overflow");
         }
         written += 1;
+    }
+    if operation == "get_home" {
+        if written == 0 { return write_error(operation, "parse_error", "empty ranking"); }
+        if !write_bytes(payload, &mut c, br#"]}]}"#) { return write_error(operation, "internal_error", "overflow"); }
+        return write_success_payload(operation, c);
     }
     let more = if has_more {
         b"true" as &[u8]
@@ -833,12 +840,7 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
 }
 
 fn run_get_home(_req: &[u8]) -> u32 {
-    let payload = payload_buf();
-    let mut c = 0usize;
-    if !write_bytes(payload, &mut c, br#"{"sections":[]}"#) {
-        return write_error("get_home", "internal_error", "overflow");
-    }
-    write_success_payload("get_home", c)
+    run_popular_list("get_home")
 }
 
 fn run_get_filters(_req: &[u8]) -> u32 {
