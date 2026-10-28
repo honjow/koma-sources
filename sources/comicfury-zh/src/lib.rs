@@ -10,7 +10,7 @@ const BASE: &[u8] = b"https://comicfury.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.comicfury.zh.koma",
     name: "Comic Fury",
-    version: "0.1.5",
+    version: "0.1.6",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -26,7 +26,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     listings: true,
     manga_list: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: true,
     image_request: true,
     credentials: false,
@@ -409,6 +409,7 @@ fn code(e: &str) -> &'static str {
         "server failure" => "server_error",
         "invalid request"
         | "invalid page cursor"
+        | "invalid filter"
         | "missing query"
         | "empty query"
         | "unknown listing"
@@ -647,12 +648,27 @@ fn own_text<'a>(node: &Node, out: &'a mut [u8]) -> Result<&'a [u8], &'static str
     out[..own.len()].copy_from_slice(own);
     Ok(&out[..own.len()])
 }
+fn select_filter<'a>(filters: &[u8], key: &[u8], max: u8, default: &'a [u8]) -> Result<&'a [u8], &'static str> {
+    match json_object_member(filters, key) {
+        None | Some(b"null") => Ok(default),
+        Some(v) if v.len() == 3 && v[0] == b'"' && v[2] == b'"' && v[1] >= b'0' && v[1] <= b'0' + max => {
+            match v[1] { b'0' => Ok(b"0"), b'1' => Ok(b"1"), b'2' => Ok(b"2"), b'3' => Ok(b"3"), b'4' => Ok(b"4"), _ => Err("invalid filter") }
+        },
+        _ => Err("invalid filter"),
+    }
+}
+
 fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
     let pg = page(r)?;
     if pg > 10000 {
         return Err("invalid page cursor");
     }
     let a = args(r);
+    let filters = match json_object_member(a, b"filters") {
+        None | Some(b"null") => b"{}".as_slice(),
+        Some(v) if v.first() == Some(&b'{') => v,
+        _ => return Err("invalid filter"),
+    };
     let mut p = [0; 8192];
     let mut pn = 0;
     bytes(&mut p, &mut pn, b"/search.php?query=")?;
@@ -671,8 +687,24 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
     if !write_usize(&mut p, &mut pn, pg) {
         return Err("payload overflow");
     }
-    bytes(&mut p, &mut pn, b"&language=zh&tags=&sort=")?;
-    let sort = if search {
+    bytes(&mut p, &mut pn, b"&language=zh&tags=")?;
+    if let Some(v) = json_object_member(filters, b"tags") {
+        if v != b"null" {
+            if v.len() < 2 || v[0] != b'"' || v[v.len()-1] != b'"' { return Err("invalid filter"); }
+            let mut decoded = [0; 2048];
+            let tags = unescape(&v[1..v.len()-1], &mut decoded)?;
+            // Reference removes a single space immediately after commas.
+            let mut normalized = [0; 2048]; let mut len = 0; let mut previous_comma = false;
+            for &ch in tags {
+                if previous_comma && ch == b' ' { previous_comma = false; continue; }
+                bytes(&mut normalized, &mut len, &[ch])?;
+                previous_comma = ch == b',';
+            }
+            if !write_url_encoded(&mut p, &mut pn, &normalized[..len]) { return Err("payload overflow"); }
+        }
+    }
+    bytes(&mut p, &mut pn, b"&sort=")?;
+    let default_sort = if search {
         b"0".as_slice()
     } else {
         match string(a, b"listingId").unwrap_or(b"popular") {
@@ -681,12 +713,15 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
             _ => return Err("unknown listing"),
         }
     };
-    bytes(&mut p, &mut pn, sort)?;
-    bytes(
-        &mut p,
-        &mut pn,
-        b"&lastupdate=0&completed=1&fv=0&fn=0&fl=0&fs=0",
-    )?;
+    bytes(&mut p, &mut pn, select_filter(filters, b"sort", 2, default_sort)?)?;
+    bytes(&mut p, &mut pn, b"&lastupdate=")?;
+    bytes(&mut p, &mut pn, select_filter(filters, b"lastupdate", 4, b"0")?)?;
+    bytes(&mut p, &mut pn, b"&completed=")?;
+    bytes(&mut p, &mut pn, match json_object_member(filters, b"completed") { None | Some(b"null") | Some(b"false") => b"1", Some(b"true") => b"0", _ => return Err("invalid filter") })?;
+    for key in [b"fv".as_slice(), b"fn", b"fl", b"fs"] {
+        bytes(&mut p, &mut pn, b"&")?; bytes(&mut p, &mut pn, key)?; bytes(&mut p, &mut pn, b"=")?;
+        bytes(&mut p, &mut pn, select_filter(filters, key, 2, b"0")?)?;
+    }
     let doc = fetch(BASE, &p[..pn])?;
     let cards = Nodes::get(&doc, b"div.webcomic-result")?;
     if cards.n == 0 {
@@ -1351,7 +1386,20 @@ fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_implemented", "not supported")
 }
 fn run_get_filters(_: &[u8]) -> u32 {
-    write_error("get_filters", "not_implemented", "not supported")
+    // Omit a universal sort default: search/popular/latest have distinct
+    // established defaults. Keep the already-adopted content flags at zero.
+    let d = r#"{"filters":[
+      {"id":"tags","name":"Tags","type":"text"},
+      {"id":"sort","name":"Sort By","type":"select","options":[{"value":"0","label":"Relevance"},{"value":"1","label":"Popularity"},{"value":"2","label":"Last Update"}]},
+      {"id":"lastupdate","name":"Last Updated","type":"select","default":"0","options":[{"value":"0","label":"All Time"},{"value":"1","label":"This Week"},{"value":"2","label":"This Month"},{"value":"3","label":"This Year"},{"value":"4","label":"Completed Only"}]},
+      {"id":"completed","name":"Comic Completed","type":"check","default":false},
+      {"id":"fv","name":"Violence","type":"select","default":"0","options":[{"value":"0","label":"None / Minimal"},{"value":"1","label":"Violent Content"},{"value":"2","label":"Gore / Graphic"}]},
+      {"id":"fn","name":"Frontal Nudity","type":"select","default":"0","options":[{"value":"0","label":"None"},{"value":"1","label":"Occasional"},{"value":"2","label":"Frequent"}]},
+      {"id":"fl","name":"Strong Language","type":"select","default":"0","options":[{"value":"0","label":"None"},{"value":"1","label":"Occasional"},{"value":"2","label":"Frequent"}]},
+      {"id":"fs","name":"Sexual Content","type":"select","default":"0","options":[{"value":"0","label":"No Sexual Content"},{"value":"1","label":"Sexual Situations"},{"value":"2","label":"Strong Sexual Themes"}]}
+    ]}"#.as_bytes();
+    payload_buf()[..d.len()].copy_from_slice(d);
+    write_success_payload("get_filters", d.len())
 }
 fn run_get_settings(r: &[u8]) -> u32 {
     let d = if supports_notes(r) {
