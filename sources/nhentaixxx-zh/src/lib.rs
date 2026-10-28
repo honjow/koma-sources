@@ -9,7 +9,7 @@ const WEB: &[u8] = b"https://nhentai.xxx";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.nhentaixxx.zh.koma",
     name: "NHentai.xxx",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -907,6 +907,182 @@ fn listing(r: &[u8]) -> R<usize> {
     bytes(o, &mut n, b"}}")?;
     Ok(n)
 }
+fn search(r: &[u8]) -> R<usize> {
+    let a = args(r)?;
+    let mut qb = [0u8; 4096];
+    let query = uq(required(a, b"query")?, &mut qb)?;
+    if query.is_empty() {
+        return Err("empty query");
+    }
+    let mut current = if let Some(p) = member(a, b"page")? {
+        if p.first() == Some(&b'{') {
+            match member(p, b"cursor")? {
+                Some(v) if v != b"null" => num(v)?,
+                _ => 1,
+            }
+        } else if p == b"null" {
+            1
+        } else {
+            num(p)?
+        }
+    } else {
+        1
+    };
+    if current == 0 || current > 10000 {
+        return Err("search page range");
+    }
+    if query.iter().all(u8::is_ascii_digit) {
+        ident(query)?;
+        if current != 1 {
+            return Err("numeric search has one page");
+        }
+        let d = detail_doc(query)?;
+        let g = gallery(d.0, false)?;
+        let mut tb = [0u8; 4096];
+        let t = st(d.0, b".info h1", &mut tb)?;
+        let mut cb = [0u8; 2048];
+        let c = cover(d.0, &mut cb)?;
+        let ac = asset(c)?;
+        if ac.server != g.sv || ac.dir != g.dir || ac.id != &g.asset[..g.alen] {
+            return Err("detail cover owner");
+        }
+        let o = payload_buf();
+        let mut n = 0;
+        bytes(o, &mut n, b"{\"items\":[")?;
+        emit_work(o, &mut n, query, t, c, r)?;
+        bytes(
+            o,
+            &mut n,
+            b"],\"page\":{\"hasMore\":false,\"nextCursor\":null}}",
+        )?;
+        return Ok(n);
+    }
+    // Reference filters mixed-language results locally. Do not return an
+    // unopenable foreign-language fallback. Advance at most three pages per
+    // call; return an empty page with the actual advancing cursor at the bound.
+    let mut scanned = 0usize;
+    let (d, cards, nxt) = loop {
+        let mut uri = [0u8; 8192];
+        let mut z = 0;
+        bytes(&mut uri, &mut z, b"https://nhentai.xxx/search/?key=")?;
+        if !write_url_encoded(&mut uri, &mut z, query) {
+            return Err("query overflow");
+        }
+        bytes(&mut uri, &mut z, b"&page=")?;
+        wn(&mut uri, &mut z, current)?;
+        let d = fetch(&uri[..z])?;
+        let cards = All::new(d.0, b".galleries_box .gallery_item, .fav_item")?;
+        let next = All::new(
+            d.0,
+            b".pagination li.active + li:not(.disabled) a, a[rel=next]",
+        )?;
+        if next.len > 1 {
+            return Err("search next ambiguity");
+        }
+        let nxt = if next.len == 1 {
+            let mut h = [0u8; 8192];
+            let mut full = [0u8; 8192];
+            let v = absolute(attr(next.at(0), b"href", &mut h)?, &mut full)?;
+            if !v.starts_with(b"https://nhentai.xxx/search/?") {
+                return Err("search cursor owner");
+            }
+            let marker = b"&page=";
+            let at = v
+                .windows(marker.len())
+                .position(|x| x == marker)
+                .ok_or("search cursor page")?
+                + marker.len();
+            let end = v[at..]
+                .iter()
+                .position(|c| *c == b'&')
+                .map(|i| at + i)
+                .unwrap_or(v.len());
+            let n = number(&v[at..end]).ok_or("search cursor page")?;
+            if n != current.checked_add(1).ok_or("page overflow")? {
+                return Err("search next discontinuity");
+            }
+            Some(n)
+        } else {
+            None
+        };
+        let mut chinese = 0usize;
+        for i in 0..cards.len {
+            let mut b = [0u8; 64];
+            if attr(cards.at(i), b"data-languages", &mut b)? == b"3" {
+                chinese += 1;
+            }
+        }
+        if cards.len == 0 {
+            let mut b = [0u8; 128];
+            if st(d.0, b"h1[align=center]", &mut b)? != b"0 results" {
+                return Err("unknown empty search response");
+            }
+        }
+        if chinese > 0 || nxt.is_none() {
+            break (d, cards, nxt);
+        }
+        if current >= 10000 {
+            return Err("search page range");
+        }
+        // limit is relative to the requested page, not the website page number
+        scanned += 1;
+        if scanned >= 3 {
+            break (d, cards, nxt);
+        }
+        current = nxt.ok_or("search next missing")?;
+    };
+    let _keep_document_alive = &d;
+    let mut seen = [[0; 20]; 1000];
+    let mut lens = [0; 1000];
+    let mut written = 0;
+    let o = payload_buf();
+    let mut n = 0;
+    bytes(o, &mut n, b"{\"items\":[")?;
+    for i in 0..cards.len {
+        let d = cards.at(i);
+        let mut lb = [0; 64];
+        if attr(d, b"data-languages", &mut lb)? != b"3" {
+            continue;
+        }
+        let mut h = [0; 1024];
+        let mut full = [0; 1024];
+        let uri = absolute(sa(d, b"a[href]", b"href", &mut h)?, &mut full)?;
+        let id = work_href(uri)?;
+        if (0..written).any(|j| &seen[j][..lens[j]] == id) {
+            return Err("duplicate Chinese work");
+        }
+        seen[written][..id.len()].copy_from_slice(id);
+        lens[written] = id.len();
+        let mut tb = [0; 4096];
+        let t = st(d, b".caption", &mut tb)?;
+        if t.is_empty() {
+            return Err("card title");
+        }
+        let mut cb = [0; 2048];
+        let c = sa(d, b"img[data-src]", b"data-src", &mut cb)?;
+        let ac = asset(c)?;
+        if ac.file != b"thumb.jpg" {
+            return Err("card cover template");
+        }
+        if written > 0 {
+            bytes(o, &mut n, b",")?;
+        }
+        emit_work(o, &mut n, id, t, c, r)?;
+        written += 1;
+    }
+    bytes(o, &mut n, b"],\"page\":{\"hasMore\":")?;
+    bytes(o, &mut n, if nxt.is_some() { b"true" } else { b"false" })?;
+    bytes(o, &mut n, b",\"nextCursor\":")?;
+    if let Some(v) = nxt {
+        bytes(o, &mut n, b"\"")?;
+        wn(o, &mut n, v)?;
+        bytes(o, &mut n, b"\"")?;
+    } else {
+        bytes(o, &mut n, b"null")?;
+    }
+    bytes(o, &mut n, b"}}")?;
+    Ok(n)
+}
 fn detail(r: &[u8]) -> R<usize> {
     let id = key(r, b"mangaId", b"nhx:zh:")?;
     let d = detail_doc(id)?;
@@ -949,7 +1125,9 @@ fn detail(r: &[u8]) -> R<usize> {
     wn(o, &mut n, g.count)?;
     if koma_source_sdk::gallery_titles::enabled(r) {
         bytes(o, &mut n, br"\n\n**Full title**: ")?;
-        if !append_json_escaped(o, &mut n, t) { return Err("payload overflow"); }
+        if !append_json_escaped(o, &mut n, t) {
+            return Err("payload overflow");
+        }
     }
     bytes(o, &mut n, b"\",\"tags\":[")?;
     for i in 0..tags.len {
@@ -1144,12 +1322,8 @@ fn execute(op: &str, r: R<usize>) -> u32 {
         Err(e) => write_error(op, "source_contract_error", e),
     }
 }
-fn run_search(_: &[u8]) -> u32 {
-    write_error(
-        "search",
-        "not_implemented",
-        "search actual contract unverified",
-    )
+fn run_search(r: &[u8]) -> u32 {
+    execute("search", search(r))
 }
 fn run_get_manga_list(r: &[u8]) -> u32 {
     execute("get_manga_list", listing(r))
@@ -1177,10 +1351,17 @@ fn run_get_filters(_: &[u8]) -> u32 {
 }
 fn run_get_settings(req: &[u8]) -> u32 {
     let prefix = br#"{"settings":[{"id":"pref_short_title","name":"Display Short Titles","kind":"toggle","default":"false","description":""#;
-    let state = if koma_source_sdk::gallery_titles::enabled(req) { b"Showing short Titles".as_slice() } else { b"Showing Long Titles".as_slice() };
+    let state = if koma_source_sdk::gallery_titles::enabled(req) {
+        b"Showing short Titles".as_slice()
+    } else {
+        b"Showing Long Titles".as_slice()
+    };
     let out = payload_buf();
     let mut n = 0;
-    if !(write_bytes(out, &mut n, prefix) && write_bytes(out, &mut n, state) && write_bytes(out, &mut n, br#""}]}"#)) {
+    if !(write_bytes(out, &mut n, prefix)
+        && write_bytes(out, &mut n, state)
+        && write_bytes(out, &mut n, br#""}]}"#))
+    {
         return write_error("get_settings", "internal_error", "payload overflow");
     }
     write_success_payload("get_settings", n)
@@ -1204,7 +1385,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
-    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.nhentaixxx.zh.koma\",\"name\":\"NHentai.xxx\",\"version\":\"0.1.3\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"Chinese-language provider catalogue. Per-work rating and source usage unknown.\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"NHentai.xxx（中文）\",\"zh-Hant\":\"NHentai.xxx（中文）\",\"en\":\"NHentai.xxx (Chinese)\"}},\"capabilities\":{\"search\":false,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
+    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.nhentaixxx.zh.koma\",\"name\":\"NHentai.xxx\",\"version\":\"0.1.4\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"Chinese-language provider catalogue. Per-work rating and source usage unknown.\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"NHentai.xxx（中文）\",\"zh-Hant\":\"NHentai.xxx（中文）\",\"en\":\"NHentai.xxx (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
 }
 macro_rules! export_op {
     ($f:ident,$op:literal,$run:ident) => {
