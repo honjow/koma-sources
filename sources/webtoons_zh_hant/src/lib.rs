@@ -11,7 +11,7 @@ const MOBILE: &[u8] = b"https://m.webtoons.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.webtoons.zh-hant.koma",
     name: "LINE WEBTOON (Traditional Chinese)",
-    version: "0.1.8",
+    version: "0.1.9",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma source contributors",
@@ -405,11 +405,13 @@ fn code(e: &str) -> &'static str {
         "not found" => "not_found",
         "rate limited" => "rate_limit",
         "network failure" => "network_error",
+        "cancelled" => "cancelled",
         "timeout" => "timeout",
         "client failure" => "client_error",
         "server failure" => "server_error",
         "invalid request"
         | "invalid page cursor"
+        | "invalid search cursor"
         | "missing query"
         | "empty query"
         | "unknown listing"
@@ -735,25 +737,108 @@ fn image_url(s: &[u8]) -> Result<(), &'static str> {
     };
     Ok(())
 }
+// The All page is a preview of both categories. Keep its order; subsequent
+// category pages retain the same MID so BrowseViewModel can deduplicate them.
+#[derive(Clone, Copy)]
+enum SearchPage { All, Originals(usize, bool), Canvas(usize) }
+
+fn search_page(r: &[u8]) -> Result<SearchPage, &'static str> {
+    let a = input(r)?;
+    let raw = match json_object_member(a, b"page") { None | Some(b"null") => return Ok(SearchPage::All), Some(v) => v };
+    let v = if raw.first() == Some(&b'{') { json_object_member(raw, b"cursor").unwrap_or(b"null") } else { raw };
+    if v == b"null" || v == b"1" || v == b"\"1\"" { return Ok(SearchPage::All); }
+    if v.len() < 3 || v[0] != b'"' || v[v.len()-1] != b'"' { return Err("invalid search cursor"); }
+    let v = &v[1..v.len()-1];
+    let (kind, rest) = if let Some(v) = v.strip_prefix(b"o:") { (b'o', v) } else if let Some(v) = v.strip_prefix(b"c:") { (b'c', v) } else { return Err("invalid search cursor"); };
+    let (digits, canvas) = if kind == b'o' {
+        let at = rest.iter().position(|b| *b == b':').ok_or("invalid search cursor")?;
+        let (n, c) = (&rest[..at], &rest[at+1..]);
+        (n, match c { b"0" => false, b"1" => true, _ => return Err("invalid search cursor") })
+    } else { (rest, false) };
+    if digits.len() > 1 && digits[0] == b'0' { return Err("invalid search cursor"); }
+    let n = number(digits).filter(|n| *n > 0 && *n <= 10000).ok_or("invalid search cursor")?;
+    Ok(if kind == b'o' { SearchPage::Originals(n, canvas) } else { SearchPage::Canvas(n) })
+}
+
+fn check_search_link(href: &[u8], section: &[u8], query: &[u8], page: Option<usize>) -> Result<(), &'static str> {
+    let href = href.strip_prefix(BASE).unwrap_or(href);
+    let tail = href.strip_prefix(section).and_then(|s| s.strip_prefix(b"?keyword=")).ok_or("invalid search link")?;
+    let end = tail.iter().position(|b| *b == b'&').unwrap_or(tail.len());
+    let suffix = &tail[end..];
+    match page {
+        None if !suffix.is_empty() => return Err("invalid search link"),
+        Some(n) => { let p = suffix.strip_prefix(b"&page=").and_then(number).ok_or("invalid search link")?; if p != n { return Err("invalid search link"); } },
+        _ => (),
+    }
+    let mut decoded = [0; 4096]; let mut i = 0; let mut len = 0;
+    while i < end {
+        let c = match tail[i] {
+            b'%' => { if i+2 >= end { return Err("invalid search link"); } let v = nib(tail[i+1]).zip(nib(tail[i+2])).map(|(a,b)| a*16+b).ok_or("invalid search link")?; i += 3; v },
+            b'+' => { i += 1; b' ' },
+            c => { i += 1; c },
+        };
+        if len >= decoded.len() { return Err("invalid search link"); }
+        decoded[len] = c; len += 1;
+    }
+    if &decoded[..len] != query { return Err("invalid search link"); }
+    Ok(())
+}
+
+fn search_more(root: &Node, selector: &[u8], section: &[u8], query: &[u8]) -> Result<bool, &'static str> {
+    let nodes = Nodes::get(root, selector)?;
+    if nodes.n > 1 { return Err("ambiguous search section"); }
+    if nodes.n == 0 { return Ok(false); }
+    let mut h = [0; 8192];
+    check_search_link(selected(&nodes, 0).attr(b"href", &mut h)?, section, query, None)?;
+    Ok(true)
+}
+
+fn search_next(root: &Node, section: &[u8], query: &[u8], pn: usize) -> Result<bool, &'static str> {
+    let tabs = Nodes::get(root, b"a.snb_tab[aria-current=page]")?;
+    if tabs.n != 1 { return Err("search category identity missing"); }
+    let mut tab_href = [0; 8192];
+    check_search_link(selected(&tabs, 0).attr(b"href", &mut tab_href)?, section, query, None)?;
+    let pagers = Nodes::get(root, b".list_pagination")?;
+    if pagers.n == 0 { return if pn == 1 { Ok(false) } else { Err("search page missing pagination") }; }
+    if pagers.n != 1 { return Err("ambiguous search pagination"); }
+    let current = Nodes::get(root, b".list_pagination a.pagination[aria-current=true]")?;
+    if current.n != 1 { return Err("search current page missing"); }
+    let mut text = [0; 32];
+    if number(selected(&current, 0).text(&mut text)?) != Some(pn) { return Err("search current page mismatch"); }
+    let links = Nodes::get(root, b".list_pagination a.pagination[aria-current=true] + a.pagination, .list_pagination button.next[data-url-to]")?;
+    if links.n > 1 { return Err("ambiguous search next"); }
+    if links.n == 0 { return Ok(false); }
+    let node = selected(&links, 0);
+    let mut h = [0; 8192];
+    let href = match node.optional_attr(b"href", &mut h)? { Some(v) => v, None => node.attr(b"data-url-to", &mut h)? };
+    check_search_link(href, section, query, Some(pn.checked_add(1).ok_or("search page overflow")?))?;
+    Ok(true)
+}
+
 fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
     let a = input(r)?;
-    let pn = page(r)?;
+    let pn = if search { 1 } else { page(r)? };
+    let step = if search { search_page(r)? } else { SearchPage::All };
     let mut url = [0; 8192];
     let mut u = 0;
     bytes(&mut url, &mut u, BASE)?;
+    let mut query_buf = [0; 4096];
+    let mut query_len = 0;
     if search {
         let raw = string(a, b"query").ok_or("missing query")?;
-        let mut query = [0; 4096];
-        let query = unescape(raw, &mut query)?;
+        let query = unescape(raw, &mut query_buf)?;
         if trim_ascii(query).is_empty() {
             return Err("empty query");
         };
-        bytes(&mut url, &mut u, b"/zh-hant/search?keyword=")?;
+        query_len = query.len();
+        let section = match step { SearchPage::All => b"/zh-hant/search".as_slice(), SearchPage::Originals(_, _) => b"/zh-hant/search/originals", SearchPage::Canvas(_) => b"/zh-hant/search/canvas" };
+        bytes(&mut url, &mut u, section)?;
+        bytes(&mut url, &mut u, b"?keyword=")?;
         if !write_url_encoded(&mut url, &mut u, query) {
             return Err("payload overflow");
         };
-        if pn != 1 {
-            return Err("All search pagination unsupported");
+        if let SearchPage::Originals(page, _) | SearchPage::Canvas(page) = step {
+            if page > 1 { bytes(&mut url, &mut u, b"&page=")?; if !write_usize(&mut url, &mut u, page) { return Err("payload overflow"); } }
         }
     } else {
         let listing = string(a, b"listingId")
@@ -773,29 +858,59 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
         bytes(&mut url, &mut u, ranking)?;
     }
     let root = doc(&url[..u])?;
+    if search && host::check_cancel() { return Err("cancelled"); }
     let nodes = Nodes::get(&root, b".webtoon_list li a")?;
     if nodes.n == 0 {
         if !search {
             return Err("listing structure missing");
         };
-        root.select(b".search_wrap, .search_result, .search_area")?;
+        match step {
+            SearchPage::All => { root.select(b".search_wrap, .search_result, .search_area")?; },
+            _ => { root.select(b".webtoon_list_wrap")?; },
+        }
     }
-    // Primary All search does not send page for subsequent requests. Never promise its next cursor.
-    if search && root.select(b"a.pagination[aria-current=true] + a").is_ok() {
-        return Err("All search pagination unsupported");
-    };
-    let has_more = !search && pn < 4;
-    if nodes.n == 0 && has_more {
+    let mut next = [0; 32]; let mut next_len = 0;
+    if search {
+        let query = &query_buf[..query_len];
+        match step {
+            SearchPage::All => {
+                let originals = search_more(&root, b"a._more_area", b"/zh-hant/search/originals", query)?;
+                let canvas = search_more(&root, b"a._more_area_canvas", b"/zh-hant/search/canvas", query)?;
+                if originals { bytes(&mut next, &mut next_len, if canvas { b"o:1:1" } else { b"o:1:0" })?; }
+                else if canvas { bytes(&mut next, &mut next_len, b"c:1")?; }
+            },
+            SearchPage::Originals(page, canvas) => {
+                if search_next(&root, b"/zh-hant/search/originals", query, page)? {
+                    bytes(&mut next, &mut next_len, b"o:")?; if !write_usize(&mut next, &mut next_len, page+1) { return Err("payload overflow"); } bytes(&mut next, &mut next_len, if canvas { b":1" } else { b":0" })?;
+                } else if canvas { bytes(&mut next, &mut next_len, b"c:1")?; }
+            },
+            SearchPage::Canvas(page) => {
+                if search_next(&root, b"/zh-hant/search/canvas", query, page)? {
+                    bytes(&mut next, &mut next_len, b"c:")?; if !write_usize(&mut next, &mut next_len, page+1) { return Err("payload overflow"); }
+                }
+            },
+        }
+    }
+    let has_more = if search { next_len > 0 } else { pn < 4 };
+    if nodes.n == 0 && has_more && !search {
         return Err("empty page has next cursor");
     };
     let b = payload_buf();
     let mut n = 0;
     bytes(b, &mut n, b"{\"items\":[")?;
     for i in 0..nodes.n {
+        if search && host::check_cancel() { return Err("cancelled"); }
         let card = selected(&nodes, i);
         let mut h = [0; 4096];
         let h = card.attr(b"href", &mut h)?;
         let (kind, id, path) = manga_route(h)?;
+        if search {
+            match step {
+                SearchPage::Originals(_, _) if kind != b"webtoon" => return Err("search category mismatch"),
+                SearchPage::Canvas(_) if kind != b"canvas" => return Err("search category mismatch"),
+                _ => (),
+            }
+        }
         let mut t = [0; 4096];
         let t = card.select(b".title")?.text(&mut t)?;
         if t.is_empty() {
@@ -822,9 +937,8 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
     bytes(b, &mut n, b"],\"page\":{\"nextCursor\":")?;
     if has_more {
         bytes(b, &mut n, b"\"")?;
-        if !write_usize(b, &mut n, pn + 1) {
-            return Err("payload overflow");
-        };
+        if search { bytes(b, &mut n, &next[..next_len])?; }
+        else if !write_usize(b, &mut n, pn + 1) { return Err("payload overflow"); }
         bytes(b, &mut n, b"\",\"hasMore\":true}}")?
     } else {
         bytes(b, &mut n, b"null,\"hasMore\":false}}")?
@@ -1201,6 +1315,7 @@ fn image_request(r: &[u8]) -> Result<usize, &'static str> {
     Ok(n)
 }
 fn run_search(r: &[u8]) -> u32 {
+    if host::check_cancel() { return write_error("search", "cancelled", ""); }
     execute("search", list(r, true))
 }
 fn run_get_manga_list(r: &[u8]) -> u32 {
