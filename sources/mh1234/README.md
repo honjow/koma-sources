@@ -13,3 +13,7 @@ The current `icon.png` restores the unchanged original from the installed device
 ## 0.1.3 retained-identity icon cleanup
 
 The icon is a 2D reconstruction preserving the red-orange-yellow monogram identity while removing the former white backing and shadow. It is not a new official high-resolution original; the unmodified installed image is retained as `original-installed-icon.png`. Provider behaviour and App presentation are unchanged; device237 ordinary update verified the mark in management and Browse without the former backing/shadow; this accepts only these icon consumers, not provider content.
+
+## 0.1.4 官方名称
+
+官网 https://m.wmh1234.com/ 首页标题、导航和版权均使用“漫画1234网”，简繁显示名据此补全“网／網”。源 ID、内容请求和既有已接受图标保持；当前官网新标志与已采用图不同，未替换。名称证据不代替正文或设备验收。
