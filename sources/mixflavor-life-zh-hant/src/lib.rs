@@ -3,11 +3,11 @@ use koma_source_sdk::json_utils::*;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO:SourceInfo=SourceInfo{
- id:"com.mixflavor.life.zh-hant.koma",name:"綜合口味・生活小漫畫",version:"0.1.1",api_version:"0.2",language:"zh-Hant",author:"Koma",
+ id:"com.mixflavor.life.zh-hant.koma",name:"綜合口味・生活小漫畫",version:"0.1.2",api_version:"0.2",language:"zh-Hant",author:"Koma",
  description:"綜合口味作者網站的生活小漫畫，依原分類分頁瀏覽，不收錄同時標為開箱心得或食的文章。每篇獨立閱讀，作品評級尚未確認。",content_rating:"unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
-    search: false,
+    search: true,
     manga_detail: true,
     chapters: true,
     pages: true,
@@ -1233,6 +1233,115 @@ fn pagination(doc: host::HtmlDescriptor, pn: usize) -> R<()> {
     }
     Ok(())
 }
+fn search_route(req: &[u8], url: &mut [u8], query: &mut [u8]) -> R<(usize, usize, usize, usize)> {
+    let raw = arg_string(req, b"query")?.ok_or("invalid_request")?;
+    let ql = raw_string(raw, query).map_err(|_| "invalid_request")?;
+    if ql == 0 || ql >= query.len() || core::str::from_utf8(&query[..ql]).is_err() { return Err("invalid_request"); }
+    let pn = match direct(req, b"page").map_err(|_| "invalid_request")? {
+        None | Some(b"null") => 1,
+        Some(p) if p.first() == Some(&b'{') => match direct(p, b"cursor").map_err(|_| "invalid_request")? {
+            None | Some(b"null") => 1,
+            Some(v) if v.len() >= 3 && v[0] == b'"' && v[v.len()-1] == b'"' => positive(&v[1..v.len()-1]).map_err(|_| "invalid_request")?,
+            _ => return Err("invalid_request"),
+        },
+        _ => return Err("invalid_request"),
+    };
+    if pn > 10000 { return Err("invalid_request"); }
+    let mut c = 0;
+    w(url, &mut c, CATEGORY)?;
+    if pn > 1 { w(url, &mut c, b"/page/")?; n(url, &mut c, pn)?; }
+    let base_len = c;
+    w(url, &mut c, b"?s=")?;
+    if !write_url_encoded(url, &mut c, &query[..ql]) { return Err("capacity_exceeded"); }
+    Ok((c, pn, ql, base_len))
+}
+
+fn search_link(url: &[u8], query: &[u8]) -> R<usize> {
+    let pos = url.windows(3).position(|v| v == b"?s=").ok_or("identity_mismatch")?;
+    let path = &url[..pos];
+    let pn = if path == CATEGORY { 1 } else { page_num(path).map_err(|_| "identity_mismatch")? };
+    let mut decoded = [0; 512];
+    let mut i = pos + 3;
+    let mut n = 0;
+    while i < url.len() {
+        let b = match url[i] {
+            b'%' => {
+                if i + 2 >= url.len() { return Err("identity_mismatch"); }
+                let digit = |v: u8| -> Option<u8> { match v { b'0'..=b'9' => Some(v-b'0'), b'a'..=b'f' => Some(v-b'a'+10), b'A'..=b'F' => Some(v-b'A'+10), _ => None } };
+                let v = digit(url[i+1]).ok_or("identity_mismatch")? * 16 + digit(url[i+2]).ok_or("identity_mismatch")?;
+                i += 3; v
+            },
+            b'+' => { i += 1; b' ' },
+            b'&' | b'#' => return Err("identity_mismatch"),
+            b => { i += 1; b },
+        };
+        if n == decoded.len() { return Err("capacity_exceeded"); }
+        decoded[n] = b; n += 1;
+    }
+    if &decoded[..n] != query { return Err("identity_mismatch"); }
+    Ok(pn)
+}
+
+fn search_page(doc: host::HtmlDescriptor, pn: usize, query: &[u8], total: usize) -> R<()> {
+    unsafe { NL = 0; }
+    let mut b = [0; 1024];
+    let k = text(doc, b"main#eskimo-main-container > div.container > div.eskimo-page-title > p.eskimo-page-subtitle", &mut b)?;
+    let subtitle = trim_ascii(&b[..k]);
+    if subtitle.strip_prefix(b"Search Results for:").map(trim_ascii) != Some(query) { return Err("identity_mismatch"); }
+    let k = text(doc, b"main#eskimo-main-container > div.container > div.eskimo-page-title > h1", &mut b)?;
+    let title = trim_ascii(&b[..k]);
+    let results = if total == 0 {
+        if title != b"No Results Found" || pn != 1 { return Err("parse_error"); }
+        0
+    } else {
+        let count = title.strip_suffix(b" Results Found").or_else(|| title.strip_suffix(b" Result Found")).ok_or("parse_error")?;
+        let results = positive(count)?;
+        if results < total { return Err("identity_mismatch"); }
+        results
+    };
+    let ps = b"main#eskimo-main-container ul.pagination";
+    let pages = count(doc, ps)?;
+    if pages == 0 { return if pn == 1 && results == total { Ok(()) } else { Err("parse_error") }; }
+    if pages != 1 || total == 0 { return Err("parse_error"); }
+    let k = text(doc, b"main#eskimo-main-container ul.pagination span.current", &mut b)?;
+    if positive(trim_ascii(&b[..k]))? != pn { return Err("identity_mismatch"); }
+    let selector = b"main#eskimo-main-container ul.pagination > li > a[href][class]";
+    let mut raw = [0; 64];
+    let got = unsafe { select_all_raw(doc.raw(), selector.as_ptr(), selector.len() as u32, raw.as_mut_ptr(), raw.len() as u32) };
+    if got < 0 || got > 16
+        || count(doc, b"main#eskimo-main-container ul.pagination > li > a[href]")? != got as usize
+        || count(doc, b"main#eskimo-main-container ul.pagination a.next")? != count(doc, b"main#eskimo-main-container ul.pagination a.next[href]")?
+        || count(doc, b"main#eskimo-main-container ul.pagination a.prev")? != count(doc, b"main#eskimo-main-container ul.pagination a.prev[href]")?
+    { close_raw(&raw, got); return Err("parse_error"); }
+    let mut prev = 0; let mut next = 0; let mut error = None;
+    for i in 0..got as usize {
+        let a = i * 4;
+        let node = host::HtmlDescriptor::from_raw(i32::from_le_bytes([raw[a],raw[a+1],raw[a+2],raw[a+3]]));
+        let r = (|| {
+            let k = host::html_attr(node, b"href", &mut b).map_err(|_| "html_error")?;
+            if k == 0 || k >= b.len() { return Err("parse_error"); }
+            let page = search_link(&b[..k], query)?;
+            let mut classes = [0; 256];
+            let l = host::html_attr(node, b"class", &mut classes).map_err(|_| "html_error")?;
+            if classes[..l].split(|b| b.is_ascii_whitespace()).any(|v| v == b"next") {
+                if page != pn + 1 { return Err("identity_mismatch"); }
+                next += 1;
+                unsafe { let mut c = 0; n(&mut NEXT, &mut c, page)?; NL = c; }
+            }
+            if classes[..l].split(|b| b.is_ascii_whitespace()).any(|v| v == b"prev") {
+                if pn <= 1 || page != pn - 1 { return Err("identity_mismatch"); }
+                prev += 1;
+            }
+            Ok(())
+        })();
+        let close = host::html_close(node).map_err(|_| "html_error");
+        if let Err(e) = r.and(close) { if error.is_none() { error = Some(e); } }
+    }
+    if let Some(e) = error { return Err(e); }
+    if next > 1 || prev != if pn == 1 { 0 } else { 1 } || (pn == 1 && results > total && next != 1) { return Err("parse_error"); }
+    Ok(())
+}
+
 fn run_get_listings(_req: &[u8]) -> u32 {
     let b =
         "{\"listings\":[{\"id\":\"listing:life\",\"name\":\"生活小漫畫（不含開箱心得及食）\"}]}"
@@ -1240,33 +1349,36 @@ fn run_get_listings(_req: &[u8]) -> u32 {
     payload_buf()[..b.len()].copy_from_slice(b);
     write_success_payload("get_listings", b.len())
 }
-fn run_get_manga_list(req: &[u8]) -> u32 {
-    fn inner(req: &[u8]) -> R<usize> {
-        if arg_string(req, b"listingId")? != Some(b"listing:life") {
-            return Err("invalid_request");
-        }
-        let mut u = [0; 512];
-        let (ul, pn) = list_route(req, &mut u)?;
+fn list(req: &[u8], searching: bool) -> R<usize> {
+        let mut u = [0; 2048];
+        let mut query = [0; 512];
+        let (ul, pn, ql, base_len) = if searching {
+            search_route(req, &mut u, &mut query)?
+        } else {
+            if arg_string(req, b"listingId")? != Some(b"listing:life") { return Err("invalid_request"); }
+            let mut browse_url = [0; 512];
+            let (ul, pn) = list_route(req, &mut browse_url)?;
+            u[..ul].copy_from_slice(&browse_url[..ul]);
+            (ul, pn, 0, ul)
+        };
         let n = fetch(&u[..ul])?;
         let doc = host::html_parse(&body_buf()[..n]).map_err(|_| "html_error")?;
         let r = (|| {
-            eq_attr(doc, b"head link[rel='canonical'][href]", b"href", &u[..ul])?;
-            // Original category pages declare canonical + CollectionPage, with no og:url.
-            json_identity(doc, &u[..ul], false)?;
-            let mut title = [0; 256];
-            let n = text(
-                doc,
-                b"main#eskimo-main-container > div.container > div.eskimo-page-title > h1",
-                &mut title,
-            )?;
-            if trim_ascii(&title[..n]) != "生活小漫畫".as_bytes() {
-                return Err("identity_mismatch");
-            }
-            pagination(doc, pn)?;
             let total = count(doc, CARDS)?;
-            if total == 0 || total > 24 {
-                return Err("parse_error");
+            if searching {
+                // Search pages have CollectionPage identity but no canonical link.
+                json_identity(doc, &u[..base_len], false)?;
+                search_page(doc, pn, &query[..ql], total)?;
+            } else {
+                eq_attr(doc, b"head link[rel='canonical'][href]", b"href", &u[..ul])?;
+                json_identity(doc, &u[..ul], false)?;
+                let mut title = [0; 256];
+                let n = text(doc, b"main#eskimo-main-container > div.container > div.eskimo-page-title > h1", &mut title)?;
+                if trim_ascii(&title[..n]) != "生活小漫畫".as_bytes() { return Err("identity_mismatch"); }
+                pagination(doc, pn)?;
+                if total == 0 { return Err("parse_error"); }
             }
+            if total > 24 { return Err("parse_error"); }
             let mut raw = [0; 96];
             let got = unsafe {
                 select_all_raw(
@@ -1393,9 +1505,8 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
             (Ok(n), Ok(())) => Ok(n),
             (Err(e), _) | (_, Err(e)) => Err(e),
         }
-    }
-    result("get_manga_list", inner(req))
 }
+fn run_get_manga_list(req: &[u8]) -> u32 { result("get_manga_list", list(req, false)) }
 fn run_get_manga(req: &[u8]) -> u32 {
     fn inner(req: &[u8]) -> R<usize> {
         request_work(req, b"mangaId", MID)?;
@@ -1522,9 +1633,7 @@ fn run_get_image_request(req: &[u8]) -> u32 {
     }
     result("get_image_request", inner(req))
 }
-fn run_search(_req: &[u8]) -> u32 {
-    write_error("search", "not_implemented", "此來源不提供搜尋")
-}
+fn run_search(req: &[u8]) -> u32 { result("search", list(req, true)) }
 fn run_get_home(_req: &[u8]) -> u32 {
     write_error("get_home", "not_implemented", "")
 }
