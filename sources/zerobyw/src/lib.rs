@@ -59,7 +59,7 @@ static mut SELECT_BUF: [u8; SELECT_CAP] = [0; SELECT_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.zerobyw.koma",
     name: "Zerobyw",
-    version: "0.1.6",
+    version: "0.1.7",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -141,7 +141,16 @@ fn desc_from_i32(raw: i32) -> HtmlDescriptor {
     HtmlDescriptor::from_raw(raw)
 }
 
+// Only the verified official origin is upgraded for transport. Saved settings,
+// displayed links and custom hosts retain their original identity.
 fn fetch_html(url: &[u8], referer: Option<&[u8]>) -> Result<usize, FetchError> {
+    let mut secure_url = [0u8; 2048];
+    let url = if let Some(path) = url.strip_prefix(b"http://www.zerobyw33.com/") {
+        let mut n = 0;
+        if !write_bytes(&mut secure_url, &mut n, b"https://www.zerobyw33.com/") ||
+            !write_bytes(&mut secure_url, &mut n, path) { return Err(FetchError::Network); }
+        &secure_url[..n]
+    } else { url };
     let req_len =
         build_get_request(http_req_buf(), url, referer, &[]).ok_or(FetchError::Network)?;
     let req = unsafe {
@@ -732,6 +741,139 @@ fn run_get_manga(req: &[u8]) -> u32 {
     write_success_payload("get_manga", c)
 }
 
+// Provider embeds the complete stable zjid/name list even when it renders
+// locked rows without links. A chapter is readable only if this same response
+// exposes its normal reader anchor; never infer access from its number.
+#[derive(Copy, Clone)]
+struct PcChapter { id: [u8; 24], id_len: usize, title: [u8; 512], title_len: usize, accessible: bool, lock: u8 }
+const EMPTY_PC_CHAPTER: PcChapter = PcChapter { id: [0; 24], id_len: 0, title: [0; 512], title_len: 0, accessible: false, lock: 0 };
+static mut PC_CHAPTERS: [PcChapter; 1000] = [EMPTY_PC_CHAPTER; 1000];
+fn chapter_array_count(array: &[u8]) -> Option<usize> {
+    let mut i = 1usize; let mut count = 0usize;
+    loop {
+        while array.get(i)?.is_ascii_whitespace() { i += 1; }
+        if array.get(i) == Some(&b']') { return (i + 1 == array.len()).then_some(count); }
+        if array.get(i) != Some(&b'{') { return None; }
+        let (mut depth, mut quoted, mut escaped) = (0usize, false, false);
+        loop {
+            let c = *array.get(i)?; i += 1;
+            if quoted {
+                if escaped { escaped = false; } else if c == b'\\' { escaped = true; } else if c == b'"' { quoted = false; }
+            } else if c == b'"' { quoted = true; }
+            else if c == b'{' { depth += 1; }
+            else if c == b'}' { depth = depth.checked_sub(1)?; if depth == 0 { break; } }
+        }
+        count += 1;
+        while array.get(i)?.is_ascii_whitespace() { i += 1; }
+        match array.get(i)? {
+            b',' => { i += 1; while array.get(i)?.is_ascii_whitespace() { i += 1; } if array.get(i) != Some(&b'{') { return None; } }
+            b']' => return (i + 1 == array.len()).then_some(count),
+            _ => return None,
+        }
+    }
+}
+fn pc_chapters(html: &[u8], doc: HtmlDescriptor) -> Result<usize, &'static str> {
+    let marker = b"const mangaDownloadChapters =";
+    let start = find_subslice(html, marker).ok_or("missing complete chapter metadata")? + marker.len();
+    let rest = trim_ascii(&html[start..]);
+    if rest.first() != Some(&b'[') { return Err("invalid chapter metadata"); }
+    let (mut quoted, mut escaped, mut end) = (false, false, None);
+    for (i, &ch) in rest.iter().enumerate().skip(1) {
+        if quoted {
+            if escaped { escaped = false; } else if ch == b'\\' { escaped = true; } else if ch == b'"' { quoted = false; }
+        } else if ch == b'"' { quoted = true; } else if ch == b']' { end = Some(i); break; }
+    }
+    let end = end.ok_or("unterminated chapter metadata")?;
+    let array = &rest[..=end];
+    let expected_count = chapter_array_count(array).ok_or("invalid chapter metadata")?;
+    let mut iter = koma_source_sdk::json_utils::JsonArrayIter::from_raw_array(array).ok_or("chapter metadata")?;
+    let mut count = 0usize;
+    while let Some(item) = iter.next_object() {
+        if count >= 1000 { return Err("chapter capacity"); }
+        let id = extract_json_string(item, b"zjid").ok_or("chapter identity missing")?;
+        if id.is_empty() || id.len() > 24 || !id.iter().all(u8::is_ascii_digit) { return Err("invalid chapter identity"); }
+        let raw_title = extract_json_string(item, b"zjname").ok_or("chapter title missing")?;
+        let mut title_buf = [0u8; 512];
+        let title = koma_source_sdk::plain_text::decode_json_content(raw_title, &mut title_buf).map_err(|_| "invalid chapter title")?;
+        if title.is_empty() { return Err("empty chapter title"); }
+        unsafe {
+            for previous in &PC_CHAPTERS[..count] {
+                if &previous.id[..previous.id_len] == id { return Err("duplicate chapter identity"); }
+            }
+            let entry = &mut PC_CHAPTERS[count]; *entry = EMPTY_PC_CHAPTER;
+            entry.id[..id.len()].copy_from_slice(id); entry.id_len = id.len();
+            entry.title[..title.len()].copy_from_slice(title); entry.title_len = title.len();
+        }
+        count += 1;
+    }
+    if count != expected_count { return Err("invalid chapter metadata"); }
+    let selects = select_buf();
+    let n = html_select_all(doc.raw(), b"div.grid a[href*=\"/view/index.php\"]", selects);
+    if n < 0 || n as usize > 1000 { return Err("invalid chapter anchors"); }
+    for i in 0..n as usize {
+        let off = i * 4;
+        let raw = i32::from_le_bytes([selects[off], selects[off+1], selects[off+2], selects[off+3]]);
+        if raw <= 0 { return Err("invalid chapter anchor"); }
+        let node = desc_from_i32(raw);
+        let mut buf = [0u8; 768];
+        let href = attr_into(node, b"href", &mut buf);
+        let anchor_id = href.and_then(|h| h.strip_prefix(b"/pc/view/index.php?zjid="));
+        let mut matched = false;
+        if let Some(id) = anchor_id {
+            unsafe { for item in &mut PC_CHAPTERS[..count] {
+                if &item.id[..item.id_len] == id { item.accessible = true; matched = true; break; }
+            }}
+        }
+        let _ = html_close(node);
+        if !matched { return Err("chapter anchor mismatch"); }
+    }
+    // Match each non-link row by its actual visible title and explicit site
+    // lock handler; missing/ambiguous rows must not become fabricated locks.
+    let locked = select_buf();
+    let n = html_select_all(doc.raw(), b"div.grid div[onclick*=\"showLockTip\"]", locked);
+    if n < 0 || n as usize > 1000 { return Err("invalid locked chapter rows"); }
+    for i in 0..n as usize {
+        let off = i * 4;
+        let raw = i32::from_le_bytes([locked[off], locked[off+1], locked[off+2], locked[off+3]]);
+        if raw <= 0 { return Err("invalid locked chapter row"); }
+        let node = desc_from_i32(raw); let mut title = [0u8; 512]; let mut handler = [0u8; 128];
+        let name = text_into(node, &mut title); let action = attr_into(node, b"onclick", &mut handler);
+        let lock = match action { Some(b"app.showLockTip('login')") => 1, Some(b"app.showLockTip('vip')") => 2, _ => 0 };
+        let mut matched = 0usize;
+        if let Some(name) = name { unsafe { for item in &mut PC_CHAPTERS[..count] {
+            if !item.accessible && &item.title[..item.title_len] == name {
+                if item.lock != 0 { return Err("duplicate locked chapter row"); }
+                item.lock = lock; matched += 1;
+            }
+        }}}
+        let _ = html_close(node);
+        if lock == 0 || matched != 1 { return Err("ambiguous locked chapter row"); }
+    }
+    if unsafe { PC_CHAPTERS[..count].iter().any(|item| !item.accessible && item.lock == 0) } { return Err("chapter accessibility unknown"); }
+    Ok(count)
+}
+fn emit_pc_chapters(id: &[u8], count: usize) -> u32 {
+    let out = payload_buf(); let mut n = 0usize;
+    if !write_bytes(out, &mut n, br#"{"items":["#) { return write_error("get_chapters", "internal_error", "overflow"); }
+    for i in 0..count {
+        let entry = unsafe { &PC_CHAPTERS[count - i - 1] };
+        let ok = (i == 0 || write_bytes(out, &mut n, b","))
+            && write_bytes(out, &mut n, br#"{"id":"chapter:"#)
+            && append_json_escaped(out, &mut n, id)
+            && write_bytes(out, &mut n, b":/pc/view/index.php?zjid=")
+            && write_bytes(out, &mut n, &entry.id[..entry.id_len])
+            && write_bytes(out, &mut n, br#"","mangaId":"manga:"#)
+            && append_json_escaped(out, &mut n, id)
+            && write_bytes(out, &mut n, br#"","title":""#)
+            && (entry.accessible || write_bytes(out, &mut n, "🔒 ".as_bytes()))
+            && append_json_escaped(out, &mut n, &entry.title[..entry.title_len])
+            && write_bytes(out, &mut n, br#"","chapterNumber":null,"volumeNumber":null,"language":"zh","publishedAt":null,"updatedAt":null,"pageCount":null}"#);
+        if !ok { return write_error("get_chapters", "internal_error", "overflow"); }
+    }
+    if !write_bytes(out, &mut n, br#"],"page":{"nextCursor":null,"hasMore":false}}"#) { return write_error("get_chapters", "internal_error", "overflow"); }
+    write_success_payload("get_chapters", n)
+}
+
 fn run_get_chapters(req: &[u8]) -> u32 {
     let id = match manga_id_from_request(req, "get_chapters") {
         Ok(v) => v,
@@ -739,12 +881,19 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     };
     let mut base_buf = [0u8; 512];
     let mut referer_buf = [0u8; 512];
-    let (_html_len, base, doc) =
+    let (html_len, base, doc) =
         match fetch_detail_doc(req, id, "get_chapters", &mut base_buf, &mut referer_buf) {
             Ok(v) => v,
             Err(ptr) => return ptr,
         };
 
+    if is_pc_id(id) {
+        let html = unsafe { core::slice::from_raw_parts(core::ptr::addr_of!(BODY_BUF).cast::<u8>(), html_len) };
+        return match pc_chapters(html, doc.0) {
+            Ok(count) => emit_pc_chapters(id, count),
+            Err(e) => write_error("get_chapters", "parse_error", e),
+        };
+    }
     let selects = select_buf();
     let count = html_select_all(
         doc.0.raw(),
@@ -908,10 +1057,24 @@ fn run_get_pages(req: &[u8]) -> u32 {
         Some(v) => v,
         None => return write_error("get_pages", "invalid_request", "missing chapterId"),
     };
-    let (_manga_id, path) = match extract_chapter_parts(chapter_id) {
+    let (manga_id, path) = match extract_chapter_parts(chapter_id) {
         Some(v) => v,
         None => return write_error("get_pages", "invalid_request", "unexpected chapterId"),
     };
+    if is_pc_id(manga_id) {
+        let Some(target) = path.strip_prefix(b"/pc/view/index.php?zjid=") else { return write_error("get_pages", "invalid_request", "invalid chapter path"); };
+        let mut detail_base = [0u8; 512]; let mut detail_referer = [0u8; 512];
+        let (len, _, doc) = match fetch_detail_doc(req, manga_id, "get_pages", &mut detail_base, &mut detail_referer) { Ok(v) => v, Err(e) => return e };
+        let html = unsafe { core::slice::from_raw_parts(core::ptr::addr_of!(BODY_BUF).cast::<u8>(), len) };
+        let count = match pc_chapters(html, doc.0) { Ok(v) => v, Err(e) => return write_error("get_pages", "parse_error", e) };
+        let found = unsafe { PC_CHAPTERS[..count].iter().find(|entry| &entry.id[..entry.id_len] == target) };
+        match found {
+            Some(entry) if entry.lock == 1 => return write_error("get_pages", "auth_required", "chapter requires site login"),
+            Some(entry) if entry.lock == 2 => return write_error("get_pages", "permission_denied", "chapter requires site membership"),
+            None => return write_error("get_pages", "invalid_request", "chapter not in manga"),
+            _ => {}
+        }
+    }
     let mut base_buf = [0u8; 512];
     let base = current_base_url(req, &mut base_buf);
     let mut referer_buf = [0u8; 512];
@@ -952,7 +1115,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
     let selects = select_buf();
     let count = html_select_all(
         doc.0.raw(),
-        if is_pc_id(_manga_id) {
+        if is_pc_id(manga_id) {
             b"#image-container img.manga-image"
         } else {
             b"div.uk-text-center > img, img[class*=\"chapter\"], img[class*=\"page\"], img"
@@ -1004,7 +1167,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
         let _ = html_close(hd);
     }
     if written == 0
-        && !is_pc_id(_manga_id)
+        && !is_pc_id(manga_id)
         && !append_js_image_urls(html, base, payload, &mut c, chapter_id, &mut written)
     {
         return write_error("get_pages", "internal_error", "payload overflow");
