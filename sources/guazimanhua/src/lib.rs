@@ -4,7 +4,7 @@ use koma_source_sdk::host::{
     html_attr, html_close, html_parse, html_select, html_text, http_request, HtmlDescriptor,
 };
 use koma_source_sdk::json_utils::{
-    append_json_escaped, extract_json_number, extract_json_string, request_page_number,
+    append_json_escaped, extract_json_number, extract_json_string, json_object_member, request_page_number,
     write_bytes, write_url_encoded, write_usize,
 };
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
@@ -14,7 +14,7 @@ const UA: &[u8] = b"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.guazimanhua.koma",
     name: "瓜子漫画",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -29,7 +29,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     listings: true,
     manga_list: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: false,
     credentials: false,
     image_request: true,
@@ -265,6 +265,50 @@ fn page_tail(out: &mut [u8], n: &mut usize, more: bool, page: usize) -> bool {
         write_bytes(out, n, b"null,\"hasMore\":false}}")
     }
 }
+fn filter_value<'a>(filters: &'a [u8], key: &[u8], allowed: &[&[u8]]) -> Result<Option<&'a [u8]>, &'static str> {
+    match json_object_member(filters, key) {
+        None | Some(b"null") => Ok(None),
+        Some(v) if v.len() >= 2 && v[0] == b'"' && v[v.len()-1] == b'"' => {
+            let value = &v[1..v.len()-1];
+            if allowed.contains(&value) { Ok(Some(value)) } else { Err("invalid filter") }
+        },
+        _ => Err("invalid filter"),
+    }
+}
+
+fn next_matches(href: &[u8], query: &[u8], sort: &[u8], filters: &[Option<&[u8]>; 4], page: usize) -> bool {
+    let h = href.strip_prefix(BASE).unwrap_or(href);
+    let p = match h.strip_prefix(b"/category.php?") { Some(v) => v, None => return false };
+    let mut seen = 0u8;
+    for pair in p.split(|c| *c == b'&') {
+        let Some(at) = pair.iter().position(|c| *c == b'=') else { return false };
+        let mut value = [0u8; 4096]; let mut i = at+1; let mut n = 0;
+        while i < pair.len() {
+            let c = match pair[i] {
+                b'%' => { if i+2 >= pair.len() { return false; } let hex = |c: u8| -> Option<u8> { match c { b'0'..=b'9'=>Some(c-b'0'),b'a'..=b'f'=>Some(c-b'a'+10),b'A'..=b'F'=>Some(c-b'A'+10),_=>None } }; let Some(v) = hex(pair[i+1]).zip(hex(pair[i+2])).map(|(a,b)|a*16+b) else { return false }; i+=3; v },
+                b'+' => { i+=1; b' ' },
+                c => { i+=1; c },
+            };
+            if n == value.len() { return false; } value[n] = c; n+=1;
+        }
+        let v = &value[..n];
+        let flag = match &pair[..at] {
+            b"keyword" if !query.is_empty() && v == query => 1,
+            b"sort" if v == sort => 2,
+            b"page" if core::str::from_utf8(v).ok().and_then(|s|s.parse::<usize>().ok()) == Some(page) => 4,
+            b"cid" if filters[0] == Some(v) => 8,
+            b"city" if filters[1] == Some(v) => 16,
+            b"audience" if filters[2] == Some(v) => 32,
+            b"is_end" if filters[3] == Some(v) => 64,
+            _ => return false,
+        };
+        if seen & flag != 0 { return false; } seen |= flag;
+    }
+    let mut expected = 2 | 4 | if query.is_empty() { 0 } else { 1 };
+    for (i,v) in filters.iter().enumerate() { if v.is_some() { expected |= 8 << i; } }
+    seen == expected
+}
+
 fn run_list(req: &[u8], op: &str) -> u32 {
     let page = request_page_number(req);
     let raw = if op == "search" {
@@ -283,11 +327,24 @@ fn run_list(req: &[u8], op: &str) -> u32 {
     }
     let mut url = [0u8; 8192];
     let mut n = 0;
-    let sort = if listing == b"latest" {
+    let a = json_object_member(req, b"args").unwrap_or(req);
+    let filters = match json_object_member(a, b"filters") { None | Some(b"null") => b"{}".as_slice(), Some(v) if v.first() == Some(&b'{') => v, _ => return write_error(op,"invalid_request","invalid filters") };
+    let allowed: &[(&[u8], &[&[u8]])] = &[
+        (b"cid", &[b"0",b"41",b"9",b"29",b"5",b"42",b"8",b"23",b"25",b"31",b"22",b"21",b"54",b"11",b"30",b"15",b"13",b"14",b"148",b"97",b"55",b"61",b"17",b"27"]),
+        (b"city", &[b"0",b"42",b"43",b"77",b"78",b"338"]),
+        (b"audience", &[b"0",b"1",b"2"]), (b"is_end", &[b"0",b"2",b"1"]),
+    ];
+    let mut values: [Option<&[u8]>; 4] = [None; 4];
+    for (i,(key, choices)) in allowed.iter().enumerate() {
+        match filter_value(filters, key, choices) { Ok(Some(v)) if v != b"0" => values[i]=Some(v), Ok(_) => (), Err(_) => return write_error(op,"invalid_request","invalid filter") }
+    }
+    let default_sort = if listing == b"latest" {
         b"update" as &[u8]
     } else {
         b"hits"
     };
+    let selected_sort = match filter_value(filters, b"sort", &[b"daily",b"hits",b"update",b"score"]) { Ok(v)=>v, Err(_)=>return write_error(op,"invalid_request","invalid filter") };
+    let sort = selected_sort.unwrap_or(default_sort);
     if !(write_bytes(&mut url, &mut n, BASE)
         && write_bytes(&mut url, &mut n, b"/category.php?sort=")
         && write_bytes(&mut url, &mut n, sort)
@@ -297,6 +354,11 @@ fn run_list(req: &[u8], op: &str) -> u32 {
         && write_url_encoded(&mut url, &mut n, q))
     {
         return write_error(op, "invalid_request", "query too long");
+    }
+    for (i,(key,_)) in allowed.iter().enumerate() {
+        if let Some(v) = values[i] {
+            if !(write_bytes(&mut url,&mut n,b"&") && write_bytes(&mut url,&mut n,key) && write_bytes(&mut url,&mut n,b"=") && write_bytes(&mut url,&mut n,v)) { return write_error(op,"invalid_request","query too long"); }
+        }
     }
     let d = match fetch(&url[..n]) {
         Ok(d) => d,
@@ -364,6 +426,11 @@ fn run_list(req: &[u8], op: &str) -> u32 {
         let mut b = [0u8; 128];
         if let Ok(n) = html_text(pager.at(i), &mut b) {
             if trim_ascii(&b[..n]) == b">" {
+                if selected_sort.is_some() || values.iter().any(Option::is_some) {
+                    let mut h = [0u8; 8192];
+                    let len = match html_attr(pager.at(i), b"href", &mut h) { Ok(len) if len < h.len() => len, _ => return write_error(op,"parse_error","invalid next link") };
+                    if !next_matches(&h[..len], q, sort, &values, page.saturating_add(1)) { return write_error(op,"parse_error","filter pagination mismatch"); }
+                }
                 more = true
             }
         }
@@ -680,7 +747,10 @@ fn run_get_home(_r: &[u8]) -> u32 {
     write_error("get_home", "unimplemented", "not supported")
 }
 fn run_get_filters(_r: &[u8]) -> u32 {
-    write_error("get_filters", "unimplemented", "not supported")
+    // Sort has distinct existing popular/latest defaults, so no common default is injected.
+    let d = r#"{"filters":[{"id":"cid","name":"分类","type":"select","options":[{"value":"0","label":"全部"},{"value":"41","label":"耽美"},{"value":"9","label":"恋爱"},{"value":"29","label":"校园"},{"value":"5","label":"霸总"},{"value":"42","label":"都市"},{"value":"8","label":"穿越"},{"value":"23","label":"古风"},{"value":"25","label":"玄幻"},{"value":"31","label":"奇幻"},{"value":"22","label":"科幻"},{"value":"21","label":"灵异"},{"value":"54","label":"动作"},{"value":"11","label":"悬疑"},{"value":"30","label":"冒险"},{"value":"15","label":"搞笑"},{"value":"13","label":"热血"},{"value":"14","label":"恐怖"},{"value":"148","label":"系统"},{"value":"97","label":"逆袭"},{"value":"55","label":"脑洞"},{"value":"61","label":"复仇"},{"value":"17","label":"真人"},{"value":"27","label":"其它"}],"default":"0"},{"id":"city","name":"地区","type":"select","options":[{"value":"0","label":"全部"},{"value":"42","label":"大陆"},{"value":"43","label":"欧美"},{"value":"77","label":"港台"},{"value":"78","label":"日韩"},{"value":"338","label":"国漫"}],"default":"0"},{"id":"audience","name":"受众","type":"select","options":[{"value":"0","label":"全部"},{"value":"1","label":"男频"},{"value":"2","label":"女频"}],"default":"0"},{"id":"is_end","name":"进度","type":"select","options":[{"value":"0","label":"全部"},{"value":"2","label":"连载中"},{"value":"1","label":"已完结"}],"default":"0"},{"id":"sort","name":"排序","type":"select","options":[{"value":"daily","label":"今日热门"},{"value":"hits","label":"人气"},{"value":"update","label":"更新"},{"value":"score","label":"评分"}]}]}"#.as_bytes();
+    payload_buf()[..d.len()].copy_from_slice(d);
+    write_success_payload("get_filters", d.len())
 }
 fn run_get_settings(_r: &[u8]) -> u32 {
     write_error("get_settings", "unimplemented", "not supported")
