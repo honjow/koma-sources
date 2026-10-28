@@ -7,10 +7,17 @@ use koma_source_sdk::{
     source::{SourceCapabilities, SourceInfo},
 };
 const BASE: &[u8] = b"https://baozimh.org";
+const MIRRORS: [&[u8]; 6] = [BASE, b"https://godamh.com", b"https://m.baozimh.one", b"https://bzmh.org", b"https://g-mh.org", b"https://m.g-mh.org"];
+// This API mirror choice does not change the separately declared godamh.com homepage.
+// Unknown values preserve the original API origin and never expand permitted hosts.
+fn selected_base(r: &[u8]) -> &'static [u8] {
+    let chosen = json_object_member(r, b"settings").and_then(|v| extract_json_string(v, b"preferredMirror"));
+    MIRRORS.iter().copied().find(|v| Some(*v) == chosen).unwrap_or(BASE)
+}
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "org.goda.koma",
     name: "GoDa漫画",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -26,7 +33,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     manga_list: true,
     home: false,
     filters: false,
-    settings: false,
+    settings: true,
     image_request: true,
     credentials: false,
 };
@@ -438,17 +445,21 @@ fn valid_status(s: &[u8]) -> Option<usize> {
     number(s).filter(|n| (100..=599).contains(n))
 }
 static mut BODY_LEN: usize = 0;
-fn fetch_body(base: &[u8], path: &[u8]) -> Result<usize, &'static str> {
+fn fetch_body(base: &[u8], path: &[u8], site: &[u8]) -> Result<usize, &'static str> {
     host::log_info(b"goda stage=fetch_begin");
     let mut url = [0; 8192];
     let mut n = 0;
     bytes(&mut url, &mut n, base)?;
     bytes(&mut url, &mut n, path)?;
+    let mut referer = [0; 256];
+    let mut rn = 0;
+    bytes(&mut referer, &mut rn, site)?;
+    bytes(&mut referer, &mut rn, b"/")?;
     let len = koma_source_sdk::build_get_request(
         http_req_buf(),
         &url[..n],
-        Some(b"https://baozimh.org/"),
-        &[(b"Origin", b"https://baozimh.org")],
+        Some(&referer[..rn]),
+        &[(b"Origin", site)],
     )
     .ok_or_else(|| {
         diagnostic(b"request_build", b"network_error");
@@ -521,7 +532,7 @@ fn fetch_body(base: &[u8], path: &[u8]) -> Result<usize, &'static str> {
 const API: &[u8] = b"https://api-get-v3.mgsearcher.com";
 const IMAGE: &[u8] = b"https://c-nd2-1.6wm.top";
 fn fetch(base: &[u8], path: &[u8]) -> Result<Node, &'static str> {
-    let n = fetch_body(base, path)?;
+    let n = fetch_body(base, path, base)?;
     Node::parse(&body_buf()[..n])
 }
 fn valid_path(s: &[u8]) -> bool {
@@ -556,7 +567,7 @@ fn valid_path(s: &[u8]) -> bool {
     true
 }
 fn slug(s: &[u8]) -> Result<&[u8], &'static str> {
-    let s = s.strip_prefix(BASE).unwrap_or(s);
+    let s = MIRRORS.iter().find_map(|base| s.strip_prefix(*base)).unwrap_or(s);
     let s = s.strip_prefix(b"/manga/").unwrap_or(s);
     let s = s.strip_suffix(b"/").unwrap_or(s);
     if !valid_path(s) || s.contains(&b'/') {
@@ -683,7 +694,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
     if !write_usize(&mut route, &mut n, pg) {
         return Err("invalid page cursor");
     };
-    let root = fetch(BASE, &route[..n])?;
+    let root = fetch(selected_base(r), &route[..n])?;
     let nodes = Nodes::get(&root, b".container > .cardlist .pb-2 a")?;
     if nodes.n == 0 {
         return Err("empty catalogue HTML");
@@ -727,7 +738,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
 fn detail(r: &[u8]) -> Result<usize, &'static str> {
     let (id, s) = manga(r)?;
     let mut pb = [0; 2048];
-    let root = fetch(BASE, path(s, &mut pb)?)?;
+    let root = fetch(selected_base(r), path(s, &mut pb)?)?;
     let main = root.select(b"main")?;
     let h = main.select(b"h1")?;
     let status_nodes = Nodes::get(&h, b"span")?;
@@ -811,8 +822,10 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
     bytes(
         out,
         &mut n,
-        b"\",\"links\":[{\"kind\":\"source\",\"url\":\"https://baozimh.org/manga/",
+        b"\",\"links\":[{\"kind\":\"source\",\"url\":\"",
     )?;
+    bytes(out, &mut n, selected_base(r))?;
+    bytes(out, &mut n, b"/manga/")?;
     bytes(out, &mut n, s)?;
     bytes(out, &mut n, b"\"}]}}")?;
     Ok(n)
@@ -861,7 +874,7 @@ fn explicit_number(t: &[u8]) -> Option<usize> {
 fn chapters(r: &[u8]) -> Result<usize, &'static str> {
     let (id, s) = manga(r)?;
     let mut pb = [0; 2048];
-    let root = fetch(BASE, path(s, &mut pb)?)?;
+    let root = fetch(selected_base(r), path(s, &mut pb)?)?;
     let node = root.select(b"#mangachapters")?;
     let mut mb = [0; 64];
     let mid = node.attr(b"data-mid", &mut mb)?;
@@ -873,7 +886,7 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
     bytes(&mut url, &mut u, b"/api/manga/get?mid=")?;
     bytes(&mut url, &mut u, mid)?;
     bytes(&mut url, &mut u, b"&mode=all")?;
-    let len = fetch_body(API, &url[..u])?;
+    let len = fetch_body(API, &url[..u], selected_base(r))?;
     let data = api_data(&body_buf()[..len])?;
     let mut db = [0; 64];
     if decoded(data, b"id", &mut db)? != mid {
@@ -1039,7 +1052,7 @@ fn pages(r: &[u8]) -> Result<usize, &'static str> {
     bytes(&mut url, &mut u, mid)?;
     bytes(&mut url, &mut u, b"&c=")?;
     bytes(&mut url, &mut u, cid)?;
-    let len = fetch_body(API, &url[..u])?;
+    let len = fetch_body(API, &url[..u], selected_base(r))?;
     let data = api_data(&body_buf()[..len])?;
     let info = member(data, b"info")?;
     let mut mb = [0; 64];
@@ -1128,7 +1141,9 @@ fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "not_implemented", "not supported")
 }
 fn run_get_settings(_: &[u8]) -> u32 {
-    write_error("get_settings", "not_implemented", "not supported")
+    let p = r#"{"settings":[{"id":"preferredMirror","name":"首选镜像","kind":"select","default":"https://baozimh.org","options":[{"value":"https://baozimh.org","label":"baozimh.org"},{"value":"https://godamh.com","label":"godamh.com"},{"value":"https://m.baozimh.one","label":"m.baozimh.one"},{"value":"https://bzmh.org","label":"bzmh.org"},{"value":"https://g-mh.org","label":"g-mh.org"},{"value":"https://m.g-mh.org","label":"m.g-mh.org"}]}]}"#.as_bytes();
+    payload_buf()[..p.len()].copy_from_slice(p);
+    write_success_payload("get_settings", p.len())
 }
 fn image_request(r: &[u8]) -> Result<usize, &'static str> {
     let mut b = [0; 4096];
@@ -1138,7 +1153,11 @@ fn image_request(r: &[u8]) -> Result<usize, &'static str> {
     let mut n = 0;
     bytes(o, &mut n, b"{\"url\":")?;
     q(o, &mut n, url)?;
-    bytes(o,&mut n,b",\"method\":\"GET\",\"headers\":{\"User-Agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0\",\"Referer\":\"https://baozimh.org/\",\"Origin\":\"https://baozimh.org\"}}")?;
+    bytes(o,&mut n,b",\"method\":\"GET\",\"headers\":{\"User-Agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0\",\"Referer\":\"")?;
+    bytes(o,&mut n,selected_base(r))?;
+    bytes(o,&mut n,b"/\",\"Origin\":\"")?;
+    bytes(o,&mut n,selected_base(r))?;
+    bytes(o,&mut n,b"\"}}")?;
     Ok(n)
 }
 fn run_get_image_request(r: &[u8]) -> u32 {

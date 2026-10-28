@@ -3,9 +3,9 @@
 Stable source `org.goda.koma`, runtime version 0.1.2, API 0.2, Chinese.
 Independent from installed Baozi identity; catalogue overlap unknown; no aliases or user-record migration.
 
-Preserves the existing upstream request backend baozimh.org only; this is not described as the current GoDa brand homepage. Fixed Keiyoushi 1319949ca9bc456908196e3ba2d104e94182c5d6 leaf GoDaManhua, parent GoDa and Dto public decoder, Apache-2.0. Upstream SAFE=1; individual content and actual usage unknown. The source excludes advertisements, downloads and external English links.
+The default request backend remains baozimh.org; the separately declared website homepage remains godamh.com. Explicit mirror choices are described below. Fixed Keiyoushi 1319949ca9bc456908196e3ba2d104e94182c5d6 leaf GoDaManhua, parent GoDa and Dto public decoder, Apache-2.0. Upstream SAFE=1; individual content and actual usage unknown. The source excludes advertisements, downloads and external English links.
 
-HTML popular/latest/search and details, full public chapter JSON API, static marker/reorder/alphabet/Base64URL image-address protocol; no JS execution, account/cookie/challenge handling, mirror probing or image-byte decryption. Fixed SDK Firefox121 and published Referer/Origin. Chapters reverse the original complete API array, retain every original title/slug/ID, and never use API order or ordinal as a chapter number. Host indices describe returned sequence only. Pages retain original array order; API order is not a zero-based index.
+HTML popular/latest/search and details, full public chapter JSON API, static marker/reorder/alphabet/Base64URL image-address protocol; no JS execution, account/cookie/challenge handling, automatic mirror probing or image-byte decryption. Fixed SDK Firefox121 and published Referer/Origin. Chapters reverse the original complete API array, retain every original title/slug/ID, and never use API order or ordinal as a chapter number. Host indices describe returned sequence only. Pages retain original array order; API order is not a zero-based index.
 
 Strict complete UTF8/JSON/body and output capacity: 1MiB body and 1MiB payload, 8192 chapters, 2048 HTML/page selections, bounded individual text/attributes. Overflow/missing/invalid data errors, never partial-success truncation. Actual final envelope must fit native 1MiB runtime limit. Date fields are omitted rather than inferred.
 
@@ -31,3 +31,9 @@ Latest accepted successor is 0.1.1 original-G icon correction. User-supplied god
 原件在Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/goda012-entry237-001/`：`goda-current-row.png`、`goda-detail-ready.png`、`duojiu-existing-page2-current.png`、`natural-return-original-detail.png`、`final-browse-restored.png`及entry/chapter/continue/return-actions.json。Reader原日誌在旁列 `goda012-continue-log-restored237-001/run-metadata.json`，最終回復在 `goda012-session-restored237-001/run-metadata.json`；全部本輪artifact雜湊關閉。
 
 2026-10-26：用户报告普通网页误开包子。0.1.3将独立homepage元数据纠正为用户指定、实际首页自称GoDa漫畫的https://godamh.com/；只修品牌主页声明，原baozimh.org请求后端、章节/图片ID及权限保持。旧metadata把后端当主页的ae83e07被本修正取代，不能因后端仍保留而复活错误网页入口。
+
+## 0.1.4 显式镜像设置
+
+固定参考 949dea252eb8e867b7b40834a26e13088764ff55 声明六个首选镜像。`preferredMirror` 默认 `https://baozimh.org`，只有用户显式选择才使用另五项；未知值回退原默认，绝不自动探测或切换。设置影响目录、搜索、详情的站点域和 API/图片请求 Referer、Origin；共享 API 与原图地址仍由原实现及身份校验决定。`metadata.json` 的官网入口始终是 `https://godamh.com`，不随此选择重写。原漫画、章节和页面 ID 不改，也不自动迁移书库。
+
+六域真实首页与具名《有鬼拍不到》详情均能读取、作品ID及首章ID一致；生产WASM分别验证目录、搜索、详情、同一首章页表。实际一次实时API更新使第一域章节116条、后五域117条，116个已有章节ID均相同，不推断其他作品或站点全量一致。备用域godamh.com完整图片请求头实取首图200；此前缺UA的直接请求两种Origin均403，不把错误当图片。默认图像请求与0.1.3相同。真实237设置持久、图像渲染和跨镜像旧库仍需独立验证。
