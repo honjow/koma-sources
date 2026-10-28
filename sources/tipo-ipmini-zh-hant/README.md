@@ -1,4 +1,4 @@
-# IP手札mini! 官方直達專欄（繁中）0.1.0
+# IP手札mini! 官方直達專欄（繁中）0.1.2
 
 來源為經濟部智慧財產局主站 `https://www.tipo.gov.tw/tw/tipo1/295.html` 的漫畫目錄及其原 `cloud.tipo.gov.tw/S400/article/columnist/ID` 直達專欄。這是獨立於此前 `/tw/copyright/701.html` 校園混合宣導品／PDF的真漫畫入口，不重取舊入口、不取既有CCC作品。SourceInfo.author的Koma是源開發者；逐作原author欄位如「財團法人中衛發展中心彙編」原樣放authors和說明，不冒稱繪師，artists為空。正式作品評級、狀態與usage未知。
 
@@ -9,6 +9,10 @@
 其餘7原記錄不支持且不冒作作品：#8..#4五條原href皆`/S400/article/4`，#2/#1兩條皆`/S400/article/3`。已取一次article/4實為「產業輔導分享」42篇分類，非五篇漫畫；不能把多個泛目錄同URL折疊成漫畫、拿封面代正文或猜修舊路由。#3實為`/article/columnist/391`，是15之一，已單獨核正文；舊調查14/8誤分類保原凍結並另correction addon，實作按原兩頁DOM獨立核15/7，不沿用誤結論。
 
 首屏匿名GET原目錄；下一頁按原contentSearchForm/action/method與原listChangePage函數，只讀POST原六字段：`q_stitle=&q_xbody=&q_xpostDate_start=&q_xpostDate_end=&nowPage=2&pageSize=12`。Host現有bodyBase64欄位原樣作extraData，與SDK build_post_request現有行為相符，不修改SDK或作base64／簽名猜測。每次操作檢查唯一form的六input、pageSize12、當前頁／總頁／總筆數與真next data-args；第2/2無next，輸出`hasNextPage=false`和null cursor，不猜第3頁或假終態。游標只接受1/2或App第一頁null；第3頁、URL／前置零／零游標網路前拒絕。原12筆頁大小、最多2頁／24記錄為已核有界容量，變更超界明確失敗，不冒稱未來無限頁合同。
+
+## 目錄內標題搜尋
+
+使用同一官方目錄的 `contentSearchForm`，以 `q_stitle` 查詢原標題並沿用原分頁；僅保留既有 `columnist/ID` 直達作品，不將泛目錄或全站結果當作漫畫。空結果按站點 `0` 筆及 `1/0` 頁處理；站點拒絕符號或頁面結構不符時保留失敗，不推測結果。舊瀏覽、作品身份與詳情/正文合同保持。
 
 ## 詳情、原題與正文
 

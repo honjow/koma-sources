@@ -5,7 +5,7 @@ use koma_source_sdk::{build_get_request, build_post_request, decode_json_body_in
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.tipo.ipmini.zh-hant.koma",
     name: "IP手札mini! 官方直達專欄",
-    version: "0.1.1",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -14,7 +14,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     content_rating: "unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
-    search: false,
+    search: true,
     manga_detail: true,
     chapters: true,
     pages: true,
@@ -487,6 +487,20 @@ fn fetch(url: &[u8], post: bool) -> R<usize> {
     }
     decode_json_body_into(&http_out()[..n], body_buf()).map_err(|_| "network_error")
 }
+// Search is the original catalogue form, restricted to the same direct-column
+// subset as browsing; it does not use a whole-site search or synthesize IDs.
+fn fetch_search(query: &[u8], which: usize) -> R<usize> {
+    let mut form = [0u8; 4096]; let mut c = 0;
+    w(&mut form, &mut c, b"q_stitle=")?;
+    if !write_url_encoded(&mut form, &mut c, query) { return Err("capacity_exceeded"); }
+    w(&mut form, &mut c, b"&q_xbody=&q_xpostDate_start=&q_xpostDate_end=&nowPage=")?;
+    n(&mut form, &mut c, which)?;
+    w(&mut form, &mut c, b"&pageSize=12")?;
+    let len = build_post_request(http_req_buf(), LIST, &form[..c], b"application/x-www-form-urlencoded", Some(LIST)).ok_or("capacity_exceeded")?;
+    let n = host::http_request(&http_req_buf()[..len], http_out()).map_err(|_| "network_error")?;
+    if extract_json_number(&http_out()[..n], b"status") != Some(b"200") { return Err("http_error"); }
+    decode_json_body_into(&http_out()[..n], body_buf()).map_err(|_| "network_error")
+}
 fn indexed(dst: &mut [u8], at: usize, suffix: &[u8]) -> R<usize> {
     let mut c = 0;
     w(
@@ -529,8 +543,8 @@ struct Page {
     records: usize,
     supported: usize,
 }
-fn catalogue_page(which: usize) -> R<Page> {
-    let len = fetch(LIST, which == 2)?;
+fn catalogue_page(which: usize, query: Option<&[u8]>) -> R<Page> {
+    let len = match query { Some(q) => fetch_search(q, which)?, None => fetch(LIST, which == 2)? };
     if len > 262144 {
         return Err("capacity_exceeded");
     }
@@ -560,7 +574,7 @@ fn catalogue_page(which: usize) -> R<Page> {
             return Err("parse_error");
         }
         for (name, value) in [
-            (b"q_stitle".as_slice(), b"".as_slice()),
+            (b"q_stitle".as_slice(), query.unwrap_or(b"")),
             (b"q_xbody", b""),
             (b"q_xpostDate_start", b""),
             (b"q_xpostDate_end", b""),
@@ -577,7 +591,10 @@ fn catalogue_page(which: usize) -> R<Page> {
             }
         }
         let l = text(doc, b".pagination .total > span:nth-of-type(1)", &mut b)?;
-        let total = positive(trim_ascii(&b[..l]))?;
+        let total = number(trim_ascii(&b[..l]))?;
+        // Only an explicit search may legitimately return zero rows; preserve
+        // the established browse failure when its full catalogue disappears.
+        if total == 0 && query.is_none() { return Err("parse_error"); }
         if total > MAX {
             return Err("capacity_exceeded");
         }
@@ -585,8 +602,8 @@ fn catalogue_page(which: usize) -> R<Page> {
         let raw = trim_ascii(&b[..l]);
         let slash = find_subslice(raw, b"/").ok_or("parse_error")?;
         let current = positive(&raw[..slash])?;
-        let pages = positive(&raw[slash + 1..])?;
-        if current != which || pages > 2 || pages != (total + 11) / 12 {
+        let pages = number(&raw[slash + 1..])?;
+        if current != which || pages > 2 || pages != (total + 11) / 12 || (total == 0 && which != 1) {
             return Err("parse_error");
         }
         if which < pages {
@@ -603,6 +620,7 @@ fn catalogue_page(which: usize) -> R<Page> {
             return Err("parse_error");
         }
         let records = count(doc, b"section.lp > .listAlbum > .Flex-set > .thumbnail")?;
+        if which > 1 && (which - 1) * 12 >= total { return Err("invalid_request"); }
         if records != core::cmp::min(12, total - (which - 1) * 12) {
             return Err("parse_error");
         }
@@ -685,7 +703,7 @@ fn load_second(first: &Page) -> R<Page> {
     if first.pages != 2 {
         return Err("invalid_request");
     }
-    let second = catalogue_page(2)?;
+    let second = catalogue_page(2, None)?;
     if second.total != first.total || second.pages != first.pages {
         return Err("catalogue_changed");
     }
@@ -693,7 +711,7 @@ fn load_second(first: &Page) -> R<Page> {
 }
 fn find(id: Option<&[u8]>) -> R<Option<usize>> {
     reset();
-    let first = catalogue_page(1)?;
+    let first = catalogue_page(1, None)?;
     if let Some(id) = id {
         for i in 0..unsafe { USED } {
             if id == unsafe { &IDS[i][..IDL[i]] } {
@@ -932,7 +950,7 @@ fn book(p: &mut [u8], c: &mut usize, i: usize, full: bool) -> R<()> {
 }
 fn listing(which: usize) -> R<usize> {
     reset();
-    let first = catalogue_page(1)?;
+    let first = catalogue_page(1, None)?;
     let start = if which == 1 { 0 } else { unsafe { USED } };
     let row = if which == 1 {
         first
@@ -1138,8 +1156,33 @@ fn run_get_listings(_req: &[u8]) -> u32 {
     }
     result("get_listings", inner())
 }
-fn run_search(_req: &[u8]) -> u32 {
-    write_error("search", "not_implemented", "此來源不提供搜尋")
+fn run_search(req: &[u8]) -> u32 {
+    fn inner(req: &[u8]) -> R<usize> {
+        let raw = arg_string(req, b"query")?.ok_or("invalid_request")?;
+        let mut query = [0u8; 512];
+        let len = raw_string(raw, &mut query).map_err(|_| "invalid_request")?;
+        let query = &query[..len];
+        if query.is_empty() || core::str::from_utf8(query).is_err() { return Err("invalid_request"); }
+        let which = page(req)?; if which > 2 { return Err("invalid_request"); }
+        reset();
+        // First-page metadata is rechecked before accepting a second-page cursor.
+        let first = catalogue_page(1, Some(query))?;
+        let start = if which == 1 { 0 } else { unsafe { USED } };
+        let row = if which == 1 { first } else {
+            if first.pages != 2 { return Err("invalid_request"); }
+            let second = catalogue_page(2, Some(query))?;
+            if second.total != first.total || second.pages != first.pages { return Err("catalogue_changed"); }
+            second
+        };
+        let end = unsafe { USED }; let p = payload_buf(); let mut c = 0;
+        w(p, &mut c, b"{\"items\":[")?;
+        for i in start..end { if i > start { w(p, &mut c, b",")?; } book(p, &mut c, i, false)?; }
+        w(p, &mut c, b"],\"page\":{\"nextCursor\":")?;
+        if which < row.pages { w(p, &mut c, b"\"2\",\"hasMore\":true},\"hasNextPage\":true}")?; }
+        else { w(p, &mut c, b"null,\"hasMore\":false},\"hasNextPage\":false}")?; }
+        Ok(c)
+    }
+    result("search", inner(req))
 }
 fn run_get_home(_req: &[u8]) -> u32 {
     write_error("get_home", "not_implemented", "")
