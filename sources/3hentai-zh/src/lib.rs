@@ -1,4 +1,7 @@
 #![no_std]
+extern crate alloc;
+#[global_allocator]
+static ALLOCATOR: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
 use koma_source_sdk::host::HtmlDescriptor;
 use koma_source_sdk::{host, json_utils::*, source::SourceInfo};
 type E = &'static str;
@@ -9,7 +12,7 @@ const WEB: &[u8] = b"https://3hentai.net";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hentai3.zh.koma",
     name: "3Hentai",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -674,11 +677,83 @@ fn cursor_page(s: &[u8]) -> R<usize> {
     }
     Ok(n)
 }
+// The fixed reference lowercases complete Unicode strings before building its
+// tag DSL; per-character ASCII folding changes real filter semantics.
+fn filter_terms(a: &[u8], out: &mut [u8]) -> R<(usize, Option<&'static [u8]>)> {
+    let f = match member(a, b"filters")? { None | Some(b"null") => b"{}".as_slice(), Some(v) if v.first() == Some(&b'{') => v, _ => return Err("invalid filters") };
+    let sort = match member(f, b"sort")? {
+        None | Some(b"null") => None,
+        Some(v) => Some(match quoted(v)? { b"recent" => b"".as_slice(), b"popular" => b"popular", b"popular-7d" => b"popular-7d", b"popular-24h" => b"popular-24h", _ => return Err("invalid sort filter") }),
+    };
+    let fields: &[(&[u8], &[u8], &[u8])] = &[(b"tags",b"tags",b""),(b"male_tags",b"tags",b"male"),(b"female_tags",b"tags",b"female"),(b"series",b"series",b""),(b"characters",b"characters",b""),(b"artists",b"artist",b""),(b"groups",b"groups",b""),(b"languages",b"language",b""),(b"pages",b"page",b"")];
+    let mut n = 0;
+    for &(key, kind, specific) in fields {
+        let raw = match member(f, key)? { None | Some(b"null") => continue, Some(v) => v };
+        let mut decoded = [0; 4096];
+        let value = uq(raw, &mut decoded)?;
+        let text = core::str::from_utf8(value).map_err(|_| "invalid filter UTF8")?;
+        for raw_tag in text.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+            let tag = raw_tag.to_lowercase();
+            let tag = tag.as_bytes();
+            if tag.starts_with(b"-") { bytes(out, &mut n, b"-")?; }
+            bytes(out, &mut n, kind)?;
+            if kind == b"page" { bytes(out, &mut n, b":")?; bytes(out, &mut n, tag)?; }
+            else {
+                bytes(out, &mut n, b":'")?;
+                bytes(out, &mut n, tag.strip_prefix(b"-").unwrap_or(tag))?;
+                if !specific.is_empty() { bytes(out, &mut n, b" (")?; bytes(out, &mut n, specific)?; bytes(out, &mut n, b")")?; }
+                bytes(out, &mut n, b"' ")?;
+            }
+        }
+    }
+    Ok((n, sort))
+}
+
+fn decode_query<'a>(s: &[u8], out: &'a mut [u8]) -> R<&'a [u8]> {
+    let mut i = 0; let mut n = 0;
+    while i < s.len() {
+        let c = match s[i] {
+            b'%' => {
+                if i+2 >= s.len() { return Err("invalid filter next"); }
+                let hex = |c: u8| -> Option<u8> { match c { b'0'..=b'9' => Some(c-b'0'), b'a'..=b'f' => Some(c-b'a'+10), b'A'..=b'F' => Some(c-b'A'+10), _ => None } };
+                let c = hex(s[i+1]).zip(hex(s[i+2])).map(|(a,b)|a*16+b).ok_or("invalid filter next")?; i += 3; c
+            },
+            b'+' => { i += 1; b' ' },
+            c => { i += 1; c },
+        };
+        bytes(out, &mut n, &[c])?;
+    }
+    Ok(&out[..n])
+}
+
+fn validate_filter_next(href: &[u8], encoded_query: &[u8], sort: &[u8], page: usize) -> R<()> {
+    let params = href.strip_prefix(b"https://3hentai.net/search?").ok_or("invalid filter next")?;
+    let mut expected = [0; 8192]; let expected = decode_query(encoded_query, &mut expected)?;
+    let mut seen = 0u8;
+    for part in params.split(|c| *c == b'&') {
+        let at = part.iter().position(|c| *c == b'=').ok_or("invalid filter next")?;
+        let mut value = [0; 8192]; let v = decode_query(&part[at+1..], &mut value)?;
+        let flag = match &part[..at] {
+            b"q" if trim_ascii(v) == trim_ascii(expected) => 1,
+            b"sort" if v == sort => 2,
+            b"page" if number(v) == Some(page) => 4,
+            _ => return Err("invalid filter next"),
+        };
+        if seen & flag != 0 { return Err("invalid filter next"); } seen |= flag;
+    }
+    // The site drops an empty sort from next links, but keeps nonempty sorts.
+    if if sort.is_empty() { seen != 5 && seen != 7 } else { seen != 7 } { return Err("invalid filter next"); }
+    Ok(())
+}
+
 fn listing(r: &[u8]) -> R<usize> {
     let a = args(r)?;
     if text(a, b"listingId")? != b"listing:popular" {
         return Err("unsupported listing");
     };
+    let mut terms = [0; 8192];
+    let (length, sort) = filter_terms(a, &mut terms)?;
+    if length > 0 || sort.is_some() { return search_inner(r, true); }
     let mut u = [0u8; 2048];
     let mut current = 1;
     let uri = if let Some(p) = member(a, b"page")? {
@@ -753,13 +828,18 @@ fn listing(r: &[u8]) -> R<usize> {
     bytes(out, &mut n, b"}}")?;
     Ok(n)
 }
-fn search(r: &[u8]) -> R<usize> {
+fn search(r: &[u8]) -> R<usize> { search_inner(r, false) }
+
+fn search_inner(r: &[u8], browsing: bool) -> R<usize> {
     let a = args(r)?;
     let mut query_buf = [0u8; 4096];
-    let query = uq(required(a, b"query")?, &mut query_buf)?;
-    if query.is_empty() {
+    let query = if browsing { b"".as_slice() } else { uq(required(a, b"query")?, &mut query_buf)? };
+    if !browsing && query.is_empty() {
         return Err("empty query");
     }
+    let mut terms = [0; 8192];
+    let (terms_len, selected_sort) = filter_terms(a, &mut terms)?;
+    let filtered = browsing || terms_len > 0 || selected_sort.is_some();
     let current = if let Some(page) = member(a, b"page")? {
         if page.first() == Some(&b'{') {
             match member(page, b"cursor")? {
@@ -780,16 +860,22 @@ fn search(r: &[u8]) -> R<usize> {
     let mut u = [0u8; 8192];
     let mut z = 0;
     bytes(&mut u, &mut z, b"https://3hentai.net/search?q=")?;
-    if !write_url_encoded(&mut u, &mut z, query) {
-        return Err("query overflow");
+    if !write_url_encoded(&mut u, &mut z, query) { return Err("query overflow"); }
+    // Preserve existing default byte-for-byte. Filters append reference DSL
+    // after the mandatory Chinese constraint and never replace it.
+    if !query.is_empty() { bytes(&mut u, &mut z, b"%20")?; }
+    bytes(&mut u, &mut z, b"language%3Achinese")?;
+    if terms_len > 0 {
+        bytes(&mut u, &mut z, b"%20")?;
+        if !write_url_encoded(&mut u, &mut z, trim_ascii(&terms[..terms_len])) { return Err("query overflow"); }
     }
-    // Reference Chinese source adds its language constraint to every query.
-    bytes(&mut u, &mut z, b"%20language%3Achinese")?;
     if current > 1 {
         bytes(&mut u, &mut z, b"&page=")?;
         wn(&mut u, &mut z, current)?;
     }
     bytes(&mut u, &mut z, b"&sort=")?;
+    let sort = selected_sort.unwrap_or(if browsing { b"popular" } else { b"" });
+    bytes(&mut u, &mut z, sort)?;
     let d = fetch(&u[..z])?;
     let cards = All::new(d.0, b"a[href*='/d/']")?;
     let mut result_buf = [0u8; 512];
@@ -821,6 +907,12 @@ fn search(r: &[u8]) -> R<usize> {
         let n = number(&href[at..end]).ok_or("search cursor page")?;
         if n != current.checked_add(1).ok_or("page overflow")? || cards.len == 0 {
             return Err("search next discontinuity");
+        }
+        if filtered {
+            // Provider next links must retain the submitted DSL and sort.
+            let q_start = b"https://3hentai.net/search?q=".len();
+            let q_end = u[q_start..z].iter().position(|v| *v == b'&').map(|v| q_start+v).ok_or("search query")?;
+            validate_filter_next(href, &u[q_start..q_end], sort, n)?;
         }
         Some(n)
     } else {
@@ -1077,7 +1169,13 @@ fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_implemented", "unsupported")
 }
 fn run_get_filters(_: &[u8]) -> u32 {
-    write_error("get_filters", "not_implemented", "unsupported")
+    // Browse and search have different established sorts; an absent choice
+    // preserves those routes, while explicit Recent maps to the empty sort.
+    response_buffer().write_success("get_filters", br#"{"filters":[
+      {"id":"sort","name":"Sort by","type":"select","options":[{"value":"recent","label":"Recent"},{"value":"popular","label":"Popular: All Time"},{"value":"popular-7d","label":"Popular: Week"},{"value":"popular-24h","label":"Popular: Today"}]},
+      {"id":"tags","name":"Tags","type":"text"},{"id":"male_tags","name":"Male Tags","type":"text"},{"id":"female_tags","name":"Female Tags","type":"text"},
+      {"id":"series","name":"Series","type":"text"},{"id":"characters","name":"Characters","type":"text"},{"id":"artists","name":"Artists","type":"text"},
+      {"id":"groups","name":"Groups","type":"text"},{"id":"languages","name":"Languages","type":"text"},{"id":"pages","name":"Pages","type":"text"}]}"#)
 }
 fn run_get_settings(_: &[u8]) -> u32 {
     response_buffer().write_success("get_settings", br#"{"settings":[{"id":"full_title","name":"Display full title","kind":"toggle","default":"true"}]}"#)
@@ -1101,7 +1199,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
-    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.hentai3.zh.koma\",\"name\":\"3Hentai\",\"version\":\"0.1.4\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"3Hentai（中文）\",\"zh-Hant\":\"3Hentai（中文）\",\"en\":\"3Hentai (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
+    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.hentai3.zh.koma\",\"name\":\"3Hentai\",\"version\":\"0.1.5\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"3Hentai（中文）\",\"zh-Hant\":\"3Hentai（中文）\",\"en\":\"3Hentai (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":true,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
 }
 macro_rules! export_op {
     ($f:ident,$op:literal,$run:ident) => {

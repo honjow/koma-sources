@@ -1,8 +1,9 @@
 [package]
 name="koma_hentai3_zh_source"
-version="0.1.4"
+version="0.1.5"
 edition="2021"
 [lib]
 crate-type=["cdylib"]
 [dependencies]
 koma_source_sdk={path="../../sdk"}
+dlmalloc = { version = "0.2.14", features = ["global"] }
