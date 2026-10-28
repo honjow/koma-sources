@@ -52,7 +52,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mh1234.koma",
     name: "漫画1234网",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -689,6 +689,17 @@ fn run_get_manga(req: &[u8]) -> u32 {
     write_success_payload("get_manga", c)
 }
 
+// Metadata is emitted only when the Host declares support. The ordinal is
+// the actual oldest-first source grid order verified against the site's reader
+// menu, not a guessed chapter/volume number; duplicate and special titles stay.
+fn supports_reading_order(req: &[u8]) -> bool {
+    json_object_member(req, b"hostFeatures").map(|v| {
+        let v = trim_ascii(v);
+        v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|c| *c == b',')
+            .any(|item| trim_ascii(item) == b"\"chapter_reading_order_v1\"")
+    }).unwrap_or(false)
+}
+
 fn run_get_chapters(req: &[u8]) -> u32 {
     let mut id_buf = [0; 1024];
     let Some(manga_id) = extract_json_string(args(req), b"mangaId")
@@ -758,7 +769,9 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             if let Some(n) = chapter_number(name) {
                 write_bytes(payload, &mut c, b"\"") && write_usize(payload, &mut c, n) && write_bytes(payload, &mut c, b"\"")
             } else { write_bytes(payload, &mut c, b"null") } &&
-            write_bytes(payload, &mut c, br#","volumeNumber":null,"language":"zh","publishedAt":null,"updatedAt":null,"pageCount":null}"#);
+            write_bytes(payload, &mut c, br#","volumeNumber":null"#) &&
+            (!supports_reading_order(req) || (write_bytes(payload, &mut c, br#","readingGroup":"main","continuationEligible":true,"readingOrder":"#) && write_usize(payload, &mut c, written))) &&
+            write_bytes(payload, &mut c, br#","language":"zh","publishedAt":null,"updatedAt":null,"pageCount":null}"#);
         if !ok {
             return write_error("get_chapters", "internal_error", "payload overflow");
         }
