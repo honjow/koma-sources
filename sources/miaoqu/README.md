@@ -1,6 +1,6 @@
-# 喵趣漫画 — independent Koma source 0.1.2
+# 妙趣漫画 — independent Koma source 0.1.3
 
-Stable source ID: `com.miaoqu.koma`; Chinese canonical name: 喵趣漫画. Localized labels are optional presentation metadata. Actual usage: unknown. Upstream SAFE (protobuf 1 and Gradle SAFE), individual works unknown. This source shares the SixMH catalogue but has independent host and slug identities; no aliases, migration or merging.
+Stable source ID: `com.miaoqu.koma`; Chinese canonical name: 妙趣漫画 (the old label 喵趣漫画 is retained only in historical notes). Localized labels are optional presentation metadata. Actual usage: unknown. Upstream SAFE (protobuf 1 and Gradle SAFE), individual works unknown. This source shares the SixMH catalogue but has independent host and slug identities; no aliases, migration or merging.
 
 Public contract follows Keiyoushi revision `1319949ca9bc456908196e3ba2d104e94182c5d6`. HTML popular/latest/search, mobile detail/catalogue, canonical chapter DATA literal. Fixed SDK Firefox121 UA-only; no Cookie, Referer or Origin. Only 2xx accepted; upstream HTTP500 exception is intentionally unimplemented without current evidence. No auth, JS execution, image-byte decryption, mirrors, challenge interception, retry or filter background fetch.
 
@@ -23,3 +23,10 @@ The current `icon.png` restores the unchanged original from the installed device
 ## 0.1.2 icon board/shadow cleanup
 
 This version removes the external white board/grey shadow from the retained fixed-upstream192×192 Miaoqu reference. Chroma separation restores alpha around its original104×104 glyph without scaling or tracing; the foreground uses the original body's modal orange RGB240/160/110. The120×120 PNG retains8px transparent safety margins. This is background cleanup of the existing identity, not a new official resource or high-resolution redraw; no new backing, shadow or mask is added. The separate generated image with yellow fringe/hole specks was rejected and is not used. App radius/slot/order, source identity/requests/chapters and all provider behaviour remain unchanged; only source/Cargo/lock asset-delivery version011→012. Website403/404 branches remain stopped; no content acceptance is added. Device237 ordinary local update0.1.0→0.1.2 succeeded; both management and Browse display the orange mark without the former board/grey edge. All56 sourceId/enabled pairs retain their exact order, and the original Browse position/10000ms override were restored, read back AWAKE, with the owned transfer removed and lease released. Root reviewed both full-resolution images and the restoration receipt; the board/shadow cleanup is accepted for these two consumers. Original full images and receipts: Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/miaoqu012-icon-import237-001/{manager-current,browse-current}.png` and `miaoqu012-icon-restored237-001`.
+
+
+## 0.1.3 official displayed name
+
+The provider desktop homepage title is “妙趣漫画 - 免费漫画阅读平台”; its existing mobile work route `https://m.miaoqumh.org/doupocangkong` also returns a title ending in “妙趣漫画”. These two named pages are the basis for correcting the previous 喵趣 label to 妙趣 in source info and localized simplified/traditional names. The stable source ID, URLs, work/chapter IDs, provider operations and default behavior remain unchanged.
+
+The desktop homepage's declared favicon and logo URLs both returned HTTP 404 during this check. The existing icon is the previously accepted cleaned form of the fixed upstream Miaoqu reference; the original downloaded reference, retained original and installed 0.1.0 asset have matching SHA256. This establishes provenance of the retained icon, not its identity with a currently available official site asset. It is not replaced or claimed as verified-current.

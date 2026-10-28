@@ -9,8 +9,8 @@ use koma_source_sdk::{
 const BASE: &[u8] = b"https://www.miaoqumh.org";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.miaoqu.koma",
-    name: "喵趣漫画",
-    version: "0.1.2",
+    name: "妙趣漫画",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
