@@ -52,7 +52,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mh1234.koma",
     name: "漫画1234网",
-    version: "0.1.5",
+    version: "0.1.6",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -68,7 +68,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     listings: true,
     manga_list: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: false,
     image_request: true,
     credentials: false,
@@ -525,41 +525,59 @@ fn fetch_list(operation: &str, route: &[u8], page: usize) -> u32 {
     parse_list(html, operation, page, route)
 }
 
-fn run_search(req: &[u8]) -> u32 {
-    let Some(raw) = extract_json_string(args(req), b"query") else {
-        return write_error("search", "invalid_request", "missing query");
+// Reference applies category filters only to empty-query discovery; textual searches ignore them.
+// Preserve Koma's popular/latest defaults until the user explicitly chooses a sort.
+fn filtered_route(req: &[u8], default_sort: &[u8], out: &mut [u8]) -> Result<Option<usize>, ()> {
+    let filters = match json_object_member(args(req), b"filters") {
+        None | Some(b"null") => return Ok(None),
+        Some(v) if v.first() == Some(&b'{') => v,
+        _ => return Err(()),
     };
-    let mut query_buf = [0; 1024];
-    let Some(query) = string_into(raw, &mut query_buf) else {
-        return write_error("search", "invalid_request", "invalid query");
-    };
-    let Some(page) = page_number(req) else {
-        return write_error("search", "invalid_request", "invalid page cursor");
-    };
-    if trim_ascii(query).is_empty() {
-        return fetch_list("search", b"/category/order/hits", page);
-    }
-    let mut route = [0; 3072];
+    let genre = extract_json_string(filters, b"genre").unwrap_or(b"0");
+    let status = extract_json_string(filters, b"status").unwrap_or(b"0");
+    let sort = extract_json_string(filters, b"sort").unwrap_or(default_sort);
+    if genre.len() > 10 || number(genre).is_none() || !matches!(status, b"0" | b"1" | b"2") || !matches!(sort, b"id" | b"hits" | b"addtime") { return Err(()); }
+    if genre == b"0" && status == b"0" && sort == default_sort { return Ok(None); }
     let mut n = 0;
-    if !write_bytes(&mut route, &mut n, b"/search/")
-        || !write_url_encoded(&mut route, &mut n, query)
-    {
-        return write_error("search", "invalid_request", "query too long");
+    // The site's own links omit unselected dimensions: tags/0 is a real
+    // empty route, not the absence of a genre (observed status-only case).
+    if !write_bytes(out, &mut n, b"/category")
+        || (genre != b"0" && (!write_bytes(out, &mut n, b"/tags/") || !write_bytes(out, &mut n, genre)))
+        || (status != b"0" && (!write_bytes(out, &mut n, b"/finish/") || !write_bytes(out, &mut n, status)))
+        || !write_bytes(out, &mut n, b"/order/") || !write_bytes(out, &mut n, sort) { return Err(()); }
+    Ok(Some(n))
+}
+fn run_search(req: &[u8]) -> u32 {
+    let Some(raw) = extract_json_string(args(req), b"query") else { return write_error("search", "invalid_request", "missing query"); };
+    let mut query_buf = [0; 1024];
+    let Some(query) = string_into(raw, &mut query_buf) else { return write_error("search", "invalid_request", "invalid query"); };
+    let Some(page) = page_number(req) else { return write_error("search", "invalid_request", "invalid page cursor"); };
+    let mut route = [0; 3072];
+    if trim_ascii(query).is_empty() {
+        return match filtered_route(req, b"hits", &mut route) {
+            Ok(Some(n)) => fetch_list("search", &route[..n], page),
+            Ok(None) => fetch_list("search", b"/category/order/hits", page),
+            Err(()) => write_error("search", "invalid_request", "invalid filters"),
+        };
     }
+    let mut n = 0;
+    if !write_bytes(&mut route, &mut n, b"/search/") || !write_url_encoded(&mut route, &mut n, query) { return write_error("search", "invalid_request", "query too long"); }
     fetch_list("search", &route[..n], page)
 }
-
 fn run_get_manga_list(req: &[u8]) -> u32 {
-    let Some(page) = page_number(req) else {
-        return write_error("get_manga_list", "invalid_request", "invalid page cursor");
-    };
+    let Some(page) = page_number(req) else { return write_error("get_manga_list", "invalid_request", "invalid page cursor"); };
     let listing = extract_json_string(args(req), b"listingId").unwrap_or(b"popular");
-    let route = match listing {
-        b"popular" => b"/category/order/hits" as &[u8],
-        b"latest" => b"/category/order/addtime" as &[u8],
+    let (route, sort) = match listing {
+        b"popular" => (b"/category/order/hits".as_slice(), b"hits".as_slice()),
+        b"latest" => (b"/category/order/addtime".as_slice(), b"addtime".as_slice()),
         _ => return write_error("get_manga_list", "invalid_request", "unknown listing"),
     };
-    fetch_list("get_manga_list", route, page)
+    let mut filtered = [0; 256];
+    match filtered_route(req, sort, &mut filtered) {
+        Ok(Some(n)) => fetch_list("get_manga_list", &filtered[..n], page),
+        Ok(None) => fetch_list("get_manga_list", route, page),
+        Err(()) => write_error("get_manga_list", "invalid_request", "invalid filters"),
+    }
 }
 
 fn fetch_manga_page(operation: &str, id: &[u8]) -> Result<usize, u32> {
@@ -1028,8 +1046,49 @@ pub extern "C" fn koma_source_get_home(_req_ptr: u32, _req_len: u32) -> u32 {
 }
 
 #[no_mangle]
-pub extern "C" fn koma_source_get_filters(_req_ptr: u32, _req_len: u32) -> u32 {
-    response_buffer().write_success("get_filters", br#"{"filters":[]}"#)
+pub extern "C" fn koma_source_get_filters(req_ptr: u32, req_len: u32) -> u32 {
+    let Some(req) = read_request(req_ptr, req_len) else {
+        return write_error("get_filters", "invalid_request", "empty request");
+    };
+    // Older hosts have no scope contract: preserve the 0.1.4 empty schema.
+    let supported = json_object_member(req, b"hostFeatures").map(|v| {
+        let v = trim_ascii(v);
+        v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|c| *c == b',')
+            .any(|item| trim_ascii(item) == b"\"source_filter_scope_header_v1\"")
+    }).unwrap_or(false);
+    if !supported { return response_buffer().write_success("get_filters", br#"{"filters":[]}"#); }
+    let out = payload_buf();
+    let mut n = 0;
+    if !write_bytes(out, &mut n, br#"{"filters":["#) { return write_error("get_filters", "internal_error", "overflow"); }
+    // The reference treats fetched genres as optional; status and sort remain usable offline.
+    if let Ok(len) = fetch_body(b"https://m.wmh1234.com/category/") {
+        let html = unsafe { core::slice::from_raw_parts(core::ptr::addr_of!(BODY_BUF).cast::<u8>(), len) };
+        if let Ok(d) = html_parse(html) {
+            let doc = OwnedDescriptor(d);
+            if let Ok(batch) = DescriptorBatch::select(doc.0, b"a.filter-tag") {
+                if batch.count > 0 && batch.count <= 512 {
+                    let mut entries = 0;
+                    let mut options = [0; 32768];
+                    let mut used = 0;
+                    for i in 0..batch.count {
+                        let Some(node) = batch.at(i) else { continue };
+                        let mut h = [0; 256]; let mut t = [0; 512];
+                        let Some(href) = attr_into(node, b"href", &mut h) else { continue };
+                        // The page also marks status/sort links filter-tag; only
+                        // the provider's tags route is a genre option.
+                        let Some(id) = href.strip_prefix(b"/category/tags/") else { continue };
+                        let Some(name) = text_into(node, &mut t) else { continue };
+                        if name.is_empty() || id.len() > 10 || number(id).is_none() { continue; }
+                        if !(entries == 0 || write_bytes(&mut options, &mut used, b",")) || !write_bytes(&mut options, &mut used, br##"{"value":""##) || !write_bytes(&mut options, &mut used, id) || !write_bytes(&mut options, &mut used, br##"","label":""##) || !append_json_escaped(&mut options, &mut used, name) || !write_bytes(&mut options, &mut used, br#""}"#) { return write_error("get_filters", "internal_error", "genre overflow"); }
+                        entries += 1;
+                    }
+                    if entries > 0 && (!write_bytes(out, &mut n, r#"{"id":"genre","name":"题材","type":"select","scope":"browse","options":["#.as_bytes()) || !write_bytes(out, &mut n, &options[..used]) || !write_bytes(out, &mut n, br#"],"default":"0"},"#)) { return write_error("get_filters", "internal_error", "overflow"); }
+                }
+            }
+        }
+    }
+    if !write_bytes(out, &mut n, r#"{"id":"status","name":"状态","type":"select","scope":"browse","options":[{"value":"0","label":"全部"},{"value":"1","label":"连载"},{"value":"2","label":"完结"}],"default":"0"},{"id":"sort","name":"排序","type":"select","scope":"browse","options":[{"value":"id","label":"最新"},{"value":"hits","label":"热门"},{"value":"addtime","label":"更新"}]}]}"#.as_bytes()) { return write_error("get_filters", "internal_error", "overflow"); }
+    write_success_payload("get_filters", n)
 }
 
 #[no_mangle]
