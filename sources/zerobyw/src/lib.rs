@@ -59,7 +59,7 @@ static mut SELECT_BUF: [u8; SELECT_CAP] = [0; SELECT_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.zerobyw.koma",
     name: "Zerobyw",
-    version: "0.1.5",
+    version: "0.1.6",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -461,6 +461,14 @@ fn manga_id_from_request<'a>(req: &'a [u8], op: &str) -> Result<&'a [u8], u32> {
     Ok(&manga_id[prefix.len()..])
 }
 
+// The detail link must be exactly the source's selected-site request URL;
+// never infer an unrelated homepage or rewrite stored manga/chapter identities.
+fn write_detail_url(base: &[u8], id: &[u8], out: &mut [u8], n: &mut usize) -> bool {
+    write_bytes(out, n, base)
+        && write_bytes(out, n, if is_pc_id(id) { b"/pc/details/?kuid=" } else { b"/comic/" })
+        && write_bytes(out, n, if is_pc_id(id) { &id[3..] } else { id })
+}
+
 fn fetch_detail_doc<'a>(
     req: &[u8],
     id: &[u8],
@@ -473,18 +481,7 @@ fn fetch_detail_doc<'a>(
         .ok_or_else(|| write_error(op, "internal_error", "referer overflow"))?;
     let url_buf = scratch_a();
     let mut uc = 0usize;
-    if !(write_bytes(url_buf, &mut uc, base)
-        && write_bytes(
-            url_buf,
-            &mut uc,
-            if is_pc_id(id) {
-                b"/pc/details/?kuid="
-            } else {
-                b"/comic/"
-            },
-        )
-        && write_bytes(url_buf, &mut uc, if is_pc_id(id) { &id[3..] } else { id }))
-    {
+    if !write_detail_url(base, id, url_buf, &mut uc) {
         return Err(write_error(op, "internal_error", "url overflow"));
     }
     let url =
@@ -691,10 +688,15 @@ fn run_get_manga(req: &[u8]) -> u32 {
     let mut c = 0usize;
     let mut cover_abs = [0u8; 768];
     let cover = cover_len.and_then(|n| make_absolute_url(base, &cover_buf[..n], &mut cover_abs));
-    let ok = write_bytes(payload, &mut c, br#"{"manga":{"id":"manga:"#)
+    let mut detail_url = [0u8; 1024];
+    let mut detail_url_len = 0usize;
+    let ok = write_detail_url(base, id, &mut detail_url, &mut detail_url_len)
+        && write_bytes(payload, &mut c, br#"{"manga":{"id":"manga:"#)
         && append_json_escaped(payload, &mut c, id)
         && write_bytes(payload, &mut c, br#"","title":""#)
         && append_json_escaped(payload, &mut c, clean_title(title))
+        && write_bytes(payload, &mut c, br#"","url":""#)
+        && append_json_escaped(payload, &mut c, &detail_url[..detail_url_len])
         && write_bytes(payload, &mut c, br#"","cover":"#)
         && if let Some(url) = cover {
             write_bytes(payload, &mut c, br#"{"kind":"url","url":""#)
