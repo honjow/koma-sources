@@ -31,3 +31,5 @@ runner but is absent from Koma's production Host ABI. The source now reads its
 existing `baseUrl` value from the per-request `settings` object, like other
 production sources. The default request backend, chapter identities and order
 are retained. A repaired build/import contract is not full live-site acceptance.
+
+2026-10-28：参考扩展 949dea252eb8e867b7b40834a26e13088764ff55 已采用 `/pc/pc/`、`/pc/details/?kuid=` 和 `/pc/view/index.php?zjid=`。新目录使用 `manga:pc-<数字>`，既有 `manga:<旧标识>` 及其章节继续走原 `/comic/` 路由，不能凭数字相同自动迁移用户进度。保留原默认地址和该地址对应的旧目录/搜索协议；用户配置其他地址后走新站协议。默认地址在本次验证中未连接成功，不把备用地址设为默认或自动替换用户配置。参考地址的目录、详情、章节与图片已按具名实站样本验证；页面变化和旧站内容可用性仍受站点实际状态约束。

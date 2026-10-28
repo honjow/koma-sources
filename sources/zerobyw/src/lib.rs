@@ -8,10 +8,10 @@ use koma_source_sdk::host::{
 };
 use koma_source_sdk::json_utils::{
     append_json_escaped, contains_bytes, extract_json_number, extract_json_string, find_subslice,
-    write_bytes, write_url_encoded, write_usize, json_object_member,
+    json_object_member, write_bytes, write_url_encoded, write_usize,
 };
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
-use koma_source_sdk::{FetchError, build_get_request, fetch_error_code, parse_status_code};
+use koma_source_sdk::{build_get_request, fetch_error_code, parse_status_code, FetchError};
 
 #[link(wasm_import_module = "koma_host")]
 unsafe extern "C" {
@@ -56,7 +56,7 @@ static mut SELECT_BUF: [u8; SELECT_CAP] = [0; SELECT_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.zerobyw.koma",
     name: "Zerobyw",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -77,7 +77,6 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     image_request: true,
     credentials: false,
 };
-
 
 struct OwnedDescriptor(HtmlDescriptor);
 
@@ -104,7 +103,9 @@ fn current_base_url<'a>(req: &[u8], out: &'a mut [u8]) -> &'a [u8] {
         .map(|value| trim_trailing_slash(trim_ascii(value)));
     if let Some(value) = value {
         if (value.starts_with(b"http://") || value.starts_with(b"https://"))
-            && value.len() <= out.len() && !value.contains(&b'\\') {
+            && value.len() <= out.len()
+            && !value.contains(&b'\\')
+        {
             out[..value.len()].copy_from_slice(value);
             return &out[..value.len()];
         }
@@ -159,7 +160,16 @@ fn make_absolute_url<'a>(base: &[u8], url: &[u8], out: &'a mut [u8]) -> Option<&
     }
     let mut c = 0usize;
     if url.starts_with(b"//") {
-        write_bytes(out, &mut c, b"https:").then_some(())?;
+        write_bytes(
+            out,
+            &mut c,
+            if base.starts_with(b"http://") {
+                b"http:"
+            } else {
+                b"https:"
+            },
+        )
+        .then_some(())?;
         write_bytes(out, &mut c, url).then_some(())?;
     } else if url.starts_with(b"/") {
         write_bytes(out, &mut c, base).then_some(())?;
@@ -173,6 +183,20 @@ fn make_absolute_url<'a>(base: &[u8], url: &[u8], out: &'a mut [u8]) -> Option<&
 }
 
 fn id_from_comic_path<'a>(href: &[u8], out: &'a mut [u8]) -> Option<&'a [u8]> {
+    // New provider IDs use a distinct prefix so old /comic/ identities remain valid.
+    if let Some(start) = find_subslice(href, b"/details/?kuid=") {
+        let start = start + b"/details/?kuid=".len();
+        let mut end = start;
+        while end < href.len() && href[end].is_ascii_digit() {
+            end += 1;
+        }
+        if end == start || end - start + 3 > out.len() {
+            return None;
+        }
+        out[..3].copy_from_slice(b"pc-");
+        out[3..3 + end - start].copy_from_slice(&href[start..end]);
+        return Some(&out[..3 + end - start]);
+    }
     let marker = b"/comic/";
     let start = find_subslice(href, marker)? + marker.len();
     let mut end = start;
@@ -189,6 +213,11 @@ fn id_from_comic_path<'a>(href: &[u8], out: &'a mut [u8]) -> Option<&'a [u8]> {
     }
     out[..end - start].copy_from_slice(&href[start..end]);
     Some(&out[..end - start])
+}
+
+// New IDs are namespaced to avoid rewriting old saved /comic/ identities.
+fn is_pc_id(id: &[u8]) -> bool {
+    id.len() > 3 && id.starts_with(b"pc-") && id[3..].iter().all(|byte| byte.is_ascii_digit())
 }
 
 fn clean_title(title: &[u8]) -> &[u8] {
@@ -292,7 +321,15 @@ fn run_search(req: &[u8]) -> u32 {
     let url_buf = scratch_a();
     let mut uc = 0usize;
     if !(write_bytes(url_buf, &mut uc, base)
-        && write_bytes(url_buf, &mut uc, b"/comic/search?query=")
+        && write_bytes(
+            url_buf,
+            &mut uc,
+            if base == DEFAULT_BASE_URL {
+                b"/comic/search?query="
+            } else {
+                b"/pc/pc/?keyword="
+            },
+        )
         && write_url_encoded(url_buf, &mut uc, query)
         && write_bytes(url_buf, &mut uc, b"&page=")
         && write_bytes(url_buf, &mut uc, page))
@@ -319,7 +356,11 @@ fn run_search(req: &[u8]) -> u32 {
     let selects = select_buf();
     let count = html_select_all(
         doc.0.raw(),
-        b"a.uk-card, div.uk-card, a[href*=\"/comic/\"]",
+        if base == DEFAULT_BASE_URL {
+            b"a.uk-card, div.uk-card, a[href*=\"/comic/\"]"
+        } else {
+            b"a[href*=\"/details/?kuid=\"]"
+        },
         selects,
     );
     let max = if count > 0 { count as usize } else { 0 }.min(200);
@@ -350,8 +391,14 @@ fn run_search(req: &[u8]) -> u32 {
         let mut id_buf = [0u8; 256];
         let href = attr_into(hd, b"href", &mut href_buf);
         let id = href.and_then(|h| id_from_comic_path(h, &mut id_buf));
-        let title_len = html_attr(hd, b"title", &mut title_buf)
+        let title_len = html_select(hd, b"h3")
             .ok()
+            .and_then(|p| {
+                let len = html_text(p, &mut title_buf).ok();
+                let _ = html_close(p);
+                len
+            })
+            .or_else(|| html_attr(hd, b"title", &mut title_buf).ok())
             .filter(|n| *n > 0)
             .or_else(|| html_text(hd, &mut title_buf).ok());
 
@@ -382,11 +429,19 @@ fn run_search(req: &[u8]) -> u32 {
         let _ = html_close(hd);
     }
 
-    if !write_bytes(
-        payload,
-        &mut c,
-        br#"],"page":{"nextCursor":null,"hasMore":false}}"#,
-    ) {
+    let more = has_next_page(doc.0);
+    if !(write_bytes(payload, &mut c, br#"],"page":{"nextCursor": "#)
+        && if more {
+            write_bytes(payload, &mut c, b"\"")
+                && write_usize(payload, &mut c, parse_status_code(page) as usize + 1)
+                && write_bytes(payload, &mut c, b"\"")
+        } else {
+            write_bytes(payload, &mut c, b"null")
+        }
+        && write_bytes(payload, &mut c, br#", "hasMore": "#)
+        && write_bytes(payload, &mut c, if more { b"true" } else { b"false" })
+        && write_bytes(payload, &mut c, b"}}"))
+    {
         return write_error("search", "internal_error", "payload overflow");
     }
     write_success_payload("search", c)
@@ -416,8 +471,16 @@ fn fetch_detail_doc<'a>(
     let url_buf = scratch_a();
     let mut uc = 0usize;
     if !(write_bytes(url_buf, &mut uc, base)
-        && write_bytes(url_buf, &mut uc, b"/comic/")
-        && write_bytes(url_buf, &mut uc, id))
+        && write_bytes(
+            url_buf,
+            &mut uc,
+            if is_pc_id(id) {
+                b"/pc/details/?kuid="
+            } else {
+                b"/comic/"
+            },
+        )
+        && write_bytes(url_buf, &mut uc, if is_pc_id(id) { &id[3..] } else { id }))
     {
         return Err(write_error(op, "internal_error", "url overflow"));
     }
@@ -438,11 +501,17 @@ fn first_text(doc: HtmlDescriptor, selectors: &[&[u8]], out: &mut [u8]) -> Optio
     let mut i = 0usize;
     while i < selectors.len() {
         if let Ok(d) = html_select(doc, selectors[i]) {
+            let out_start = out.as_ptr() as usize;
             if let Some(t) = text_into(d, out) {
                 if !t.is_empty() {
-                    return Some(t.len());
+                    let start = t.as_ptr() as usize - out_start;
+                    let len = t.len();
+                    out.copy_within(start..start + len, 0);
+                    let _ = html_close(d);
+                    return Some(len);
                 }
             }
+            let _ = html_close(d);
         }
         i += 1;
     }
@@ -470,12 +539,34 @@ fn first_attr(
 }
 
 fn has_next_page(doc: HtmlDescriptor) -> bool {
-    html_select(doc, b"div.pg > a.nxt, a.nxt, a[rel=\"next\"]")
-        .map(|d| {
-            let _ = html_close(d);
-            true
-        })
-        .unwrap_or(false)
+    if let Ok(d) = html_select(doc, b"div.pg > a.nxt, a.nxt, a[rel=\"next\"]") {
+        let _ = html_close(d);
+        return true;
+    }
+    let selects = select_buf();
+    let count = html_select_all(doc.raw(), b"a[href*=\"page=\"]", selects);
+    for i in 0..(count.max(0) as usize).min(500) {
+        let off = i * 4;
+        let raw = i32::from_le_bytes([
+            selects[off],
+            selects[off + 1],
+            selects[off + 2],
+            selects[off + 3],
+        ]);
+        if raw <= 0 {
+            continue;
+        }
+        let node = desc_from_i32(raw);
+        let mut buf = [0u8; 128];
+        let next = text_into(node, &mut buf)
+            .map(|v| contains_bytes(v, "下一页".as_bytes()))
+            .unwrap_or(false);
+        let _ = html_close(node);
+        if next {
+            return true;
+        }
+    }
+    false
 }
 
 fn run_get_manga(req: &[u8]) -> u32 {
@@ -495,6 +586,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
     let title_len = first_text(
         doc.0,
         &[
+            b"main h1",
             b"h3.uk-heading-line",
             b"h1",
             b".comic-title",
@@ -513,6 +605,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
     let cover_len = first_attr(
         doc.0,
         &[
+            b"main img.object-contain",
             b"div.uk-width-medium > img",
             b".cover img",
             b".comic-cover img",
@@ -526,6 +619,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
         first_attr(
             doc.0,
             &[
+                b"main img.object-contain",
                 b"div.uk-width-medium > img",
                 b".cover img",
                 b".comic-cover img",
@@ -541,6 +635,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
     let author_len = first_text(
         doc.0,
         &[
+            b"main div.flex-wrap.text-sm > span",
             b"div.cl > a.uk-label",
             b".author",
             b".authors",
@@ -552,6 +647,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
     let desc_len = first_text(
         doc.0,
         &[
+            b"p[x-ref=summaryText]",
             b"li > div.uk-alert",
             b".description",
             b".summary",
@@ -562,11 +658,37 @@ fn run_get_manga(req: &[u8]) -> u32 {
         &mut desc_buf,
     );
 
+    // The provider prefixes its first metadata label with “作者: ”.
+    let author = author_len.map(|n| {
+        let value = trim_ascii(&author_buf[..n]);
+        value
+            .strip_prefix("作者:".as_bytes())
+            .map(trim_ascii)
+            .unwrap_or(value)
+    });
+    let status: &[u8] = if let Ok(d) = html_select(doc.0, b"main div.flex-wrap.text-sm") {
+        let mut buf = [0u8; 4096];
+        let value = text_into(d, &mut buf)
+            .map(|v| {
+                if contains_bytes(v, "已完结".as_bytes()) {
+                    b"completed" as &[u8]
+                } else if contains_bytes(v, "连载中".as_bytes()) {
+                    b"ongoing" as &[u8]
+                } else {
+                    b"unknown" as &[u8]
+                }
+            })
+            .unwrap_or(b"unknown");
+        let _ = html_close(d);
+        value
+    } else {
+        b"unknown"
+    };
     let payload = payload_buf();
     let mut c = 0usize;
     let mut cover_abs = [0u8; 768];
     let cover = cover_len.and_then(|n| make_absolute_url(base, &cover_buf[..n], &mut cover_abs));
-    let ok = write_bytes(payload, &mut c, br#"{"id":"manga:"#)
+    let ok = write_bytes(payload, &mut c, br#"{"manga":{"id":"manga:"#)
         && append_json_escaped(payload, &mut c, id)
         && write_bytes(payload, &mut c, br#"","title":""#)
         && append_json_escaped(payload, &mut c, clean_title(title))
@@ -579,24 +701,26 @@ fn run_get_manga(req: &[u8]) -> u32 {
             write_bytes(payload, &mut c, br#"{"kind":"none"}"#)
         }
         && write_bytes(payload, &mut c, br#","authors":["#)
-        && if let Some(n) = author_len {
+        && if let Some(author) = author {
             write_bytes(payload, &mut c, b"\"")
-                && append_json_escaped(payload, &mut c, trim_ascii(&author_buf[..n]))
+                && append_json_escaped(payload, &mut c, author)
                 && write_bytes(payload, &mut c, b"\"")
         } else {
             true
         }
+        && write_bytes(payload, &mut c, br#"],"status":""#)
+        && write_bytes(payload, &mut c, status)
         && write_bytes(
             payload,
             &mut c,
-            br#"],"status":"unknown","contentRating":"nsfw","description":""#,
+            br#"","contentRating":"nsfw","description":""#,
         )
         && if let Some(n) = desc_len {
             append_json_escaped(payload, &mut c, trim_ascii(&desc_buf[..n]))
         } else {
             true
         }
-        && write_bytes(payload, &mut c, br#"","sourceTags":["zerobyw"]}"#);
+        && write_bytes(payload, &mut c, br#"","sourceTags":["zerobyw"]}}"#);
     if !ok {
         return write_error("get_manga", "internal_error", "payload overflow");
     }
@@ -617,7 +741,15 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         };
 
     let selects = select_buf();
-    let count = html_select_all(doc.0.raw(), b"div.uk-grid-collapse > div.muludiv a.uk-button-default, a[href*=\"chapter\"], a[href*=\"/read/\"]", selects);
+    let count = html_select_all(
+        doc.0.raw(),
+        if is_pc_id(id) {
+            b"div.grid a[href*=\"/view/index.php\"]"
+        } else {
+            b"div.uk-grid-collapse > div.muludiv a.uk-button-default, a[href*=\"chapter\"], a[href*=\"/read/\"]"
+        },
+        selects,
+    );
     let max = if count > 0 { count as usize } else { 0 }.min(1000);
     let payload = payload_buf();
     let mut c = 0usize;
@@ -627,7 +759,11 @@ fn run_get_chapters(req: &[u8]) -> u32 {
 
     let mut written = 0usize;
     for i in 0..max {
-        let off = i * 4;
+        let off = if is_pc_id(id) {
+            (max - 1 - i) * 4
+        } else {
+            i * 4
+        };
         if off + 4 > selects.len() {
             break;
         }
@@ -646,7 +782,11 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         let href = attr_into(hd, b"href", &mut href_buf);
         let path = href.and_then(|h| normalize_chapter_path(base, h, &mut path_buf));
         let is_chapter = path
-            .map(|p| contains_bytes(p, b"chapter") || contains_bytes(p, b"/read/"))
+            .map(|p| {
+                contains_bytes(p, b"chapter")
+                    || contains_bytes(p, b"/read/")
+                    || contains_bytes(p, b"/view/index.php?")
+            })
             .unwrap_or(false);
         if !is_chapter {
             let _ = html_close(hd);
@@ -807,7 +947,11 @@ fn run_get_pages(req: &[u8]) -> u32 {
     let selects = select_buf();
     let count = html_select_all(
         doc.0.raw(),
-        b"div.uk-text-center > img, img[class*=\"chapter\"], img[class*=\"page\"], img",
+        if is_pc_id(_manga_id) {
+            b"#image-container img.manga-image"
+        } else {
+            b"div.uk-text-center > img, img[class*=\"chapter\"], img[class*=\"page\"], img"
+        },
         selects,
     );
     let max = if count > 0 { count as usize } else { 0 }.min(1000);
@@ -854,7 +998,9 @@ fn run_get_pages(req: &[u8]) -> u32 {
         }
         let _ = html_close(hd);
     }
-    if written == 0 && !append_js_image_urls(html, base, payload, &mut c, chapter_id, &mut written)
+    if written == 0
+        && !is_pc_id(_manga_id)
+        && !append_js_image_urls(html, base, payload, &mut c, chapter_id, &mut written)
     {
         return write_error("get_pages", "internal_error", "payload overflow");
     }
@@ -866,7 +1012,8 @@ fn run_get_pages(req: &[u8]) -> u32 {
 }
 
 fn run_get_listings(_req: &[u8]) -> u32 {
-    const LISTINGS: &[u8] = br#"{"listings":[{"id":"popular","title":"Popular"}]}"#;
+    const LISTINGS: &[u8] =
+        br#"{"listings":[{"id":"popular","name":"Popular","supportsPaging":true}]}"#;
     let payload = payload_buf();
     if LISTINGS.len() > payload.len() {
         return write_error("get_listings", "internal_error", "payload overflow");
@@ -889,7 +1036,15 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     let url_buf = scratch_a();
     let mut uc = 0usize;
     if !(write_bytes(url_buf, &mut uc, base)
-        && write_bytes(url_buf, &mut uc, b"/comic/category/order/hit/page/")
+        && write_bytes(
+            url_buf,
+            &mut uc,
+            if base == DEFAULT_BASE_URL {
+                b"/comic/category/order/hit/page/"
+            } else {
+                b"/pc/pc/?page="
+            },
+        )
         && write_bytes(url_buf, &mut uc, page))
     {
         return write_error("get_manga_list", "internal_error", "url overflow");
@@ -913,7 +1068,11 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     let selects = select_buf();
     let count = html_select_all(
         doc.0.raw(),
-        b"a.uk-card, div.uk-card, a[href*=\"/comic/\"]",
+        if base == DEFAULT_BASE_URL {
+            b"a.uk-card, div.uk-card, a[href*=\"/comic/\"]"
+        } else {
+            b"a[href*=\"/details/?kuid=\"]"
+        },
         selects,
     );
     let max = if count > 0 { count as usize } else { 0 }.min(500);
@@ -953,7 +1112,7 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
             });
         let href = href_len.map(|n| trim_ascii(&href_buf[..n]));
         let id = href.and_then(|h| id_from_comic_path(h, &mut id_buf));
-        let title_len = html_select(hd, b"p.mt5")
+        let title_len = html_select(hd, b"h3")
             .ok()
             .and_then(|p| {
                 let len = html_text(p, &mut title_buf).ok();
