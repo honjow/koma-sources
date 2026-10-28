@@ -10,7 +10,7 @@ type E = &'static str;
 type R<T> = Result<T, E>;
 const MAX: usize = 1048576;
 const WEB: &[u8] = b"https://asmhentai.com";
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.asmhentai.zh.koma",name:"AsmHentai",version:"0.1.2",api_version:"0.2",language:"zh",author:"Koma",description:"AsmHentai provider Chinese catalogue; per-work rating and usage unknown. Anonymous published metadata only.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.asmhentai.zh.koma",name:"AsmHentai",version:"0.1.3",api_version:"0.2",language:"zh",author:"Koma",description:"AsmHentai provider Chinese catalogue; per-work rating and usage unknown. Anonymous published metadata only.",content_rating:"nsfw"};
 #[allow(dead_code)]
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
@@ -568,7 +568,13 @@ fn imgattr<'a>(d: HtmlDescriptor, b: &'a mut [u8]) -> R<&'a [u8]> {
         b"srcset",
         b"src",
     ] {
-        let n = host::html_attr(d, k, b).map_err(|_| "image attribute")?;
+        // The native Host returns -1 for a missing attribute; the image node is
+        // already selected, so keep looking for the next provider attribute.
+        let n = match host::html_attr(d, k, b) {
+            Ok(n) => n,
+            Err(-1) => continue,
+            Err(_) => return Err("image attribute"),
+        };
         if n >= b.len() {
             return Err("image attribute capacity");
         };
