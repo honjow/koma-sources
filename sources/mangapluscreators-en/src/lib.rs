@@ -9,7 +9,7 @@ const ASSET: &[u8] = b"https://assets.mangaplus-creators.jp";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mangapluscreators.en.koma",
     name: "MANGA Plus Creators by SHUEISHA",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "en",
     author: "Koma",
@@ -619,7 +619,20 @@ fn list(r: &[u8], search: bool) -> R<usize> {
                 return Err("listing identity");
             }
         }
-        b"https://mangaplus-creators.jp/titles/popular/?p=m&l=en"
+        let filters = member(a, b"filters")?.unwrap_or(b"{}");
+        let genre = member(filters, b"genre")?.map(quoted).transpose()?.unwrap_or(b"");
+        let sort = member(filters, b"sort")?.map(quoted).transpose()?.unwrap_or(b"");
+        if !matches!(genre, b"" | b"fantasy" | b"action" | b"romance" | b"horror" | b"slice_of_life" | b"comedy" | b"sports" | b"sf" | b"mystery" | b"others") || !matches!(sort, b"" | b"popular" | b"latest_desc" | b"like_desc") { return Err("invalid filters"); }
+        if genre.is_empty() && sort.is_empty() {
+            b"https://mangaplus-creators.jp/titles/popular/?p=m&l=en".as_slice()
+        } else {
+            let mut n = 0;
+            bytes(&mut u, &mut n, b"https://mangaplus-creators.jp/genres")?;
+            if !genre.is_empty() { bytes(&mut u, &mut n, b"/")?; bytes(&mut u, &mut n, genre)?; }
+            bytes(&mut u, &mut n, b"?l=en")?;
+            if !sort.is_empty() && sort != b"popular" { bytes(&mut u, &mut n, b"&s=")?; bytes(&mut u, &mut n, sort)?; }
+            &u[..n]
+        }
     };
     let d = fetch(url)?;
     let cards = All::new(
@@ -1146,8 +1159,16 @@ fn run_get_listings(_: &[u8]) -> u32 {
 fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_supported", "not supported")
 }
-fn run_get_filters(_: &[u8]) -> u32 {
-    write_error("get_filters", "not_supported", "not supported")
+fn run_get_filters(r: &[u8]) -> u32 {
+    let supported = json_object_member(r, b"hostFeatures").map(|v| {
+        let v = trim_ascii(v);
+        v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|c| *c == b',')
+            .any(|item| trim_ascii(item) == b"\"source_filter_scope_header_v1\"")
+    }).unwrap_or(false);
+    // Old hosts get no controls; the scope and static note require the new contract.
+    let schema = if supported { br#"{"filters":[{"id":"note","type":"header","name":"NOTE: Ignored if using text search!","scope":"browse"},{"id":"sort","name":"Sort","type":"select","scope":"browse","options":[{"value":"popular","label":"Popularity"},{"value":"latest_desc","label":"Date"},{"value":"like_desc","label":"Likes"}]},{"id":"genre","name":"Genres","type":"select","scope":"browse","options":[{"value":"fantasy","label":"Fantasy"},{"value":"action","label":"Action"},{"value":"romance","label":"Romance"},{"value":"horror","label":"Horror"},{"value":"slice_of_life","label":"Slice of Life"},{"value":"comedy","label":"Comedy"},{"value":"sports","label":"Sports"},{"value":"sf","label":"Sci-Fi"},{"value":"mystery","label":"Mystery"},{"value":"others","label":"Others"}]}]}"#.as_slice() } else { br#"{"filters":[]}"#.as_slice() };
+    payload_buf()[..schema.len()].copy_from_slice(schema);
+    write_success_payload("get_filters", schema.len())
 }
 fn run_get_settings(_: &[u8]) -> u32 {
     write_error("get_settings", "not_supported", "not supported")
@@ -1172,7 +1193,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
-    response_buffer().write_success_parts("source_info", &[b"{\"sourceInfo\":{\"id\":\"com.mangapluscreators.en.koma\",\"name\":\"MANGA Plus Creators by SHUEISHA\",\"version\":\"0.1.3\",\"apiVersion\":\"0.2\",\"language\":\"en\",\"author\":\"Koma\",\"description\":\"Official English creator catalogue. Per-work rating and source usage unknown.\",\"contentRating\":\"safe\",\"localizedNames\":", "{\"zh-Hans\":\"MANGA Plus Creators（英语）\",\"zh-Hant\":\"MANGA Plus Creators（英語）\",\"en\":\"MANGA Plus Creators by SHUEISHA\"}".as_bytes(), b"},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":false,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}"])
+    response_buffer().write_success_parts("source_info", &[b"{\"sourceInfo\":{\"id\":\"com.mangapluscreators.en.koma\",\"name\":\"MANGA Plus Creators by SHUEISHA\",\"version\":\"0.1.4\",\"apiVersion\":\"0.2\",\"language\":\"en\",\"author\":\"Koma\",\"description\":\"Official English creator catalogue. Per-work rating and source usage unknown.\",\"contentRating\":\"safe\",\"localizedNames\":", "{\"zh-Hans\":\"MANGA Plus Creators（英语）\",\"zh-Hant\":\"MANGA Plus Creators（英語）\",\"en\":\"MANGA Plus Creators by SHUEISHA\"}".as_bytes(), b"},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":true,\"settings\":false,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}"])
 }
 macro_rules! export_op {
     ($f:ident,$op:literal,$run:ident) => {
