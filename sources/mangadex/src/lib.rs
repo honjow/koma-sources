@@ -137,7 +137,7 @@ fn append_manga_title(out: &mut [u8], n: &mut usize, obj: &[u8], req: &[u8]) -> 
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "org.mangadex.koma",
     name: "MangaDex",
-    version: "0.1.23",
+    version: "0.1.24",
     api_version: "0.2",
     language: "en",
     author: "Koma",
@@ -374,6 +374,18 @@ fn run_search(req: &[u8]) -> u32 {
         && append_content_rating_query(url_buf, &mut url_cursor, req, true)
         && write_bytes(url_buf, &mut url_cursor, original_language::query(req, b"originalLanguage_en", true));
     if !ok { return write_error("search", "internal_error", "url overflow"); }
+    // The same visible filters apply to search as to the catalogue. Missing or
+    // default values retain the original search URL and API relevance order.
+    let filters = json_object_member(args, b"filters").unwrap_or(b"{}");
+    for (key, prefix) in [(b"status".as_slice(),b"&status%5B%5D=".as_slice()),(b"demographic".as_slice(),b"&publicationDemographic%5B%5D=".as_slice())] {
+        if let Some(v) = extract_json_string(filters,key) {
+            let valid = if key == b"status" { matches!(v,b"ongoing"|b"completed"|b"hiatus"|b"cancelled") } else { matches!(v,b"shounen"|b"shoujo"|b"seinen"|b"josei") };
+            if valid && !(write_bytes(url_buf,&mut url_cursor,prefix) && write_bytes(url_buf,&mut url_cursor,v)) {return write_error("search","internal_error","url overflow");}
+        }
+    }
+    if let Some(v)=extract_json_string(filters,b"order") {
+        if matches!(v,b"followedCount"|b"latestUploadedChapter"|b"createdAt"|b"title") && !(write_bytes(url_buf,&mut url_cursor,b"&order%5B") && write_bytes(url_buf,&mut url_cursor,v) && write_bytes(url_buf,&mut url_cursor,b"%5D=desc")) {return write_error("search","internal_error","url overflow");}
+    }
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
 
     let api_json = match fetch_json(url_bytes) {

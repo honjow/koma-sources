@@ -30,4 +30,4 @@ On Hosts declaring `source_settings_context_v1`, get_settings with present `args
 
 When English Latest returns more than 20 manga under exclusions, the existing first-volume cover preference applies the same ordered locale match to each bounded batch; failures keep each original cover. The preference remains disabled by default.
 
-Search decodes the JSON query before URL encoding, preserving literal quotes, backslashes and Unicode. Empty searches, pagination, filters and ordinary query requests retain their existing behavior.
+Search decodes the JSON query before URL encoding, preserving literal quotes, backslashes and Unicode. Search applies the existing status, demographic and order filters; missing or default values retain the original request and relevance order. Empty searches and pagination retain their existing behavior.
