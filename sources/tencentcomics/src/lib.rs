@@ -14,7 +14,7 @@ const BASE: &[u8] = b"https://ac.qq.com";
 const MOBILE: &[u8] = b"https://m.ac.qq.com";
 const UA:&[u8]=b"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36";
 const MOBILE_UA:&[u8]=b"Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36";
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.tencentcomics.koma",name:"腾讯动漫",version:"0.1.2",api_version:"0.2",language:"zh",author:"Koma",description:"Tencent Comics public catalogues and free chapters; paid content and JavaScript execution are unsupported.",content_rating:"safe"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.tencentcomics.koma",name:"腾讯动漫",version:"0.1.3",api_version:"0.2",language:"zh",author:"Koma",description:"Tencent Comics public catalogues and free chapters; paid content and JavaScript execution are unsupported.",content_rating:"safe"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -23,7 +23,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     listings: true,
     manga_list: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: false,
     credentials: false,
     image_request: true,
@@ -307,6 +307,13 @@ fn failure(op: &str, e: FetchError) -> u32 {
     let (c, m) = fetch_error_code(e);
     source_error(op, c, m)
 }
+// Browse filters preserve the listing default; title search never consumes them.
+fn browse_filters_supported(r: &[u8]) -> bool {
+    json_object_member(r, b"hostFeatures").map(trim_ascii).map_or(false, |v| v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|b| *b == b',').any(|p| trim_ascii(p)==b"\"source_filter_scope_header_v1\""))
+}
+fn filter_value<'a>(f: &'a [u8], key: &[u8]) -> Option<&'a [u8]> {
+    json_object_member(f,key).and_then(|v| v.strip_prefix(b"\"")?.strip_suffix(b"\""))
+}
 fn list(req: &[u8], op: &str) -> u32 {
     let page = request_page_number(req);
     if page > 1000 {
@@ -334,19 +341,18 @@ fn list(req: &[u8], op: &str) -> u32 {
             && write_bytes(&mut u, &mut n, b"&page=")
             && write_usize(&mut u, &mut n, page)
     } else {
-        write_bytes(&mut u, &mut n, BASE)
-            && write_bytes(&mut u, &mut n, b"/Comic/all/search/")
-            && write_bytes(
-                &mut u,
-                &mut n,
-                if listing == b"latest" {
-                    b"time"
-                } else {
-                    b"hot"
-                },
-            )
-            && write_bytes(&mut u, &mut n, b"/page/")
-            && write_usize(&mut u, &mut n, page)
+        let f = if browse_filters_supported(req) { json_object_member(req,b"args").and_then(|v|json_object_member(v,b"filters")).unwrap_or(b"{}") } else { b"{}" };
+        let genre = filter_value(f,b"genre").unwrap_or(b"all");
+        let status = filter_value(f,b"status").unwrap_or(b"all");
+        let vip = filter_value(f,b"vip").unwrap_or(b"all");
+        let sort = filter_value(f,b"sort").unwrap_or(if listing==b"latest" {b"time"} else {b"hot"});
+        if ![b"all".as_slice(),b"105",b"101",b"103",b"110",b"106",b"108",b"112",b"102",b"104",b"111",b"109",b"113",b"114",b"115",b"116",b"117"].contains(&genre) || ![b"all".as_slice(),b"1",b"2"].contains(&status) || ![b"all".as_slice(),b"1",b"2"].contains(&vip) || ![b"hot".as_slice(),b"time"].contains(&sort) { return source_error(op,"invalid_request","invalid browse filter"); }
+        write_bytes(&mut u,&mut n,BASE) && write_bytes(&mut u,&mut n,b"/Comic/all/")
+            && (genre == b"all" || (write_bytes(&mut u,&mut n,b"theme/") && write_bytes(&mut u,&mut n,genre) && write_bytes(&mut u,&mut n,b"/")))
+            && (status == b"all" || (write_bytes(&mut u,&mut n,b"finish/") && write_bytes(&mut u,&mut n,status) && write_bytes(&mut u,&mut n,b"/")))
+            && write_bytes(&mut u,&mut n,b"search/") && write_bytes(&mut u,&mut n,sort) && write_bytes(&mut u,&mut n,b"/")
+            && (vip == b"all" || (write_bytes(&mut u,&mut n,b"vip/") && write_bytes(&mut u,&mut n,vip) && write_bytes(&mut u,&mut n,b"/")))
+            && write_bytes(&mut u,&mut n,b"page/") && write_usize(&mut u,&mut n,page)
     };
     if !ok {
         return source_error(op, "invalid_request", "query too long");
@@ -790,8 +796,10 @@ fn run_get_listings(_: &[u8]) -> u32 {
 fn run_get_home(_: &[u8]) -> u32 {
     source_error("get_home", "not_implemented", "")
 }
-fn run_get_filters(_: &[u8]) -> u32 {
-    source_error("get_filters", "not_implemented", "")
+fn run_get_filters(r: &[u8]) -> u32 {
+    let data = if browse_filters_supported(r) { r###"{"filters":[{"id":"notice","type":"header","scope":"browse","name":"注意：不影響按標題搜索"},{"id":"sort","name":"热门人气/更新时间","type":"select","scope":"browse","options":[{"value":"hot","label":"热门人气"},{"value":"time","label":"更新时间"}]},{"id":"vip","name":"属性","type":"select","scope":"browse","options":[{"value":"all","label":"全部"},{"value":"2","label":"付费"},{"value":"1","label":"免费"}]},{"id":"status","name":"进度","type":"select","scope":"browse","options":[{"value":"all","label":"全部"},{"value":"1","label":"连载中"},{"value":"2","label":"已完结"}]},{"id":"genre","name":"标签","type":"select","scope":"browse","options":[{"value":"all","label":"全部"},{"value":"105","label":"恋爱"},{"value":"101","label":"玄幻"},{"value":"103","label":"异能"},{"value":"110","label":"恐怖"},{"value":"106","label":"剧情"},{"value":"108","label":"科幻"},{"value":"112","label":"悬疑"},{"value":"102","label":"奇幻"},{"value":"104","label":"冒险"},{"value":"111","label":"犯罪"},{"value":"109","label":"动作"},{"value":"113","label":"日常"},{"value":"114","label":"竞技"},{"value":"115","label":"武侠"},{"value":"116","label":"历史"},{"value":"117","label":"战争"}]}]}"###.as_bytes() } else { b"{\"filters\":[]}" };
+    payload_buf()[..data.len()].copy_from_slice(data);
+    write_success_payload("get_filters",data.len())
 }
 fn run_get_settings(_: &[u8]) -> u32 {
     source_error("get_settings", "not_implemented", "")

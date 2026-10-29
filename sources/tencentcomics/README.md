@@ -1,4 +1,4 @@
-# 腾讯动漫 0.1.2
+# 腾讯动漫 0.1.3
 
 Public Chinese catalogues, title search, details and ordered chapters. Pages are
 limited to chapters currently marked free in the public catalogue and whose page
@@ -37,3 +37,5 @@ search 一人 traverses 10 results then 2 distinct results and terminates; its
 second native search page remains unverified.
 
 Current 0.1.2 chapter semantics use explicit numeric labels with the reviewed separators to populate chapterNumber; unknown labels remain unknown and are not numbered by index or chapter ID. Original chapter identity/order and paid/locked identity are retained; paid content is not requested. The exact reviewed owner, retained 835-record contract/output comparison and source diff are preserved in `/private/tmp/koma-tencent012-chapter-semantics-20261017/` (Root review included). This canonical integration preserves that parser and adopts the current shared SDK/standard flags; the historical 0.1.1 acceptance above is not acceptance of newly compiled canonical WASM. Current icon identity and its Native visual limits are described in ASSET_SOURCES.md.
+
+目录支持参考排序、属性、进度和标签筛选；未选择排序时分别保留热门与最新原路由，标题搜索不消费这些筛选。旧宿主不展示新筛选。
