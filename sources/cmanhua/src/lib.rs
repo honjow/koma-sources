@@ -12,7 +12,7 @@ const BASE: &[u8] = b"https://cmanhua.com";
 const INFO: SourceInfo = SourceInfo {
     id: "com.cmanhua.koma",
     name: "CManhua",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -29,7 +29,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     manga_list: true,
     image_request: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: false,
     credentials: false,
 };
@@ -324,7 +324,7 @@ fn make_form(doc: &[u8], event: &[u8]) -> Result<&'static [u8], &'static str> {
     }
     Ok(unsafe { core::slice::from_raw_parts(b.as_ptr(), n) })
 }
-fn next_cursor(doc: &[u8], sort: &[u8]) -> Result<Option<&'static [u8]>, &'static str> {
+fn next_cursor(doc: &[u8], sort: &[u8], status: &[u8]) -> Result<Option<&'static [u8]>, &'static str> {
     let next = Tags::new(doc).find(|a| {
         a.name == b"a"
             && a.attr(b"id")
@@ -339,33 +339,52 @@ fn next_cursor(doc: &[u8], sort: &[u8]) -> Result<Option<&'static [u8]>, &'stati
     let f = make_form(doc, t)?;
     let b = unsafe { &mut *core::ptr::addr_of_mut!(CURSOR) };
     let mut n = 0;
-    if !write_bytes(b, &mut n, b"v1:")
+    if !write_bytes(b, &mut n, if status.is_empty() { b"v1:" } else { b"v2:" })
         || !write_bytes(b, &mut n, sort)
         || !write_bytes(b, &mut n, b":")
+        || (!status.is_empty() && (!write_bytes(b, &mut n, status) || !write_bytes(b, &mut n, b":")))
         || !write_bytes(b, &mut n, f)
     {
         return Err("cursor overflow");
     }
     Ok(Some(unsafe { core::slice::from_raw_parts(b.as_ptr(), n) }))
 }
+// Preserve listing defaults and v1 cursors when no status filter is selected.
+fn browse_filters_supported(r: &[u8]) -> bool {
+    json_object_member(r, b"hostFeatures").map(trim_ascii).map_or(false, |v| v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|b| *b == b',').any(|p| trim_ascii(p)==b"\"source_filter_scope_header_v1\""))
+}
+fn filter_value<'a>(f: &'a [u8], key: &[u8]) -> Option<&'a [u8]> {
+    json_object_member(f,key).and_then(|v| v.strip_prefix(b"\"")?.strip_suffix(b"\""))
+}
 fn browse(req: &[u8], op: &str) -> u32 {
-    let sort = if extract_json_string(req, b"listingId") == Some(b"latest") {
+    let filters = if browse_filters_supported(req) { json_object_member(req,b"args").and_then(|a|json_object_member(a,b"filters")).unwrap_or(b"{}") } else { b"{}" };
+    let default_sort = if extract_json_string(req, b"listingId") == Some(b"latest") {
         b"updated_desc".as_slice()
     } else {
         b"views_desc".as_slice()
+    };
+    let sort = match filter_value(filters,b"sort") {
+        Some(v @ (b"updated_desc" | b"views_desc" | b"bookmark_desc" | b"chapter_desc")) => v,
+        _ => default_sort,
+    };
+    let status = match filter_value(filters,b"status") {
+        Some(v @ (b"ongoing" | b"completed" | b"hiatus")) => v,
+        _ => b"",
     };
     let b = scratch_b();
     let mut n = 0;
     write_bytes(b, &mut n, b"/Browse?orderBy=");
     write_bytes(b, &mut n, sort);
+    if !status.is_empty() { write_bytes(b, &mut n, b"&status="); write_bytes(b, &mut n, status); }
     let p = unsafe { core::slice::from_raw_parts(b.as_ptr(), n) };
     let url = url(p).unwrap();
     let cursor = extract_json_string(req, b"cursor");
     let form = if let Some(c) = cursor {
         let c = match c
-            .strip_prefix(b"v1:")
+            .strip_prefix(if status.is_empty() { b"v1:" } else { b"v2:" })
             .and_then(|s| s.strip_prefix(sort))
             .and_then(|s| s.strip_prefix(b":"))
+            .and_then(|s| if status.is_empty() { Some(s) } else { s.strip_prefix(status).and_then(|s| s.strip_prefix(b":")) })
         {
             Some(c) => c,
             _ => return write_error(op, "invalid_request", "cursor does not match listing"),
@@ -426,7 +445,7 @@ fn browse(req: &[u8], op: &str) -> u32 {
     if count == 0 {
         return error(op, "empty or rejected listing");
     }
-    let c = match next_cursor(doc, sort) {
+    let c = match next_cursor(doc, sort, status) {
         Ok(c) => c,
         Err(e) => return error(op, e),
     };
@@ -762,8 +781,10 @@ fn run_get_image_request(r: &[u8]) -> u32 {
 fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_implemented", "not supported")
 }
-fn run_get_filters(_: &[u8]) -> u32 {
-    write_error("get_filters", "not_implemented", "not supported")
+fn run_get_filters(req: &[u8]) -> u32 {
+    let schema = if browse_filters_supported(req) { br#"{"filters":[{"type":"header","scope":"browse","name":"Filters are ignored when searching by name."},{"id":"sort","type":"select","scope":"browse","name":"Order by","options":[{"value":"updated_desc","label":"Update time"},{"value":"views_desc","label":"Views"},{"value":"bookmark_desc","label":"Bookmarks"},{"value":"chapter_desc","label":"Number of chapters"}]},{"id":"status","type":"select","scope":"browse","name":"Status","options":[{"value":"all","label":"All"},{"value":"ongoing","label":"Ongoing"},{"value":"completed","label":"Completed"},{"value":"hiatus","label":"Hiatus"}]}]}"#.as_slice() } else { b"{\"filters\":[]}" };
+    payload_buf()[..schema.len()].copy_from_slice(schema);
+    write_success_payload("get_filters", schema.len())
 }
 fn run_get_settings(_: &[u8]) -> u32 {
     write_error("get_settings", "not_implemented", "not supported")
