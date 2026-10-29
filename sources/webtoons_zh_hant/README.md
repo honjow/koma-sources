@@ -1,4 +1,4 @@
-# LINE WEBTOON（繁体中文）0.1.9
+# LINE WEBTOON（繁体中文）0.1.10
 
 独立源 ID `com.webtoons.zh-hant.koma`、内容语言 `zh-Hant`；英文 WEBTOON 与简体咚漫是另外的源，不别名迁移或共用历史。普通网站为 `https://www.webtoons.com`，图标与身份资源保持，素材依据见 [ASSET_SOURCES.md](ASSET_SOURCES.md)。上游 SAFE 是源级标记，不是逐作品分类或使用验收。
 
@@ -27,3 +27,5 @@ Manga 身份保语言、类型、真实 title_no 及 list 路径；章节身份�
 原官网 All 查询“愛”返回22张卡（正式12、Canvas 10），两类均有“查看全部”；0.1.8误把该预览当作终点。0.1.9 保留22项原 MID、内容和顺序，下一 cursor 表示原分类和站点页；Originals 完结后进入 Canvas。支持站点数字分页与每十页块的原 next 按钮，校验原类别、查询和下一页，非法 cursor 在网络前拒绝；取消不请求站点，HTTP失败不生成成功游标。
 
 同一原 HTML、生产 WASM 与原 C++ Lexbor Host 回放：首屏22与0.1.8 items逐字段一致，Originals第1/2页各30、Canvas第1页28，Canvas第10页“愛”11项及终点，另一个 `a` 查询第10页原按钮指向第11页；已核取消、非法 cursor 和503失败。桌面 runner 实时遍历“愛”经宿主相同 sourceId+MID 规则合并得411个不同可见作品、到原站终点。官网标示 Originals 145、Canvas 283，但本次实际可见 Canvas 卡266，不把站点标示总数当作已证明作品数。热门第一页与0.1.8在同一原 HTML 上 data逐字段一致。设备 Native、普通加载更多和远程发布另验。
+
+支持作用域筛选的宿主可在搜索中选 ALL、Originals 或 Canvas；ALL 保持现有预览及双分类续页，明确选择分类才从其真实第一页及后续链接加载。旧宿主不暴露新筛选，热门路径及作品身份保持。

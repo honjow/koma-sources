@@ -11,7 +11,7 @@ const MOBILE: &[u8] = b"https://m.webtoons.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.webtoons.zh-hant.koma",
     name: "LINE WEBTOON (Traditional Chinese)",
-    version: "0.1.9",
+    version: "0.1.10",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma source contributors",
@@ -27,7 +27,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     listings: true,
     manga_list: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: true,
     credentials: false,
     image_request: true,
@@ -742,6 +742,15 @@ fn image_url(s: &[u8]) -> Result<(), &'static str> {
 #[derive(Clone, Copy)]
 enum SearchPage { All, Originals(usize, bool), Canvas(usize) }
 
+// Search category is operation-scoped; the legacy All cursor chain remains unchanged.
+fn search_filter_supported(r: &[u8]) -> bool {
+    json_object_member(r,b"hostFeatures").map(|v| { let v=trim_ascii(v);v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|c| *c==b',').any(|v|trim_ascii(v)==b"\"source_filter_scope_header_v1\"") }).unwrap_or(false)
+}
+fn search_category(r: &[u8]) -> Result<&[u8], &'static str> {
+    if !search_filter_supported(r) { return Ok(b"all"); }
+    let a=input(r)?; let filter=json_object_member(a,b"filters").unwrap_or(b"{}");
+    match string(filter,b"searchType").unwrap_or(b"all") { b"all"=>Ok(b"all"),b"originals"=>Ok(b"originals"),b"canvas"=>Ok(b"canvas"),_=>Err("invalid request") }
+}
 fn search_page(r: &[u8]) -> Result<SearchPage, &'static str> {
     let a = input(r)?;
     let raw = match json_object_member(a, b"page") { None | Some(b"null") => return Ok(SearchPage::All), Some(v) => v };
@@ -818,7 +827,17 @@ fn search_next(root: &Node, section: &[u8], query: &[u8], pn: usize) -> Result<b
 fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
     let a = input(r)?;
     let pn = if search { 1 } else { page(r)? };
-    let step = if search { search_page(r)? } else { SearchPage::All };
+    let step = if search {
+        let page=search_page(r)?; let category=search_category(r)?;
+        match (category,page) {
+            (b"all",p)=>p,
+            (b"originals",SearchPage::All)=>SearchPage::Originals(1,false),
+            (b"originals",SearchPage::Originals(n,false))=>SearchPage::Originals(n,false),
+            (b"canvas",SearchPage::All)=>SearchPage::Canvas(1),
+            (b"canvas",SearchPage::Canvas(n))=>SearchPage::Canvas(n),
+            _=>return Err("invalid search cursor"),
+        }
+    } else { SearchPage::All };
     let mut url = [0; 8192];
     let mut u = 0;
     bytes(&mut url, &mut u, BASE)?;
@@ -1342,8 +1361,9 @@ fn run_get_listings(_: &[u8]) -> u32 {
 fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "unsupported", "home unsupported")
 }
-fn run_get_filters(_: &[u8]) -> u32 {
-    write_error("get_filters", "unsupported", "filters unsupported")
+fn run_get_filters(r: &[u8]) -> u32 {
+    let data=if search_filter_supported(r) { br#"{"filters":[{"id":"searchType","name":"Search Type","type":"select","scope":"search","default":"all","options":[{"value":"all","label":"ALL"},{"value":"originals","label":"Originals"},{"value":"canvas","label":"Canvas"}]}]}"#.as_slice() } else { br#"{"filters":[]}"#.as_slice() };
+    payload_buf()[..data.len()].copy_from_slice(data);write_success_payload("get_filters",data.len())
 }
 fn run_get_settings(r: &[u8]) -> u32 {
     let b = payload_buf(); let mut n = 0;
