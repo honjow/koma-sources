@@ -1,8 +1,8 @@
-# Komiic 0.1.9
+# Komiic 0.1.11
 
 源 ID `com.komiic.koma`，语言及 NSFW 标记保持；crate、runtime 与 package 版本对齐。普通网站为 `https://komiic.com/`，不把 API 地址冒作网页入口，也不由网页元数据授予验证或登录权限。既有 180px 官方 touch icon 不替换，素材依据见 [ASSET_SOURCES.md](ASSET_SOURCES.md)。
 
-搜索、详情、完整目录、热门分页和首页使用既有 GraphQL 链；首页复用热门请求与原卡片解析，提供 12 项预览及完整列表目的地。列表导航描述不代替真实内容。图像保原 page:index 身份、原 image URI 的 kid、returned-kid 相等校验、官方 img.komiic.com 边界以及原封面 Accept/Referer；不引入账户或自动镜像切换。
+搜索、详情、完整目录和热门分页使用既有 GraphQL 链；热门列表不作为独立首页重复展示。图像保原 page:index 身份、原 image URI 的 kid、returned-kid 相等校验、官方 img.komiic.com 边界以及原封面 Accept/Referer；不引入账户或自动镜像切换。
 
 ## 设置合同
 

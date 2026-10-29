@@ -43,7 +43,7 @@ static mut SEARCH_QUERY: [u8; GQL_BODY_CAP] = [0; GQL_BODY_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.komiic.koma",
     name: "Komiic",
-    version: "0.1.10",
+    version: "0.1.11",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -58,7 +58,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     pages: true,
     listings: true,
     manga_list: true,
-    home: true,
+    home: false,
     filters: false,
     settings: true,
     image_request: true,
@@ -486,42 +486,9 @@ fn run_get_listings(_req: &[u8]) -> u32 {
     write_success_payload("get_listings", c)
 }
 
-// Home and listings are independent App contracts. Show real cards here;
-// do not rely on the App secretly loading a second listing for an empty Home.
-// 2026-10-27: user reported the advertised Home was completely blank.
-fn run_get_home(req: &[u8]) -> u32 {
-    let body_len = match build_popular_body(1) {
-        Some(v) => v,
-        None => return write_error("get_home", "internal_error", "body overflow"),
-    };
-    let api_json = match post_graphql(req, &gql_body_buf()[..body_len]) {
-        Ok(v) => v,
-        Err(e) => { let (code, message) = fetch_error_code(e); return write_error("get_home", code, message); }
-    };
-    let mut iter = match JsonArrayIter::new(api_json, b"comics") {
-        Some(v) => v,
-        None => return write_error("get_home", "parse_error", "missing comics"),
-    };
-    let payload = payload_buf();
-    let mut c = 0usize;
-    if !write_bytes(payload, &mut c, br#"{"sections":[{"id":"popular","title":"Popular","kind":"mangaList","listingId":"popular","items":["#) {
-        return write_error("get_home", "internal_error", "overflow");
-    }
-    let mut written = 0usize;
-    while let Some(obj) = iter.next_object() {
-        if written >= 12 { break; }
-        if written > 0 && !write_bytes(payload, &mut c, b",") {
-            return write_error("get_home", "internal_error", "overflow");
-        }
-        if !write_manga_card(payload, &mut c, obj) {
-            return write_error("get_home", "internal_error", "overflow");
-        }
-        written += 1;
-    }
-    if !write_bytes(payload, &mut c, b"]}]}") {
-        return write_error("get_home", "internal_error", "overflow");
-    }
-    write_success_payload("get_home", c)
+// The popular listing is not an independent home feed.
+fn run_get_home(_req: &[u8]) -> u32 {
+    write_error("get_home", "not_implemented", "not supported")
 }
 
 fn run_get_manga(req: &[u8]) -> u32 {
