@@ -7,7 +7,7 @@ use koma_source_sdk::{
 };
 type E = &'static str;
 const MAX: usize = 1048576;
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"org.mangadex.zh-hant.koma",name:"MangaDex",version:"0.1.8",api_version:"0.2",language:"zh-Hant",author:"Koma",description:"MangaDex provider traditional-Chinese catalogue (zh-hk); page scripts vary. Usage unknown; followedCount listing is not a usage ranking.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"org.mangadex.zh-hant.koma",name:"MangaDex",version:"0.1.9",api_version:"0.2",language:"zh-Hant",author:"Koma",description:"MangaDex provider traditional-Chinese catalogue (zh-hk); page scripts vary. Usage unknown; followedCount listing is not a usage ranking.",content_rating:"nsfw"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -33,10 +33,16 @@ mod content_rating;
 mod final_chapter_description;
 #[path = "../../mangadex/title_preference.rs"]
 mod title_preference;
+#[path = "../../mangadex/blacklist.rs"]
+mod blacklist;
 static mut COVER_BODY: [u8; MAX] = [0; MAX];
 static mut REQUEST: [u8; MAX] = [0; MAX];
 static mut URL: [u8; 32768] = [0; 32768];
 static mut SEEN: [[u8; 36]; 4096] = [[0; 36]; 4096];
+static mut FULL_IDS: [[u8;36];4096] = [[0;36];4096];
+static mut FULL_MATCH: [bool;4096] = [false;4096];
+static mut FULL_PRESENT: [bool;4096] = [false;4096];
+static mut FULL_COUNT: usize = 0;
 const API: &[u8] = b"https://api.mangadex.org";
 const WEB: &[u8] = b"https://mangadex.org";
 const ALT_TITLE_LANG: &[u8] = b"zh-hk";
@@ -959,7 +965,7 @@ fn chapter_card(b: &mut [u8], n: &mut usize, v: &[u8], m: &[u8]) -> Result<bool,
     bytes(b, n, b"}")?;
     Ok(true)
 }
-fn feed(m: &[u8], target: Option<&[u8]>) -> Result<(usize, usize), E> {
+fn feed(m: &[u8], target: Option<&[u8]>, req: Option<&[u8]>, mode: u8) -> Result<(usize, usize), E> {
     let mut offset = 0;
     let mut total0 = None;
     let mut rawcount = 0;
@@ -972,7 +978,10 @@ fn feed(m: &[u8], target: Option<&[u8]>) -> Result<(usize, usize), E> {
         let mut off = [0; 24];
         let mut j = 0;
         wn(&mut off, &mut j, offset)?;
-        let url=make_url(&[API,b"/manga/",m,b"/feed?includes%5B%5D=scanlation_group&includes%5B%5D=user&limit=100&offset=",&off[..j],b"&translatedLanguage%5B%5D=zh-hk&order%5Bvolume%5D=desc&order%5Bchapter%5D=desc&includeFuturePublishAt=0&includeEmptyPages=0&includeUnavailable=0&contentRating%5B%5D=safe&contentRating%5B%5D=suggestive&contentRating%5B%5D=erotica&contentRating%5B%5D=pornographic"])?;
+        let mut exclusions = [0u8; 32768];
+        let mut exclusion_len = 0;
+        if let Some(r) = req.filter(|_|mode != 1) { if !blacklist::append(&mut exclusions, &mut exclusion_len, r, b"blockedGroups_zh-hk", b"blockedUploader_zh-hk") { return Err("invalid blacklist or URL capacity"); } }
+        let url=make_url(&[API,b"/manga/",m,b"/feed?includes%5B%5D=scanlation_group&includes%5B%5D=user&limit=100&offset=",&off[..j],b"&translatedLanguage%5B%5D=zh-hk&order%5Bvolume%5D=desc&order%5Bchapter%5D=desc&includeFuturePublishAt=0&includeEmptyPages=0&includeUnavailable=0&contentRating%5B%5D=safe&contentRating%5B%5D=suggestive&contentRating%5B%5D=erotica&contentRating%5B%5D=pornographic",&exclusions[..exclusion_len]])?;
         let v = fetch(url)?;
         if field_num(v, b"offset")? != offset || field_num(v, b"limit")? != 100 {
             return Err("feed pagination mismatch");
@@ -1008,6 +1017,22 @@ fn feed(m: &[u8], target: Option<&[u8]>) -> Result<(usize, usize), E> {
                 n = before
             } else {
                 emitted += 1;
+                if mode == 1 {
+                    let r=req.ok_or("missing blacklist")?;
+                    let mut rels=Array::new(required(x,b"relationships")?)?; let mut matched=false;
+                    while let Some(rel)=rels.next()? {
+                        let kind=text(rel,b"type")?;
+                        if kind==b"scanlation_group" || kind==b"user" {
+                            let rid=uuid(text(rel,b"id")?)?;
+                            let key=if kind==b"scanlation_group" {b"blockedGroups_zh-hk".as_slice()} else {b"blockedUploader_zh-hk".as_slice()};
+                            matched |= blacklist::contains(r,key,rid);
+                        }
+                    }
+                    unsafe {let i=FULL_COUNT;if i>=4096{return Err("feed capacity")} FULL_IDS[i].copy_from_slice(id);FULL_MATCH[i]=matched;FULL_PRESENT[i]=false;FULL_COUNT=i+1;}
+                } else if mode == 2 {
+                    unsafe {let i=FULL_IDS[..FULL_COUNT].iter().position(|v|v.as_slice()==id).ok_or("filtered feed drift")?;
+                    if FULL_MATCH[i] || FULL_PRESENT[i] {return Err("filtered feed mismatch")} FULL_PRESENT[i]=true;}
+                }
                 if target == Some(id) {
                     wanted = Some(field_num(required(x, b"attributes")?, b"pages")?)
                 }
@@ -1028,11 +1053,17 @@ fn feed(m: &[u8], target: Option<&[u8]>) -> Result<(usize, usize), E> {
         };
         offset = end;
     }
-    bytes(
-        output,
-        &mut n,
-        b"],\"page\":{\"hasMore\":false,\"nextCursor\":null}}",
-    )?;
+    bytes(output,&mut n,b"],\"page\":{\"hasMore\":false,\"nextCursor\":null}")?;
+    if mode==2 {
+        bytes(output,&mut n,b",\"excludedChapterIds\":[")?;let mut excluded=0;
+        unsafe {for i in 0..FULL_COUNT {if !FULL_PRESENT[i] {
+            if !FULL_MATCH[i] {return Err("filtered feed drift")}
+            if excluded>0 {bytes(output,&mut n,b",")?}
+            bytes(output,&mut n,b"\"mdch:zh-hk:")?;bytes(output,&mut n,m)?;bytes(output,&mut n,b":")?;bytes(output,&mut n,&FULL_IDS[i])?;bytes(output,&mut n,b"\"")?;excluded+=1;
+        }}}
+        bytes(output,&mut n,b"]")?;
+    }
+    bytes(output,&mut n,b"}")?;
     match target {
         Some(_) => Ok((
             n,
@@ -1117,7 +1148,7 @@ fn image_emit(b: &mut [u8], n: &mut usize, v: &[u8], index: usize, saver: bool) 
 fn pages(r: &[u8]) -> Result<usize, E> {
     let saver = data_saver(r)?;
     let (m, ch) = chapter_key(r)?;
-    let (_, count) = feed(m, Some(ch))?;
+    let (_, count) = feed(m, Some(ch), None, 0)?;
     let v = descriptor(ch, r)?;
     validate_files(v, false)?;
     if saver { validate_files(v, true)?; }
@@ -1215,7 +1246,23 @@ fn run_get_manga(r: &[u8]) -> u32 {
 fn run_get_chapters(r: &[u8]) -> u32 {
     execute(
         "get_chapters",
-        key(r, b"mangaId", b"mdhant:").and_then(|m| feed(m, None).map(|x| x.0)),
+        key(r, b"mangaId", b"mdhant:").and_then(|m| {
+            // Only a correctly owned exact chapter request can bypass the
+            // filter; ordinary lists remain filtered.
+            let filtered = if json_object_member(r, b"args").and_then(|a| json_object_member(a, b"chapterId")).is_some() {
+                let (owner, _) = chapter_key(r)?;
+                if owner != m { return Err("chapter identity"); }
+                None
+            } else { Some(r) };
+            if let Some(r)=filtered {
+                if blacklist::active(r,b"blockedGroups_zh-hk",b"blockedUploader_zh-hk") {
+                    unsafe {FULL_COUNT=0;}
+                    feed(m,None,Some(r),1)?;
+                    return feed(m,None,Some(r),2).map(|x|x.0);
+                }
+            }
+            feed(m,None,None,0).map(|x|x.0)
+        }),
     )
 }
 fn run_get_pages(r: &[u8]) -> u32 {
@@ -1235,8 +1282,13 @@ fn run_get_home(_: &[u8]) -> u32 {
 fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "not_supported", "not supported")
 }
-fn run_get_settings(_: &[u8]) -> u32 {
+fn run_get_settings(req: &[u8]) -> u32 {
     let data = r#"{"settings":[{"id":"thumbnailQuality_zh-hk","name":"封面品質","kind":"select","options":[{"value":"original","label":"原圖"},{"value":".512.jpg","label":"中等"},{"value":".256.jpg","label":"低"}],"default":"original"},{"id":"dataSaverV5_zh-hk","name":"省流量","kind":"toggle","default":"false"},{"id":"altTitlesInDesc_zh-hk","name":"Alternative titles in description","kind":"toggle","description":"Include a manga's alternative titles at the end of its description","default":"false"},{"id":"usePort443_zh-hk","name":"Use HTTPS port 443 only","kind":"toggle","description":"Enable to only request image servers that use port 443. This allows users with stricter firewall restrictions to access MangaDex images","default":"false"},{"id":"tryUsingFirstVolumeCover_zh-hk","name":"Attempt to use the first volume cover as cover","kind":"toggle","description":"Existing library entries may need a manual refresh to show changed covers","default":"false"},{"id":"originalLanguage_zh-hk","name":"Filter original languages","kind":"multiselect","description":"Only show content that was originally published in the selected languages in both latest and browse","default":[],"options":[{"value":"ja","label":"Japanese"},{"value":"zh","label":"Chinese"},{"value":"ko","label":"Korean"}]},{"id":"contentRating_zh-hk","name":"Default content rating","kind":"multiselect","description":"Show content with the selected ratings by default","default":["safe","suggestive"],"options":[{"value":"safe","label":"Safe"},{"value":"suggestive","label":"Suggestive"},{"value":"erotica","label":"Erotica"},{"value":"pornographic","label":"Pornographic"}]},{"id":"finalChapterInDesc_zh-hk","name":"Final chapter in description","kind":"toggle","description":"Include a manga's final chapter number at the end of its description","default":"false"},{"id":"preferExtensionLangTitle_zh-hk","name":"Use alternative titles","kind":"toggle","description":"If there is an alternative title available which matches the extension language, it will be used","default":"true"}]}"#.as_bytes();
+    if blacklist::supported(req) {
+        let out=payload_buf(); let mut n=0;
+        if !(write_bytes(out,&mut n,&data[..data.len()-2]) && write_bytes(out,&mut n,br#",{"id":"blockedGroups_zh-hk","name":"Block groups by UUID","kind":"text","description":"Chapters from blocked groups will not show up in Latest or Manga feed. Enter as a Comma-separated list of group UUIDs","default":"","validation":{"kind":"uuid_list","message":"The text contains invalid UUIDs"}},{"id":"blockedUploader_zh-hk","name":"Block uploader by UUID","kind":"text","description":"Chapters from blocked uploaders will not show up in Latest or Manga feed. Enter as a Comma-separated list of uploader UUIDs","default":"","validation":{"kind":"uuid_list","message":"The text contains invalid UUIDs"}}"#) && write_bytes(out,&mut n,b"]}")) { return write_error("get_settings","internal_error","payload overflow"); }
+        return write_success_payload("get_settings",n);
+    }
     payload_buf()[..data.len()].copy_from_slice(data);
     write_success_payload("get_settings", data.len())
 }
