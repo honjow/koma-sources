@@ -59,7 +59,7 @@ static mut SELECT_BUF: [u8; SELECT_CAP] = [0; SELECT_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.zerobyw.koma",
     name: "Zerobyw",
-    version: "0.1.7",
+    version: "0.1.8",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -75,7 +75,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     listings: true,
     manga_list: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: true,
     image_request: true,
     credentials: false,
@@ -1190,6 +1190,13 @@ fn run_get_listings(_req: &[u8]) -> u32 {
     write_success_payload("get_listings", LISTINGS.len())
 }
 
+// Filters belong to the current PC catalogue; legacy paths keep their original contract.
+fn browse_filters_supported(r: &[u8]) -> bool {
+    json_object_member(r,b"hostFeatures").map(|v|v.trim_ascii()).map_or(false,|v|v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|b|*b==b',').any(|p|p.trim_ascii()==br#""source_filter_scope_header_v1""#))
+}
+fn browse_filter<'a>(f:&'a [u8],key:&[u8])->Option<&'a [u8]> {
+    json_object_member(f,key).and_then(|v|v.strip_prefix(b"\"")?.strip_suffix(b"\""))
+}
 fn run_get_manga_list(req: &[u8]) -> u32 {
     let page = extract_json_number(req, b"page")
         .or_else(|| extract_json_string(req, b"cursor"))
@@ -1203,20 +1210,30 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     };
     let url_buf = scratch_a();
     let mut uc = 0usize;
-    if !(write_bytes(url_buf, &mut uc, base)
-        && write_bytes(
-            url_buf,
-            &mut uc,
-            if base == LEGACY_BASE_URL {
-                b"/comic/category/order/hit/page/"
-            } else {
-                b"/pc/pc/?page="
-            },
-        )
-        && write_bytes(url_buf, &mut uc, page))
-    {
-        return write_error("get_manga_list", "internal_error", "url overflow");
+    let f=if base!=LEGACY_BASE_URL && browse_filters_supported(req) {json_object_member(req,b"args").and_then(|a|json_object_member(a,b"filters")).unwrap_or(b"{}")} else {b"{}"};
+    if !write_bytes(url_buf,&mut uc,base) {return write_error("get_manga_list","internal_error","url overflow")};
+    if base==LEGACY_BASE_URL {
+        if !write_bytes(url_buf,&mut uc,b"/comic/category/order/hit/page/"){return write_error("get_manga_list","internal_error","url overflow")};
+    } else {
+        if !write_bytes(url_buf,&mut uc,b"/pc/pc/?"){return write_error("get_manga_list","internal_error","url overflow")};
+        if let Some(value)=browse_filter(f,b"category_id") {
+            if matches!(value,b"1" | b"15" | b"32" | b"6" | b"13" | b"28" | b"31" | b"22" | b"23" | b"26" | b"29" | b"34" | b"35" | b"36") {
+                if !(write_bytes(url_buf,&mut uc,b"category_id=") && write_url_encoded(url_buf,&mut uc,value) && write_bytes(url_buf,&mut uc,b"&")){return write_error("get_manga_list","internal_error","url overflow")};
+            }
+        }
+        if let Some(value)=browse_filter(f,b"jindu") {
+            if matches!(value,b"0" | b"1") {
+                if !(write_bytes(url_buf,&mut uc,b"jindu=") && write_url_encoded(url_buf,&mut uc,value) && write_bytes(url_buf,&mut uc,b"&")){return write_error("get_manga_list","internal_error","url overflow")};
+            }
+        }
+        if let Some(value)=browse_filter(f,b"shuxing") {
+            if ["一半中文一半生肉".as_bytes(),"全生肉".as_bytes(),"全中文".as_bytes()].contains(&value) {
+                if !(write_bytes(url_buf,&mut uc,b"shuxing=") && write_url_encoded(url_buf,&mut uc,value) && write_bytes(url_buf,&mut uc,b"&")){return write_error("get_manga_list","internal_error","url overflow")};
+            }
+        }
+        if !write_bytes(url_buf,&mut uc,b"page="){return write_error("get_manga_list","internal_error","url overflow")};
     }
+    if !write_bytes(url_buf,&mut uc,page){return write_error("get_manga_list","internal_error","url overflow")};
     let url =
         unsafe { core::slice::from_raw_parts(core::ptr::addr_of!(SCRATCH_A) as *const u8, uc) };
     let html_len = match fetch_html(url, Some(referer)) {
@@ -1445,6 +1462,14 @@ pub extern "C" fn koma_source_get_manga_list(req_ptr: u32, req_len: u32) -> u32 
     };
     log_info(b"zerobyw get_manga_list");
     run_get_manga_list(req)
+}
+
+#[no_mangle]
+pub extern "C" fn koma_source_get_filters(ptr:u32,len:u32)->u32 {
+    let req=match read_request(ptr,len){Some(v)=>v,None=>return write_error("get_filters","invalid_request","empty request")};
+    let mut base_buf=[0u8;512];let base=current_base_url(req,&mut base_buf);
+    let data=if browse_filters_supported(req)&&base!=LEGACY_BASE_URL {r###"{"filters":[{"type":"header","scope":"browse","name":"如果使用文本搜索"},{"type":"header","scope":"browse","name":"过滤器将被忽略"},{"id":"category_id","name":"分类","type":"select","scope":"browse","options":[{"value":"all","label":"全部"},{"value":"1","label":"卖肉"},{"value":"15","label":"战斗"},{"value":"32","label":"日常"},{"value":"6","label":"后宫"},{"value":"13","label":"搞笑"},{"value":"28","label":"日常"},{"value":"31","label":"爱情"},{"value":"22","label":"冒险"},{"value":"23","label":"奇幻"},{"value":"26","label":"战斗"},{"value":"29","label":"体育"},{"value":"34","label":"机战"},{"value":"35","label":"职业"},{"value":"36","label":"汉化组跟上，不再更新"}]},{"id":"jindu","name":"进度","type":"select","scope":"browse","options":[{"value":"all","label":"全部"},{"value":"0","label":"连载中"},{"value":"1","label":"已完结"}]},{"id":"shuxing","name":"性质","type":"select","scope":"browse","options":[{"value":"all","label":"全部"},{"value":"一半中文一半生肉","label":"一半中文一半生肉"},{"value":"全生肉","label":"全生肉"},{"value":"全中文","label":"全中文"}]}]}"###.as_bytes()}else{b"{\"filters\":[]}"};
+    payload_buf()[..data.len()].copy_from_slice(data);write_success_payload("get_filters",data.len())
 }
 
 #[no_mangle]
