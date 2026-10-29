@@ -1,4 +1,4 @@
-# MangaBall Chinese 0.1.3
+# MangaBall Chinese 0.1.4
 
 Independent source `com.mangaball.zh.koma`, API 0.2, language zh. Chinese selects chapter language; it does not guarantee Chinese titles or a particular script. Existing `mb:`/`mbc:`/page identities, provider chapter order, actual chapter/volume numbers and exact page ownership remain. The existing 512px MangaBall identity icon is unchanged; official site branding uses MangaBall; see NOTICE for attribution.
 
@@ -13,3 +13,5 @@ Filtering compares each group and selected value after trim and complete Unicode
 Complete filtered catalogues also return `data.excludedChapterIds`, containing only the actual validated full chapter IDs removed by the current selection. The host can omit these IDs from retained detail UI without deleting Library chapters, downloads or reading state; other missing chapters retain the existing protection. An exact `args.chapterId` resume request validates the full response and returns only that legitimate original chapter, independently of directory blacklisting, with no fabricated replacement or ID fallback. Missing exact chapters remain not found.
 
 Settings follow Keiyoushi `949dea252eb8e867b7b40834a26e13088764ff55` MangaBall/ScanlatorBlacklist; the default-true adult setting is the explicit Koma adaptation. Build with `bash build.sh --source mangaball-zh`; the standard packager retains localized names from metadata.json. Historical cover access failures are not declared resolved by these settings. A successful build or controlled response replay does not establish current content or native image availability.
+
+搜索筛选按固定参考提供排序、类型、受众、状态、标签模式与四组三态标签，仅在支持作用域及三态的宿主搜索中显示；未筛选请求、热门与最新排序和成人内容默认保持。旧宿主不暴露新筛选。

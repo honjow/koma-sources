@@ -16,7 +16,7 @@ const BASE: &[u8] = b"https://mangaball.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mangaball.zh.koma",
     name: "MangaBall",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -32,7 +32,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     listings: true,
     manga_list: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: true,
     image_request: true,
     credentials: false,
@@ -842,6 +842,18 @@ fn emit_manga(o: &[u8], b: &mut [u8], n: &mut usize, detail: bool) -> Result<(),
     }
     bytes(b, n, b"}")
 }
+// These filters belong to upstream search; discovery keeps its adopted sort and adult default.
+fn search_filters_supported(r: &[u8]) -> bool { host_feature(r,b"source_filter_scope_header_v1") && host_feature(r,b"source_filter_tristate_v1") }
+fn filter_string<'a>(f: &'a [u8], key: &[u8]) -> Option<&'a [u8]> { json_object_member(f,key).and_then(|v| v.strip_prefix(b"\"")?.strip_suffix(b"\"")) }
+fn append_search_filters(f: &[u8],path: &mut [u8],n: &mut usize) -> Result<(), &'static str> {
+    for (key,param,allowed) in [(b"type".as_slice(),b"type".as_slice(), &[b"all".as_slice(),b"manga",b"manhwa",b"manhua",b"comics"][..]),(b"demographic".as_slice(),b"publicationDemographic".as_slice(), &[b"all".as_slice(),b"shounen",b"shoujo",b"seinen",b"josei"][..]),(b"status".as_slice(),b"status".as_slice(), &[b"all".as_slice(),b"ongoing",b"completed",b"hiatus",b"cancelled"][..])] {
+        if let Some(v)=filter_string(f,key) { if !allowed.contains(&v) {return Err("invalid request");} if v!=b"all" {bytes(path,n,b"&")?;bytes(path,n,param)?;bytes(path,n,b"=")?;bytes(path,n,v)?;} }
+    }
+    let mut included=[0u8;4096]; let mut ni=0; let mut excluded=[0u8;4096]; let mut ne=0;
+    for group in [b"tags_content".as_slice(),b"tags_format",b"tags_genre",b"tags_theme"] { if let Some(a)=json_object_member(f,group) { let mut spans=[(0,0);128];let count=array_spans(a,&mut spans)?; for (start,end) in &spans[..count] { let value=a[*start..*end].strip_prefix(b"\"").and_then(|v|v.strip_suffix(b"\"")).ok_or("invalid request")?; let (neg,id)=match value.strip_prefix(b"!"){Some(v)=>(true,v),None=>(false,value)}; if id.len()!=24 || !id.iter().all(u8::is_ascii_hexdigit) {return Err("invalid request");} let (dst,k)=if neg {(&mut excluded,&mut ne)} else {(&mut included,&mut ni)}; if *k>0 {bytes(dst,k,b",")?;} bytes(dst,k,id)?; } } }
+    for (key,v) in [(b"included_tags".as_slice(),&included[..ni]),(b"excluded_tags".as_slice(),&excluded[..ne])] { if !v.is_empty(){bytes(path,n,b"&")?;bytes(path,n,key)?;bytes(path,n,b"=")?;if !write_url_encoded(path,n,v){return Err("payload overflow");}} }
+    Ok(())
+}
 fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
     json_complete(r)?;
     let p = page(r)?;
@@ -851,21 +863,21 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
     write_num(&mut path, &mut n, p)?;
     bytes(&mut path, &mut n, b"&limit=24")?;
     if search {
+        let filters=if search_filters_supported(r) {json_object_member(args(r),b"filters").unwrap_or(b"{}")} else {b"{}"};
         let mut qb = [0; 1024];
         let query = text(args(r), b"query", &mut qb)?;
         if query.is_empty() {
             return Err("empty query");
         }
-        bytes(
-            &mut path,
-            &mut n,
-            b"&tag_mode=AND&adult_mode=",
-        )?;
+        if let Some(sort)=filter_string(filters,b"sort") { if sort!=b"relevance" { let pos=sort.iter().position(|x|*x==b':').ok_or("invalid request")?; let (field,dir0)=sort.split_at(pos);let dir=&dir0[1..]; if ![b"lastupdate".as_slice(),b"views",b"rating",b"created_at",b"name"].contains(&field)|| ![b"asc".as_slice(),b"desc"].contains(&dir) {return Err("invalid request");} bytes(&mut path,&mut n,b"&sort_by=")?;bytes(&mut path,&mut n,field)?;bytes(&mut path,&mut n,b"&sort_order=")?;bytes(&mut path,&mut n,dir)?; } }
+        let mode=filter_string(filters,b"tagMode").unwrap_or(b"AND"); if mode!=b"AND" && mode!=b"OR" {return Err("invalid request");}
+        bytes(&mut path,&mut n,b"&tag_mode=")?; bytes(&mut path,&mut n,mode)?; bytes(&mut path,&mut n,b"&adult_mode=")?;
         bytes(&mut path,&mut n,if hide_nsfw(r) {b"no_18"} else {b"all"})?;
         bytes(&mut path,&mut n,b"&keyword=")?;
         if !write_url_encoded(&mut path, &mut n, query) {
             return Err("payload overflow");
         }
+        append_search_filters(filters,&mut path,&mut n)?;
     } else {
         let mut lb = [0; 64];
         let listing = text(args(r), b"listingId", &mut lb)?;
@@ -1209,8 +1221,9 @@ fn run_get_listings(_: &[u8]) -> u32 {
 fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_implemented", "not supported")
 }
-fn run_get_filters(_: &[u8]) -> u32 {
-    write_error("get_filters", "not_implemented", "not supported")
+fn run_get_filters(r: &[u8]) -> u32 {
+    if !search_filters_supported(r) { let v=br#"{"filters":[]}"#; payload_buf()[..v.len()].copy_from_slice(v); return write_success_payload("get_filters",v.len()); }
+    let v=r###"{"filters":[{"id":"sort","name":"Sort By","type":"select","scope":"search","options":[{"value":"relevance","label":"Relevance"},{"value":"lastupdate:asc","label":"Latest Updated ascending"},{"value":"lastupdate:desc","label":"Latest Updated descending"},{"value":"views:asc","label":"Most Viewed ascending"},{"value":"views:desc","label":"Most Viewed descending"},{"value":"rating:asc","label":"Top Rated ascending"},{"value":"rating:desc","label":"Top Rated descending"},{"value":"created_at:asc","label":"Recently Added ascending"},{"value":"created_at:desc","label":"Recently Added descending"},{"value":"name:asc","label":"Title ascending"},{"value":"name:desc","label":"Title descending"}],"default":"relevance"},{"id":"type","name":"Type","type":"select","scope":"search","options":[{"value":"all","label":"All"},{"value":"manga","label":"Manga"},{"value":"manhwa","label":"Manhwa"},{"value":"manhua","label":"Manhua"},{"value":"comics","label":"Comics"}],"default":"all"},{"id":"demographic","name":"Magazine Demographic","type":"select","scope":"search","options":[{"value":"all","label":"All"},{"value":"shounen","label":"Shounen"},{"value":"shoujo","label":"Shoujo"},{"value":"seinen","label":"Seinen"},{"value":"josei","label":"Josei"}],"default":"all"},{"id":"status","name":"Publication Status","type":"select","scope":"search","options":[{"value":"all","label":"All"},{"value":"ongoing","label":"Ongoing"},{"value":"completed","label":"Completed"},{"value":"hiatus","label":"Hiatus"},{"value":"cancelled","label":"Cancelled"}],"default":"all"},{"id":"tagMode","name":"Tag Mode","type":"select","scope":"search","options":[{"value":"AND","label":"AND"},{"value":"OR","label":"OR"}],"default":"AND"},{"id":"tags_content","name":"Content","type":"tristate","scope":"search","options":[{"value":"685148d115e8b86aae68e4f3","label":"Gore"},{"value":"685146c5f3ed681c80f257e7","label":"Sexual Violence"}]},{"id":"tags_format","name":"Format","type":"tristate","scope":"search","options":[{"value":"685148d115e8b86aae68e4ec","label":"4-Koma"},{"value":"685148cf15e8b86aae68e4de","label":"Adaptation"},{"value":"685148e915e8b86aae68e558","label":"Anthology"},{"value":"685148fe15e8b86aae68e5a7","label":"Award Winning"},{"value":"6851490e15e8b86aae68e5da","label":"Doujinshi"},{"value":"6851498215e8b86aae68e704","label":"Fan Colored"},{"value":"685148d615e8b86aae68e502","label":"Full Color"},{"value":"685148d915e8b86aae68e517","label":"Long Strip"},{"value":"6851493515e8b86aae68e64a","label":"Official Colored"},{"value":"685148eb15e8b86aae68e56c","label":"Oneshot"},{"value":"6851492e15e8b86aae68e633","label":"Self-Published"},{"value":"685148d715e8b86aae68e50d","label":"Web Comic"}]},{"id":"tags_genre","name":"Genre","type":"tristate","scope":"search","options":[{"value":"685146c5f3ed681c80f257e3","label":"Action"},{"value":"689371f0a943baf927094f03","label":"Adult"},{"value":"685146c5f3ed681c80f257e6","label":"Adventure"},{"value":"685148ef15e8b86aae68e573","label":"Boys' Love"},{"value":"68ecab8507ec62d87e62780f","label":"Comic"},{"value":"685146c5f3ed681c80f257e5","label":"Comedy"},{"value":"685148da15e8b86aae68e51f","label":"Crime"},{"value":"685148cf15e8b86aae68e4dd","label":"Drama"},{"value":"6892a73ba943baf927094e37","label":"Ecchi"},{"value":"685146c5f3ed681c80f257ea","label":"Fantasy"},{"value":"685148da15e8b86aae68e524","label":"Girls' Love"},{"value":"685148db15e8b86aae68e527","label":"Historical"},{"value":"685148da15e8b86aae68e520","label":"Horror"},{"value":"685146c5f3ed681c80f257e9","label":"Isekai"},{"value":"694cc2d9f8014f5e0a63ac73","label":"Josei(W)"},{"value":"6851490d15e8b86aae68e5d4","label":"Magical Girls"},{"value":"68ecab1e07ec62d87e627806","label":"Manga"},{"value":"68ecab4807ec62d87e62780b","label":"Manhua"},{"value":"68ecab3b07ec62d87e627809","label":"Manhwa"},{"value":"68932d11a943baf927094e7b","label":"Mature"},{"value":"6851490c15e8b86aae68e5d2","label":"Mecha"},{"value":"6851494e15e8b86aae68e66e","label":"Medical"},{"value":"685148d215e8b86aae68e4f4","label":"Mystery"},{"value":"685148e215e8b86aae68e544","label":"Philosophical"},{"value":"685148d715e8b86aae68e507","label":"Psychological"},{"value":"694cc2d9f8014f5e0a63ac75","label":"Revenge"},{"value":"685148cf15e8b86aae68e4db","label":"Romance"},{"value":"685148cf15e8b86aae68e4da","label":"Sci-Fi"},{"value":"694cc2d9f8014f5e0a63ac74","label":"Shoujo(G)"},{"value":"689f0ab1f2e66744c6091524","label":"Shounen Ai"},{"value":"685148d015e8b86aae68e4e3","label":"Slice of Life"},{"value":"689371f2a943baf927094f04","label":"Smut"},{"value":"685148f515e8b86aae68e588","label":"Sports"},{"value":"6851492915e8b86aae68e61c","label":"Superhero"},{"value":"685148d915e8b86aae68e51e","label":"Thriller"},{"value":"685148db15e8b86aae68e529","label":"Tragedy"},{"value":"68932c3ea943baf927094e77","label":"User Created"},{"value":"6851490715e8b86aae68e5c3","label":"Wuxia"},{"value":"68932f68a943baf927094eaa","label":"Yaoi"},{"value":"6896a885a943baf927094f66","label":"Yuri"}]},{"id":"tags_theme","name":"Theme","type":"tristate","scope":"search","options":[{"value":"6a0026ba63a8d384c0a4be13","label":"3D"},{"value":"6851490d15e8b86aae68e5d5","label":"Aliens"},{"value":"685148e715e8b86aae68e54b","label":"Animals"},{"value":"68bf09ff8fdeab0b6a9bc2b7","label":"Comics"},{"value":"685148d215e8b86aae68e4f8","label":"Cooking"},{"value":"685148df15e8b86aae68e534","label":"Crossdressing"},{"value":"685148d915e8b86aae68e519","label":"Delinquents"},{"value":"685146c5f3ed681c80f257e4","label":"Demons"},{"value":"685148d715e8b86aae68e505","label":"Genderswap"},{"value":"685148d615e8b86aae68e501","label":"Ghosts"},{"value":"685148d015e8b86aae68e4e8","label":"Gyaru"},{"value":"685146c5f3ed681c80f257e8","label":"Harem"},{"value":"68bfceaf4dbc442a26519889","label":"Hentai"},{"value":"685148f215e8b86aae68e584","label":"Incest"},{"value":"685148d715e8b86aae68e506","label":"Loli"},{"value":"685148d915e8b86aae68e518","label":"Mafia"},{"value":"685148d715e8b86aae68e509","label":"Magic"},{"value":"68f5f5ce5f29d3c1863dec3a","label":"Manhwa 18+"},{"value":"6851490615e8b86aae68e5c2","label":"Martial Arts"},{"value":"685148e215e8b86aae68e541","label":"Military"},{"value":"685148db15e8b86aae68e52c","label":"Monster Girls"},{"value":"685146c5f3ed681c80f257e2","label":"Monsters"},{"value":"685148d015e8b86aae68e4e4","label":"Music"},{"value":"685148d715e8b86aae68e508","label":"Ninja"},{"value":"685148d315e8b86aae68e4fd","label":"Office Workers"},{"value":"6851498815e8b86aae68e714","label":"Police"},{"value":"685148e215e8b86aae68e540","label":"Post-Apocalyptic"},{"value":"685146c5f3ed681c80f257e1","label":"Reincarnation"},{"value":"685148df15e8b86aae68e533","label":"Reverse Harem"},{"value":"6851490415e8b86aae68e5b9","label":"Samurai"},{"value":"685148d015e8b86aae68e4e7","label":"School Life"},{"value":"6a0025c263a8d384c0a4be07","label":"Seinen"},{"value":"685148d115e8b86aae68e4ed","label":"Shota"},{"value":"685148db15e8b86aae68e528","label":"Supernatural"},{"value":"685148cf15e8b86aae68e4dc","label":"Survival"},{"value":"6851490c15e8b86aae68e5d1","label":"Time Travel"},{"value":"6851493515e8b86aae68e645","label":"Traditional Games"},{"value":"685148f915e8b86aae68e597","label":"Vampires"},{"value":"685148e115e8b86aae68e53c","label":"Video Games"},{"value":"6851492115e8b86aae68e602","label":"Villainess"},{"value":"68514a1115e8b86aae68e83e","label":"Virtual Reality"},{"value":"6851490c15e8b86aae68e5d3","label":"Zombies"}]}]}"###.as_bytes(); payload_buf()[..v.len()].copy_from_slice(v); write_success_payload("get_filters",v.len())
 }
 fn settings_schema(r: &[u8]) -> Result<usize, &'static str> {
     json_complete(r)?;let out=payload_buf();let mut n=0;
