@@ -99,7 +99,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "online.baozimh.koma",
     name: "包子漫畫 (Baozimh)",
-    version: "0.1.12",
+    version: "0.1.13",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -295,10 +295,17 @@ fn slug_from_comic_path(path: &[u8], out: &mut [u8]) -> Option<usize> {
     if len == 0 { None } else { Some(len) }
 }
 
+// Decode search terms separately from URL scratch and the bounded WASM stack.
+static mut SEARCH_QUERY: [u8; 1024] = [0; 1024];
 fn run_search(req: &[u8]) -> u32 {
     let query = match extract_json_string(req, b"query") {
         Some(q) => q,
         None => return write_error("search", "invalid_request", "missing query"),
+    };
+    let decoded = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
+    let query = match koma_source_sdk::plain_text::decode_json_content(query, decoded) {
+        Ok(v) => v,
+        Err(_) => return write_error("search", "invalid_request", "invalid query"),
     };
     let url_buf = scratch_a();
     let mut url_cursor = 0usize;

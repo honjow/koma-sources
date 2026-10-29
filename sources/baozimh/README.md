@@ -77,3 +77,5 @@ Home栏目身份修订：仅四原栏目增加home:popular/cn/jp/kr稳定id，�
 - **翻页与重开**：347沿346确认的“纵向分页/从上到下”普通滑动依次到第2/24、3/24页；Root亲审349整图为真实第3页。348正常BACK返回同695章详情后，继续阅读重开仍为本章第3/24页。349注册与书架内容同342，reader仅本书同章正常更新到第3/24页。仅接受该首话前三页及返回重开，cold、全章和整书仍未验。
 - **宿主兼容边界**：旧公开App使用`method=GET`加`customMethod='HEAD'`；[官方API23+契约](https://developer.huawei.com/consumer/cn/doc/harmonyos-references/js-apis-http)明确customMethod优先于method，不能由枚举写法断言旧App不支持。已亲读公开`v0.1.2-pre`的`build-profile.json5`：target与compatible均为`6.1.0(23)`；当前compatible也仍为API23，已覆盖该API能力，不因这项HEAD写法再抬高源`minAppVersion`。342–349只验当前显式`RequestMethod.HEAD`宿主，旧公开HAP同候选路径未重验。200且空正文是探测成功条件，不是旧包实际发GET的证据。
 - **原件**：`/private/tmp/koma-baozi-dafeng-image-20261024/` 内 `page.body`、`runtime-script.body`、`cdn-static-decoded.txt`、`probe-results.json`、`same-first-image-candidate-receipt.json`、`head-rsa-first-receipt.json`、`verify-0.1.10.cjs` 与 `candidate-0.1.10-verification.json`；Mac取样、离线Host和Native证据严格分开。
+
+搜索先解码请求中的 JSON 转义，再按既有站点请求规则编码用户输入；空查询、缺失查询、网页验证和其余行为保持原合同。
