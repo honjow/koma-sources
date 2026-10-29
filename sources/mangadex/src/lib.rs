@@ -23,6 +23,8 @@ koma_source_sdk::koma_source_buffers! {
 }
 koma_source_sdk::koma_source_helpers!();
 
+// Search decoding must not alias the URL buffer or consume the bounded WASM stack.
+static mut SEARCH_QUERY: [u8; 65536] = [0; 65536];
 // MangaDex's 20-item browse responses can exceed 256 KiB once cover-art and
 // relationship metadata are included. Keep the decoded JSON buffer below the
 // host response capacity while preserving the page size expected by Koma.
@@ -135,7 +137,7 @@ fn append_manga_title(out: &mut [u8], n: &mut usize, obj: &[u8], req: &[u8]) -> 
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "org.mangadex.koma",
     name: "MangaDex",
-    version: "0.1.22",
+    version: "0.1.23",
     api_version: "0.2",
     language: "en",
     author: "Koma",
@@ -347,9 +349,17 @@ fn run_search(req: &[u8]) -> u32 {
         Some(offset) => offset,
         None => return write_error("search", "invalid_request", "invalid page"),
     };
-    let query = match extract_json_string(req, b"query") {
-        Some(q) => q,
+    let args = json_object_member(req, b"args").unwrap_or(req);
+    let raw = match json_object_member(args, b"query") {
         None => return write_error("search", "invalid_request", "missing query"),
+        Some(v) if v.len() >= 2 && v[0] == b'"' && v[v.len() - 1] == b'"' => &v[1..v.len() - 1],
+        Some(_) => return write_error("search", "invalid_request", "invalid query"),
+    };
+    // Decode JSON request escapes before URL encoding the actual search term.
+    let output = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
+    let query = match koma_source_sdk::plain_text::decode_json_content(raw, output) {
+        Ok(v) if core::str::from_utf8(v).is_ok() => v,
+        _ => return write_error("search", "invalid_request", "invalid query"),
     };
 
     // Build URL: /manga?title=...&limit=20&includes[]=cover_art
