@@ -20,7 +20,7 @@ use koma_source_sdk::{
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.xcomic.zh-hant.koma",
     name: "XCOMIC",
-    version: "0.1.8",
+    version: "0.1.9",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -1737,11 +1737,13 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
         -1
     }
 }
+// Keep the localized metadata; derive filter availability from its declared
+// capability so the actual exported menu support cannot drift independently.
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
     response_buffer().write_success_parts("source_info", &[
  b"{\"sourceInfo\":{\"id\":\"", SOURCE_INFO.id.as_bytes(), b"\",\"name\":\"", SOURCE_INFO.name.as_bytes(), b"\",\"version\":\"", SOURCE_INFO.version.as_bytes(), b"\",\"apiVersion\":\"0.2\",\"language\":\"zh-Hant\",\"author\":\"Koma\",\"description\":\"",SOURCE_INFO.description.as_bytes(),
- "\",\"contentRating\":\"nsfw\",\"localizedNames\":{\"zh-Hans\":\"XCOMIC（繁体中文）\",\"zh-Hant\":\"XCOMIC（繁體中文）\",\"en\":\"XCOMIC (Traditional Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes()
+ "\",\"contentRating\":\"nsfw\",\"localizedNames\":{\"zh-Hans\":\"XCOMIC（繁体中文）\",\"zh-Hant\":\"XCOMIC（繁體中文）\",\"en\":\"XCOMIC (Traditional Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":".as_bytes(), if SOURCE_CAPS.filters { b"true" } else { b"false" }, ",\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes()
  ])
 }
 macro_rules! export_op {
