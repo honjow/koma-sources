@@ -27,3 +27,5 @@ Image HTTPS hosts remain uploads.mangadex.org or the actual descriptor-provided 
 ## 标题优先顺序
 
 `preferExtensionLangTitle_zh`（Use alternative titles）默认true，保当前Koma原标题优先链与原JSON输出，固定参考也是true但既有链的细节不据此重写。显式关闭沿固定MangaDexHelper：扩展语种primary值仍优先，缺失才用primary首value，再回扩展语种单值alt、英文单值alt，并实体解码一次。列表、搜索、详情及已有Home共用；不排序或去重标题，不主动重写Library名称、ID、目录及页面。显式关闭时按参考区分空字符串与缺失值，不因字符串为空继续回退；默认和开启仍保原空标题处理，容量不足明确失败。
+
+UUID blacklist: `blockedGroups_zh` and `blockedUploader_zh` are comma-separated UUID text settings exposed only when the host declares both `source_setting_uuid_list_v1` and `source_chapter_exclusions_v1`. Both default empty; empty or older hosts preserve existing requests and results. The host validates the fields before saving; the source also rejects invalid values rather than adding unchecked query parameters. The normal chapter feed applies both exclusions, while exact chapter recovery and page ownership checks bypass them. This source has no Latest or Home section; its ordinary manga search and followed listing retain their existing requests.
