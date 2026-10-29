@@ -6,6 +6,8 @@ use regex::Regex;
 use alloc::{string::{String,ToString},vec::Vec,collections::{BTreeMap,BTreeSet}};
 #[path = "../chapter_editions.rs"]
 mod chapter_editions;
+#[path = "../dedup.rs"]
+mod dedup;
 #[path = "../probe_batches.rs"]
 mod probe_batches;
 #[path = "../detail_context.rs"]
@@ -20,7 +22,7 @@ use koma_source_sdk::{
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.xcomic.zh.koma",
     name: "XCOMIC",
-    version: "0.1.9",
+    version: "0.1.10",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -1379,7 +1381,7 @@ fn emit_chapter(
     }
     bytes(b, n, b"}")
 }
-fn collect(work: &[u8], target: Option<&[u8]>, normalize_labels: bool, r: &[u8]) -> Result<(usize, usize, Vec<String>), E> {
+fn collect(work: &[u8], target: Option<&[u8]>, normalize_labels: bool, deduplicate: bool, r: &[u8]) -> Result<(usize, usize, Vec<String>, usize), E> {
     let mut labels = Vec::new();
     let mut label_bytes = 0usize;
     let mut normalizer = if normalize_labels { Some(chapter_editions::Normalizer::new()?) } else { None };
@@ -1457,13 +1459,13 @@ fn collect(work: &[u8], target: Option<&[u8]>, normalize_labels: bool, r: &[u8])
             q(&mut vars, &mut v, eid.as_bytes())?;
             bytes(&mut vars, &mut v, b",\"page\":")?;
             wn(&mut vars, &mut v, p)?;
-            bytes(
-                &mut vars,
-                &mut v,
-                b",\"size\":1000,\"sortby\":\"chapter_desc\"}}",
-            )?;
-            let d = query(CHAPTER_UNIQ_LIST_QUERY, &vars[..v])?;
-            let list = required(d, b"get_comic_chapterList_uniqList")?;
+            bytes(&mut vars, &mut v, if deduplicate { b",\"size\":1000,\"sortby\":\"chapter_desc\"}}".as_slice() } else { b",\"size\":100,\"sortby\":\"chapter_desc\"}}".as_slice() })?;
+            let full_query;
+            let (chapter_query, chapter_field) = if deduplicate { (CHAPTER_UNIQ_LIST_QUERY, b"get_comic_chapterList_uniqList".as_slice()) } else {
+                full_query = core::str::from_utf8(CHAPTER_UNIQ_LIST_QUERY).map_err(|_| "invalid chapter query")?.replace("get_comic_chapterList_uniqList", "get_comic_chapterList_fullList").replace("Select_Comic_ChapterList_UniqList", "Select_Comic_ChapterList");
+                (full_query.as_bytes(), b"get_comic_chapterList_fullList".as_slice())
+            };
+            let d = query(chapter_query, &vars[..v])?; let list = required(d, chapter_field)?;
             let paging = required(list, b"paging")?;
             let total = integer(required(paging, b"total")?)?;
             let next = integer(required(paging, b"next")?)?;
@@ -1477,7 +1479,7 @@ fn collect(work: &[u8], target: Option<&[u8]>, normalize_labels: bool, r: &[u8])
             let mut a = Array::new(required(list, b"items")?)?;
             let mut returned = 0;
             while let Some(item) = a.next()? {
-                if count >= 8192 || returned >= 1000 {
+                if count >= 8192 || returned >= if deduplicate { 1000 } else { 100 } {
                     return Err("catalogue capacity exceeded");
                 };
                 let data = required(item, b"data")?;
@@ -1533,7 +1535,7 @@ fn collect(work: &[u8], target: Option<&[u8]>, normalize_labels: bool, r: &[u8])
             }
             let accumulated = count - first_count;
             if accumulated > total
-                || (next != 0 && (returned == 0 || accumulated >= total))
+                || (next != 0 && (returned == 0 || (!deduplicate && returned != 100) || accumulated >= total))
                 || (next == 0 && accumulated != total)
             {
                 return Err("incomplete chapter pagination");
@@ -1556,7 +1558,7 @@ fn collect(work: &[u8], target: Option<&[u8]>, normalize_labels: bool, r: &[u8])
                 .then_with(|| a.ordinal.cmp(&b.ordinal))
         })
     };
-    Ok((count, used, labels))
+    Ok((count, used, labels, good))
 }
 fn emit_edition_chapter(b:&mut [u8],n:&mut usize,raw:&[u8],label:&str)->Result<(),E> {
     if let Some(old)=member(raw,b"scanlator")? {
@@ -1570,11 +1572,22 @@ fn chapters(r: &[u8]) -> Result<usize, E> {
     let selected=chapter_editions::selection(r)?;
     // Exact continuation is not a filtered catalogue. Restore only the validated
     // requested original identity; keep the old default branch byte-for-byte.
-    let exact=if !selected.is_empty()&&member(args(r)?,b"chapterId")?.is_some(){Some(chapter_id(r)?)}else{None};
+    let feature = chapter_editions::supported(r);
+    let exact=if (feature || !selected.is_empty())&&member(args(r)?,b"chapterId")?.is_some(){Some(chapter_id(r)?)}else{None};
     let work=manga_id(r)?;
     if exact.is_some_and(|v|v.0!=work){return Err("chapter ownership mismatch");}
     let group = matches!(json_object_member(r, b"settings").and_then(|v| json_object_member(v, b"GROUP_BY_SOURCE")), Some(b"true") | Some(br#""true""#));
-    let (count, _, labels) = collect(work, exact.map(|v|v.1), (!selected.is_empty() || group) && exact.is_none(), r)?;
+    // Keep this language's historical default unless the capable host supplies a preference.
+    let value = if feature { json_object_member(r,b"settings").and_then(|v|json_object_member(v,b"DEDUPLICATE_CHAPTERS")) } else { None };
+    let deduplicate = !matches!(value, Some(b"false") | Some(br#""false""#));
+    let (count, _, labels, good) = collect(work, exact.map(|v|v.1), (!selected.is_empty() || group) && exact.is_none(), if exact.is_some() && feature { false } else { deduplicate }, r)?;
+    let full_query;
+    let dedup_excluded = if feature && deduplicate && exact.is_none() {
+        full_query = core::str::from_utf8(CHAPTER_UNIQ_LIST_QUERY).map_err(|_| "invalid chapter query")?
+            .replace("get_comic_chapterList_uniqList", "get_comic_chapterList_fullList")
+            .replace("Select_Comic_ChapterList_UniqList", "Select_Comic_ChapterList");
+        dedup::exclusions(good,count,full_query.as_bytes())?
+    } else { Vec::new() };
     let mut collisions:BTreeMap<String,BTreeSet<String>>=BTreeMap::new();
     if !labels.is_empty(){
         for ch in unsafe{&CHS[..count]} {
@@ -1612,12 +1625,16 @@ fn chapters(r: &[u8]) -> Result<usize, E> {
     }
     if exact.is_some()&&written!=1{return Err("chapter ownership mismatch");}
     bytes(b,&mut n,b"]")?;
-    if !selected.is_empty()&&exact.is_none(){
+    if exact.is_none() && (!selected.is_empty() || !dedup_excluded.is_empty()) {
         bytes(b,&mut n,b",\"excludedChapterIds\":[")?;
         for (i,index) in excluded.iter().enumerate(){
             if i>0{bytes(b,&mut n,b",")?;}
             let ch=unsafe{CHS[*index]};
             let raw=unsafe{&CH_BYTES[ch.off..ch.off+ch.len]};rawq(b,&mut n,required(raw,b"id")?)?;
+        }
+        for (edition,chapter) in &dedup_excluded {
+            if !excluded.is_empty() || n > 0 && b[n-1] != b'[' { bytes(b,&mut n,b",")?; }
+            bytes(b,&mut n,b"\"")?;bytes(b,&mut n,CP)?;bytes(b,&mut n,work)?;bytes(b,&mut n,b":")?;bytes(b,&mut n,edition)?;bytes(b,&mut n,b":")?;bytes(b,&mut n,chapter)?;bytes(b,&mut n,b"\"")?;
         }
         bytes(b,&mut n,b"]")?;
     }
@@ -1626,7 +1643,7 @@ fn chapters(r: &[u8]) -> Result<usize, E> {
 
 fn pages(r: &[u8]) -> Result<usize, E> {
     let (work, eid, cid) = chapter_id(r)?;
-    let (count, _, _) = collect(work, Some(eid), false, r)?;
+    let (count, _, _, _) = collect(work, Some(eid), false, if chapter_editions::supported(r) { false } else { true }, r)?;
     let belongs = unsafe {
         CHS[..count]
             .iter()
@@ -1720,7 +1737,7 @@ fn run_get_settings(req: &[u8]) -> u32 {
     let schema = r#"{"settings":[{"id":"REMOVE_TITLE_VERSION","name":"Remove Version Information From Entry Titles","kind":"toggle","default":"false","description":"This removes version tags like '(Official)' or '(Yaoi)' from entry titles."},{"id":"IGNORE_GENRE_BLOCKLIST","name":"Ignore WebView Genre Blocklist","kind":"toggle","default":"false"},{"id":"GROUP_BY_SOURCE","name":"Group Chapters By Edition","kind":"toggle","default":"false","description":"Sort chapters by edition label, then chapter number."}]}"#.as_bytes();
     let out=payload_buf();let mut n=0;
     if !chapter_editions::supported(req){out[..schema.len()].copy_from_slice(schema);return write_success_payload("get_settings",schema.len());}
-    if bytes(out,&mut n,&schema[..schema.len()-2]).is_err() || bytes(out,&mut n,br#",{"id":"SOURCE_INCLUDE","name":"Chapter Editions To Include","kind":"text","default":"","description":"Comma-separated edition labels; a base label includes matching editions, while a suffixed label selects one. Empty includes all editions."}]}"#).is_err(){return write_error("get_settings","internal_error","payload overflow");}
+    if bytes(out,&mut n,&schema[..schema.len()-2]).is_err() || bytes(out,&mut n,br#",{"id":"DEDUPLICATE_CHAPTERS","name":"Deduplicate Chapter List","kind":"toggle","default":"true","description":"Use the provider deduplicated list; duplicate uploads from the same edition may be hidden."},{"id":"SOURCE_INCLUDE","name":"Chapter Editions To Include","kind":"text","default":"","description":"Comma-separated edition labels; a base label includes matching editions, while a suffixed label selects one. Empty includes all editions."}]}"#).is_err(){return write_error("get_settings","internal_error","payload overflow");}
     write_success_payload("get_settings",n)
 }
 // Source-local ABI gate; SDK remains byte-identical. Check before helper forms a slice.
