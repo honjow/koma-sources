@@ -1386,7 +1386,7 @@ dependencies = [
 
 [[package]]
 name = "koma_mangadex_source"
-version = "0.1.20"
+version = "0.1.21"
 dependencies = [
  "koma_source_sdk",
 ]
