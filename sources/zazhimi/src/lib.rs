@@ -5,7 +5,7 @@ extern crate koma_source_sdk;
 use koma_source_sdk::host::{self, http_request, log_info};
 use koma_source_sdk::json_utils::{
     append_json_escaped, append_json_unescaped_then_escaped, contains_bytes, extract_json_number,
-    extract_json_string, request_page_number, write_bytes, write_url_encoded, write_usize, JsonArrayIter,
+    extract_json_string, json_object_member, request_page_number, write_bytes, write_url_encoded, write_usize, JsonArrayIter,
 };
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{build_get_request, decode_json_body_into, fetch_error_code, FetchError};
@@ -28,7 +28,7 @@ static mut URL_BUF: [u8; URL_CAP] = [0; URL_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.zazhimi.koma",
     name: "杂志迷",
-    version: "0.1.1",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -44,7 +44,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     listings: false,
     manga_list: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: false,
     image_request: false,
     credentials: false,
@@ -233,13 +233,29 @@ fn write_list_from_array(
     write_success_payload(operation, c)
 }
 
+// Only explicit browse selections change the existing index endpoint.
+fn filter_feature(req: &[u8]) -> bool {
+    json_object_member(req,b"hostFeatures").map(trim_ascii).map_or(false, |v| v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|b|*b==b',').any(|v| trim_ascii(v)==b"\"source_filter_scope_header_v1\""))
+}
+fn filter_value<'a>(f: &'a [u8], key: &[u8]) -> Option<&'a [u8]> {
+    json_object_member(f,key).and_then(|v|v.strip_prefix(b"\"")?.strip_suffix(b"\""))
+}
 fn run_list(req: &[u8], operation: &str) -> u32 {
     let page = request_page(req);
     let limit = request_limit(req);
-    let url_len = match build_index_url(page, limit) {
+    let filters = if filter_feature(req) { json_object_member(req,b"args").and_then(|v|json_object_member(v,b"filters")).unwrap_or(b"{}") } else { b"{}" };
+    let category = filter_value(filters,b"category");
+    let brand = filter_value(filters,b"brand");
+    let filtered = category.is_some() || brand.is_some();
+    let url_len = if filtered {
+        let category=category.unwrap_or(b"6"); let brand=brand.unwrap_or(b"all");
+        if ![b"6".as_slice(),b"8",b"9",b"10",b"127",b"168"].contains(&category) || ![b"all".as_slice(),b"36",b"48",b"51",b"53",b"65",b"84",b"109",b"121",b"149",b"155",b"178",b"214",b"357",b"361",b"386",b"395",b"400",b"349"].contains(&brand) { return write_error(operation,"invalid_request","invalid filter"); }
+        let mut n=0; let b=url_buf();
+        if !(write_bytes(b,&mut n,API_BASE) && write_bytes(b,&mut n,b"/lists.php?c=") && write_bytes(b,&mut n,category) && write_bytes(b,&mut n,b"&m=") && (brand==b"all" || write_bytes(b,&mut n,brand)) && write_bytes(b,&mut n,b"&p=") && write_usize(b,&mut n,page) && write_bytes(b,&mut n,b"&s=") && write_usize(b,&mut n,limit)) { return write_error(operation,"internal_error","url overflow"); } n
+    } else { match build_index_url(page, limit) {
         Some(v) => v,
         None => return write_error(operation, "internal_error", "url overflow"),
-    };
+    }};
     let url =
         unsafe { core::slice::from_raw_parts(core::ptr::addr_of!(URL_BUF) as *const u8, url_len) };
     let body_len = match fetch_json(url) {
@@ -252,7 +268,7 @@ fn run_list(req: &[u8], operation: &str) -> u32 {
     write_list_from_array(
         operation,
         body_slice(body_len),
-        b"new",
+        if filtered { b"magazine" } else { b"new" },
         page,
         limit,
         b"zazhimi",
@@ -522,8 +538,10 @@ pub extern "C" fn koma_source_get_home(_req_ptr: u32, _req_len: u32) -> u32 {
     response_buffer().write_success("get_home", br#"{"sections":[]}"#)
 }
 #[no_mangle]
-pub extern "C" fn koma_source_get_filters(_req_ptr: u32, _req_len: u32) -> u32 {
-    response_buffer().write_success("get_filters", br#"{"filters":[]}"#)
+pub extern "C" fn koma_source_get_filters(req_ptr: u32, req_len: u32) -> u32 {
+    let req = match read_request(req_ptr,req_len) { Some(v)=>v, None=>return write_error("get_filters","invalid_request","empty request") };
+    let data=if filter_feature(req) { r###"{"filters":[{"id":"notice","name":"筛选条件（搜索关键字时无效）","type":"header","scope":"browse"},{"id":"category","name":"分类","type":"select","scope":"browse","options":[{"label":"女装服饰","value":"6"},{"label":"美妆美发","value":"8"},{"label":"时尚男士","value":"9"},{"label":"娱乐明星","value":"10"},{"label":"手工制作","value":"127"},{"label":"居家生活","value":"168"}]},{"id":"brand","name":"品牌","type":"select","scope":"browse","options":[{"label":"全部","value":"all"},{"label":"BeasUp","value":"36"},{"label":"美的","value":"48"},{"label":"VoCE","value":"51"},{"label":"MAQUIA","value":"53"},{"label":"nail venus","value":"65"},{"label":"ageha","value":"84"},{"label":"NAIL MAX","value":"109"},{"label":"Nail Up","value":"121"},{"label":"ar","value":"149"},{"label":"TOMOTOMO","value":"155"},{"label":"CHOKiCHOKi","value":"178"},{"label":"springヘア&ビューティー","value":"214"},{"label":"美ST","value":"357"},{"label":"LDK the Beauty","value":"361"},{"label":"preppy","value":"386"},{"label":"Nail Ex","value":"395"},{"label":"HAIR MODE","value":"400"},{"label":"其他美容美甲画册","value":"349"}]}]}"###.as_bytes() } else { b"{\"filters\":[]}" };
+    response_buffer().write_success("get_filters", data)
 }
 #[no_mangle]
 pub extern "C" fn koma_source_get_settings(_req_ptr: u32, _req_len: u32) -> u32 {
