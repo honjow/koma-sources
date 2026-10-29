@@ -13,7 +13,7 @@ const MOBILE: &[u8] = b"https://m.mh160mh.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mh160.koma",
     name: "漫画160",
-    version: "0.1.5",
+    version: "0.1.6",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -29,7 +29,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     listings: true,
     manga_list: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: false,
     image_request: false,
     credentials: false,
@@ -617,10 +617,15 @@ fn manga_doc(id: &[u8]) -> Result<Node, OperationError> {
     bytes(&mut out, &mut n, b"/")?;
     fetch_doc(BASE, &out[..n])
 }
+// The reference category is browse-only; an unset selection keeps each listing's original URL.
+fn supports_browse_filters(r: &[u8]) -> bool {
+    json_object_member(r,b"hostFeatures").map(trim_ascii).map_or(false,|v| v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|b|*b==b',').any(|p|trim_ascii(p)==br#""source_filter_scope_header_v1""#))
+}
 fn list(r: &[u8], search: bool) -> Result<usize, OperationError> {
     let p = page(r)?;
     let mut out = [0; 8192];
     let mut n = 0;
+    let category = if !search && supports_browse_filters(r) { json_object_member(args(r), b"filters").and_then(|f|string(f,b"category")).filter(|v| matches!(*v, b"lianzai" | b"wanjie" | b"zaixian_rhmh" | b"zaixian_dlmh" | b"zaixian_gtmh" | b"zaixian_ommh" | b"zaixian_qita" | b"shaonianqu" | b"shaonvqu" | b"qingnian" | b"shaoer" | b"rexue" | b"gedou" | b"kehuan" | b"jingji" | b"gaoxiao" | b"tuili" | b"kongbu" | b"danmei" | b"lianai" | b"shenghuo" | b"zhanzheng" | b"gushi" | b"maoxian" | b"mohuan" | b"xuanhuan" | b"xiaoyuan" | b"xuanyi" | b"mengxi" | b"chuanyue" | b"hougong" | b"dushi" | b"wuxia" | b"lishi" | b"tongren" | b"lizhi" | b"baihe" | b"zhiyu" | b"jijia" | b"chunai" | b"meishi" | b"xuexing" | b"jiangshi" | b"egao" | b"nuexin" | b"dongzuo" | b"jingxian" | b"weimei" | b"zhenhan" | b"fuchou" | b"zhentan" | b"naodong" | b"qihuan" | b"gongdou" | b"baoxiao" | b"yundong" | b"qingchun" | b"lingyi" | b"gufeng" | b"quanmou" | b"jiecao" | b"mingxing" | b"anhei" | b"shehui" | b"langman" | b"xianxia" | b"weiniang")) } else { None };
     if search {
         let raw = string(args(r), b"query").ok_or("missing query")?;
         let mut decoded = [0; 4096];
@@ -638,15 +643,13 @@ fn list(r: &[u8], search: bool) -> Result<usize, OperationError> {
         }
     } else {
         let listing = string(args(r), b"listingId").unwrap_or(b"popular");
-        bytes(
-            &mut out,
-            &mut n,
-            match listing {
-                b"popular" => b"/kanmanhua/zaixian_hit.html".as_slice(),
-                b"latest" => b"/kanmanhua/zaixian_recent.html",
-                _ => return Err("unknown listing".into()),
-            },
-        )?;
+        if listing != b"popular" && listing != b"latest" { return Err("unknown listing".into()); }
+        if let Some(slug) = category {
+            bytes(&mut out, &mut n, b"/kanmanhua/")?;
+            bytes(&mut out, &mut n, slug)?;
+        } else {
+            bytes(&mut out, &mut n, if listing == b"latest" { b"/kanmanhua/zaixian_recent.html" } else { b"/kanmanhua/zaixian_hit.html" })?;
+        }
         if p != 1 {
             return Err("invalid page cursor".into());
         }
@@ -655,6 +658,9 @@ fn list(r: &[u8], search: bool) -> Result<usize, OperationError> {
     let nodes = if search {
         let _container = root.select(b"ul.mh-search-list")?;
         Nodes::get(&root, b"ul.mh-search-list > li")?
+    } else if category.is_some() {
+        let _container = root.select(b"#listbody")?;
+        Nodes::get(&root, b"#listbody li")?
     } else {
         Nodes::get(&root, b".itemBox")?
     };
@@ -668,13 +674,15 @@ fn list(r: &[u8], search: bool) -> Result<usize, OperationError> {
         let item = selected(&nodes, i);
         let a = item.select(if search {
             b".mh-works-title h4 a".as_slice()
+        } else if category.is_some() {
+            b"a.ImgA"
         } else {
             b".itemTxt a.title"
         })?;
         let mut href = [0; 1024];
         let id = slug(a.attr(b"href", &mut href)?)?;
         let mut title = [0; 4096];
-        let title = a.text(&mut title)?;
+        let title = if category.is_some() { match item.select(b"a.txtA") { Ok(node) => match node.text(&mut title) { Ok(value) if !value.is_empty() => value, _ => id }, Err(_) => id } } else { a.text(&mut title)? };
         if title.is_empty() {
             return Err("empty manga title".into());
         }
@@ -691,6 +699,8 @@ fn list(r: &[u8], search: bool) -> Result<usize, OperationError> {
         bytes(b, &mut n, b",\"contentRating\":\"unknown\",\"cover\":")?;
         if let Ok(img) = item.select(if search {
             b".mh-nlook-w img".as_slice()
+        } else if category.is_some() {
+            b"a.ImgA img"
         } else {
             b".itemImg img"
         }) {
@@ -1075,8 +1085,10 @@ fn run_get_listings(_: &[u8]) -> u32 {
 fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_implemented", "not supported")
 }
-fn run_get_filters(_: &[u8]) -> u32 {
-    write_error("get_filters", "not_implemented", "not supported")
+fn run_get_filters(r: &[u8]) -> u32 {
+    let schema = if supports_browse_filters(r) { r###"{"filters":[{"id":"category","type":"select","scope":"browse","name":"分类","options":[{"value":"all","label":"全部分类"},{"value":"lianzai","label":"连载中"},{"value":"wanjie","label":"完结"},{"value":"zaixian_rhmh","label":"日韩"},{"value":"zaixian_dlmh","label":"内地"},{"value":"zaixian_gtmh","label":"港台"},{"value":"zaixian_ommh","label":"欧美"},{"value":"zaixian_qita","label":"其他"},{"value":"shaonianqu","label":"少年"},{"value":"shaonvqu","label":"少女"},{"value":"qingnian","label":"青年"},{"value":"shaoer","label":"少儿"},{"value":"rexue","label":"热血"},{"value":"gedou","label":"格斗"},{"value":"kehuan","label":"科幻"},{"value":"jingji","label":"竞技"},{"value":"gaoxiao","label":"搞笑"},{"value":"tuili","label":"推理"},{"value":"kongbu","label":"恐怖"},{"value":"danmei","label":"耽美"},{"value":"lianai","label":"恋爱"},{"value":"shenghuo","label":"生活"},{"value":"zhanzheng","label":"战争"},{"value":"gushi","label":"故事"},{"value":"maoxian","label":"冒险"},{"value":"mohuan","label":"魔幻"},{"value":"xuanhuan","label":"玄幻"},{"value":"xiaoyuan","label":"校园"},{"value":"xuanyi","label":"悬疑"},{"value":"mengxi","label":"萌系"},{"value":"chuanyue","label":"穿越"},{"value":"hougong","label":"后宫"},{"value":"dushi","label":"都市"},{"value":"wuxia","label":"武侠"},{"value":"lishi","label":"历史"},{"value":"tongren","label":"同人"},{"value":"lizhi","label":"励志"},{"value":"baihe","label":"百合"},{"value":"zhiyu","label":"治愈"},{"value":"jijia","label":"机甲"},{"value":"chunai","label":"纯爱"},{"value":"meishi","label":"美食"},{"value":"xuexing","label":"血腥"},{"value":"jiangshi","label":"僵尸"},{"value":"egao","label":"恶搞"},{"value":"nuexin","label":"虐心"},{"value":"dongzuo","label":"动作"},{"value":"jingxian","label":"惊险"},{"value":"weimei","label":"唯美"},{"value":"zhenhan","label":"震撼"},{"value":"fuchou","label":"复仇"},{"value":"zhentan","label":"侦探"},{"value":"naodong","label":"脑洞"},{"value":"qihuan","label":"奇幻"},{"value":"gongdou","label":"宫斗"},{"value":"baoxiao","label":"爆笑"},{"value":"yundong","label":"运动"},{"value":"qingchun","label":"青春"},{"value":"lingyi","label":"灵异"},{"value":"gufeng","label":"古风"},{"value":"quanmou","label":"权谋"},{"value":"jiecao","label":"节操"},{"value":"mingxing","label":"明星"},{"value":"anhei","label":"暗黑"},{"value":"shehui","label":"社会"},{"value":"langman","label":"浪漫"},{"value":"xianxia","label":"仙侠"},{"value":"weiniang","label":"伪娘"}]}]}"###.as_bytes() } else { b"{\"filters\":[]}" };
+    payload_buf()[..schema.len()].copy_from_slice(schema);
+    write_success_payload("get_filters", schema.len())
 }
 fn run_get_settings(_: &[u8]) -> u32 {
     write_error("get_settings", "not_implemented", "not supported")
