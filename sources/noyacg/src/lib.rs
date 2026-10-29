@@ -24,7 +24,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.noyacg.koma",
     name: "NoyAcg",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -40,7 +40,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     listings: true,
     manga_list: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: true,
     image_request: false,
     credentials: false,
@@ -422,10 +422,23 @@ fn build_url(path: &[u8]) -> Option<usize> {
     Some(c)
 }
 
+// Only hosts that understand operation scope may see and send the extra search filters.
+fn filter_scope_supported(req: &[u8]) -> bool {
+    json_object_member(req, b"hostFeatures").map(|v| { let v=trim_ascii(v); v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|c| *c==b',').any(|x| trim_ascii(x)==b"\"source_filter_scope_header_v1\"") }).unwrap_or(false)
+}
+fn search_filter_values<'a>(req: &'a [u8], mode: &'a [u8]) -> Option<(&'a [u8], &'a [u8], &'a [u8])> {
+    if !filter_scope_supported(req) { return Some((mode,b"",b"")); }
+    let filters=json_object_member(req,b"args").and_then(|a|json_object_member(a,b"filters"));
+    let read=|key: &[u8]| filters.and_then(|f|extract_json_string(f,key));
+    let mode=read(b"mode").unwrap_or(mode); let sort=read(b"sort").unwrap_or(b"time"); let finished=read(b"finished").unwrap_or(b"all");
+    if !matches!(mode,b"default"|b"tag"|b"author") || !matches!(sort,b"time"|b"views"|b"favorites"|b"rating") || !matches!(finished,b"all"|b"false"|b"true") { return None; }
+    Some((mode,if sort==b"time" {b""} else {sort},if finished==b"all" {b""} else {finished}))
+}
 fn run_search(req: &[u8]) -> u32 {
     let query = extract_json_string(req, b"query").unwrap_or(b"");
     let page = request_page(req);
     let mode = extract_json_string(req, b"mode").unwrap_or(b"default");
+    let Some((mode,sort,finished)) = search_filter_values(req,mode) else { return write_error("search", "invalid_request", "invalid search filter"); };
     let body = scratch_b();
     let mut bc = 0usize;
     if !(write_bytes(body, &mut bc, b"value=")
@@ -434,7 +447,10 @@ fn run_search(req: &[u8]) -> u32 {
         && write_usize(body, &mut bc, page)
         && write_bytes(body, &mut bc, b"&type=book&mode=")
         && write_url_encoded(body, &mut bc, mode)
-        && write_bytes(body, &mut bc, b"&sort=&finished="))
+        && write_bytes(body, &mut bc, b"&sort=")
+        && write_url_encoded(body, &mut bc, sort)
+        && write_bytes(body, &mut bc, b"&finished=")
+        && write_url_encoded(body, &mut bc, finished))
     {
         return write_error("search", "internal_error", "body overflow");
     }
@@ -813,8 +829,14 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     }
 }
 
-fn run_get_filters(_req: &[u8]) -> u32 {
-    const FILTERS: &str = "{\"filters\":[{\"id\":\"mode\",\"name\":\"搜索模式\",\"kind\":\"select\",\"options\":[{\"value\":\"default\",\"label\":\"默认\"},{\"value\":\"tag\",\"label\":\"标签\"},{\"value\":\"author\",\"label\":\"作者\"}],\"default\":\"default\"}]}";
+fn run_get_filters(req: &[u8]) -> u32 {
+    if filter_scope_supported(req) {
+        const FILTERS: &str = r#"{"filters":[{"id":"mode","name":"類型","kind":"select","scope":"search","default":"default","options":[{"value":"default","label":"預設"},{"value":"tag","label":"標籤"},{"value":"author","label":"作者"}]},{"id":"sort","name":"排序方式","kind":"select","scope":"search","default":"time","options":[{"value":"time","label":"時間"},{"value":"views","label":"閲讀"},{"value":"favorites","label":"收藏"},{"value":"rating","label":"評分"}]},{"id":"finished","name":"完結狀態","kind":"select","scope":"search","default":"all","options":[{"value":"all","label":"全部"},{"value":"false","label":"連載中"},{"value":"true","label":"已完結"}]}]}"#;
+        payload_buf()[..FILTERS.len()].copy_from_slice(FILTERS.as_bytes());
+        return write_success_payload("get_filters",FILTERS.len());
+    }
+    // The old capability was false: keep old hosts from exposing an inactive browse control.
+    const FILTERS: &str = "{\"filters\":[]}";
     let bytes = FILTERS.as_bytes();
     if bytes.len() > payload_buf().len() {
         return write_error("get_filters", "internal_error", "payload overflow");
