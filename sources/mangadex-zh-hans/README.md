@@ -1,4 +1,4 @@
-# MangaDex — Simplified Chinese 0.1.8
+# MangaDex — Simplified Chinese 0.1.10
 
 Independent source `org.mangadex.zh-hans.koma`, API 0.2, content language zh-Hans, provider API language `zh`. Other language-source IDs remain independent; no alias or migration. Provider language metadata does not guarantee the writing system of every image. Implementation/license and original official icon attribution remain in NOTICE/LICENSE; icon bytes/background/mask are unchanged.
 
@@ -8,7 +8,7 @@ Listing 关注较多 is all-time followedCount, not 30-day popularity or usage. 
 
 `dataSaverV5_zh` defaults false. Only explicit true selects actual `chapter.dataSaver` filenames and `/data-saver/`; otherwise original ordered `chapter.data` and `/data/` remain. get_pages still validates the complete owned feed and declared page count; stable page IDs carry the original chapter UUID/index. Every image request still makes its existing fresh normal at-home GET and resolves the selected quality by index. Both selected and original file sets retain safe filename, capacity and duplicate guards; no filename is guessed.
 
-Image HTTPS hosts remain uploads.mangadex.org or the actual descriptor-provided mangadex.network subdomain. Cover requests remain bound to the same manga UUID. No tokens, Cookie handling, statistics POST, auth/retry fallback, new host grants or App/style changes. Standard build: `bash build.sh --source mangadex-zh-hans`. Runtime/crate/package versions align at 0.1.8.
+Image HTTPS hosts remain uploads.mangadex.org or the actual descriptor-provided mangadex.network subdomain. Cover requests remain bound to the same manga UUID. No tokens, Cookie handling, statistics POST, auth/retry fallback, new host grants or App/style changes. Standard build: `bash build.sh --source mangadex-zh-hans`. Runtime/crate/package versions align at 0.1.10.
 
 `altTitlesInDesc_zh` defaults false and is consumed only by manga detail descriptions. Explicit true appends the fixed reference `Alternative titles:` block: extension-language or original-language romanized maps, exactly one nonempty value per map, provider order, no sorting/deduplication. The shared SDK plain-text helper decodes JSON Unicode and HTML entities once while preserving literal markup; the original base description is retained. Missing/false leaves the prior description bytes, title fallback and all other fields unchanged. Title priority and final-chapter text have independent settings below.
 
@@ -29,3 +29,5 @@ Image HTTPS hosts remain uploads.mangadex.org or the actual descriptor-provided 
 `preferExtensionLangTitle_zh`（Use alternative titles）默认true，保当前Koma原标题优先链与原JSON输出，固定参考也是true但既有链的细节不据此重写。显式关闭沿固定MangaDexHelper：扩展语种primary值仍优先，缺失才用primary首value，再回扩展语种单值alt、英文单值alt，并实体解码一次。列表、搜索、详情及已有Home共用；不排序或去重标题，不主动重写Library名称、ID、目录及页面。显式关闭时按参考区分空字符串与缺失值，不因字符串为空继续回退；默认和开启仍保原空标题处理，容量不足明确失败。
 
 UUID blacklist: `blockedGroups_zh` and `blockedUploader_zh` are comma-separated UUID text settings exposed only when the host declares both `source_setting_uuid_list_v1` and `source_chapter_exclusions_v1`. Both default empty; empty or older hosts preserve existing requests and results. The host validates the fields before saving; the source also rejects invalid values rather than adding unchecked query parameters. The normal chapter feed applies both exclusions, while exact chapter recovery and page ownership checks bypass them. This source has no Latest or Home section; its ordinary manga search and followed listing retain their existing requests.
+
+Status filtering supports the fixed reference Ongoing, Completed, Hiatus and Cancelled multiselect. Explicit values are sent as status[]; no selection preserves the original request, available chapter and language constraints, rating, settings, and ordering. Older hosts see no new filter. Other reference filters remain unimplemented.

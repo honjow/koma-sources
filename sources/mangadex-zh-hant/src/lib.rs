@@ -7,7 +7,7 @@ use koma_source_sdk::{
 };
 type E = &'static str;
 const MAX: usize = 1048576;
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"org.mangadex.zh-hant.koma",name:"MangaDex",version:"0.1.9",api_version:"0.2",language:"zh-Hant",author:"Koma",description:"MangaDex provider traditional-Chinese catalogue (zh-hk); page scripts vary. Usage unknown; followedCount listing is not a usage ranking.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"org.mangadex.zh-hant.koma",name:"MangaDex",version:"0.1.10",api_version:"0.2",language:"zh-Hant",author:"Koma",description:"MangaDex provider traditional-Chinese catalogue (zh-hk); page scripts vary. Usage unknown; followedCount listing is not a usage ranking.",content_rating:"nsfw"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -17,7 +17,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     manga_list: true,
     image_request: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: true,
     credentials: false,
 };
@@ -777,6 +777,24 @@ fn request_offset(r: &[u8], limit: usize) -> Result<usize, E> {
         .and_then(|p| p.checked_mul(limit))
         .ok_or("page overflow")
 }
+// Old hosts retain the original empty filter surface and request.
+fn filter_host(r: &[u8]) -> bool {
+    member(r,b"hostFeatures").ok().flatten().and_then(|v| Array::new(v).ok()).map_or(false,|mut a| {
+        while let Ok(Some(v))=a.next() { if v==br#""source_filter_scope_header_v1""# {return true;} } false
+    })
+}
+fn append_status(out:&mut [u8],n:&mut usize,r:&[u8])->Result<(),E> {
+    if !filter_host(r) { return Ok(()); }
+    let a=args(r)?; let f=match member(a,b"filters")? { Some(v)=>v, None=>return Ok(()) };
+    let v=match member(f,b"status")? { Some(v)=>v, None=>return Ok(()) };
+    let mut a=Array::new(v)?;
+    while let Some(item)=a.next()? {
+        let status=quoted(item)?;
+        if !matches!(status,b"ongoing" | b"completed" | b"hiatus" | b"cancelled") {return Err("invalid status filter");}
+        bytes(out,n,b"&status%5B%5D=")?; bytes(out,n,status)?;
+    }
+    Ok(())
+}
 fn listing(r: &[u8], search: bool) -> Result<usize, E> {
     let quality = cover_quality(r)?;
     if !search {
@@ -795,6 +813,7 @@ fn listing(r: &[u8], search: bool) -> Result<usize, E> {
     bytes(b,&mut n,b"&includes%5B%5D=cover_art&hasAvailableChapters=true&availableTranslatedLanguage%5B%5D=zh-hk")?;
     if !content_rating::append_query(b, &mut n, r, b"contentRating_zh-hk") { return Err("payload overflow"); }
     bytes(b, &mut n, original_language::query(r, b"originalLanguage_zh-hk", search))?;
+    append_status(b,&mut n,r)?;
     if search {
         let mut querybuf = [0; 8192];
         let query = uq(required(args(r)?, b"query")?, &mut querybuf)?;
@@ -1279,8 +1298,9 @@ fn run_get_listings(_: &[u8]) -> u32 {
 fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_supported", "not supported")
 }
-fn run_get_filters(_: &[u8]) -> u32 {
-    write_error("get_filters", "not_supported", "not supported")
+fn run_get_filters(r: &[u8]) -> u32 {
+    let schema=if filter_host(r) { br#"{"filters":[{"id":"status","name":"Status","type":"multiselect","options":[{"value":"ongoing","label":"Ongoing"},{"value":"completed","label":"Completed"},{"value":"hiatus","label":"Hiatus"},{"value":"cancelled","label":"Cancelled"}]}]}"#.as_slice() } else { br#"{"filters":[]}"#.as_slice() };
+    payload_buf()[..schema.len()].copy_from_slice(schema);write_success_payload("get_filters",schema.len())
 }
 fn run_get_settings(req: &[u8]) -> u32 {
     let data = r#"{"settings":[{"id":"thumbnailQuality_zh-hk","name":"封面品質","kind":"select","options":[{"value":"original","label":"原圖"},{"value":".512.jpg","label":"中等"},{"value":".256.jpg","label":"低"}],"default":"original"},{"id":"dataSaverV5_zh-hk","name":"省流量","kind":"toggle","default":"false"},{"id":"altTitlesInDesc_zh-hk","name":"Alternative titles in description","kind":"toggle","description":"Include a manga's alternative titles at the end of its description","default":"false"},{"id":"usePort443_zh-hk","name":"Use HTTPS port 443 only","kind":"toggle","description":"Enable to only request image servers that use port 443. This allows users with stricter firewall restrictions to access MangaDex images","default":"false"},{"id":"tryUsingFirstVolumeCover_zh-hk","name":"Attempt to use the first volume cover as cover","kind":"toggle","description":"Existing library entries may need a manual refresh to show changed covers","default":"false"},{"id":"originalLanguage_zh-hk","name":"Filter original languages","kind":"multiselect","description":"Only show content that was originally published in the selected languages in both latest and browse","default":[],"options":[{"value":"ja","label":"Japanese"},{"value":"zh","label":"Chinese"},{"value":"ko","label":"Korean"}]},{"id":"contentRating_zh-hk","name":"Default content rating","kind":"multiselect","description":"Show content with the selected ratings by default","default":["safe","suggestive"],"options":[{"value":"safe","label":"Safe"},{"value":"suggestive","label":"Suggestive"},{"value":"erotica","label":"Erotica"},{"value":"pornographic","label":"Pornographic"}]},{"id":"finalChapterInDesc_zh-hk","name":"Final chapter in description","kind":"toggle","description":"Include a manga's final chapter number at the end of its description","default":"false"},{"id":"preferExtensionLangTitle_zh-hk","name":"Use alternative titles","kind":"toggle","description":"If there is an alternative title available which matches the extension language, it will be used","default":"true"}]}"#.as_bytes();
@@ -1315,7 +1335,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 pub extern "C" fn koma_source_info() -> u32 {
     response_buffer().write_success_parts("source_info", &[
  b"{\"sourceInfo\":{\"id\":\"", SOURCE_INFO.id.as_bytes(), b"\",\"name\":\"", SOURCE_INFO.name.as_bytes(), b"\",\"version\":\"", SOURCE_INFO.version.as_bytes(), b"\",\"apiVersion\":\"0.2\",\"language\":\"zh-Hant\",\"author\":\"Koma\",\"description\":\"",SOURCE_INFO.description.as_bytes(),
- "\",\"contentRating\":\"nsfw\",\"localizedNames\":{\"zh-Hans\":\"MangaDex（繁体中文）\",\"zh-Hant\":\"MangaDex（繁體中文）\",\"en\":\"MangaDex (Traditional Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes()
+ "\",\"contentRating\":\"nsfw\",\"localizedNames\":{\"zh-Hans\":\"MangaDex（繁体中文）\",\"zh-Hant\":\"MangaDex（繁體中文）\",\"en\":\"MangaDex (Traditional Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":true,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes()
  ])
 }
 macro_rules! export_op {
