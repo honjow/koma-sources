@@ -1,4 +1,6 @@
-# XCOMIC 0.1.8（中文 / API zh）
+# XCOMIC 0.1.9（中文 / API zh）
+
+`GROUP_BY_SOURCE` 默认关闭，保留原目录顺序；显式开启按版本标签及章节号排序。章节 ID 和已有阅读记录保持不变。
 
 独立源身份 `com.xcomic.zh.koma`，API 0.2，主页 `https://xcomic.me`。保持原匿名公开 GraphQL、12卡分页、语言筛选、作品/版本/章/页 ID 和原图顺序。混合内容源标记 nsfw，作品分级依实际响应，缺值保未知；不登录、不取 token、不发 mutation、不换域或变换图像。
 

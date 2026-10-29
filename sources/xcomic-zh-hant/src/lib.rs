@@ -20,7 +20,7 @@ use koma_source_sdk::{
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.xcomic.zh-hant.koma",
     name: "XCOMIC",
-    version: "0.1.9",
+    version: "0.1.10",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -1574,13 +1574,26 @@ fn chapters(r: &[u8]) -> Result<usize, E> {
     let exact=if !selected.is_empty()&&member(args(r)?,b"chapterId")?.is_some(){Some(chapter_id(r)?)}else{None};
     let work=manga_id(r)?;
     if exact.is_some_and(|v|v.0!=work){return Err("chapter ownership mismatch");}
-    let (count, _, labels) = collect(work, exact.map(|v|v.1), !selected.is_empty()&&exact.is_none(), r)?;
+    let group = matches!(json_object_member(r, b"settings").and_then(|v| json_object_member(v, b"GROUP_BY_SOURCE")), Some(b"true") | Some(br#""true""#));
+    let (count, _, labels) = collect(work, exact.map(|v|v.1), (!selected.is_empty() || group) && exact.is_none(), r)?;
     let mut collisions:BTreeMap<String,BTreeSet<String>>=BTreeMap::new();
     if !labels.is_empty(){
         for ch in unsafe{&CHS[..count]} {
             let label=&labels[ch.ordinal];if label.is_empty(){continue;}
             collisions.entry(label.to_lowercase()).or_default().insert(core::str::from_utf8(ch.edition.as_bytes()).map_err(|_|"invalid identity")?.to_string());
         }
+    }
+    if group && exact.is_none() {
+        let sort_label = |ch: &Chapter| {
+            let label = &labels[ch.ordinal];
+            if collisions.get(&label.to_lowercase()).is_some_and(|ids| ids.len() > 1) {
+                alloc::format!("{} [{}]", label, core::str::from_utf8(ch.edition.as_bytes()).unwrap_or("")) .to_lowercase()
+            } else { label.to_lowercase() }
+        };
+        unsafe { CHS[..count].sort_unstable_by(|a,b| sort_label(a).cmp(&sort_label(b))
+            .then_with(|| b.numbered.cmp(&a.numbered))
+            .then_with(|| b.number.partial_cmp(&a.number).unwrap_or(core::cmp::Ordering::Equal))
+            .then_with(|| a.ordinal.cmp(&b.ordinal))) };
     }
     let b = payload_buf();let mut n = 0;let mut written=0;let mut excluded=Vec::new();
     bytes(b, &mut n, b"{\"items\":[")?;
@@ -1592,7 +1605,7 @@ fn chapters(r: &[u8]) -> Result<usize, E> {
         let mut label=if labels.is_empty(){String::new()}else{labels[ch.ordinal].clone()};
         if !labels.is_empty(){
             if collisions.get(&label.to_lowercase()).is_some_and(|ids|ids.len()>1){label=alloc::format!("{} [{}]",label,core::str::from_utf8(ch.edition.as_bytes()).map_err(|_|"invalid identity")?);}
-            if !chapter_editions::matches(&selected,&label){excluded.push(index);continue;}
+            if !selected.is_empty() && !chapter_editions::matches(&selected,&label){excluded.push(index);continue;}
         }
         if written>0{bytes(b,&mut n,b",")?;}
         if labels.is_empty(){bytes(b,&mut n,raw)?;}else{emit_edition_chapter(b,&mut n,raw,&label)?;}
@@ -1713,7 +1726,7 @@ fn run_get_filters(r: &[u8]) -> u32 {
     write_success_payload("get_filters",schema.len())
 }
 fn run_get_settings(req: &[u8]) -> u32 {
-    let schema = r#"{"settings":[{"id":"REMOVE_TITLE_VERSION","name":"Remove Version Information From Entry Titles","kind":"toggle","default":"false","description":"This removes version tags like '(Official)' or '(Yaoi)' from entry titles."},{"id":"IGNORE_GENRE_BLOCKLIST","name":"Ignore WebView Genre Blocklist","kind":"toggle","default":"false"}]}"#.as_bytes();
+    let schema = r#"{"settings":[{"id":"REMOVE_TITLE_VERSION","name":"Remove Version Information From Entry Titles","kind":"toggle","default":"false","description":"This removes version tags like '(Official)' or '(Yaoi)' from entry titles."},{"id":"IGNORE_GENRE_BLOCKLIST","name":"Ignore WebView Genre Blocklist","kind":"toggle","default":"false"},{"id":"GROUP_BY_SOURCE","name":"Group Chapters By Edition","kind":"toggle","default":"false","description":"Sort chapters by edition label, then chapter number."}]}"#.as_bytes();
     let out=payload_buf();let mut n=0;
     if !chapter_editions::supported(req){out[..schema.len()].copy_from_slice(schema);return write_success_payload("get_settings",schema.len());}
     if bytes(out,&mut n,&schema[..schema.len()-2]).is_err() || bytes(out,&mut n,br#",{"id":"SOURCE_INCLUDE","name":"Chapter Editions To Include","kind":"text","default":"","description":"Comma-separated edition labels; a base label includes matching editions, while a suffixed label selects one. Empty includes all editions."}]}"#).is_err(){return write_error("get_settings","internal_error","payload overflow");}
