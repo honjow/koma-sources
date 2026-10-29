@@ -52,7 +52,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mh1234.koma",
     name: "漫画1234网",
-    version: "0.1.6",
+    version: "0.1.7",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -1057,11 +1057,24 @@ pub extern "C" fn koma_source_get_filters(req_ptr: u32, req_len: u32) -> u32 {
             .any(|item| trim_ascii(item) == b"\"source_filter_scope_header_v1\"")
     }).unwrap_or(false);
     if !supported { return response_buffer().write_success("get_filters", br#"{"filters":[]}"#); }
+    let fetch_supported = json_object_member(req, b"hostFeatures").map(|v| {
+        let v=trim_ascii(v); v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|c| *c==b',')
+            .any(|item| trim_ascii(item)==b"\"source_filter_fetching_v1\"")
+    }).unwrap_or(false);
+    let fetching = fetch_supported && json_object_member(args(req), b"fetchFilterData") == Some(b"true".as_slice());
+    if fetch_supported && !fetching {
+        // The stable genre ID keeps a saved value until options arrive on demand.
+        return response_buffer().write_success("get_filters", r#"{"supportsFilterFetching":true,"filters":[{"id":"genre","name":"题材","type":"select","scope":"browse","default":"0"},{"id":"status","name":"状态","type":"select","scope":"browse","options":[{"value":"0","label":"全部"},{"value":"1","label":"连载"},{"value":"2","label":"完结"}],"default":"0"},{"id":"sort","name":"排序","type":"select","scope":"browse","options":[{"value":"id","label":"最新"},{"value":"hits","label":"热门"},{"value":"addtime","label":"更新"}]}]}"#.as_bytes());
+    }
     let out = payload_buf();
     let mut n = 0;
-    if !write_bytes(out, &mut n, br#"{"filters":["#) { return write_error("get_filters", "internal_error", "overflow"); }
-    // The reference treats fetched genres as optional; status and sort remain usable offline.
-    if let Ok(len) = fetch_body(b"https://m.wmh1234.com/category/") {
+    let prefix = if fetch_supported { br#"{"supportsFilterFetching":true,"filters":["#.as_slice() } else { br#"{"filters":["#.as_slice() };
+    if !write_bytes(out, &mut n, prefix) { return write_error("get_filters", "internal_error", "overflow"); }
+    let mut genre_written = false;
+    let fetched = fetch_body(b"https://m.wmh1234.com/category/");
+    if fetching { if let Err(e) = fetched { let (code,message)=fetch_error_code(e); return write_error("get_filters",code,message); } }
+    // Older scope-aware hosts keep their original eager, optional fetch.
+    if let Ok(len) = fetched {
         let html = unsafe { core::slice::from_raw_parts(core::ptr::addr_of!(BODY_BUF).cast::<u8>(), len) };
         if let Ok(d) = html_parse(html) {
             let doc = OwnedDescriptor(d);
@@ -1083,10 +1096,12 @@ pub extern "C" fn koma_source_get_filters(req_ptr: u32, req_len: u32) -> u32 {
                         entries += 1;
                     }
                     if entries > 0 && (!write_bytes(out, &mut n, r#"{"id":"genre","name":"题材","type":"select","scope":"browse","options":["#.as_bytes()) || !write_bytes(out, &mut n, &options[..used]) || !write_bytes(out, &mut n, br#"],"default":"0"},"#)) { return write_error("get_filters", "internal_error", "overflow"); }
+                    genre_written = entries > 0;
                 }
             }
         }
     }
+    if fetching && !genre_written { return write_error("get_filters", "parse_error", "genre options unavailable"); }
     if !write_bytes(out, &mut n, r#"{"id":"status","name":"状态","type":"select","scope":"browse","options":[{"value":"0","label":"全部"},{"value":"1","label":"连载"},{"value":"2","label":"完结"}],"default":"0"},{"id":"sort","name":"排序","type":"select","scope":"browse","options":[{"value":"id","label":"最新"},{"value":"hits","label":"热门"},{"value":"addtime","label":"更新"}]}]}"#.as_bytes()) { return write_error("get_filters", "internal_error", "overflow"); }
     write_success_payload("get_filters", n)
 }
