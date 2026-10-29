@@ -37,11 +37,13 @@ const PAGE_SIZE: usize = 30;
 
 static mut JSON_BUF: [u8; JSON_BUF_CAP] = [0; JSON_BUF_CAP];
 static mut GQL_BODY_BUF: [u8; GQL_BODY_CAP] = [0; GQL_BODY_CAP];
+// Decode request JSON before GraphQL encoding without aliasing the outgoing body.
+static mut SEARCH_QUERY: [u8; GQL_BODY_CAP] = [0; GQL_BODY_CAP];
 
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.komiic.koma",
     name: "Komiic",
-    version: "0.1.9",
+    version: "0.1.10",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -426,9 +428,14 @@ fn write_manga_list_page(operation: &str, api_json: &[u8], page_size: usize, sea
 }
 
 fn run_search(req: &[u8]) -> u32 {
-    let query = match extract_json_string(req, b"query") {
+    let raw = match extract_json_string(req, b"query") {
         Some(v) => v,
         None => return run_popular_list("search", req),
+    };
+    let buf = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
+    let query = match koma_source_sdk::plain_text::decode_json_content(raw, buf) {
+        Ok(v) => v,
+        Err(_) => return write_error("search", "invalid_request", "invalid query"),
     };
     if query.is_empty() {
         return run_popular_list("search", req);
