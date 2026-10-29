@@ -24,7 +24,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.dm5.koma",
     name: "DM5",
-    version: "0.1.22",
+    version: "0.1.23",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -39,7 +39,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     pages: true,
     listings: true,
     manga_list: true,
-    home: true,
+    home: false,
     filters: true,
     settings: true,
     image_request: true,
@@ -1548,46 +1548,9 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     write_success_payload("get_manga_list", c)
 }
 
-// Home is a preview of the source's real lists, not an empty navigation gate.
-// Preserve both listing IDs and their complete/paginated routes; bounded cards
-// here use the very same parser/identity as those routes. 2026-10-26 user report.
+// Existing lists are not an independent home feed; retain their normal routes.
 fn run_get_home(_req: &[u8]) -> u32 {
-    let payload = payload_buf();
-    let mut c = 0usize;
-    if !write_bytes(payload, &mut c, br#"{"sections":["#) {
-        return write_error("get_home", "internal_error", "payload overflow");
-    }
-    for (index, listing, title) in [(0usize, Listing::Popular, "热门漫画"), (1usize, Listing::Latest, "最新更新")] {
-        let mut url_len = 0usize;
-        if !(write_bytes(scratch_b(), &mut url_len, BASE_URL) && write_bytes(scratch_b(), &mut url_len, listing.first())) {
-            return write_error("get_home", "internal_error", "URL capacity exceeded");
-        }
-        let url = unsafe { core::slice::from_raw_parts(SCRATCH_B.as_ptr(), url_len) };
-        let html_len = match fetch_body(url, None) {
-            Ok(len) => len,
-            Err(error) => { let (code, message) = fetch_error_code(error); return write_error("get_home", code, message); }
-        };
-        let html = unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), html_len) };
-        if index > 0 && !write_bytes(payload, &mut c, b",") {
-            return write_error("get_home", "internal_error", "payload overflow");
-        }
-        if !(write_bytes(payload, &mut c, br#"{"id":"home:"#) && write_bytes(payload, &mut c, listing.id())
-            && write_bytes(payload, &mut c, br#"","title":""#) && append_json_escaped(payload, &mut c, title.as_bytes())
-            && write_bytes(payload, &mut c, br#"","kind":"mangaList","listingId":""#)
-            && write_bytes(payload, &mut c, listing.id()) && write_bytes(payload, &mut c, br#"","items":["#)) {
-            return write_error("get_home", "internal_error", "payload overflow");
-        }
-        match parse_cards_with_limit(html, payload, &mut c, b"dm5", 12) {
-            Ok(0) => return write_error("get_home", "parse_error", "home list contains no manga"),
-            Ok(_) => {},
-            Err(message) => return write_error("get_home", "parse_error", message),
-        }
-        if !write_bytes(payload, &mut c, b"]}") {
-            return write_error("get_home", "internal_error", "payload overflow");
-        }
-    }
-    if !write_bytes(payload, &mut c, b"]}") { return write_error("get_home", "internal_error", "payload overflow"); }
-    write_success_payload("get_home", c)
+    write_error("get_home", "not_implemented", "not supported")
 }
 
 fn run_get_filters(_req: &[u8]) -> u32 {

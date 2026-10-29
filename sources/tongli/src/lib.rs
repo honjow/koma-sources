@@ -38,7 +38,7 @@ static mut SEARCH_QUERY: [u8; 16384] = [0; 16384];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.tongli.koma",
     name: "東立",
-    version: "0.1.5",
+    version: "0.1.6",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -53,7 +53,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     pages: true,
     listings: true,
     manga_list: true,
-    home: true,
+    home: false,
     filters: false,
     settings: false,
     image_request: true,
@@ -451,9 +451,7 @@ where
 {
     let payload = payload_buf();
     let mut c = 0usize;
-    // Home retains its existing destination and reuses the reference weekly ranking.
-    let header = if operation == "get_home" { br#"{"sections":[{"id":"popular","title":"Popular","kind":"mangaList","listingId":"popular","items":["#.as_slice() } else { br#"{"items":["#.as_slice() };
-    if !write_bytes(payload, &mut c, header) {
+    if !write_bytes(payload, &mut c, br#"{"items":["#) {
         return write_error(operation, "internal_error", "overflow");
     }
     let mut written = 0usize;
@@ -468,11 +466,6 @@ where
             return write_error(operation, "internal_error", "overflow");
         }
         written += 1;
-    }
-    if operation == "get_home" {
-        if written == 0 { return write_error(operation, "parse_error", "empty ranking"); }
-        if !write_bytes(payload, &mut c, br#"]}]}"#) { return write_error(operation, "internal_error", "overflow"); }
-        return write_success_payload(operation, c);
     }
     let more = if has_more {
         b"true" as &[u8]
@@ -839,8 +832,9 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     }
 }
 
+// The weekly ranking is the existing popular list, not a separate home feed.
 fn run_get_home(_req: &[u8]) -> u32 {
-    run_popular_list("get_home")
+    write_error("get_home", "not_implemented", "not supported")
 }
 
 fn run_get_filters(_req: &[u8]) -> u32 {

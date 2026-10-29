@@ -1231,7 +1231,7 @@ dependencies = [
 
 [[package]]
 name = "koma_dm5_source"
-version = "0.1.22"
+version = "0.1.23"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1301,7 +1301,7 @@ dependencies = [
 
 [[package]]
 name = "koma_happymh_source"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1574,7 +1574,7 @@ dependencies = [
 
 [[package]]
 name = "koma_tongli_source"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "koma_source_sdk",
 ]

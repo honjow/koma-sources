@@ -23,7 +23,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.happymh.koma",
     name: "嗨皮漫画",
-    version: "0.1.6",
+    version: "0.1.7",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -38,7 +38,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     pages: true,
     listings: true,
     manga_list: true,
-    home: true,
+    home: false,
     filters: true,
     settings: true,
     image_request: true,
@@ -674,19 +674,14 @@ fn run_search(req: &[u8]) -> u32 {
     write_manga_list_response("search", body_slice(len), page, b"happymh", true)
 }
 
-fn run_get_listings(req: &[u8]) -> u32 {
-    let page = request_page(req);
-    fetch_index(
-        req,
-        "get_listings",
-        page,
-        b"views",
-        b"",
-        b"",
-        b"",
-        b"-1",
-        b"popular",
-    )
+// Navigation describes the existing list handlers; it must not fetch manga data.
+fn run_get_listings(_req: &[u8]) -> u32 {
+    let payload = payload_buf();
+    let mut c = 0usize;
+    if !write_bytes(payload, &mut c, r#"{"listings":[{"id":"popular","name":"热门漫画","kind":"popular"},{"id":"latest","name":"最新更新","kind":"latest"}]}"#.as_bytes()) {
+        return write_error("get_listings", "internal_error", "payload overflow");
+    }
+    write_success_payload("get_listings", c)
 }
 
 fn run_get_manga_list(req: &[u8]) -> u32 {
@@ -1091,14 +1086,9 @@ fn run_get_image_request(req: &[u8]) -> u32 {
     write_success_payload("get_image_request", c)
 }
 
+// The previous empty sections were not independent home content.
 fn run_get_home(_req: &[u8]) -> u32 {
-    let payload = payload_buf();
-    let mut c = 0usize;
-    let home_json = "{\"sections\":[{\"title\":\"热门漫画\",\"items\":[]},{\"title\":\"最新更新\",\"items\":[]}]}";
-    if !(write_bytes(payload, &mut c, home_json.as_bytes())) {
-        return write_error("get_home", "internal_error", "payload overflow");
-    }
-    write_success_payload("get_home", c)
+    write_error("get_home", "not_implemented", "not supported")
 }
 
 fn run_get_filters(_req: &[u8]) -> u32 {
