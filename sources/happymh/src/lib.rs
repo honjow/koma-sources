@@ -23,7 +23,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.happymh.koma",
     name: "嗨皮漫画",
-    version: "0.1.5",
+    version: "0.1.6",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -599,8 +599,15 @@ fn fetch_index(
     write_manga_list_response(operation, body_slice(html_len), page, tag, false)
 }
 
+// Decode into a distinct bounded buffer, not the WAMR stack or URL scratch.
+static mut SEARCH_QUERY: [u8; 8192] = [0; 8192];
 fn run_search(req: &[u8]) -> u32 {
     let query = extract_json_string(req, b"query").unwrap_or(b"");
+    let decoded = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
+    let query = match koma_source_sdk::plain_text::decode_json_content(query, decoded) {
+        Ok(v) => v,
+        Err(_) => return write_error("search", "invalid_request", "invalid query"),
+    };
     let page = request_page(req);
     if query.is_empty() {
         let genre = extract_json_string(req, b"genre").unwrap_or(b"");

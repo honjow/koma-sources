@@ -24,7 +24,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.dm5.koma",
     name: "DM5",
-    version: "0.1.21",
+    version: "0.1.22",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -336,9 +336,16 @@ fn write_manga_page_from_url_at(operation: &str, url: &[u8], search_page: Option
     write_success_payload(operation, c)
 }
 
+// Decode into a distinct bounded buffer, not the WAMR stack or URL scratch.
+static mut SEARCH_QUERY: [u8; 8192] = [0; 8192];
 fn run_search(req: &[u8]) -> u32 {
     let page = request_page_number(req);
     let query = extract_json_string(req, b"query").unwrap_or(b"");
+    let decoded = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
+    let query = match koma_source_sdk::plain_text::decode_json_content(query, decoded) {
+        Ok(v) => v,
+        Err(_) => return write_error("search", "invalid_request", "invalid query"),
+    };
     if query.is_empty() {
         return run_get_listings(req);
     }

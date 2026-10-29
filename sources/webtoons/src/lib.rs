@@ -35,7 +35,7 @@ static mut SELECT_BUFFER: [u8; 4096] = [0; 4096];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.webtoons.koma",
     name: "WEBTOON (English)",
-    version: "0.1.5",
+    version: "0.1.6",
     api_version: "0.2",
     language: "en",
     author: "Koma source contributors",
@@ -523,8 +523,15 @@ fn write_search_item(out: &mut [u8], cursor: &mut usize, item: host::HtmlDescrip
         )
 }
 
+// Decode into a distinct bounded buffer, not the WAMR stack or URL scratch.
+static mut SEARCH_QUERY: [u8; 8192] = [0; 8192];
 fn run_search(req: &[u8]) -> u32 {
     let query = extract_json_string(req, b"query").unwrap_or(b"");
+    let decoded = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
+    let query = match koma_source_sdk::plain_text::decode_json_content(query, decoded) {
+        Ok(v) => v,
+        Err(_) => return write_error("search", "invalid_request", "invalid query"),
+    };
     let page = request_page_number(req);
     let mut url = [0u8; 8192];
     let Some(url_len) = search_url(query, page, &mut url) else {

@@ -1,4 +1,4 @@
-# 动漫屋 / DM5 0.1.21
+# 动漫屋 / DM5 0.1.22
 
 源 ID `com.dm5.koma`，语言 `zh`，NSFW 标记保持。普通网站及生产请求主站为 `https://www.dm5.cn`；中文显示名为动漫屋，英文身份仍为 DM5。图标身份与原字节见 [ASSET_SOURCES.md](ASSET_SOURCES.md)，不因设置接入更换素材或 App 样式。
 
@@ -16,3 +16,5 @@
 JSON Unicode 与 HTML 实体由源侧解码，保正文标签字面量和 CR；复用既有 HTML5 Host 表并关闭 descriptor，不增加依赖库或新 Host ABI。损坏、缺必要元数据、容量或网络失败整次拒绝。Host 只把普通 Unicode 按固定本地模板绘制成 PNG，不解释站点 HTML、不外发文字。设置对之后加载的章节生效。
 
 Android CookieManager 的清 Cookie 动作不是普通可保存设置，本源没有伪造该开关；不增加账户、Cookie、UA 或网络权限。
+
+搜索先解码请求中的 JSON 转义，再按既有站点请求规则编码用户输入；默认、空查询与分页规则保持原行为。
