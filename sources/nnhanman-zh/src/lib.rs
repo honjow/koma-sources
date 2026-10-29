@@ -10,7 +10,7 @@ type E = &'static str;
 type R<T> = Result<T, E>;
 const MAX: usize = 1048576;
 const WEB: &[u8] = b"https://nnhanman.xyz";
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.nnhanman.zh.koma",name:"NNHanman",version:"0.1.2",api_version:"0.2",language:"zh",author:"Koma",description:"NNHanman published Chinese ranking and search metadata. Per-work rating, artwork availability and usage unknown.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.nnhanman.zh.koma",name:"NNHanman",version:"0.1.3",api_version:"0.2",language:"zh",author:"Koma",description:"NNHanman published Chinese ranking and search metadata. Per-work rating, artwork availability and usage unknown.",content_rating:"nsfw"};
 #[allow(dead_code)]
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
@@ -21,7 +21,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     manga_list: true,
     image_request: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: false,
     credentials: false,
 };
@@ -626,25 +626,6 @@ fn query_path<'a>(query: &[u8], b: &'a mut [u8]) -> R<&'a [u8]> {
     };
     Ok(&b[..n])
 }
-fn total_pages(doc: HtmlDescriptor) -> R<usize> {
-    let mut b = [0; 8192];
-    let meta = sa(doc, b"meta[name=description]", b"content", &mut b)?;
-    let needle = "共有".as_bytes();
-    let p = find_subslice(meta, needle).ok_or("search total pages missing")? + needle.len();
-    let v = &meta[p..];
-    let end = v
-        .iter()
-        .position(|x| !x.is_ascii_digit())
-        .ok_or("search total pages")?;
-    if !v[end..].starts_with("页漫画".as_bytes()) {
-        return Err("search total pages");
-    };
-    let n = number(&v[..end]).ok_or("search total pages")?;
-    if n == 0 || n > 1024 {
-        return Err("search page capacity");
-    };
-    Ok(n)
-}
 fn list(r: &[u8], search: bool) -> R<usize> {
     let mut cb = [0; 8192];
     let cl = cursor(r, &mut cb)?;
@@ -703,66 +684,34 @@ fn list(r: &[u8], search: bool) -> R<usize> {
     let mut nextbuf = [0; 8192];
     let mut nextlen = 0;
     if search {
-        let total = total_pages(doc.0)?;
-        if pageno > total {
-            return Err("search page past total");
-        };
-        if pageno < total {
-            let mut base = [0; 8192];
-            let mut wanted = [0; 8192];
-            let mut pn = [0; 32];
-            let mut pl = 0;
-            wn(
-                &mut pn,
-                &mut pl,
-                pageno.checked_add(1).ok_or("page overflow")?,
-            )?;
-            let want = make(
-                &[
-                    query_path(trim_ascii(&query[..qlen]), &mut base)?,
-                    b"/page/",
-                    &pn[..pl],
-                ],
-                &mut wanted,
-            )?;
-            let links = All::new(doc.0, b"div.pagination-wrap a[href]")?;
-            for i in 0..links.len {
-                let mut h = [0; 8192];
-                let href = attr(links.at(i), b"href", &mut h)?;
-                let rel = href.strip_prefix(WEB).unwrap_or(href);
-                if rel == want {
-                    if nextlen != 0 {
-                        return Err("ambiguous next page");
-                    };
-                    nextbuf[..rel.len()].copy_from_slice(rel);
-                    nextlen = rel.len()
-                }
-            }
-            if nextlen == 0 {
-                return Err("declared pages without next href");
-            }
-        } else {
-            let mut base_buf = [0; 8192];
-            let base = query_path(trim_ascii(&query[..qlen]), &mut base_buf)?;
-            let links = All::new(doc.0, b"div.pagination-wrap a[href]")?;
-            for i in 0..links.len {
-                let mut h = [0; 8192];
-                let v = attr(links.at(i), b"href", &mut h)?;
-                let rel = v.strip_prefix(WEB).unwrap_or(v);
-                let linked_page = if rel == base {
-                    Some(1)
-                } else {
-                    rel.strip_prefix(base)
-                        .and_then(|x| x.strip_prefix(b"/page/"))
-                        .and_then(number)
-                        .filter(|x| *x > 0 && *x <= 1024)
-                };
-                if linked_page.map(|x| x > pageno).unwrap_or(false) {
-                    return Err("terminal pagination contradiction");
-                }
+        // The site's SEO description reports a page total even for a one-page
+        // result. Like the reference extension, follow actual pagination links.
+        // Keep the current query as cursor owner and require the list container,
+        // so an unrelated/gated HTML page cannot become an empty success.
+        let _search_list = child(doc.0, b"ul.col_3_1")?;
+        let mut base = [0; 8192];
+        let mut wanted = [0; 8192];
+        let mut pn = [0; 32];
+        let mut pl = 0;
+        wn(&mut pn, &mut pl, pageno.checked_add(1).ok_or("page overflow")?)?;
+        let want = make(
+            &[query_path(&query[..qlen], &mut base)?, b"/page/", &pn[..pl]],
+            &mut wanted,
+        )?;
+        // The HTML emits literal Chinese path text; requests/cursors keep URL encoding.
+        let mut raw_wanted = [0; 8192];
+        let raw_want = make(&[b"/search/", &query[..qlen], b"/page/", &pn[..pl]], &mut raw_wanted)?;
+        let links = All::new(doc.0, b"div.pagination-wrap a[href]")?;
+        for i in 0..links.len {
+            let mut h = [0; 8192];
+            let href = attr(links.at(i), b"href", &mut h)?;
+            let rel = href.strip_prefix(WEB).unwrap_or(href);
+            if rel == want || rel == raw_want {
+                nextbuf[..want.len()].copy_from_slice(want);
+                nextlen = want.len();
             }
         }
-        if cards.len == 0 && pageno < total {
+        if cards.len == 0 && nextlen > 0 {
             return Err("empty nonterminal search");
         }
     }
@@ -1086,8 +1035,40 @@ fn execute(op: &str, r: R<usize>) -> u32 {
 fn run_search(r: &[u8]) -> u32 {
     execute("search", list(r, true))
 }
+// Ranking remains the default; only a real selection uses the site's category route.
+fn filtered_list(r: &[u8]) -> R<Option<usize>> {
+    let a=args(r)?;
+    if text(a,b"listingId")? != b"listing:popular" {return Err("listing identity")}
+    let Some(f)=member(a,b"filters")? else {return Ok(None)};
+    if f==b"null" {return Ok(None)}
+    let mut gb=[0;256];let mut ob=[0;32];let mut sb=[0;32];
+    let genre=match member(f,b"genre")? {Some(v)=>uq(v,&mut gb)?,None=>b"all"};
+    let order=match member(f,b"order")? {Some(v)=>uq(v,&mut ob)?,None=>b"time"};
+    let status=match member(f,b"status")? {Some(v)=>uq(v,&mut sb)?,None=>b"all"};
+    let allowed=["all","正妹","恋爱","出版漫画","肉慾","浪漫","大尺度","巨乳","有夫之婦","女大生","狗血劇","同居","好友","調教","动作","後宮","不倫","3D","校園","耽美","日漫"];
+    if !allowed.iter().any(|v|v.as_bytes()==genre) || !matches!(order,b"time"|b"hits") || !matches!(status,b"all"|b"completed"|b"serialized") {return Err("invalid filters")}
+    let mut cb=[0;8192];let clen=cursor(r,&mut cb)?;
+    // No schema defaults: absence preserves the existing ranking, while an
+    // explicit All/Time selection must open the provider category.
+    if member(f,b"genre")?.is_none() && member(f,b"order")?.is_none() && member(f,b"status")?.is_none() && clen==0 {return Ok(None)}
+    let mut base=[0;8192];let mut n=0;bytes(&mut base,&mut n,b"/comics/")?;
+    if !write_url_encoded(&mut base,&mut n,genre){return Err("genre overflow")}
+    bytes(&mut base,&mut n,b"/ob/")?;bytes(&mut base,&mut n,order)?;bytes(&mut base,&mut n,b"/st/")?;bytes(&mut base,&mut n,status)?;
+    let base=&base[..n];let page=if clen==0 {1} else {let tail=cb[..clen].strip_prefix(base).and_then(|v|v.strip_prefix(b"/page/")).ok_or("cursor filter owner")?;let p=number(tail).ok_or("cursor page")?;if p<2||p>1024{return Err("cursor page capacity")}p};
+    let mut path=[0;8192];let mut pn=0;bytes(&mut path,&mut pn,base)?;if page>1 {bytes(&mut path,&mut pn,b"/page/")?;wn(&mut path,&mut pn,page)?}
+    let mut url=[0;16384];let doc=fetch(make(&[WEB,&path[..pn]],&mut url)?)?;
+    let _category_list=child(doc.0,b"ul.col_3_1")?;
+    let cards=All::new(doc.0,b"ul.col_3_1 > li")?;
+    let mut want=[0;8192];let mut wnlen=0;bytes(&mut want,&mut wnlen,base)?;bytes(&mut want,&mut wnlen,b"/page/")?;wn(&mut want,&mut wnlen,page.checked_add(1).ok_or("page overflow")?)?;
+    let links=All::new(doc.0,b"div.pagination-wrap a[href]")?;let mut next=false;
+    for i in 0..links.len {let mut h=[0;8192];let href=attr(links.at(i),b"href",&mut h)?;let rel=href.strip_prefix(WEB).unwrap_or(href);if rel==&want[..wnlen]{next=true}}
+    if cards.len==0 && (next || page>1) {return Err("empty paged category")}
+    let out=payload_buf();let mut n=0;bytes(out,&mut n,b"{\"items\":[")?;let seen=unsafe{&mut *core::ptr::addr_of_mut!(SEEN)};let mut lens=[0usize;1000];
+    for i in 0..cards.len {if i>0{bytes(out,&mut n,b",")?}lens[i]=card(out,&mut n,cards.at(i),false,&mut seen[i])?;for j in 0..i{if lens[j]==lens[i]&&seen[j][..lens[j]]==seen[i][..lens[i]]{return Err("duplicate work")}}}
+    bytes(out,&mut n,b"],\"page\":{\"nextCursor\":")?;if next {q(out,&mut n,&want[..wnlen])?}else{bytes(out,&mut n,b"null")?};bytes(out,&mut n,if next{b",\"hasMore\":true}}"}else{b",\"hasMore\":false}}"})?;Ok(Some(n))
+}
 fn run_get_manga_list(r: &[u8]) -> u32 {
-    execute("get_manga_list", list(r, false))
+    match filtered_list(r) {Ok(Some(n))=>write_success_payload("get_manga_list",n),Ok(None)=>execute("get_manga_list",list(r,false)),Err(e)=>write_error("get_manga_list","source_error",e)}
 }
 fn run_get_manga(r: &[u8]) -> u32 {
     execute("get_manga", detail(r, false))
@@ -1115,8 +1096,10 @@ fn run_get_home(_: &[u8]) -> u32 {
 fn run_get_settings(_: &[u8]) -> u32 {
     write_error("get_settings", "not_implemented", "not supported")
 }
-fn run_get_filters(_: &[u8]) -> u32 {
-    write_error("get_filters", "not_implemented", "not supported")
+fn run_get_filters(r: &[u8]) -> u32 {
+    let supported=member(r,b"hostFeatures").ok().flatten().map(|v| { let v=trim_ascii(v); v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|c|*c==b',').any(|x|trim_ascii(x)==b"\"source_filter_scope_header_v1\"") }).unwrap_or(false);
+    let v=if supported {r#"{"filters":[{"id":"note","type":"header","name":"分类浏览（搜索时无效）","scope":"browse"},{"id":"genre","name":"分类","type":"select","scope":"browse","options":[{"value":"all","label":"全部"},{"value":"正妹","label":"正妹"},{"value":"恋爱","label":"恋爱"},{"value":"出版漫画","label":"出版漫画"},{"value":"肉慾","label":"肉慾"},{"value":"浪漫","label":"浪漫"},{"value":"大尺度","label":"大尺度"},{"value":"巨乳","label":"巨乳"},{"value":"有夫之婦","label":"有夫之婦"},{"value":"女大生","label":"女大生"},{"value":"狗血劇","label":"狗血劇"},{"value":"同居","label":"同居"},{"value":"好友","label":"好友"},{"value":"調教","label":"調教"},{"value":"动作","label":"动作"},{"value":"後宮","label":"後宮"},{"value":"不倫","label":"不倫"},{"value":"3D","label":"3D"},{"value":"校園","label":"校園"},{"value":"耽美","label":"耽美"},{"value":"日漫","label":"日漫"}]},{"id":"order","name":"排序","type":"select","scope":"browse","options":[{"value":"time","label":"按时间"},{"value":"hits","label":"按热度"}]},{"id":"status","name":"状态","type":"select","scope":"browse","options":[{"value":"all","label":"全部"},{"value":"completed","label":"已完结"},{"value":"serialized","label":"连载中"}]}]}"#.as_bytes()} else {b"{\"filters\":[]}".as_slice()};
+    write_success_payload("get_filters", {let out=payload_buf();out[..v.len()].copy_from_slice(v);v.len()})
 }
 fn checked_request(ptr: u32, len: u32) -> Option<&'static [u8]> {
     let cap = core::arch::wasm32::memory_size::<0>().checked_mul(65536)?;
@@ -1139,7 +1122,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 pub extern "C" fn koma_source_info() -> u32 {
     response_buffer().write_success_parts("source_info", &[
  b"{\"sourceInfo\":{\"id\":\"", SOURCE_INFO.id.as_bytes(), b"\",\"name\":\"", SOURCE_INFO.name.as_bytes(), b"\",\"version\":\"", SOURCE_INFO.version.as_bytes(), b"\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"",SOURCE_INFO.description.as_bytes(),
- "\",\"contentRating\":\"nsfw\",\"localizedNames\":{\"zh-Hans\":\"鸟鸟韩漫\",\"zh-Hant\":\"鳥鳥韓漫\",\"en\":\"NNHanman (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":false,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes()
+ "\",\"contentRating\":\"nsfw\",\"localizedNames\":{\"zh-Hans\":\"鸟鸟韩漫\",\"zh-Hant\":\"鳥鳥韓漫\",\"en\":\"NNHanman (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":true,\"settings\":false,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes()
  ])
 }
 macro_rules! export_op {
