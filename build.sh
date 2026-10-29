@@ -90,7 +90,7 @@ magireco-zh|magireco-zh|false|0.1.1
 baozimh|baozimh|false|0.1.0
 mangadex|mangadex|true|0.1.0
 mangabz|mangabz|false|0.1.0
-manhuaren|manhuaren|false|0.1.0
+manhuaren|manhuaren|false|0.1.4
 manhuadui|manhuadui|true|0.1.0
 zaimanhua|zaimanhua|false|0.1.0
 happymh|happymh|false|0.1.0

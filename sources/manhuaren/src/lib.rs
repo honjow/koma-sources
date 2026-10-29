@@ -1,6 +1,7 @@
 #![no_std]
 
 extern crate koma_source_sdk;
+mod private_session;
 
 use koma_source_sdk::host::{self, http_request, log_info};
 use koma_source_sdk::json_utils::{
@@ -10,7 +11,7 @@ use koma_source_sdk::json_utils::{
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{FetchError, build_get_request, build_post_request, fetch_error_code};
 
-const API_BASE: &[u8] = b"http://mangaapi.manhuaren.com";
+const API_BASE: &[u8] = b"https://mangaapi.manhuaren.com";
 const GSN_SALT: &[u8] = b"4e0a48e1c0b54041bce9c8f0e036124d";
 const PAGE_SIZE: usize = 20;
 
@@ -22,6 +23,9 @@ koma_source_sdk::koma_source_buffers! {
     scratch: 4096,
 }
 koma_source_sdk::koma_source_helpers!();
+
+// Separate decoded search text from request scratch and the bounded WASM stack.
+static mut SEARCH_QUERY: [u8; 4096] = [0; 4096];
 const JSON_BUF_CAP: usize = 1024 * 1024;
 const URL_BUF_CAP: usize = 8192;
 
@@ -35,7 +39,7 @@ static mut AUTH_TOKEN_LEN: usize = 0;
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.manhuaren.koma",
     name: "漫画人",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -143,7 +147,7 @@ fn common_params<'a>(user_id: &'a [u8]) -> [Param<'a>; 34] {
         },
         Param {
             key: b"gts",
-            value: GTS,
+            value: if private_session::active() { private_session::gts() } else { GTS },
         },
         Param {
             key: b"gut",
@@ -187,7 +191,7 @@ fn common_params<'a>(user_id: &'a [u8]) -> [Param<'a>; 34] {
         },
         Param {
             key: b"gdi",
-            value: IMEI,
+            value: if private_session::active() { private_session::imei() } else { IMEI },
         },
         Param {
             key: b"gfcl",
@@ -195,15 +199,15 @@ fn common_params<'a>(user_id: &'a [u8]) -> [Param<'a>; 34] {
         },
         Param {
             key: b"gfut",
-            value: LAST_USED_TIME,
+            value: if private_session::active() { private_session::first() } else { LAST_USED_TIME },
         },
         Param {
             key: b"glut",
-            value: LAST_USED_TIME,
+            value: if private_session::active() { private_session::first() } else { LAST_USED_TIME },
         },
         Param {
             key: b"gpt",
-            value: b"com.mhr.mangamini",
+            value: b"com.ilike.cartoon",
         },
         Param {
             key: b"gciso",
@@ -399,14 +403,65 @@ fn build_api_url_with_user(
     Some(c)
 }
 
+fn append_guest_headers(dst: &mut [u8], c: &mut usize, auth: Option<&[u8]>) -> Option<()> {
+    write_bytes(dst, c, br#""User-Agent":"Dalvik/2.1.0 (Linux; U; Android 13; Koma Build/Koma)""#).then_some(())?;
+    if let Some(auth) = auth {
+        write_bytes(dst, c, br#","Authorization":""#).then_some(())?;
+        append_json_escaped(dst, c, auth).then_some(())?;
+        write_bytes(dst, c, b"\"").then_some(())?;
+    }
+    // Same generated client identity and timestamps as the signed query.
+    let imei = if private_session::active() { private_session::imei() } else { IMEI };
+    let first = if private_session::active() { private_session::first() } else { LAST_USED_TIME };
+    write_bytes(dst, c, br#","X-Yq-Yqci":"{\"at\":-1,\"av\":\"7.0.1\",\"ciso\":\"us\",\"cl\":\"dm5\",\"cy\":\"US\",\"di\":\""#).then_some(())?;
+    write_bytes(dst, c, imei).then_some(())?;
+    write_bytes(dst, c, br#"\",\"dm\":\"Koma\",\"fcl\":\"dm5\",\"ft\":\"mhr\",\"fut\":\""#).then_some(())?;
+    write_bytes(dst, c, first).then_some(())?;
+    write_bytes(dst, c, br#"\",\"installation\":\"dm5\",\"le\":\"zh\",\"ln\":\"\",\"lut\":\""#).then_some(())?;
+    write_bytes(dst, c, first).then_some(())?;
+    write_bytes(dst, c, br#"\",\"nt\":3,\"os\":1,\"ov\":\"33_13\",\"pt\":\"com.ilike.cartoon\",\"rn\":\"1080x1920\",\"st\":0}","X-Yq-Key":""#).then_some(())?;
+    write_bytes(dst,c,if auth.is_some(){auth_user_id_slice()}else{USER_ID_FALLBACK}).then_some(())?;
+    write_bytes(dst,c,br#"","yq_is_anonymous":"1","x-request-id":""#).then_some(())?;
+    write_bytes(dst,c,private_session::request_id()).then_some(())?;
+    write_bytes(dst,c,br#"","X-Yq-Yqpp":"{\"ciso\":\"us\",\"laut\":\"0\",\"lot\":\"\",\"lat\":\"\",\"cut\":\"GMT+8\",\"fcc\":\"\",\"flg\":\"\",\"lcc\":\"\",\"lcn\":\"\",\"flcc\":\"\",\"flot\":\"\",\"flat\":\"\",\"ac\":\"\"}""#).then_some(())?;
+    Some(())
+}
+
 fn build_authed_get_request(dst: &mut [u8], url: &[u8], auth: &[u8]) -> Option<usize> {
-    let mut c = 0usize;
-    write_bytes(dst, &mut c, br#"{"version":1,"method":"GET","url":""#).then_some(())?;
-    append_json_escaped(dst, &mut c, url).then_some(())?;
-    write_bytes(dst, &mut c, br#"","headers":{"User-Agent":"Dalvik/2.1.0 (Linux; U; Android 13; Koma Build/Koma)","Authorization":""#).then_some(())?;
-    append_json_escaped(dst, &mut c, auth).then_some(())?;
-    write_bytes(dst, &mut c, br#"","X-Yq-Yqci":"{\"at\":-1,\"av\":\"7.0.1\",\"ciso\":\"us\",\"cl\":\"dm5\",\"cy\":\"US\",\"di\":\"860000000000006\",\"dm\":\"Koma\",\"fcl\":\"dm5\",\"ft\":\"mhr\",\"fut\":\"1700000000000\",\"installation\":\"dm5\",\"le\":\"zh\",\"ln\":\"\",\"lut\":\"1700000000000\",\"nt\":3,\"os\":1,\"ov\":\"33_13\",\"pt\":\"com.mhr.mangamini\",\"rn\":\"1080x1920\",\"st\":0}"},"timeoutMs":15000,"responseKind":"bodyText"}"#).then_some(())?;
+    let mut c=0;
+    write_bytes(dst,&mut c,br#"{"version":1,"method":"GET","url":""#).then_some(())?;
+    append_json_escaped(dst,&mut c,url).then_some(())?;
+    write_bytes(dst,&mut c,br#"","headers":{"#).then_some(())?;
+    append_guest_headers(dst,&mut c,Some(auth))?;
+    write_bytes(dst,&mut c,br#"},"timeoutMs":15000,"responseKind":"bodyText"}"#).then_some(())?;
     Some(c)
+}
+fn build_guest_post_request(dst: &mut [u8], url: &[u8], body: &[u8]) -> Option<usize> {
+    let mut c=0;
+    write_bytes(dst,&mut c,br#"{"version":1,"method":"POST","url":""#).then_some(())?;
+    append_json_escaped(dst,&mut c,url).then_some(())?;
+    write_bytes(dst,&mut c,br#"","headers":{"Content-Type":"application/json","#).then_some(())?;
+    append_guest_headers(dst,&mut c,None)?;
+    write_bytes(dst,&mut c,br#"},"body":""#).then_some(())?;
+    append_json_escaped(dst,&mut c,body).then_some(())?;
+    write_bytes(dst,&mut c,br#"","timeoutMs":15000,"responseKind":"bodyText"}"#).then_some(())?;
+    Some(c)
+}
+
+fn check_http_response(resp: &[u8]) -> Result<(), FetchError> {
+    let status = extract_json_number(resp, b"status")
+        .or_else(|| extract_json_number(resp, b"statusCode"))
+        .map(koma_source_sdk::parse_status_code).unwrap_or(0);
+    match status {
+        404 => return Err(FetchError::NotFound),
+        429 => return Err(FetchError::RateLimit),
+        400..=499 => return Err(FetchError::ClientError),
+        500..=599 => return Err(FetchError::ServerError),
+        200..=299 => {},
+        _ => return Err(FetchError::Network),
+    }
+    if !contains_bytes(resp, br#""ok":true"#) { return Err(FetchError::Network); }
+    Ok(())
 }
 
 fn fetch_json(url: &[u8]) -> Result<&'static [u8], FetchError> {
@@ -432,18 +487,7 @@ fn fetch_json(url: &[u8]) -> Result<&'static [u8], FetchError> {
         return Err(FetchError::Network);
     }
     let resp = &http_out()[..resp_len];
-    let status = extract_json_number(resp, b"status")
-        .or_else(|| extract_json_number(resp, b"statusCode"))
-        .map(koma_source_sdk::parse_status_code).unwrap_or(0);
-    match status {
-        404 => return Err(FetchError::NotFound),
-        429 => return Err(FetchError::RateLimit),
-        400..=499 => return Err(FetchError::ClientError),
-        500..=599 => return Err(FetchError::ServerError),
-        200..=299 => {},
-        _ => return Err(FetchError::Network),
-    }
-    if !contains_bytes(resp, br#""ok":true"#) { return Err(FetchError::Network); }
+    check_http_response(resp)?;
 
     // Manhuaren API uses {"response":{...}} for success, {"errorResponse":{...}} for error
     if contains_bytes(resp, br#""errorResponse""#) {
@@ -483,26 +527,21 @@ fn fetch_json(url: &[u8]) -> Result<&'static [u8], FetchError> {
     Ok(json_slice(c))
 }
 
-const ANONY_BODY: &[u8] = br#"{"keys":[{"key":"Xzx0eOT9S0PvTAgEc+1ArTpY/7QkbuTcgZRrcj+F3jXawag6aK7jsOos9n8cMDZJTTRFpDZBLrgr81WvOLv5S6tydZnH+hwYFnNzP26sMnO5jLJ1H12JfQI1lA3QUWnAEE2Mxxu/PaLK6kJi0w3ZkVa/5VeCwm8ucRyAVHU2WKJsGt0i7hLs2WUrMNpXAAlRTFFt6nHH7afw0hUFkuXAmIozaHnWi/xxt6ueTWqfM6zs4x4FunXzEOLjDy1864bIrHPyM5Kz9kWNDG2JuxNQabl0rwclOeGKd1Am+ZC0ikBmPdXdfu6esdZtRtbXarNoA5d35Q6C9HhIT2snXpC4kQ==","keyType":"0"},{"key":"EbKgPL1r273TYaF9rlsh9wHhgmEF7M9BR6hCYim7tQvbnTImnrzU5+PpcIQZ6be630vb0T2WyPvIQb5BPI8riy6o2pUHRi2AS1WZPQcGxOkWU1Kl9JEeQMTVTz2iTKctBK5Ozh5eZMUJfJ3XIpfTkQCJ5G1O6CrmRUbTc5NGl3mVVqotThkpTtwSNym9O+a5fXnP8jiu3ozQ/LnSStq7RMrjHy+Mc8t/jAEXJpuzz+QemPW6EcRbW7JJXRROQPsljn0Ov8Jq499xP1cEMosIcr2G3ouOmNu4BKLTQHfQNti8lBaEE8CiEVuhIZ9BqS+hCj0JtJEpebL+jYtK9lAoDA==","keyType":"2"},{"key":"CjgpSmGEoSDw0f1/+s59b9XqZ6tvnTx5m36MCWGghjV85Vi8Dph4mw0YwK0WbyTjQvHuYJ88ixKAGBg1BnextgxoEAfHBmCa38MjSEpF5FqlzGLECaeA1OQBJehLHUukdfvqK7odgYre80DMbyf4XWZ0OQXbVbY4fI8DelZGZznZAKaIvrGCYrzpQx+O73NecxkdYsJw+NeH4h1GDqEbKV70XsXtb3nxFY4PbfaI0xfBB7WrsnaIUJvkMZuj851QsNBKMbohFFAB+WPq9+lZtnYCBcSjYh7Ghak/tAZMh9d4DF2MW1UQjt0WJsA0/KO12S5n83dX3gTc7pe+F71sxQ==","keyType":"-1"}]}"#;
-
-fn fetch_anony_user() -> Result<(), FetchError> {
+fn fetch_anony_user_with_body(guest_body: &[u8]) -> Result<(), FetchError> {
     let len = build_api_url_with_user(
         b"POST",
         b"/v1/user/createAnonyUser2",
         &[],
         USER_ID_FALLBACK,
-        Some(ANONY_BODY),
+        Some(guest_body),
     )
     .ok_or(FetchError::Network)?;
     let url = url_slice(len);
-    let req_len = build_post_request(http_req_buf(), url, ANONY_BODY, b"application/json", None)
-        .ok_or(FetchError::Network)?;
+    let req_len = if private_session::active() { build_guest_post_request(http_req_buf(), url, guest_body) } else { build_post_request(http_req_buf(), url, guest_body, b"application/json", None) }.ok_or(FetchError::Network)?;
     let resp_len =
         http_request(&http_req_buf()[..req_len], http_out()).map_err(|_| FetchError::Network)?;
     let resp = &http_out()[..resp_len];
-    if !contains_bytes(resp, br#""ok":true"#) {
-        return Err(FetchError::Network);
-    }
+    check_http_response(resp)?;
     let marker = b"\"bodyText\":\"";
     let mut i = find_subslice(resp, marker).ok_or(FetchError::Network)? + marker.len();
     let out = json_buf();
@@ -555,13 +594,21 @@ fn fetch_anony_user() -> Result<(), FetchError> {
     Ok(())
 }
 
-fn ensure_auth() -> Result<(), FetchError> {
-    unsafe {
-        if AUTH_USER_ID_LEN > 0 && AUTH_TOKEN_LEN > 0 {
-            return Ok(());
-        }
+fn prepare_session(req: &[u8]) -> Result<(), FetchError> {
+    if private_session::enabled(req) {
+        if !private_session::active() { private_session::begin()?; }
+        private_session::clock()?;
     }
-    fetch_anony_user()
+    Ok(())
+}
+
+fn fetch_for_operation(url: &[u8]) -> Result<&'static [u8], FetchError> {
+    let response = if private_session::active() { fetch_json_authed(url, auth_token_slice())? } else { fetch_json(url)? };
+    if private_session::active() && response_has_error(response) && extract_json_number(response, b"code") == Some(b"40011".as_slice()) {
+        // Invalidate this generation once; preserve the provider error for the caller.
+        private_session::invalidate();
+    }
+    Ok(response)
 }
 
 fn fetch_json_authed(url: &[u8], auth: &[u8]) -> Result<&'static [u8], FetchError> {
@@ -587,6 +634,7 @@ fn fetch_json_authed(url: &[u8], auth: &[u8]) -> Result<&'static [u8], FetchErro
         return Err(FetchError::Network);
     }
     let resp = &http_out()[..resp_len];
+    check_http_response(resp)?;
     // Manhuaren API uses {"response":{...}} for success, {"errorResponse":{...}} for error
     if contains_bytes(resp, br#""errorResponse""#) {
         return Err(FetchError::ClientError);
@@ -954,12 +1002,11 @@ fn write_manga_items_from_array(
     write_success_payload(operation, c)
 }
 
-// Decode search terms separately from request scratch and the bounded WASM stack.
-static mut SEARCH_QUERY: [u8; 4096] = [0; 4096];
 fn run_search(req: &[u8]) -> u32 {
-    let query = extract_json_string(req, b"query").unwrap_or(b"");
+    if !private_session::enabled(req) { return write_error("search", "not_implemented", "host_feature_required"); }
+    let raw = extract_json_string(req, b"query").unwrap_or(b"");
     let decoded = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
-    let query = match koma_source_sdk::plain_text::decode_json_content(query, decoded) {
+    let query = match koma_source_sdk::plain_text::decode_json_content(raw, decoded) {
         Ok(v) => v,
         Err(_) => return write_error("search", "invalid_request", "invalid query"),
     };
@@ -985,12 +1032,13 @@ fn run_search(req: &[u8]) -> u32 {
             value: query,
         },
     ];
-    let len = match build_api_url(b"/v1/search/getSearchManga", &params) {
+    if let Err(e) = prepare_session(req) { let (c,m)=fetch_error_code(e); return write_error("search",c,m); }
+    let len = match build_api_url_with_user(b"GET", b"/v1/search/getSearchManga", &params, if private_session::active() { auth_user_id_slice() } else { USER_ID_FALLBACK }, None) {
         Some(v) => v,
         None => return write_error("search", "internal_error", "url overflow"),
     };
     let url = url_slice(len);
-    let api_json = match fetch_json(url) {
+    let api_json = match fetch_for_operation(url) {
         Ok(v) => v,
         Err(e) => {
             let (c, m) = fetch_error_code(e);
@@ -1019,6 +1067,7 @@ fn detail_source_url<'a>(api_json: &'a [u8], manga_id: &[u8]) -> Option<&'a [u8]
 }
 
 fn run_get_manga(req: &[u8]) -> u32 {
+    if !private_session::enabled(req) { return write_error("get_manga", "not_implemented", "host_feature_required"); }
     let manga_id = match extract_json_string(req, b"mangaId") {
         Some(v) => v,
         None => return write_error("get_manga", "invalid_request", "missing mangaId"),
@@ -1032,19 +1081,18 @@ fn run_get_manga(req: &[u8]) -> u32 {
         key: b"mangaId",
         value: id,
     }];
-    if let Err(e) = ensure_auth() {
+    if let Err(e) = prepare_session(req) {
         let (c, m) = fetch_error_code(e);
         return write_error("get_manga", c, m);
     }
-    let auth_uid = auth_user_id_slice();
-    let auth_token = auth_token_slice();
+    let auth_uid = if private_session::active() { auth_user_id_slice() } else { USER_ID_FALLBACK };
     let len = match build_api_url_with_user(b"GET", b"/v1/manga/getDetail", &params, auth_uid, None)
     {
         Some(v) => v,
         None => return write_error("get_manga", "internal_error", "url overflow"),
     };
     let url = url_slice(len);
-    let api_json = match fetch_json_authed(url, auth_token) {
+    let api_json = match fetch_for_operation(url) {
         Ok(v) => v,
         Err(e) => {
             let (c, m) = fetch_error_code(e);
@@ -1055,7 +1103,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
         return write_error(
             "get_manga",
             "source_error",
-            "server returned errorResponse; configure userId/token",
+            "服务器返回错误",
         );
     }
 
@@ -1187,6 +1235,7 @@ fn write_chapters_from_array(
 }
 
 fn run_get_chapters(req: &[u8]) -> u32 {
+    if !private_session::enabled(req) { return write_error("get_chapters", "not_implemented", "host_feature_required"); }
     let manga_id = match extract_json_string(req, b"mangaId") {
         Some(v) => v,
         None => return write_error("get_chapters", "invalid_request", "missing mangaId"),
@@ -1200,19 +1249,18 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         key: b"mangaId",
         value: id,
     }];
-    if let Err(e) = ensure_auth() {
+    if let Err(e) = prepare_session(req) {
         let (c, m) = fetch_error_code(e);
         return write_error("get_chapters", c, m);
     }
-    let auth_uid = auth_user_id_slice();
-    let auth_token = auth_token_slice();
+    let auth_uid = if private_session::active() { auth_user_id_slice() } else { USER_ID_FALLBACK };
     let len = match build_api_url_with_user(b"GET", b"/v1/manga/getDetail", &params, auth_uid, None)
     {
         Some(v) => v,
         None => return write_error("get_chapters", "internal_error", "url overflow"),
     };
     let url = url_slice(len);
-    let api_json = match fetch_json_authed(url, auth_token) {
+    let api_json = match fetch_for_operation(url) {
         Ok(v) => v,
         Err(e) => {
             let (c, m) = fetch_error_code(e);
@@ -1223,7 +1271,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         return write_error(
             "get_chapters",
             "source_error",
-            "server returned errorResponse; configure userId/token",
+            "服务器返回错误",
         );
     }
     let payload = payload_buf();
@@ -1270,6 +1318,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
 }
 
 fn run_get_pages(req: &[u8]) -> u32 {
+    if !private_session::enabled(req) { return write_error("get_pages", "not_implemented", "host_feature_required"); }
     let chapter_id = match extract_json_string(req, b"chapterId") {
         Some(v) => v,
         None => return write_error("get_pages", "invalid_request", "missing chapterId"),
@@ -1303,18 +1352,17 @@ fn run_get_pages(req: &[u8]) -> u32 {
             value: b"2",
         },
     ];
-    if let Err(e) = ensure_auth() {
+    if let Err(e) = prepare_session(req) {
         let (c, m) = fetch_error_code(e);
         return write_error("get_pages", c, m);
     }
-    let auth_uid = auth_user_id_slice();
-    let auth_token = auth_token_slice();
+    let auth_uid = if private_session::active() { auth_user_id_slice() } else { USER_ID_FALLBACK };
     let len = match build_api_url_with_user(b"GET", b"/v1/manga/getRead", &params, auth_uid, None) {
         Some(v) => v,
         None => return write_error("get_pages", "internal_error", "url overflow"),
     };
     let url = url_slice(len);
-    let api_json = match fetch_json_authed(url, auth_token) {
+    let api_json = match fetch_for_operation(url) {
         Ok(v) => v,
         Err(e) => {
             let (c, m) = fetch_error_code(e);
@@ -1325,7 +1373,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
         return write_error(
             "get_pages",
             "source_error",
-            "server returned errorResponse; configure userId/token",
+            "服务器返回错误",
         );
     }
     let host = first_string_in_array(api_json, b"hostList").unwrap_or(b"");
@@ -1426,7 +1474,9 @@ fn run_category_list(
     sub_type: &[u8],
     sub_id: &[u8],
     page: usize,
+    req: &[u8],
 ) -> u32 {
+    if let Err(e)=prepare_session(req) { let (c,m)=fetch_error_code(e); return write_error(operation,c,m); }
     let start = (page.max(1) - 1) * PAGE_SIZE;
     let mut start_buf = [0u8; 20];
     let mut limit_buf = [0u8; 20];
@@ -1456,12 +1506,12 @@ fn run_category_list(
             value: sort,
         },
     ];
-    let len = match build_api_url(b"/v2/manga/getCategoryMangas", &params) {
+    let len = match build_api_url_with_user(b"GET", b"/v2/manga/getCategoryMangas", &params, if private_session::active() { auth_user_id_slice() } else { USER_ID_FALLBACK }, None) {
         Some(v) => v,
         None => return write_error(operation, "internal_error", "url overflow"),
     };
     let url = url_slice(len);
-    let api_json = match fetch_json(url) {
+    let api_json = match fetch_for_operation(url) {
         Ok(v) => v,
         Err(e) => {
             let (c, m) = fetch_error_code(e);
@@ -1513,11 +1563,14 @@ fn append_home_section(payload: &mut [u8], c: &mut usize, title: &[u8], sort: &[
             value: sort,
         },
     ];
-    let Some(len) = build_api_url(b"/v2/manga/getCategoryMangas", &params) else {
+    if private_session::active() && private_session::clock().is_err() { return false; }
+    let Some(len) = build_api_url_with_user(b"GET", b"/v2/manga/getCategoryMangas", &params, if private_session::active() { auth_user_id_slice() } else { USER_ID_FALLBACK }, None) else {
         return false;
     };
     let url = url_slice(len);
-    if let Ok(api_json) = fetch_json(url) {
+    let guest_request = private_session::active();
+    if let Ok(api_json) = fetch_for_operation(url) {
+        if guest_request && response_has_error(api_json) { return false; }
         if let Some(mut iter) = ObjectArrayIter::new(api_json, b"mangas") {
             let mut written = 0usize;
             while let Some(obj) = iter.next_object() {
@@ -1533,21 +1586,24 @@ fn append_home_section(payload: &mut [u8], c: &mut usize, title: &[u8], sort: &[
                 written += 1;
             }
         }
-    }
+    } else if guest_request { return false; }
 
     write_bytes(payload, c, b"]}")
 }
 
 fn run_get_manga_list(req: &[u8]) -> u32 {
+    if !private_session::enabled(req) { return write_error("get_manga_list", "not_implemented", "host_feature_required"); }
     let page = request_page_number(req);
     let sort = extract_json_string(req, b"sort").unwrap_or(b"0");
     let sub_type = extract_json_string(req, b"subCategoryType").unwrap_or(b"0");
     let sub_id = extract_json_string(req, b"subCategoryId")
         .unwrap_or_else(|| extract_json_string(req, b"category").unwrap_or(b"0"));
-    run_category_list("get_manga_list", sort, sub_type, sub_id, page)
+    run_category_list("get_manga_list", sort, sub_type, sub_id, page, req)
 }
 
-fn run_get_home(_req: &[u8]) -> u32 {
+fn run_get_home(req: &[u8]) -> u32 {
+    if !private_session::enabled(req) { return write_error("get_home", "not_implemented", "host_feature_required"); }
+    if let Err(e) = prepare_session(req) { let (c,m)=fetch_error_code(e); return write_error("get_home",c,m); }
     let payload = payload_buf();
     let mut c = 0usize;
     if !write_bytes(payload, &mut c, br#"{"sections":["#)
