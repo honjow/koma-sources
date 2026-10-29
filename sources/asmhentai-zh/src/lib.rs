@@ -10,7 +10,7 @@ type E = &'static str;
 type R<T> = Result<T, E>;
 const MAX: usize = 1048576;
 const WEB: &[u8] = b"https://asmhentai.com";
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.asmhentai.zh.koma",name:"AsmHentai",version:"0.1.3",api_version:"0.2",language:"zh",author:"Koma",description:"AsmHentai provider Chinese catalogue; per-work rating and usage unknown. Anonymous published metadata only.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.asmhentai.zh.koma",name:"AsmHentai",version:"0.1.4",api_version:"0.2",language:"zh",author:"Koma",description:"AsmHentai provider Chinese catalogue; per-work rating and usage unknown. Anonymous published metadata only.",content_rating:"nsfw"};
 #[allow(dead_code)]
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
@@ -21,12 +21,16 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     manga_list: true,
     image_request: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: true,
     credentials: false,
 };
 koma_source_sdk::koma_source_buffers! {payload:1048000,http_out:MAX,body:MAX,http_req:32768,scratch:8192,}
 koma_source_sdk::koma_source_helpers!();
+#[derive(Clone, Copy)]
+struct TagRecord { label_start: usize, label_len: usize, record_start: usize, record_len: usize }
+static mut TAG_RECORDS: [TagRecord; 5000] = [TagRecord { label_start: 0, label_len: 0, record_start: 0, record_len: 0 }; 5000];
+static mut TAG_DATA: [u8; MAX] = [0; MAX];
 static mut REQUEST: [u8; MAX] = [0; MAX];
 static mut PAGES: [[u8; 1024]; 1024] = [[0; 1024]; 1024];
 static mut PAGE_LEN: [usize; 1024] = [0; 1024];
@@ -652,6 +656,58 @@ fn page(r: &[u8], query: &[u8]) -> R<usize> {
     };
     Ok(p)
 }
+// Tags retain both the site slug and the exact display name: multi-tag search
+// consumes names, whereas a single-tag catalogue consumes the slug.
+fn filter_feature(r:&[u8],feature:&[u8])->bool {
+    member(r,b"hostFeatures").ok().flatten().map(trim_ascii).map_or(false,|v|v.starts_with(b"[")&&v.ends_with(b"]")&&v[1..v.len()-1].split(|b|*b==b',').any(|p|trim_ascii(p).strip_prefix(b"\"").and_then(|x|x.strip_suffix(b"\""))==Some(feature)))
+}
+fn filters_supported(r:&[u8])->bool {filter_feature(r,b"source_filter_scope_header_v1")&&filter_feature(r,b"source_filter_fetching_v1")}
+fn tag_list<'a>(r:&[u8], names:&'a mut [u8], first_slug:&mut [u8])->R<(usize,usize,usize)> {
+    if !filters_supported(r) {return Ok((0,0,0))}
+    let a=args(r)?;let f=member(a,b"filters")?.unwrap_or(b"{}");let raw=member(f,b"tags")?.unwrap_or(b"[]");
+    if raw.first()!=Some(&b'[')||raw.last()!=Some(&b']'){return Err("invalid tag list")}
+    let mut i=1;let mut count=0;let mut n=0;let mut slug_len=0;
+    while i<raw.len()-1 {
+        while i<raw.len()-1 && (raw[i].is_ascii_whitespace()||raw[i]==b','){i+=1}
+        if i==raw.len()-1 {break}
+        let end=json_string_end(raw,i).ok_or("invalid tag value")?;let mut decoded=[0u8;2048];let v=uq(&raw[i..end],&mut decoded)?;
+        let colon=v.iter().position(|b|*b==b':').ok_or("invalid tag identity")?;let l=number(&v[..colon]).ok_or("invalid tag identity")?;
+        if l==0 || colon+1+l>=v.len(){return Err("invalid tag identity")};let slug=&v[colon+1..colon+1+l];let label=&v[colon+1+l..];
+        if !slug.iter().all(|b|b.is_ascii_alphanumeric()||*b==b'-') {return Err("invalid tag slug")}
+        if count==0 {if slug.len()>first_slug.len(){return Err("tag capacity")};first_slug[..slug.len()].copy_from_slice(slug);slug_len=slug.len()}
+        if count>0 {bytes(names,&mut n,b",")?};bytes(names,&mut n,label)?;count+=1;i=end;
+    }
+    Ok((count,n,slug_len))
+}
+// The site canonicalizes spaces as + and omits its default popular sort in next links.
+fn filtered_search_next(actual:&[u8],names:&[u8],query:&[u8],page:usize)->bool {
+    let Some(parts)=actual.strip_prefix(b"https://asmhentai.com/search/?") else{return false};
+    let mut q=None;let mut p=None;let mut sort=false;
+    for part in parts.split(|b|*b==b'&') {
+        let Some(pos)=part.iter().position(|b|*b==b'=') else{return false};let (key,val)=(&part[..pos],&part[pos+1..]);
+        match key {
+            b"q" if q.is_none()=>q=Some(val),
+            b"page" if p.is_none()=>p=number(val),
+            b"sort" if !sort && val==b"popular"=>sort=true,
+            _=>return false,
+        }
+    }
+    if p!=Some(page){return false};let Some(raw)=q else{return false};
+    let mut decoded=[0u8;8192];let mut n=0;let mut i=0;
+    while i<raw.len() {
+        let c=if raw[i]==b'+' {i+=1;b' '} else if raw[i]==b'%' {
+            if i+2>=raw.len(){return false};
+            fn digit(c:u8)->Option<u8>{match c{b'0'..=b'9'=>Some(c-b'0'),b'a'..=b'f'=>Some(c-b'a'+10),b'A'..=b'F'=>Some(c-b'A'+10),_=>None}}
+            let Some(h)=digit(raw[i+1]) else{return false};let Some(l)=digit(raw[i+2]) else{return false};i+=3;h*16+l
+        } else {let c=raw[i];i+=1;c};
+        if n>=decoded.len(){return false};decoded[n]=c;n+=1;
+    }
+    let mut wanted=[0u8;8192];let mut w=0;
+    if bytes(&mut wanted,&mut w,names).is_err(){return false};
+    if !names.is_empty()&&!query.is_empty()&&bytes(&mut wanted,&mut w,b",").is_err(){return false};
+    if bytes(&mut wanted,&mut w,query).is_err(){return false};
+    decoded[..n]==wanted[..w]
+}
 fn list(r: &[u8], search: bool) -> R<usize> {
     let mut qb = [0; 2048];
     let query = if search {
@@ -665,23 +721,26 @@ fn list(r: &[u8], search: bool) -> R<usize> {
     if !search && text(args(r)?, b"listingId")? != b"listing:popular" {
         return Err("listing identity");
     };
-    let p = page(r, query)?;
-    let mut url = [0; 8192];
-    let mut z = 0;
-    if search {
-        bytes(&mut url, &mut z, b"https://asmhentai.com/search/?q=")?;
-        if !write_url_encoded(&mut url, &mut z, query) {
-            return Err("query URL capacity");
-        };
-        bytes(&mut url, &mut z, b"&sort=popular&page=")?
-    } else {
-        bytes(
-            &mut url,
-            &mut z,
-            b"https://asmhentai.com/language/chinese/popular/?page=",
-        )?
-    };
-    wn(&mut url, &mut z, p)?;
+    let mut names=[0u8;4096];let mut slug=[0u8;512];let (tag_count,names_len,slug_len)=tag_list(r,&mut names,&mut slug)?;
+    let f=if filters_supported(r){member(args(r)?,b"filters")?.unwrap_or(b"{}")}else{b"{}"};
+    let latest=if !search {member(f,b"sort")?.and_then(|v|quoted(v).ok())==Some(b"latest".as_slice())} else {false};
+    let mut effective=[0u8;8192];let mut key_len=0;
+    bytes(&mut effective,&mut key_len,query)?;
+    if tag_count>0 || latest {bytes(&mut effective,&mut key_len,b"|asm-filter|")?;bytes(&mut effective,&mut key_len,if latest{b"latest"}else{b"popular"})?;bytes(&mut effective,&mut key_len,b"|")?;bytes(&mut effective,&mut key_len,&slug[..slug_len])?;bytes(&mut effective,&mut key_len,b"|")?;bytes(&mut effective,&mut key_len,&names[..names_len])?;}
+    let p=page(r,&effective[..key_len])?;
+    let mut url = [0; 8192];let mut z=0;
+    if !search && tag_count==1 {
+        bytes(&mut url,&mut z,b"https://asmhentai.com/tag/")?;bytes(&mut url,&mut z,&slug[..slug_len])?;
+        if !latest {bytes(&mut url,&mut z,b"/popular")?};bytes(&mut url,&mut z,b"/?page=")?;
+    } else if search || tag_count>1 {
+        bytes(&mut url,&mut z,b"https://asmhentai.com/search/?q=")?;
+        let mut search_text=[0u8;8192];let mut sn=0;bytes(&mut search_text,&mut sn,&names[..names_len])?;
+        if names_len>0 && !query.is_empty(){bytes(&mut search_text,&mut sn,b",")?};bytes(&mut search_text,&mut sn,query)?;
+        if !write_url_encoded(&mut url,&mut z,&search_text[..sn]) {return Err("query URL capacity")};
+        if !latest {bytes(&mut url,&mut z,b"&sort=popular")?};bytes(&mut url,&mut z,b"&page=")?;
+    } else if latest {bytes(&mut url,&mut z,b"https://asmhentai.com/language/chinese/?page=")?}
+    else {bytes(&mut url,&mut z,b"https://asmhentai.com/language/chinese/popular/?page=")?};
+    wn(&mut url,&mut z,p)?;
     let doc = fetch(&url[..z], None)?;
     let cards = All::new(doc.0, b".preview_item")?;
     if cards.len == 0 {
@@ -734,14 +793,14 @@ fn list(r: &[u8], search: bool) -> R<usize> {
             .ok_or("page url")?;
         e = pos + 1;
         wn(&mut expected, &mut e, np)?;
-        if actual != &expected[..e] {
+        if actual != &expected[..e] && !((search || tag_count>1) && tag_count>0 && filtered_search_next(actual,&names[..names_len],query,np)) {
             return Err("next URL mismatch");
         };
         let mut c = [0; 8192];
         let mut k = 0;
         wn(&mut c, &mut k, np)?;
         bytes(&mut c, &mut k, b":")?;
-        if !write_url_encoded(&mut c, &mut k, query) {
+        if !write_url_encoded(&mut c, &mut k, &effective[..key_len]) {
             return Err("cursor capacity");
         };
         bytes(out, &mut n, b"\"nextCursor\":")?;
@@ -1094,9 +1153,34 @@ fn run_get_settings(req: &[u8]) -> u32 {
     }
     write_success_payload("get_settings", n)
 }
-fn run_get_filters(_: &[u8]) -> u32 {
-    write_error("get_filters", "not_supported", "not supported")
+fn filter_schema(r:&[u8])->R<usize> {
+    let out=payload_buf();let mut n=0;
+    if !filters_supported(r) {bytes(out,&mut n,b"{\"filters\":[]}")?;return Ok(n)}
+    bytes(out,&mut n,r#"{"supportsFilterFetching":true,"filters":[{"type":"header","name":"HINT: Separate search term with comma (,)"},{"type":"header","name":"String query search doesn't support Sort"},{"id":"sort","name":"Sort By","type":"select","scope":"browse","options":[{"value":"popular","label":"Popular"},{"value":"latest","label":"Latest"}]},{"id":"tags","name":"Tags","type":"multiselect""#.as_bytes())?;
+    let fetch_data=member(args(r)?,b"fetchFilterData")?==Some(b"true".as_slice());
+    if fetch_data {
+        bytes(out,&mut n,b",\"options\":[")?;let mut count=0;let data=unsafe{&mut *core::ptr::addr_of_mut!(TAG_DATA)};let records=unsafe{&mut *core::ptr::addr_of_mut!(TAG_RECORDS)};let mut used=0;
+        for p in 1..=5 {
+            let mut u=[0u8;128];let mut un=0;bytes(&mut u,&mut un,b"https://asmhentai.com/tags/popular/?page=")?;wn(&mut u,&mut un,p)?;
+            let doc=fetch(&u[..un],None)?;let tags=All::new(doc.0,b"a.badge.tag")?;if tags.len==0{return Err("empty tag page")}
+            for i in 0..tags.len {
+                let d=tags.at(i);let mut hb=[0u8;1024];let h=attr(d,b"href",&mut hb)?;let slug=h.strip_prefix(b"/tag/").and_then(|v|v.strip_suffix(b"/")).ok_or("tag URL")?;
+                if slug.is_empty() || !slug.iter().all(|b|b.is_ascii_alphanumeric()||*b==b'-'){return Err("tag identity")}
+                let mut tb=[0u8;2048];let full=txt(d,&mut tb)?;let pos=full.iter().rposition(|b|*b==b'(').ok_or("tag count")?;
+                if full.last()!=Some(&b')')||!full[pos+1..full.len()-1].iter().all(u8::is_ascii_digit){return Err("tag count")};let label=trim_ascii(&full[..pos]);if label.is_empty(){return Err("tag name")}
+                if count>=records.len(){return Err("tag capacity")};let label_start=used;bytes(data,&mut used,label)?;let record_start=used;
+                bytes(data,&mut used,b"{\"value\":\"")?;wn(data,&mut used,slug.len())?;bytes(data,&mut used,b":")?;if !append_json_escaped(data,&mut used,slug)||!append_json_escaped(data,&mut used,label){return Err("tag value")};bytes(data,&mut used,b"\",\"label\":")?;q(data,&mut used,label)?;bytes(data,&mut used,b"}")?;
+                records[count]=TagRecord{label_start,label_len:label.len(),record_start,record_len:used-record_start};count+=1;
+            }
+        }
+        // The upstream filter groups names alphabetically; the native multi-select uses the same order.
+        records[..count].sort_unstable_by(|a,b|data[a.label_start..a.label_start+a.label_len].cmp(&data[b.label_start..b.label_start+b.label_len]));
+        for (i,record) in records[..count].iter().enumerate() {if i>0{bytes(out,&mut n,b",")?};bytes(out,&mut n,&data[record.record_start..record.record_start+record.record_len])?;}
+        bytes(out,&mut n,b"]")?;
+    }
+    bytes(out,&mut n,b"}]}")?;Ok(n)
 }
+fn run_get_filters(r: &[u8]) -> u32 {execute("get_filters",filter_schema(r))}
 // Source-local ABI gate. Check before the SDK helper forms a slice.
 fn checked_request(ptr: u32, len: u32) -> Option<&'static [u8]> {
     let cap = core::arch::wasm32::memory_size::<0>().checked_mul(65536)?;
@@ -1119,7 +1203,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 pub extern "C" fn koma_source_info() -> u32 {
     response_buffer().write_success_parts("source_info", &[
  b"{\"sourceInfo\":{\"id\":\"", SOURCE_INFO.id.as_bytes(), b"\",\"name\":\"", SOURCE_INFO.name.as_bytes(), b"\",\"version\":\"", SOURCE_INFO.version.as_bytes(), b"\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"",SOURCE_INFO.description.as_bytes(),
- "\",\"contentRating\":\"nsfw\",\"localizedNames\":{\"zh-Hans\":\"AsmHentai（中文）\",\"zh-Hant\":\"AsmHentai（中文）\",\"en\":\"AsmHentai (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes()
+ "\",\"contentRating\":\"nsfw\",\"localizedNames\":{\"zh-Hans\":\"AsmHentai（中文）\",\"zh-Hant\":\"AsmHentai（中文）\",\"en\":\"AsmHentai (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":true,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes()
  ])
 }
 macro_rules! export_op {
