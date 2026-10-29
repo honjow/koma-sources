@@ -10,7 +10,7 @@ type E = &'static str;
 type R<T> = Result<T, E>;
 const MAX: usize = 1048576;
 const WEB: &[u8] = b"https://www.jjmhw2.top";
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.mangaxiaosi.zh.koma",name:"Manga Xiao Si",version:"0.1.3",api_version:"0.2",language:"zh",author:"Koma",description:"Manga Xiao Si published finite rank and query catalogue. Per-work rating, picture availability and usage unknown.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.mangaxiaosi.zh.koma",name:"Manga Xiao Si",version:"0.1.4",api_version:"0.2",language:"zh",author:"Koma",description:"Manga Xiao Si published finite rank and query catalogue. Per-work rating, picture availability and usage unknown.",content_rating:"nsfw"};
 #[allow(dead_code)]
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
@@ -21,7 +21,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     manga_list: true,
     image_request: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: false,
     credentials: false,
 };
@@ -534,7 +534,7 @@ fn image_path(v: &[u8]) -> R<&[u8]> {
     Ok(p)
 }
 fn cover(v: &[u8], id: &[u8]) -> R<()> {
-    let p = image_path(v)?;
+    let p = match v.strip_prefix(b"https://www.jjmhw11.top/static/upload/book/") { Some(p) => p, None => image_path(v)? };
     let mut b = [0; 128];
     if p != make(&[id, b"/cover.jpg"], &mut b)? {
         return Err("cover ownership");
@@ -608,8 +608,26 @@ fn first_page(r: &[u8]) -> R<()> {
     }
     Ok(())
 }
+// Filters only apply to explicit browse choices; default rank and search remain finite.
+fn filter_feature(r: &[u8]) -> bool {
+    member(r,b"hostFeatures").ok().flatten().map(trim_ascii).map_or(false, |v| v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|b|*b==b',').any(|v| trim_ascii(v)==b"\"source_filter_scope_header_v1\""))
+}
+fn selected<'a>(f: &'a [u8], k: &[u8], out: &'a mut [u8], fallback: &'a [u8]) -> R<&'a [u8]> {
+    match member(f,k)? { Some(v)=>uq(v,out), None=>Ok(fallback) }
+}
 fn list(r: &[u8], search: bool) -> R<usize> {
-    first_page(r)?;
+    let a=args(r)?;
+    let f = if !search && filter_feature(r) {member(a,b"filters")?.unwrap_or(b"{}")} else {b"{}"};
+    let filtered = member(f,b"tag")?.is_some() || member(f,b"area")?.is_some() || member(f,b"status")?.is_some();
+    let mut tb=[0u8;256];let mut ab=[0u8;64];let mut sb=[0u8;64];
+    let tag=selected(f,b"tag",&mut tb,"全部".as_bytes())?;
+    let area=selected(f,b"area",&mut ab,b"-1")?;
+    let status=selected(f,b"status",&mut sb,b"-1")?;
+    let mut page=1;
+    if filtered {
+        if let Some(p)=member(a,b"page")? { if p!=b"null" { if let Some(c)=member(p,b"cursor")? {if c!=b"null" && quoted(c)?!=b"" {let mut b=[0;32];page=number(uq(c,&mut b)?).ok_or("invalid filter cursor")?;if page<2 || page>10000 {return Err("invalid filter cursor");}}}}}
+        if !["全部","青春","性感","长腿","多人","御姐","巨乳","新婚","媳妇","暧昧","清纯","调教","少妇","风骚","同居","淫乱","好友","女神","诱惑","偷情","出轨","正妹","家教"].iter().any(|v| v.as_bytes()==tag) || ![b"-1".as_slice(),b"1",b"2",b"3"].contains(&area) || ![b"-1".as_slice(),b"0",b"1"].contains(&status) {return Err("invalid filter");}
+    } else {first_page(r)?;}
     let mut qb = [0; 2048];
     let mut ub = [0; 8192];
     let mut un = 0;
@@ -624,16 +642,19 @@ fn list(r: &[u8], search: bool) -> R<usize> {
             return Err("query capacity");
         }
     } else {
-        if text(args(r)?, b"listingId")? != b"listing:popular" {
-            return Err("listing identity");
-        };
-        bytes(&mut ub, &mut un, WEB)?;
-        bytes(&mut ub, &mut un, b"/rank")?
+        if text(args(r)?, b"listingId")? != b"listing:popular" {return Err("listing identity");}
+        bytes(&mut ub,&mut un,WEB)?;
+        if filtered {
+            bytes(&mut ub,&mut un,b"/booklist?page=")?;wn(&mut ub,&mut un,page)?;
+            bytes(&mut ub,&mut un,b"&tag=")?;if !write_url_encoded(&mut ub,&mut un,tag) {return Err("tag capacity");}
+            bytes(&mut ub,&mut un,b"&area=")?;bytes(&mut ub,&mut un,area)?;
+            bytes(&mut ub,&mut un,b"&end=")?;bytes(&mut ub,&mut un,status)?;
+        } else {bytes(&mut ub,&mut un,b"/rank")?;}
     }
     let doc = fetch(&ub[..un])?;
     let mut section = None;
     let mut sections_owner: Option<All> = None;
-    if !search {
+    if !search && !filtered {
         let sections = All::new(doc.0, b".mh-list.col3.top-cat > li")?;
         for i in 0..sections.len {
             let mut b = [0; 256];
@@ -654,7 +675,7 @@ fn list(r: &[u8], search: bool) -> R<usize> {
     let _keep_sections = &sections_owner;
     let cards = All::new(
         d,
-        if search {
+        if search || filtered {
             b".mh-item"
         } else {
             b".mh-item, .mh-itme-top"
@@ -664,8 +685,19 @@ fn list(r: &[u8], search: bool) -> R<usize> {
         return Err("empty or gated listing");
     };
     let next = All::new(doc.0, b"a#nextPage")?;
+    let mut next_page=None;
     if next.len > 0 {
-        return Err("unverified query pagination");
+        if !filtered || next.len != 1 {return Err("unverified query pagination");}
+        let mut hb=[0u8;2048];let href=attr(next.at(0),b"href",&mut hb)?;
+        let query=href.strip_prefix(WEB).unwrap_or(href).strip_prefix(b"/booklist?").ok_or("next path")?;
+        let mut seen=0u8;let mut encoded_tag=[0u8;512];let mut etn=0;
+        if !write_url_encoded(&mut encoded_tag,&mut etn,tag) {return Err("tag capacity");}
+        for part in query.split(|v|*v==b'&') {
+            let pos=part.iter().position(|v|*v==b'=').ok_or("next parameter")?;let (k,v)=(&part[..pos],&part[pos+1..]);
+            let bit=match k {b"page"=>{if number(v)!=page.checked_add(1) {return Err("next page");}1},b"tag"=>{if v!=tag && v!=&encoded_tag[..etn] {return Err("next tag");}2},b"area"=>{if v!=area{return Err("next area");}4},b"end"=>{if v!=status{return Err("next status");}8},_=>return Err("next parameter")};
+            if seen & bit != 0 {return Err("duplicate next parameter");}seen|=bit;
+        }
+        if seen!=15 {return Err("incomplete next parameter");}next_page=page.checked_add(1);
     }
     let out = payload_buf();
     let mut n = 0;
@@ -675,17 +707,15 @@ fn list(r: &[u8], search: bool) -> R<usize> {
         if i > 0 {
             bytes(out, &mut n, b",")?
         };
-        let id = emit_card(out, &mut n, cards.at(i), !search)?;
+        let id = emit_card(out, &mut n, cards.at(i), !search && !filtered)?;
         if seen[..i].contains(&id) {
             return Err("listing duplicate");
         };
         seen[i] = id
     }
-    bytes(
-        out,
-        &mut n,
-        b"],\"page\":{\"nextCursor\":null,\"hasMore\":false}}",
-    )?;
+    bytes(out,&mut n,b"],\"page\":{\"nextCursor\":")?;
+    if let Some(v)=next_page {bytes(out,&mut n,b"\"")?;wn(out,&mut n,v)?;bytes(out,&mut n,b"\",\"hasMore\":true}}")?;}
+    else {bytes(out,&mut n,b"null,\"hasMore\":false}}")?;}
     Ok(n)
 }
 fn detail_doc(id: &[u8]) -> R<Owned> {
@@ -1015,8 +1045,9 @@ fn run_get_home(_: &[u8]) -> u32 {
 fn run_get_settings(_: &[u8]) -> u32 {
     write_error("get_settings", "not_supported", "not supported")
 }
-fn run_get_filters(_: &[u8]) -> u32 {
-    write_error("get_filters", "not_supported", "not supported")
+fn run_get_filters(r: &[u8]) -> u32 {
+    let data=if filter_feature(r) {r###"{"filters":[{"id":"notice","type":"header","name":"注意：搜索时不支持分类过滤","scope":"browse"},{"id":"tag","name":"题材","type":"select","scope":"browse","options":[{"label":"全部","value":"全部"},{"label":"青春","value":"青春"},{"label":"性感","value":"性感"},{"label":"长腿","value":"长腿"},{"label":"多人","value":"多人"},{"label":"御姐","value":"御姐"},{"label":"巨乳","value":"巨乳"},{"label":"新婚","value":"新婚"},{"label":"媳妇","value":"媳妇"},{"label":"暧昧","value":"暧昧"},{"label":"清纯","value":"清纯"},{"label":"调教","value":"调教"},{"label":"少妇","value":"少妇"},{"label":"风骚","value":"风骚"},{"label":"同居","value":"同居"},{"label":"淫乱","value":"淫乱"},{"label":"好友","value":"好友"},{"label":"女神","value":"女神"},{"label":"诱惑","value":"诱惑"},{"label":"偷情","value":"偷情"},{"label":"出轨","value":"出轨"},{"label":"正妹","value":"正妹"},{"label":"家教","value":"家教"}]},{"id":"area","name":"地区","type":"select","scope":"browse","options":[{"label":"全部","value":"-1"},{"label":"韩国","value":"1"},{"label":"日本","value":"2"},{"label":"台湾","value":"3"}]},{"id":"status","name":"进度","type":"select","scope":"browse","options":[{"label":"全部","value":"-1"},{"label":"连载","value":"0"},{"label":"完结","value":"1"}]}]}"###.as_bytes()} else {b"{\"filters\":[]}"};
+    payload_buf()[..data.len()].copy_from_slice(data);write_success_payload("get_filters",data.len())
 }
 // Source-local ABI gate; SDK remains byte-identical. Check before helper forms a slice.
 fn checked_request(ptr: u32, len: u32) -> Option<&'static [u8]> {
@@ -1040,7 +1071,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 pub extern "C" fn koma_source_info() -> u32 {
     response_buffer().write_success_parts("source_info", &[
  b"{\"sourceInfo\":{\"id\":\"", SOURCE_INFO.id.as_bytes(), b"\",\"name\":\"", SOURCE_INFO.name.as_bytes(), b"\",\"version\":\"", SOURCE_INFO.version.as_bytes(), b"\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"",SOURCE_INFO.description.as_bytes(),
- "\",\"contentRating\":\"nsfw\",\"localizedNames\":{\"zh-Hans\":\"漫小肆\",\"zh-Hant\":\"漫小肆\",\"en\":\"Manga Xiao Si (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":false,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes()
+ "\",\"contentRating\":\"nsfw\",\"localizedNames\":{\"zh-Hans\":\"漫小肆\",\"zh-Hant\":\"漫小肆\",\"en\":\"Manga Xiao Si (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":true,\"settings\":false,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes()
  ])
 }
 macro_rules! export_op {
