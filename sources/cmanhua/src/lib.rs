@@ -12,7 +12,7 @@ const BASE: &[u8] = b"https://cmanhua.com";
 const INFO: SourceInfo = SourceInfo {
     id: "com.cmanhua.koma",
     name: "CManhua",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -208,8 +208,15 @@ fn page_end(op: &str, n: &mut usize, next: Option<&[u8]>) -> u32 {
     }
     write_success_payload(op, *n)
 }
+// Decode search terms separately from request scratch and the bounded WASM stack.
+static mut SEARCH_QUERY: [u8; 16384] = [0; 16384];
 fn run_search(req: &[u8]) -> u32 {
     let q = extract_json_string(req, b"query").unwrap_or(b"");
+    let decoded = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
+    let q = match koma_source_sdk::plain_text::decode_json_content(q, decoded) {
+        Ok(v) => v,
+        Err(_) => return write_error("search", "invalid_request", "invalid query"),
+    };
     if q.is_empty() {
         return browse(req, "search");
     }

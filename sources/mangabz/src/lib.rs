@@ -23,7 +23,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mangabz.koma",
     name: "Mangabz",
-    version: "0.1.8",
+    version: "0.1.9",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -336,8 +336,15 @@ fn write_manga_page_from_url(operation: &str, url: &[u8], page: usize, cookie: O
     write_success_payload(operation, c)
 }
 
+// Decode search terms separately from request scratch and the bounded WASM stack.
+static mut SEARCH_QUERY: [u8; 8192] = [0; 8192];
 fn run_search(req: &[u8]) -> u32 {
     let query = extract_json_string(req, b"query").unwrap_or(b"");
+    let decoded = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
+    let query = match koma_source_sdk::plain_text::decode_json_content(query, decoded) {
+        Ok(v) => v,
+        Err(_) => return write_error("search", "invalid_request", "invalid query"),
+    };
     if query.is_empty() {
         return run_manga_list(req, "search");
     }

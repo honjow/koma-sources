@@ -35,7 +35,7 @@ static mut AUTH_TOKEN_LEN: usize = 0;
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.manhuaren.koma",
     name: "漫画人",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -954,8 +954,15 @@ fn write_manga_items_from_array(
     write_success_payload(operation, c)
 }
 
+// Decode search terms separately from request scratch and the bounded WASM stack.
+static mut SEARCH_QUERY: [u8; 4096] = [0; 4096];
 fn run_search(req: &[u8]) -> u32 {
     let query = extract_json_string(req, b"query").unwrap_or(b"");
+    let decoded = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
+    let query = match koma_source_sdk::plain_text::decode_json_content(query, decoded) {
+        Ok(v) => v,
+        Err(_) => return write_error("search", "invalid_request", "invalid query"),
+    };
     let page = request_page_number(req);
     let start = (page - 1) * PAGE_SIZE;
     let mut start_buf = [0u8; 20];

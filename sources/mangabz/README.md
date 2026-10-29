@@ -1,4 +1,4 @@
-# Mangabz 0.1.8
+# Mangabz 0.1.9
 
 独立源 `com.mangabz.koma`，主页 `https://www.mangabz.com`，API 0.2。提供原热门、最新、搜索、详情、目录和页面；既有源码图像/HTTP守卫与内容分级保持，不增加账户、权限、镜像、重试或脚本执行。
 
@@ -17,3 +17,5 @@ Koma新请求直接消费当前设置，不需要复制参考的重启要求。�
 ## 图标与来源
 
 当前512像素BZ几何重建及App原裁切/顺序不变；原官网符号、可编辑输入与权利说明见 [素材归属](ASSET_SOURCES.md)。原数据合同独立适配自Apache-2.0 Keiyoushi `1319949ca9bc456908196e3ba2d104e94182c5d6`；语言偏好及域限定Cookie消费者依据固定 `949dea252eb8e867b7b40834a26e13088764ff55` 的Mangabz.kt/Preferences.kt和core/network/Cookie.kt。现有许可不授予站点内容所有权。
+
+搜索先解码请求中的 JSON 转义，再按既有站点请求规则编码用户输入；空查询、分页和其他已有行为保持不变。

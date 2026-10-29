@@ -8,7 +8,7 @@ use koma_source_sdk::{fetch_error_code, FetchError};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.kuaikan.koma",
     name: "快看漫画",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -209,8 +209,15 @@ fn cursor(req: &[u8]) -> Result<Option<usize>, &'static str> {
     let v = literal_string(c).ok_or("cursor must be a numeric string or null")?;
     number(v).map(Some).ok_or("invalid cursor")
 }
+// Decode search terms separately from request scratch and the bounded WASM stack.
+static mut SEARCH_QUERY: [u8; 8192] = [0; 8192];
 fn run_search(req: &[u8]) -> u32 {
     let query = extract_json_string(req, b"query").unwrap_or(b"");
+    let decoded = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
+    let query = match koma_source_sdk::plain_text::decode_json_content(query, decoded) {
+        Ok(v) => v,
+        Err(_) => return write_error("search", "invalid_request", "invalid query"),
+    };
     if query.is_empty() {
         return browse(req, "search");
     }
