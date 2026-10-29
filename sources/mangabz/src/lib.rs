@@ -23,7 +23,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mangabz.koma",
     name: "Mangabz",
-    version: "0.1.9",
+    version: "0.1.10",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -39,7 +39,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     listings: true,
     manga_list: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: true,
     image_request: true,
     credentials: false,
@@ -1085,6 +1085,19 @@ fn request_page(req: &[u8]) -> Option<usize> {
     }
 }
 
+// Preserve popular/latest defaults; the provider's dynamic option ID carries its full tuple.
+#[link(wasm_import_module = "koma_host")]
+extern "C" { #[link_name = "html_select_all"] fn filter_select_all(d:i32,s:*const u8,n:u32,o:*mut i32,c:u32)->i32; }
+struct FilterDoc(host::HtmlDescriptor);
+impl Drop for FilterDoc {fn drop(&mut self){let _=host::html_close(self.0);}}
+fn filter_feature(req:&[u8],name:&[u8])->bool {
+    json_object_member(req,b"hostFeatures").map(trim_ascii).map_or(false,|v|v.starts_with(b"[")&&v.ends_with(b"]")&&v[1..v.len()-1].split(|x|*x==b',').any(|x|trim_ascii(x).strip_prefix(b"\"").and_then(|x|x.strip_suffix(b"\""))==Some(name)))
+}
+fn filter_value<'a>(f:&'a [u8],k:&[u8])->Option<&'a [u8]>{json_object_member(f,k).and_then(|v|v.strip_prefix(b"\"")?.strip_suffix(b"\""))}
+fn tuple(s:&[u8])->Option<[usize;3]>{let mut it=s.split(|x|*x==b'-');let mut r=[0;3];for v in &mut r {let p=it.next()?;if p.is_empty()||p.len()>5||!p.iter().all(u8::is_ascii_digit){return None;}*v=parse_usize(p)?;}if it.next().is_some(){return None;}Some(r)}
+fn filter_select(d:host::HtmlDescriptor,s:&[u8],out:&mut [i32])->Option<usize>{let n=unsafe{filter_select_all(d.raw(),s.as_ptr(),s.len() as u32,out.as_mut_ptr(),(out.len()*4) as u32)};if n<0 || n as usize>out.len(){None}else{Some(n as usize)}}
+fn filter_attr<'a>(d:host::HtmlDescriptor,k:&[u8],o:&'a mut [u8])->Option<&'a [u8]>{let n=host::html_attr(d,k,o).ok()?;if n>=o.len(){None}else{Some(&o[..n])}}
+fn filter_text<'a>(d:host::HtmlDescriptor,o:&'a mut [u8])->Option<&'a [u8]>{let n=host::html_text(d,o).ok()?;if n>=o.len(){None}else{Some(trim_ascii(&o[..n]))}}
 fn run_get_manga_list(req: &[u8]) -> u32 {
     run_manga_list(req, "get_manga_list")
 }
@@ -1099,14 +1112,16 @@ fn run_manga_list(req: &[u8], op: &str) -> u32 {
     };
     let url_buf = scratch_a();
     let mut c = 0usize;
-    let ok = write_bytes(url_buf, &mut c, BASE_URL)
-        && if listing == b"latest" {
-            write_bytes(url_buf, &mut c, b"/manga-list-0-0-2-p")
-        } else {
-            write_bytes(url_buf, &mut c, b"/manga-list-p")
-        }
-        && write_usize(url_buf, &mut c, page)
-        && write_bytes(url_buf, &mut c, b"/");
+    let filters=if filter_feature(req,b"source_filter_scope_header_v1") && filter_feature(req,b"source_filter_fetching_v1") {json_object_member(req,b"args").and_then(|a|json_object_member(a,b"filters")).unwrap_or(b"{}")}else{b"{}"};
+    let keys=[b"genre".as_slice(),b"status",b"sort"];let mut selected=[None;3];let mut base=None;
+    for i in 0..3 {if let Some(v)=filter_value(filters,keys[i]) {let t=match tuple(v){Some(v)=>v,None=>return write_error(op,"invalid_request","invalid category")};if base.is_none(){base=Some(t);}selected[i]=Some(t[i]);}}
+    let ok=if let Some(mut ids)=base {
+        if listing==b"latest" && selected[2].is_none(){ids[2]=2;}
+        for i in 0..3 {if let Some(v)=selected[i]{ids[i]=v;}}
+        write_bytes(url_buf,&mut c,BASE_URL) && write_bytes(url_buf,&mut c,b"/manga-list-") && write_usize(url_buf,&mut c,ids[0]) && write_bytes(url_buf,&mut c,b"-") && write_usize(url_buf,&mut c,ids[1]) && write_bytes(url_buf,&mut c,b"-") && write_usize(url_buf,&mut c,ids[2]) && write_bytes(url_buf,&mut c,b"-p") && write_usize(url_buf,&mut c,page) && write_bytes(url_buf,&mut c,b"/")
+    }else{
+        write_bytes(url_buf,&mut c,BASE_URL) && if listing==b"latest" {write_bytes(url_buf,&mut c,b"/manga-list-0-0-2-p")}else{write_bytes(url_buf,&mut c,b"/manga-list-p")} && write_usize(url_buf,&mut c,page) && write_bytes(url_buf,&mut c,b"/")
+    };
     if !ok {
         return write_error(op, "internal_error", "url overflow");
     }
@@ -1125,14 +1140,38 @@ fn run_get_home(_req: &[u8]) -> u32 {
     write_success_payload("get_home", bytes.len())
 }
 
-fn run_get_filters(_req: &[u8]) -> u32 {
-    const FILTERS: &[u8] = br#"{"filters":[]}"#;
-    let payload = payload_buf();
-    if FILTERS.len() > payload.len() {
-        return write_error("get_filters", "internal_error", "payload overflow");
+fn run_get_filters(req:&[u8])->u32 {
+    if !filter_feature(req,b"source_filter_scope_header_v1") || !filter_feature(req,b"source_filter_fetching_v1") {return write_success_payload("get_filters",{let v=br#"{"filters":[]}"#;payload_buf()[..v.len()].copy_from_slice(v);v.len()});}
+    let fetch=json_object_member(req,b"args").and_then(|a|json_object_member(a,b"fetchFilterData"))==Some(b"true");
+    let keys=[b"genre".as_slice(),b"status",b"sort"];let names=["题材","状态","排序"];let mut defaults=[0usize;3];let mut assigned=[false;3];let mut groups=[0i32;3];
+    let doc=if fetch {
+        let n=match fetch_body(b"https://www.mangabz.com/manga-list-p1/",None,language_cookie(req)){Ok(v)=>v,Err(e)=>{let (c,m)=fetch_error_code(e);return write_error("get_filters",c,m)}};
+        let html=unsafe{core::slice::from_raw_parts(BODY_BUF.as_ptr(),n)};let doc=match host::html_parse(html){Ok(v)=>FilterDoc(v),Err(_)=>return write_error("get_filters","parse_error","category HTML")};
+        if filter_select(doc.0,b".class-line",&mut groups)!=Some(3){return write_error("get_filters","parse_error","category groups")}
+        for i in 0..3 {
+            let group=host::HtmlDescriptor::from_raw(groups[i]);let mut opts=[0i32;128];let count=match filter_select(group,b"a[href]",&mut opts){Some(v) if v>1=>v,_=>return write_error("get_filters","parse_error","category options")};
+            for raw in opts[..count].iter().skip(1) {let d=FilterDoc(host::HtmlDescriptor::from_raw(*raw));let mut h=[0u8;256];let href=match filter_attr(d.0,b"href",&mut h){Some(v)=>v,None=>return write_error("get_filters","parse_error","category href")};let t=match href.strip_prefix(b"/manga-list-").and_then(|v|v.strip_suffix(b"/")).and_then(tuple){Some(v)=>v,None=>return write_error("get_filters","parse_error","category tuple")};for j in 0..3 {if j!=i {if assigned[j] && defaults[j]!=t[j]{return write_error("get_filters","parse_error","category defaults")};defaults[j]=t[j];assigned[j]=true;}}}
+            let _=host::html_close(host::HtmlDescriptor::from_raw(opts[0]));
+        }
+        if assigned.iter().any(|v|!*v){return write_error("get_filters","parse_error","category defaults")};Some(doc)
+    }else{None};
+    let out=payload_buf();let mut n=0;if !write_bytes(out,&mut n,r#"{"supportsFilterFetching":true,"filters":[{"type":"header","scope":"browse","name":"分类（搜索文本时无效）"},"#.as_bytes()){return write_error("get_filters","internal_error","schema overflow")}
+    for i in 0..3 {
+        if i>0 && !write_bytes(out,&mut n,b","){return write_error("get_filters","internal_error","schema overflow")}
+        if !(write_bytes(out,&mut n,br#"{"id":""#)&&append_json_escaped(out,&mut n,keys[i])&&write_bytes(out,&mut n,br#"","name":""#)){return write_error("get_filters","internal_error","schema overflow")}
+        if fetch {
+            let group=host::HtmlDescriptor::from_raw(groups[i]);let title=match host::html_select(group,b".class-line-title"){Ok(v)=>FilterDoc(v),Err(_)=>return write_error("get_filters","parse_error","category title")};let mut tb=[0u8;256];let title=match filter_text(title.0,&mut tb){Some(v)=>v,_=>return write_error("get_filters","parse_error","category title")};let title=title.strip_suffix("：".as_bytes()).unwrap_or(title);
+            if !append_json_escaped(out,&mut n,title){return write_error("get_filters","internal_error","schema overflow")}
+            if !write_bytes(out,&mut n,br#"","type":"select","scope":"browse","options":["#){return write_error("get_filters","internal_error","schema overflow")}
+            let mut opts=[0i32;128];let count=match filter_select(group,b"a[href]",&mut opts){Some(v) if v>1=>v,_=>return write_error("get_filters","parse_error","category options")};
+            for j in 0..count {let d=FilterDoc(host::HtmlDescriptor::from_raw(opts[j]));let mut h=[0u8;256];let mut t=[0u8;512];let label=match filter_text(d.0,&mut t){Some(v) if !v.is_empty()=>v,_=>return write_error("get_filters","parse_error","option label")};let mut ids=defaults;if j>0 {let href=match filter_attr(d.0,b"href",&mut h){Some(v)=>v,None=>return write_error("get_filters","parse_error","option href")};let parsed=match href.strip_prefix(b"/manga-list-").and_then(|v|v.strip_suffix(b"/")).and_then(tuple){Some(v)=>v,None=>return write_error("get_filters","parse_error","option tuple")};ids[i]=parsed[i];}
+                if (j>0 && !write_bytes(out,&mut n,b",")) || !(write_bytes(out,&mut n,br#"{"value":""#)&&write_usize(out,&mut n,ids[0])&&write_bytes(out,&mut n,b"-")&&write_usize(out,&mut n,ids[1])&&write_bytes(out,&mut n,b"-")&&write_usize(out,&mut n,ids[2])&&write_bytes(out,&mut n,br#"","label":""#)&&append_json_escaped(out,&mut n,label)&&write_bytes(out,&mut n,br#""}"#)){return write_error("get_filters","internal_error","schema overflow")}
+            }
+            if !write_bytes(out,&mut n,b"]"){return write_error("get_filters","internal_error","schema overflow")};let _=host::html_close(group);
+        } else {if !(append_json_escaped(out,&mut n,names[i].as_bytes())&&write_bytes(out,&mut n,br#"","type":"select","scope":"browse""#)){return write_error("get_filters","internal_error","schema overflow")}}
+        if !write_bytes(out,&mut n,b"}"){return write_error("get_filters","internal_error","schema overflow")}
     }
-    payload[..FILTERS.len()].copy_from_slice(FILTERS);
-    write_success_payload("get_filters", FILTERS.len())
+    if !write_bytes(out,&mut n,b"]}"){return write_error("get_filters","internal_error","schema overflow")};let _keep=doc;write_success_payload("get_filters",n)
 }
 
 fn run_get_settings(req: &[u8]) -> u32 {
