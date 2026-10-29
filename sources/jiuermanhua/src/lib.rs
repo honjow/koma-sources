@@ -54,7 +54,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.jiuermanhua.koma",
     name: "92漫画网",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -70,7 +70,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     listings: false,
     manga_list: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: false,
     image_request: false,
     credentials: false,
@@ -334,14 +334,29 @@ fn run_search(req: &[u8]) -> u32 {
     parse_list(html, "search", page)
 }
 
+// Only current browse filters alter the prior popular route; search stays independent.
+const CATEGORY_IDS: [&[u8];8] = [b"type",b"region",b"genre",b"audience",b"year",b"gender",b"letter",b"status"];
+const CATEGORY_NAMES: [&str;8] = ["按类型","按地区","按剧情","按受众","按年份","按性别","按字母","按进度"];
+fn feature(req: &[u8], name: &[u8]) -> bool {
+    json_object_member(req,b"hostFeatures").map(trim_ascii).map_or(false, |v| v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|b|*b==b',').any(|v| { let v=trim_ascii(v); v.strip_prefix(b"\"").and_then(|v|v.strip_suffix(b"\""))==Some(name) }))
+}
+fn filtered_value<'a>(f: &'a [u8], key: &[u8]) -> Option<&'a [u8]> {json_object_member(f,key).and_then(|v|v.strip_prefix(b"\"")?.strip_suffix(b"\""))}
 fn run_get_manga_list(req: &[u8]) -> u32 {
     let page = match request_page(req) { Some(v) => v, None => return write_error("get_manga_list", "invalid_request", "invalid page cursor") };
 
     let url_buf = scratch_a();
     let mut c = 0usize;
-    if !(write_bytes(url_buf, &mut c, BASE_URL)
-        && write_bytes(url_buf, &mut c, b"/list/click/?page=")
-        && write_usize(url_buf, &mut c, page))
+    let filters=if feature(req,b"source_filter_scope_header_v1") && feature(req,b"source_filter_fetching_v1") {json_object_member(req,b"args").and_then(|a|json_object_member(a,b"filters")).unwrap_or(b"{}")} else {b"{}"};
+    let any=CATEGORY_IDS.iter().any(|id|filtered_value(filters,id).is_some()) || filtered_value(filters,b"sort").is_some();
+    if any {
+        if !(write_bytes(url_buf,&mut c,BASE_URL) && write_bytes(url_buf,&mut c,b"/list/")) {return write_error("get_manga_list","internal_error","url overflow");}
+        let mut count=0;
+        for id in CATEGORY_IDS { if let Some(v)=filtered_value(filters,id) { if v!=b"all" { if v.is_empty() || !v.iter().all(|b|b.is_ascii_alphanumeric() || *b==b'_') {return write_error("get_manga_list","invalid_request","invalid category");} if count>0 && !write_bytes(url_buf,&mut c,b"-") {return write_error("get_manga_list","internal_error","url overflow");} if !write_bytes(url_buf,&mut c,v) {return write_error("get_manga_list","internal_error","url overflow");} count+=1; } } }
+        if !(write_bytes(url_buf,&mut c,b"-/")) {return write_error("get_manga_list","internal_error","url overflow");}
+    } else if !(write_bytes(url_buf,&mut c,BASE_URL) && write_bytes(url_buf,&mut c,b"/list/")) {return write_error("get_manga_list","internal_error","url overflow");}
+    let sort=filtered_value(filters,b"sort").unwrap_or(b"click");
+    if ![b"post".as_slice(),b"-post",b"update",b"-update",b"click",b"-click"].contains(&sort) {return write_error("get_manga_list","invalid_request","invalid sort");}
+    if !(write_bytes(url_buf,&mut c,sort) && write_bytes(url_buf,&mut c,b"/?page=") && write_usize(url_buf,&mut c,page))
     {
         return write_error("get_manga_list", "internal_error", "url overflow");
     }
@@ -824,8 +839,47 @@ pub extern "C" fn koma_source_get_home(_req_ptr: u32, _req_len: u32) -> u32 {
 }
 
 #[no_mangle]
-pub extern "C" fn koma_source_get_filters(_req_ptr: u32, _req_len: u32) -> u32 {
-    response_buffer().write_success("get_filters", br#"{"filters":[]}"#)
+pub extern "C" fn koma_source_get_filters(req_ptr: u32, req_len: u32) -> u32 {
+    let req=match read_request(req_ptr,req_len) {Some(v)=>v,None=>return write_error("get_filters","invalid_request","empty request")};
+    if !feature(req,b"source_filter_scope_header_v1") || !feature(req,b"source_filter_fetching_v1") {return response_buffer().write_success("get_filters",br#"{"filters":[]}"#);}
+    let dynamic=feature(req,b"source_filter_fetching_v1");
+    let fetch=dynamic && json_object_member(req,b"args").and_then(|a|json_object_member(a,b"fetchFilterData"))==Some(b"true");
+    let mut cats=[0i32;8];
+    let doc=if fetch {
+        let mut url=[0u8;256];let mut n=0;if !(write_bytes(&mut url,&mut n,BASE_URL)&&write_bytes(&mut url,&mut n,b"/list/")){return write_error("get_filters","internal_error","url overflow");}
+        let size=match fetch_body(&url[..n]) {Ok(n)=>n,Err(e)=>{let (code,msg)=fetch_error_code(e);return write_error("get_filters",code,msg)}};
+        let body=unsafe{core::slice::from_raw_parts(BODY_BUF.as_ptr(),size)};
+        let doc=match html_parse(body){Ok(v)=>OwnedDescriptor(v),Err(_)=>return write_error("get_filters","parse_error","category HTML")};
+        let buf=unsafe{&mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF)};let count=html_select_all(doc.0.raw(),b".filter-nav > .filter-item",buf);
+        if count!=8 {return write_error("get_filters","parse_error","category groups")}
+        for i in 0..8 {cats[i]=i32::from_le_bytes(buf[i*4..i*4+4].try_into().unwrap_or([0;4]));if cats[i]<=0{return write_error("get_filters","parse_error","category descriptor");}}
+        Some(doc)
+    } else {None};
+    let out=payload_buf();let mut n=0;
+    if !write_bytes(out,&mut n,r#"{"supportsFilterFetching":true,"filters":[{"type":"header","scope":"browse","name":"分类筛选（搜索文本时无效）"},"#.as_bytes()) {return write_error("get_filters","internal_error","schema overflow")}
+    if dynamic {for i in 0..8 {
+        if i>0 && !write_bytes(out,&mut n,b","){return write_error("get_filters","internal_error","schema overflow")}
+        if !(write_bytes(out,&mut n,br#"{"id":""#)&&append_json_escaped(out,&mut n,CATEGORY_IDS[i])&&write_bytes(out,&mut n,br#"","name":""#)&&append_json_escaped(out,&mut n,CATEGORY_NAMES[i].as_bytes())&&write_bytes(out,&mut n,br#"","type":"select","scope":"browse""#)){return write_error("get_filters","internal_error","schema overflow")}
+        if fetch {
+            let group=host::HtmlDescriptor::from_raw(cats[i]);let mut name=[0u8;128];
+            if select_text(group,b"label",&mut name)!=Some(CATEGORY_NAMES[i].as_bytes()){return write_error("get_filters","parse_error","category identity")}
+            let buf=unsafe{&mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF)};let count=html_select_all(group.raw(),b"a[href]",buf);
+            if count<=0 || count>500 {return write_error("get_filters","parse_error","category options")}
+            if !write_bytes(out,&mut n,br#", "options":["#){return write_error("get_filters","internal_error","schema overflow")}
+            for j in 0..count as usize {
+                let raw=i32::from_le_bytes(buf[j*4..j*4+4].try_into().unwrap_or([0;4]));if raw<=0{return write_error("get_filters","parse_error","option descriptor")};let node=OwnedDescriptor(host::HtmlDescriptor::from_raw(raw));
+                let mut hb=[0u8;512];let mut lb=[0u8;512];let href=match attr_into(node.0,b"href",&mut hb){Some(v)=>v,None=>return write_error("get_filters","parse_error","option href")};let label=match text_into(node.0,&mut lb).map(trim_ascii){Some(v) if !v.is_empty()=>v,_=>return write_error("get_filters","parse_error","option label")};
+                let value=match href.strip_prefix(b"/list/").and_then(|v| if v.is_empty(){Some(v)}else{v.strip_suffix(b"/")}) {Some(b"")=>b"all".as_slice(),Some(v) if v.iter().all(|b|b.is_ascii_alphanumeric()||*b==b'_')=>v,_=>return write_error("get_filters","parse_error","option path")};
+                if (j>0 && !write_bytes(out,&mut n,b",")) || !(write_bytes(out,&mut n,br#"{"value":""#)&&append_json_escaped(out,&mut n,value)&&write_bytes(out,&mut n,br#"","label":""#)&&append_json_escaped(out,&mut n,label)&&write_bytes(out,&mut n,br#""}"#)){return write_error("get_filters","internal_error","schema overflow")}
+            }
+            if !write_bytes(out,&mut n,b"]"){return write_error("get_filters","internal_error","schema overflow")}
+            let _=html_close(group);
+        }
+        if !write_bytes(out,&mut n,b"}"){return write_error("get_filters","internal_error","schema overflow")}
+    } if !write_bytes(out,&mut n,b","){return write_error("get_filters","internal_error","schema overflow")}}
+    let tail=r#"{"id":"sort","name":"排序方式","type":"select","scope":"browse","options":[{"value":"post","label":"按发布排序"},{"value":"-post","label":"按发布排序(逆序)"},{"value":"update","label":"按更新排序"},{"value":"-update","label":"按更新排序(逆序)"},{"value":"click","label":"按点击排序"},{"value":"-click","label":"按点击排序(逆序)"}]}]}"#;
+    if !write_bytes(out,&mut n,tail.as_bytes()){return write_error("get_filters","internal_error","schema overflow")}
+    let _keep=doc;write_success_payload("get_filters",n)
 }
 
 #[no_mangle]
