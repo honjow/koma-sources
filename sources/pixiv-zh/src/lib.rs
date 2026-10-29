@@ -6,7 +6,7 @@ use koma_source_sdk::{
     json_utils::*,
     source::{SourceCapabilities, SourceInfo},
 };
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.pixiv.zh.koma",name:"pixiv",version:"0.1.11",api_version:"0.2",language:"zh",author:"Koma",description:"支持搜索漫画作品和系列。",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.pixiv.zh.koma",name:"pixiv",version:"0.1.12",api_version:"0.2",language:"zh",author:"Koma",description:"支持搜索漫画作品和系列。",content_rating:"nsfw"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -16,7 +16,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     listings: false,
     manga_list: false,
     home: false,
-    filters: false,
+    filters: true,
     settings: true,
     credentials: false,
 };
@@ -830,6 +830,15 @@ fn search_series_card(b: &mut [u8], n: &mut usize, v: &[u8], series: &[u8], sid:
     wi(b, n, sid)?;
     bytes(b, n, b"\"}]}")
 }
+// Date filters are available only to hosts that preserve search scope.
+fn filter_host(r: &[u8]) -> bool {
+    member(r,b"hostFeatures").ok().flatten().and_then(|v| Array::new(v).ok()).map_or(false,|mut a| {
+        while let Ok(Some(v))=a.next() { if v==br#""source_filter_scope_header_v1""# {return true;} } false
+    })
+}
+fn filter_text<'a>(f: &[u8], key: &[u8], out: &'a mut [u8]) -> Result<&'a [u8], E> {
+    match member(f,key)? { None | Some(b"null") => Ok(b""), Some(v) => unescape(quoted(v)?,out) }
+}
 fn search(r: &[u8]) -> Result<usize, E> {
     let a = args(r)?;
     let mut qb = [0; 8192];
@@ -837,6 +846,9 @@ fn search(r: &[u8]) -> Result<usize, E> {
     if query.is_empty() {
         return Err("empty query");
     };
+    let filters = if filter_host(r) { member(a,b"filters")?.unwrap_or(b"{}") } else { b"{}" };
+    let mut before_buf=[0u8;1024]; let before=filter_text(filters,b"dateBefore",&mut before_buf)?;
+    let mut after_buf=[0u8;1024]; let after=filter_text(filters,b"dateAfter",&mut after_buf)?;
     let mut page = 1;
     let mut raw = 0;
     let mut sc = 0;
@@ -853,6 +865,8 @@ fn search(r: &[u8]) -> Result<usize, E> {
                 if unescape(text(cv, b"query")?, &mut prev)? != query {
                     return Err("cursor query mismatch");
                 };
+                let mut prev_before=[0u8;1024]; let mut prev_after=[0u8;1024];
+                if filter_text(cv,b"dateBefore",&mut prev_before)? != before || filter_text(cv,b"dateAfter",&mut prev_after)? != after { return Err("cursor filter mismatch"); }
                 page = field_num(cv, b"p")?;
                 raw = field_num(cv, b"raw")?;
                 let wc = cursor_arrays(cv, b"works", false)?;
@@ -882,6 +896,9 @@ fn search(r: &[u8]) -> Result<usize, E> {
     };
     bytes(b, &mut z, b"&s_mode=s_tc&type=manga&mode=all&p=")?;
     wn(b, &mut z, page)?;
+    for (key,value) in [(b"&ecd=".as_slice(),before),(b"&scd=".as_slice(),after)] {
+        if !value.is_empty() { bytes(b,&mut z,key)?; if !write_url_encoded(b,&mut z,value) { return Err("filter URL overflow"); } }
+    }
     let u = unsafe { core::slice::from_raw_parts(b.as_ptr(), z) };
     let data = fetch(u)?;
     if data.len() >= MAX {
@@ -898,7 +915,7 @@ fn search(r: &[u8]) -> Result<usize, E> {
     let out = payload_buf();
     let mut n = 0;
     let mut emitted = 0;
-    let before = raw;
+    let raw_before = raw;
     let mut page_count = 0;
     bytes(out, &mut n, b"{\"items\":[")?;
     while let Some(v) = list.next()? {
@@ -914,7 +931,7 @@ fn search(r: &[u8]) -> Result<usize, E> {
             CH_IDS[page_count] = x;
         }
         page_count += 1;
-        if unsafe { WORKS[..before].contains(&x) } {
+        if unsafe { WORKS[..raw_before].contains(&x) } {
             // Validate the complete matched card before de-duplicating a legal overlap.
             let series = member(v, b"series")?.unwrap_or(b"null");
             let mut checked_len = 0;
@@ -963,10 +980,10 @@ fn search(r: &[u8]) -> Result<usize, E> {
         };
         emitted += 1;
     }
-    if page_count > 0 && raw == before {
+    if page_count > 0 && raw == raw_before {
         return Err("search pagination no progress");
     };
-    let more = raw > before && page < last;
+    let more = raw > raw_before && page < last;
     bytes(out, &mut n, b"],\"page\":{\"hasMore\":")?;
     bytes(out, &mut n, if more { b"true" } else { b"false" })?;
     bytes(out, &mut n, b",\"nextCursor\":")?;
@@ -979,6 +996,7 @@ fn search(r: &[u8]) -> Result<usize, E> {
         wn(c, &mut cn, raw)?;
         bytes(c, &mut cn, b",\"query\":")?;
         q(c, &mut cn, query)?;
+        if !before.is_empty() || !after.is_empty() { bytes(c,&mut cn,b",\"dateBefore\":")?; q(c,&mut cn,before)?; bytes(c,&mut cn,b",\"dateAfter\":")?; q(c,&mut cn,after)?; }
         bytes(c, &mut cn, b",\"works\":[")?;
         for i in 0..raw {
             if i > 0 {
@@ -1187,7 +1205,10 @@ macro_rules! unsupported {
 unsupported!(run_get_listings, "get_listings");
 unsupported!(run_get_manga_list, "get_manga_list");
 unsupported!(run_get_home, "get_home");
-unsupported!(run_get_filters, "get_filters");
+fn run_get_filters(r: &[u8]) -> u32 {
+    let schema = if filter_host(r) { br#"{"filters":[{"id":"dateBefore","name":"Posted before","type":"text","scope":"search"},{"id":"dateAfter","name":"Posted after","type":"text","scope":"search"}]}"#.as_slice() } else { br#"{"filters":[]}"#.as_slice() };
+    payload_buf()[..schema.len()].copy_from_slice(schema); write_success_payload("get_filters",schema.len())
+}
 fn run_get_settings(_: &[u8]) -> u32 {
     let p = "{\"settings\":[{\"id\":\"pref_image_quality\",\"name\":\"圖片品質\",\"kind\":\"select\",\"options\":[{\"value\":\"thumb_mini\",\"label\":\"最小縮圖\"},{\"value\":\"small\",\"label\":\"小圖\"},{\"value\":\"regular\",\"label\":\"標準\"},{\"value\":\"original\",\"label\":\"原圖\"}],\"default\":\"original\"}]}".as_bytes();
     payload_buf()[..p.len()].copy_from_slice(p);
