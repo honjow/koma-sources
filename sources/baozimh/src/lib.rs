@@ -18,14 +18,19 @@ use koma_source_sdk::json_utils::{
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{build_get_request, parse_status_code};
 
+// Opaque token is copied only from the HTTP response that caused this error.
+#[derive(Copy,Clone)]
+struct ChallengeId { raw:[u8;384], len:usize }
+impl ChallengeId { fn from_response(response:&[u8])->Self {let mut id=Self{raw:[0;384],len:0};if let Some(v)=json_object_member(response,b"challengeRequestId") {if v.len()>2&&v.len()<=384&&v.first()==Some(&b'"')&&v.last()==Some(&b'"'){id.raw[..v.len()].copy_from_slice(v);id.len=v.len();}}id} }
+fn challenge_cause_enabled(r:&[u8])->bool {let Some(v)=json_object_member(r,b"hostFeatures") else{return false};v.starts_with(b"[")&&v.ends_with(b"]")&&v[1..v.len()-1].split(|c|*c==b',').any(|x|x.trim_ascii()==br#""source_http_challenge_cause_v1""#)}
 #[derive(Copy, Clone)]
-enum FetchError { Network, Http(u16), Access(u16, access_signal::AccessSignal) }
+enum FetchError { Network, Http(u16), Access(u16, access_signal::AccessSignal, ChallengeId) }
 
 fn fetch_error_code(error: FetchError) -> (&'static str, &'static str) {
     match error {
         FetchError::Network => ("network_error", "connection or timeout failure"),
-        FetchError::Access(_, access_signal::AccessSignal::Challenge) => ("challenge_required", "website verification required"),
-        FetchError::Access(_, access_signal::AccessSignal::Authentication) => ("auth_required", "website authentication required"),
+        FetchError::Access(_, access_signal::AccessSignal::Challenge, _) => ("challenge_required", "website verification required"),
+        FetchError::Access(_, access_signal::AccessSignal::Authentication, _) => ("auth_required", "website authentication required"),
         FetchError::Http(401 | 403) => ("permission_denied", "source requires access verification"),
         FetchError::Http(404) => ("not_found", "resource not found"),
         FetchError::Http(429) => ("rate_limited", "rate limited by server"),
@@ -39,9 +44,9 @@ fn write_fetch_error(operation: &str, error: FetchError) -> u32 {
     let (code, message) = fetch_error_code(error);
     let status = match error {
         FetchError::Network => return write_error(operation, code, message),
-        FetchError::Http(status) | FetchError::Access(status, _) => status,
+        FetchError::Http(status) | FetchError::Access(status, _, _) => status,
     };
-    let mut envelope = [0u8; 512];
+    let mut envelope = [0u8; 1024];
     let mut cursor = 0;
     let ok = write_bytes(&mut envelope, &mut cursor, br#"{"type":"response","version":1,"ok":false,"operation":""#)
         && append_json_escaped(&mut envelope, &mut cursor, operation.as_bytes())
@@ -51,6 +56,7 @@ fn write_fetch_error(operation: &str, error: FetchError) -> u32 {
         && append_json_escaped(&mut envelope, &mut cursor, message.as_bytes())
         && write_bytes(&mut envelope, &mut cursor, br#"","status":"#)
         && write_usize(&mut envelope, &mut cursor, status as usize)
+        && match error {FetchError::Access(_,_,id) if id.len>0 => write_bytes(&mut envelope,&mut cursor,br#", "challengeRequestId":"#) && write_bytes(&mut envelope,&mut cursor,&id.raw[..id.len]),_=>true}
         && write_bytes(&mut envelope, &mut cursor, br#"},"hostHints":{"network":false},"warnings":[]}"#);
     if !ok { return write_error(operation, "internal_error", "error response overflow"); }
     response_buffer().write(&envelope[..cursor], false)
@@ -99,7 +105,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "online.baozimh.koma",
     name: "包子漫畫 (Baozimh)",
-    version: "0.1.13",
+    version: "0.1.14",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -122,8 +128,9 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
 };
 
 
-fn fetch_html(url_bytes: &[u8]) -> Result<usize, FetchError> {
+fn fetch_html(url_bytes: &[u8], request:&[u8]) -> Result<usize, FetchError> {
     let req_len = build_get_request(http_req_buf(), url_bytes, None, &[]).ok_or(FetchError::Network)?;
+    let req_len=if challenge_cause_enabled(request) {let b=http_req_buf();let mut n=req_len.checked_sub(1).ok_or(FetchError::Network)?;if !write_bytes(b,&mut n,br#", "wantChallengeRequestId":true}"#){return Err(FetchError::Network)}n}else{req_len};
     // Retry transport-level failures (DNS/connect/TLS/timeout) up to 3 times.
     // HTTP 4xx/5xx come back as Ok and are classified below.
     let mut resp_len = 0usize;
@@ -146,7 +153,7 @@ fn fetch_html(url_bytes: &[u8]) -> Result<usize, FetchError> {
     match status {
         401 | 403 => {
             let error = match access_signal::from_host_response(status, resp, body_buf()) {
-                Some(signal) => FetchError::Access(status, signal),
+                Some(signal) => FetchError::Access(status, signal, if challenge_cause_enabled(request){ChallengeId::from_response(resp)}else{ChallengeId{raw:[0;384],len:0}}),
                 None => FetchError::Http(status),
             };
             return Err(error);
@@ -320,7 +327,7 @@ fn run_search(req: &[u8]) -> u32 {
     }
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
 
-    let html_len = match fetch_html(url_bytes) {
+    let html_len = match fetch_html(url_bytes,req) {
         Ok(len) => len,
         Err(e) => return write_fetch_error("search", e),
     };
@@ -418,7 +425,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
     }
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
 
-    let html_len = match fetch_html(url_bytes) {
+    let html_len = match fetch_html(url_bytes,req) {
         Ok(n) => n,
         Err(e) => return write_fetch_error("get_manga", e),
     };
@@ -608,7 +615,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     }
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
 
-    let html_len = match fetch_html(url_bytes) {
+    let html_len = match fetch_html(url_bytes,req) {
         Ok(n) => n,
         Err(e) => return write_fetch_error("get_chapters", e),
     };
@@ -829,7 +836,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
     }
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
 
-    let html_len = match fetch_html(url_bytes) {
+    let html_len = match fetch_html(url_bytes,req) {
         Ok(n) => n,
         Err(e) => return write_fetch_error("get_pages", e),
     };
@@ -1039,7 +1046,7 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     }
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
 
-    let html_len = match fetch_html(url_bytes) {
+    let html_len = match fetch_html(url_bytes,req) {
         Ok(len) => len,
         Err(e) => return write_fetch_error("get_manga_list", e),
     };
@@ -1156,7 +1163,7 @@ fn write_home_section_error(error: HomeSectionError) -> u32 {
     }
 }
 
-fn parse_cards_into_section(payload: &mut [u8], c: &mut usize, section_id: &[u8], section_title: &[u8], url: &[u8], max_items: usize) -> Result<(), HomeSectionError> {
+fn parse_cards_into_section(payload: &mut [u8], c: &mut usize, section_id: &[u8], section_title: &[u8], url: &[u8], max_items: usize, req:&[u8]) -> Result<(), HomeSectionError> {
     let ok = write_bytes(payload, c, br#"{"id":""#)
         && append_json_escaped(payload, c, section_id)
         && write_bytes(payload, c, br#"","title":""#)
@@ -1166,7 +1173,7 @@ fn parse_cards_into_section(payload: &mut [u8], c: &mut usize, section_id: &[u8]
 
     let mut item_count = 0usize;
 
-    let html_len = fetch_html(url).map_err(HomeSectionError::Fetch)?;
+    let html_len = fetch_html(url,req).map_err(HomeSectionError::Fetch)?;
     let html_bytes = &body_buf()[..html_len];
     let doc_desc = html_parse(html_bytes).map_err(|_| HomeSectionError::Parse)?;
     {
@@ -1217,7 +1224,7 @@ fn parse_cards_into_section(payload: &mut [u8], c: &mut usize, section_id: &[u8]
     write_bytes(payload, c, b"]}").then_some(()).ok_or(HomeSectionError::Overflow)
 }
 
-fn run_get_home(_req: &[u8]) -> u32 {
+fn run_get_home(req: &[u8]) -> u32 {
     let payload = payload_buf();
     let mut c = 0usize;
     if !write_bytes(payload, &mut c, br#"{"sections":["#) {
@@ -1227,7 +1234,7 @@ fn run_get_home(_req: &[u8]) -> u32 {
     // Section 1: 熱門 (default classify page)
     if let Err(error) = parse_cards_into_section(payload, &mut c,
         b"home:popular", "熱門漫畫".as_bytes(),
-        b"https://www.baozimh.com/classify", 12) {
+        b"https://www.baozimh.com/classify", 12, req) {
         return write_home_section_error(error);
     }
 
@@ -1237,7 +1244,7 @@ fn run_get_home(_req: &[u8]) -> u32 {
     }
     if let Err(error) = parse_cards_into_section(payload, &mut c,
         b"home:cn", "國漫推薦".as_bytes(),
-        b"https://www.baozimh.com/classify?type=all&region=cn", 12) {
+        b"https://www.baozimh.com/classify?type=all&region=cn", 12, req) {
         return write_home_section_error(error);
     }
 
@@ -1247,7 +1254,7 @@ fn run_get_home(_req: &[u8]) -> u32 {
     }
     if let Err(error) = parse_cards_into_section(payload, &mut c,
         b"home:jp", "日本漫畫".as_bytes(),
-        b"https://www.baozimh.com/classify?type=all&region=jp", 12) {
+        b"https://www.baozimh.com/classify?type=all&region=jp", 12, req) {
         return write_home_section_error(error);
     }
 
@@ -1257,7 +1264,7 @@ fn run_get_home(_req: &[u8]) -> u32 {
     }
     if let Err(error) = parse_cards_into_section(payload, &mut c,
         b"home:kr", "韓國漫畫".as_bytes(),
-        b"https://www.baozimh.com/classify?type=all&region=kr", 12) {
+        b"https://www.baozimh.com/classify?type=all&region=kr", 12, req) {
         return write_home_section_error(error);
     }
 
