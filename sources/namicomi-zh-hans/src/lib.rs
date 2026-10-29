@@ -9,7 +9,7 @@ use koma_source_sdk::{
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.namicomi.zh-hans.koma",
     name: "NamiComi",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh-Hans",
     author: "Koma",
@@ -25,7 +25,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     listings: true,
     manga_list: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: true,
     image_request: true,
     credentials: false,
@@ -784,8 +784,70 @@ fn meta(body: &[u8]) -> Result<(usize, usize, usize), E> {
         integer(required(m, b"total")?)?,
     ))
 }
+// Filtering uses the original API values; no default value may change a legacy request.
+fn has_feature(r: &[u8], name: &[u8]) -> bool {
+    match member(r, b"hostFeatures") { Ok(Some(v)) => Array::new(v).ok().map(|mut a| { while let Ok(Some(x)) = a.next() { if quoted(x).ok() == Some(name) { return true; } } false }).unwrap_or(false), _ => false }
+}
+fn filter_feature(r: &[u8]) -> bool { has_feature(r, b"source_filter_scope_header_v1") }
+fn filter_value<'a>(f: &'a [u8], k: &[u8]) -> Result<Option<&'a [u8]>, E> { match member(f,k)? { Some(v) => Ok(Some(quoted(v)?)), None => Ok(None) } }
+fn append_query(b: &mut [u8], n: &mut usize, key: &[u8], value: &[u8]) -> Result<(), E> {
+    bytes(b,n,b"&")?; bytes(b,n,key)?; bytes(b,n,b"=")?;
+    if !write_url_encoded(b,n,value) { return Err("payload overflow"); } Ok(())
+}
+fn filters_for<'a>(r: &'a [u8]) -> Result<&'a [u8], E> { Ok(member(args(r)?,b"filters")?.unwrap_or(b"{}")) }
+fn filter_sort<'a>(f: &'a [u8], default: &'a [u8]) -> Result<(&'a [u8], &'a [u8]), E> {
+    let Some(v)=filter_value(f,b"sort")? else { return Ok((default,b"desc")); };
+    let Some(i)=v.iter().position(|x| *x==b':') else { return Err("invalid request"); };
+    let field=&v[..i]; let direction=&v[i+1..];
+    if ![b"title".as_slice(),b"chapterCount",b"followCount",b"reactions",b"commentCount",b"publishedAt",b"views",b"year",b"rating"].contains(&field) || ![b"asc".as_slice(),b"desc"].contains(&direction) { return Err("invalid request"); }
+    Ok((field,direction))
+}
+fn apply_filters(f: &[u8], b: &mut [u8], n: &mut usize) -> Result<(), E> {
+    for (key,query,allowed) in [(b"rating".as_slice(),b"contentRatings%5B%5D".as_slice(), &[b"safe".as_slice(),b"restricted",b"mature"][..]),(b"status".as_slice(),b"publicationStatuses%5B%5D".as_slice(), &[b"ongoing".as_slice(),b"completed",b"hiatus",b"cancelled"][..])] {
+        if let Some(v)=member(f,key)? { let mut a=Array::new(v)?; while let Some(x)=a.next()? { let value=quoted(x)?; if !allowed.contains(&value) { return Err("invalid request"); } append_query(b,n,query,value)?; } }
+    }
+    let mut included=false; let mut excluded=false;
+    for key in [b"tags_content".as_slice(),b"tags_format",b"tags_genre",b"tags_theme"] {
+        if let Some(v)=member(f,key)? { let mut a=Array::new(v)?; while let Some(item)=a.next()? {
+            let raw=quoted(item)?; let (is_excluded,id)=match raw.strip_prefix(b"!") { Some(v)=>(true,v),None=>(false,raw) };
+            if id.is_empty() || !id.iter().all(|x| x.is_ascii_alphanumeric() || *x==b'-') {return Err("invalid request");}
+            if is_excluded { excluded=true; append_query(b,n,b"excludedTags%5B%5D",id)?; } else {included=true; append_query(b,n,b"includedTags%5B%5D",id)?;}
+        }}
+    }
+    for (key,query,active,default) in [(b"includedMode".as_slice(),b"includedTagsMode".as_slice(),included,b"and".as_slice()),(b"excludedMode".as_slice(),b"excludedTagsMode".as_slice(),excluded,b"or".as_slice())] {
+        let selected=filter_value(f,key)?; if let Some(v)=selected { if v!=b"and" && v!=b"or" {return Err("invalid request");} }
+        if active {append_query(b,n,query,selected.unwrap_or(default))?;}
+    } Ok(())
+}
+fn filter_schema(r: &[u8]) -> Result<usize, E> {
+    if !filter_feature(r) { let data=b"{\"filters\":[]}"; payload_buf()[..data.len()].copy_from_slice(data); return Ok(data.len()); }
+    let dynamic_features=has_feature(r,b"source_filter_fetching_v1") && has_feature(r,b"source_filter_tristate_v1");
+    let dynamic=dynamic_features && member(args(r)?,b"fetchFilterData")?==Some(b"true".as_slice());
+    let tags=if dynamic { let t=fetch(b"https://api.namicomi.com/title/tags",None)?; if text(t,b"type")?!=b"collection" {return Err("invalid collection");} Some(t) } else {None};
+    let out=payload_buf(); let mut n=0;
+    bytes(out,&mut n,br#"{"supportsFilterFetching":true,"filters":[{"id":"availableBrowse","name":"Has available chapters","scope":"browse","type":"select","default":"all","options":[{"value":"all","label":"All"},{"value":"available","label":"Has available chapters"}]},{"id":"availableSearch","name":"Has available chapters","scope":"search","type":"select","default":"available","options":[{"value":"all","label":"All"},{"value":"available","label":"Has available chapters"}]},{"id":"rating","name":"Content rating","type":"multiselect","options":[{"value":"safe","label":"Safe"},{"value":"restricted","label":"Restricted"},{"value":"mature","label":"Mature"}]},{"id":"status","name":"Status","type":"multiselect","options":[{"value":"ongoing","label":"Ongoing"},{"value":"completed","label":"Completed"},{"value":"hiatus","label":"Hiatus"},{"value":"cancelled","label":"Cancelled"}]},{"id":"sort","name":"Sort","type":"select","options":["#)?;
+    let sorts=[(b"Alphabetic".as_slice(),b"title".as_slice()),(b"Chapter count",b"chapterCount"),(b"Followers",b"followCount"),(b"Likes",b"reactions"),(b"Comment count",b"commentCount"),(b"Content created at",b"publishedAt"),(b"Views",b"views"),(b"Year",b"year"),(b"Rating",b"rating")];
+    let mut first=true; for (label,value) in sorts { for (suffix,dir) in [(b" ascending".as_slice(),b"asc".as_slice()),(b" descending".as_slice(),b"desc".as_slice())] { if !first { bytes(out,&mut n,b",")?; } first=false; bytes(out,&mut n,b"{\"value\":\"")?; bytes(out,&mut n,value)?; bytes(out,&mut n,b":")?; bytes(out,&mut n,dir)?; bytes(out,&mut n,b"\",\"label\":\"")?; bytes(out,&mut n,label)?; bytes(out,&mut n,suffix)?; bytes(out,&mut n,b"\"}")?; } }
+    bytes(out,&mut n,b"]}")?;
+    if dynamic_features {
+        bytes(out,&mut n,br#",{"id":"includedMode","name":"Included tags mode","type":"select","default":"and","options":[{"value":"and","label":"And"},{"value":"or","label":"Or"}]},{"id":"excludedMode","name":"Excluded tags mode","type":"select","default":"or","options":[{"value":"and","label":"And"},{"value":"or","label":"Or"}]}"#)?;
+    if let Some(tags)=tags {
+    for (group,title,id) in [(b"content-warnings".as_slice(),b"Content".as_slice(),b"tags_content".as_slice()),(b"format",b"Format",b"tags_format"),(b"genre",b"Genre",b"tags_genre"),(b"theme",b"Theme",b"tags_theme")] {
+        let mut items: [(&[u8],&[u8]); 128]=[(&[],&[]);128]; let mut count=0; let mut a=Array::new(required(tags,b"data")?)?;
+        while let Some(t)=a.next()? { let attr=required(t,b"attributes")?; if text(attr,b"group")?!=group {continue;} if count==items.len(){return Err("payload overflow");} let tag=text(t,b"id")?; if tag.is_empty() || !tag.iter().all(|x| x.is_ascii_alphanumeric() || *x==b'-') {return Err("invalid request");} let label=localized(required(attr,b"name")?,false)?.ok_or("required field missing")?; items[count]=(tag,label); count+=1; }
+        items[..count].sort_unstable_by(|a,b| a.1.cmp(b.1)); bytes(out,&mut n,b",{\"id\":")?; q(out,&mut n,id)?; bytes(out,&mut n,b",\"type\":\"tristate\",\"name\":")?; q(out,&mut n,title)?; bytes(out,&mut n,b",\"options\":[")?;
+        for (index,(tag,label)) in items[..count].iter().enumerate() { if index>0 {bytes(out,&mut n,b",")?;} bytes(out,&mut n,b"{\"value\":")?; q(out,&mut n,tag)?; bytes(out,&mut n,b",\"label\":")?; bytes(out,&mut n,label)?; bytes(out,&mut n,b"}")?; }
+        bytes(out,&mut n,b"]}")?;
+    } } else {
+        for (id,title) in [(b"tags_content".as_slice(),b"Content".as_slice()),(b"tags_format",b"Format"),(b"tags_genre",b"Genre"),(b"tags_theme",b"Theme")] {
+            bytes(out,&mut n,b",{\"id\":")?; q(out,&mut n,id)?; bytes(out,&mut n,b",\"type\":\"tristate\",\"name\":")?; q(out,&mut n,title)?; bytes(out,&mut n,b"}")?;
+        }
+    } } bytes(out,&mut n,b"]}")?; Ok(n)
+}
+
 fn list(r: &[u8], search: bool) -> Result<usize, E> {
     let quality = cover_quality(r)?;
+    let filters = if filter_feature(r) { filters_for(r)? } else { b"{}" };
     let pn = page(r)?;
     let offset = 20usize.checked_mul(pn - 1).ok_or("invalid request")?;
     let mut path = [0; 8192];
@@ -807,7 +869,10 @@ fn list(r: &[u8], search: bool) -> Result<usize, E> {
         if len == 0 {
             return Err("empty query");
         }
-        bytes(&mut path,&mut n,b"order%5BpublishedAt%5D=desc&hasAvailableChapters=true&availableTranslatedLanguages%5B%5D=zh-hans&title=")?;
+        let (order,direction)=filter_sort(filters,b"publishedAt")?;
+        bytes(&mut path,&mut n,b"order%5B")?; bytes(&mut path,&mut n,order)?; bytes(&mut path,&mut n,b"%5D=")?; bytes(&mut path,&mut n,direction)?;
+        match filter_value(filters,b"availableSearch")?.unwrap_or(b"available") { b"available"=>bytes(&mut path,&mut n,b"&hasAvailableChapters=true")?, b"all"=>{}, _=>return Err("invalid request") }
+        bytes(&mut path,&mut n,b"&availableTranslatedLanguages%5B%5D=zh-hans&title=")?;
         if !write_url_encoded(&mut path, &mut n, &normalized[..len]) {
             return Err("payload overflow");
         }
@@ -818,14 +883,19 @@ fn list(r: &[u8], search: bool) -> Result<usize, E> {
             b"latest" => b"publishedAt".as_slice(),
             _ => return Err("unknown listing"),
         };
+        let (order,direction)=filter_sort(filters,order)?;
         bytes(&mut path, &mut n, b"order%5B")?;
         bytes(&mut path, &mut n, order)?;
         bytes(
             &mut path,
             &mut n,
-            b"%5D=desc&availableTranslatedLanguages%5B%5D=zh-hans",
+            b"%5D=",
         )?;
+        bytes(&mut path,&mut n,direction)?;
+        match filter_value(filters,b"availableBrowse")?.unwrap_or(b"all") { b"available"=>bytes(&mut path,&mut n,b"&hasAvailableChapters=true")?, b"all"=>{}, _=>return Err("invalid request") }
+        bytes(&mut path,&mut n,b"&availableTranslatedLanguages%5B%5D=zh-hans")?;
     }
+    apply_filters(filters,&mut path,&mut n)?;
     bytes(&mut path, &mut n, b"&limit=20&offset=")?;
     wn(&mut path, &mut n, offset)?;
     bytes(&mut path, &mut n, INCLUDES)?;
@@ -1317,9 +1387,7 @@ fn run_get_listings(_: &[u8]) -> u32 {
 fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_implemented", "not supported")
 }
-fn run_get_filters(_: &[u8]) -> u32 {
-    write_error("get_filters", "not_implemented", "not supported")
-}
+fn run_get_filters(r: &[u8]) -> u32 { execute("get_filters", filter_schema(r)) }
 fn run_get_settings(r: &[u8]) -> u32 {
     let data = r#"{"settings":[{"id":"thumbnailQuality_zh-hans","name":"封面品質","kind":"select","options":[{"value":"original","label":"原圖"},{"value":".512.jpg","label":"中等"},{"value":".256.jpg","label":"低"}],"default":"original"},{"id":"dataSaver_zh-hans","name":"省流量","kind":"toggle","default":"false"}]}"#.as_bytes();
     if !exclusions_supported(r){payload_buf()[..data.len()].copy_from_slice(data);return write_success_payload("get_settings",data.len());}
