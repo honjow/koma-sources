@@ -34,7 +34,7 @@ static mut CHAPTER_SNAPSHOT: [u8; JSON_BUF_CAP] = [0; JSON_BUF_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.zaimanhua.koma",
     name: "再漫画",
-    version: "0.1.8",
+    version: "0.1.9",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -50,7 +50,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     listings: true,
     manga_list: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: true,
     image_request: true,
     credentials: false,
@@ -1121,15 +1121,37 @@ fn run_get_listings(_req: &[u8]) -> u32 {
     write_success_payload("get_listings", c)
 }
 
+// The reference filters affect category/ranking browse only, preserving original listing defaults.
+fn browse_filters_supported(r: &[u8]) -> bool {
+    json_object_member(r,b"hostFeatures").map(|v|v.trim_ascii()).map_or(false,|v|v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|b|*b==b',').any(|p|p.trim_ascii()==br#""source_filter_scope_header_v1""#))
+}
+fn filter_value<'a>(f: &'a [u8], key: &[u8]) -> Option<&'a [u8]> {
+    json_object_member(f,key).and_then(|v| v.strip_prefix(b"\"")?.strip_suffix(b"\""))
+}
 fn run_get_manga_list(req: &[u8]) -> u32 {
     let listing_id = extract_json_string(req, b"listingId").unwrap_or(b"latest");
     let page_num = request_page_number(req);
+    let filters=if browse_filters_supported(req) {json_object_member(req,b"args").and_then(|a|json_object_member(a,b"filters")).unwrap_or(b"{}")} else {b"{}"};
+    let keys=[b"by_time".as_slice(),b"rank_type",b"sortType",b"status",b"cate",b"zone",b"theme"];
+    let chosen=keys.iter().any(|k|filter_value(filters,k).is_some());
+    let time=filter_value(filters,b"by_time").filter(|v|matches!(*v,b"0"|b"1"|b"2"|b"3"));
+    let category=chosen && time.is_none();
 
 
     let url_buf = scratch_a();
     let mut url_cursor = 0usize;
 
-    if listing_id == b"latest" {
+    if let Some(time) = time {
+        let rank=filter_value(filters,b"rank_type").filter(|v|matches!(*v,b"0"|b"1"|b"2")).unwrap_or(b"0");
+        if !(write_bytes(url_buf,&mut url_cursor,API_URL) && write_bytes(url_buf,&mut url_cursor,b"/comic/rank/list?tag_id=0&by_time=") && write_bytes(url_buf,&mut url_cursor,time) && write_bytes(url_buf,&mut url_cursor,b"&rank_type=") && write_bytes(url_buf,&mut url_cursor,rank) && write_bytes(url_buf,&mut url_cursor,b"&page=") && write_usize(url_buf,&mut url_cursor,page_num)) {return write_error("get_manga_list","internal_error","url overflow");}
+    } else if category {
+        if !(write_bytes(url_buf,&mut url_cursor,API_URL) && write_bytes(url_buf,&mut url_cursor,b"/comic/filter/list?size=20")) {return write_error("get_manga_list","internal_error","url overflow");}
+        for (key, default) in [(b"sortType".as_slice(),b"1".as_slice()),(b"status",b"0"),(b"cate",b"0"),(b"zone",b"0"),(b"theme",b"0")] {
+            let value=filter_value(filters,key).filter(|v|!v.is_empty() && v.len()<=8 && v.iter().all(u8::is_ascii_digit)).unwrap_or(default);
+            if !(write_bytes(url_buf,&mut url_cursor,b"&") && write_bytes(url_buf,&mut url_cursor,key) && write_bytes(url_buf,&mut url_cursor,b"=") && write_bytes(url_buf,&mut url_cursor,value)) {return write_error("get_manga_list","internal_error","url overflow");}
+        }
+        if !(write_bytes(url_buf,&mut url_cursor,b"&page=") && write_usize(url_buf,&mut url_cursor,page_num)) {return write_error("get_manga_list","internal_error","url overflow");}
+    } else if listing_id == b"latest" {
         // /comic/update/list/0/{page}
         let ok = write_bytes(url_buf, &mut url_cursor, API_URL)
             && write_bytes(url_buf, &mut url_cursor, b"/comic/update/list/0/")
@@ -1179,8 +1201,12 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     let written=match append_cards("get_manga_list",items,payload,&mut c,1) { Ok(count)=>count,Err(error)=>return error };
 
     // Actual rank responses have ten rows; updates use the twenty-row page.
-    let page_size = if listing_id == b"latest" { DEFAULT_PAGE_SIZE } else { 10 };
-    if !write_page_end(payload, &mut c, page_num, written >= page_size) {
+    let page_size = if category || (time.is_none() && listing_id == b"latest") { DEFAULT_PAGE_SIZE } else { 10 };
+    let has_more = if category {
+        let total=json_object_member(api_json,b"data").and_then(|data|extract_json_number(data,b"totalNum")).and_then(|v|core::str::from_utf8(v).ok()?.parse::<usize>().ok());
+        total.map_or(written >= page_size, |t| page_num.saturating_mul(page_size)<t)
+    } else if time.is_some() { written > 0 } else { written >= page_size };
+    if !write_page_end(payload, &mut c, page_num, has_more) {
         return write_error("get_manga_list", "internal_error", "overflow");
     }
     write_success_payload("get_manga_list", c)
@@ -1205,80 +1231,10 @@ fn run_get_home(_req: &[u8]) -> u32 {
     write_success_payload("get_home",c)
 }
 
-fn run_get_filters(_req: &[u8]) -> u32 {
-    let payload = payload_buf();
-    let mut c = 0usize;
-    let ok = write_bytes(payload, &mut c, br#"{"filters":[{"id":"sortType","name":""#)
-        // 排序
-        && write_bytes(payload, &mut c, &[0xe6, 0x8e, 0x92, 0xe5, 0xba, 0x8f])
-        && write_bytes(payload, &mut c, br#"","kind":"select","options":[{"value":"1","label":""#)
-        // 更新排序
-        && write_bytes(payload, &mut c, &[0xe6, 0x9b, 0xb4, 0xe6, 0x96, 0xb0, 0xe6, 0x8e, 0x92, 0xe5, 0xba, 0x8f])
-        && write_bytes(payload, &mut c, br#""},{"value":"2","label":""#)
-        // 人气排序
-        && write_bytes(payload, &mut c, &[0xe4, 0xba, 0xba, 0xe6, 0xb0, 0x94, 0xe6, 0x8e, 0x92, 0xe5, 0xba, 0x8f])
-        && write_bytes(payload, &mut c, br#""}],"default":"1"},{"id":"status","name":""#)
-        // 进度
-        && write_bytes(payload, &mut c, &[0xe8, 0xbf, 0x9b, 0xe5, 0xba, 0xa6])
-        && write_bytes(payload, &mut c, br#"","kind":"select","options":[{"value":"0","label":""#)
-        // 全部
-        && write_bytes(payload, &mut c, &[0xe5, 0x85, 0xa8, 0xe9, 0x83, 0xa8])
-        && write_bytes(payload, &mut c, br#""},{"value":"2309","label":""#)
-        // 连载中
-        && write_bytes(payload, &mut c, &[0xe8, 0xbf, 0x9e, 0xe8, 0xbd, 0xbd, 0xe4, 0xb8, 0xad])
-        && write_bytes(payload, &mut c, br#""},{"value":"2310","label":""#)
-        // 已完结
-        && write_bytes(payload, &mut c, &[0xe5, 0xb7, 0xb2, 0xe5, 0xae, 0x8c, 0xe7, 0xbb, 0x93])
-        && write_bytes(payload, &mut c, br#""},{"value":"29205","label":""#)
-        // 短篇
-        && write_bytes(payload, &mut c, &[0xe7, 0x9f, 0xad, 0xe7, 0xaf, 0x87])
-        && write_bytes(payload, &mut c, br#""}],"default":"0"},{"id":"cate","name":""#)
-        // 读者群
-        && write_bytes(payload, &mut c, &[0xe8, 0xaf, 0xbb, 0xe8, 0x80, 0x85, 0xe7, 0xbe, 0xa4])
-        && write_bytes(payload, &mut c, br#"","kind":"select","options":[{"value":"0","label":""#)
-        // 全部
-        && write_bytes(payload, &mut c, &[0xe5, 0x85, 0xa8, 0xe9, 0x83, 0xa8])
-        && write_bytes(payload, &mut c, br#""},{"value":"3262","label":""#)
-        // 少年漫画
-        && write_bytes(payload, &mut c, &[0xe5, 0xb0, 0x91, 0xe5, 0xb9, 0xb4, 0xe6, 0xbc, 0xab, 0xe7, 0x94, 0xbb])
-        && write_bytes(payload, &mut c, br#""},{"value":"3263","label":""#)
-        // 少女漫画
-        && write_bytes(payload, &mut c, &[0xe5, 0xb0, 0x91, 0xe5, 0xa5, 0xb3, 0xe6, 0xbc, 0xab, 0xe7, 0x94, 0xbb])
-        && write_bytes(payload, &mut c, br#""},{"value":"3264","label":""#)
-        // 青年漫画
-        && write_bytes(payload, &mut c, &[0xe9, 0x9d, 0x92, 0xe5, 0xb9, 0xb4, 0xe6, 0xbc, 0xab, 0xe7, 0x94, 0xbb])
-        && write_bytes(payload, &mut c, br#""},{"value":"13626","label":""#)
-        // 女青漫画
-        && write_bytes(payload, &mut c, &[0xe5, 0xa5, 0xb3, 0xe9, 0x9d, 0x92, 0xe6, 0xbc, 0xab, 0xe7, 0x94, 0xbb])
-        && write_bytes(payload, &mut c, br#""}],"default":"0"},{"id":"zone","name":""#)
-        // 地区
-        && write_bytes(payload, &mut c, &[0xe5, 0x9c, 0xb0, 0xe5, 0x8c, 0xba])
-        && write_bytes(payload, &mut c, br#"","kind":"select","options":[{"value":"0","label":""#)
-        // 全部
-        && write_bytes(payload, &mut c, &[0xe5, 0x85, 0xa8, 0xe9, 0x83, 0xa8])
-        && write_bytes(payload, &mut c, br#""},{"value":"2304","label":""#)
-        // 日本
-        && write_bytes(payload, &mut c, &[0xe6, 0x97, 0xa5, 0xe6, 0x9c, 0xac])
-        && write_bytes(payload, &mut c, br#""},{"value":"2305","label":""#)
-        // 韩国
-        && write_bytes(payload, &mut c, &[0xe9, 0x9f, 0xa9, 0xe5, 0x9b, 0xbd])
-        && write_bytes(payload, &mut c, br#""},{"value":"2306","label":""#)
-        // 欧美
-        && write_bytes(payload, &mut c, &[0xe6, 0xac, 0xa7, 0xe7, 0xbe, 0x8e])
-        && write_bytes(payload, &mut c, br#""},{"value":"2307","label":""#)
-        // 港台
-        && write_bytes(payload, &mut c, &[0xe6, 0xb8, 0xaf, 0xe5, 0x8f, 0xb0])
-        && write_bytes(payload, &mut c, br#""},{"value":"2308","label":""#)
-        // 内地
-        && write_bytes(payload, &mut c, &[0xe5, 0x86, 0x85, 0xe5, 0x9c, 0xb0])
-        && write_bytes(payload, &mut c, br#""},{"value":"8435","label":""#)
-        // 其他
-        && write_bytes(payload, &mut c, &[0xe5, 0x85, 0xb6, 0xe4, 0xbb, 0x96])
-        && write_bytes(payload, &mut c, br#""}],"default":"0"}]}"#);
-    if !ok {
-        return write_error("get_filters", "internal_error", "overflow");
-    }
-    write_success_payload("get_filters", c)
+fn run_get_filters(req: &[u8]) -> u32 {
+    let schema=if browse_filters_supported(req) {r###"{"filters":[{"type":"header","scope":"browse","name":"排行榜（搜索时无效）"},{"id":"by_time","name":"榜单","type":"select","scope":"browse","options":[{"label":"不查看榜单","value":"none"},{"label":"日排行","value":"0"},{"label":"周排行","value":"1"},{"label":"月排行","value":"2"},{"label":"总排行","value":"3"}]},{"id":"rank_type","name":"排序","type":"select","scope":"browse","options":[{"label":"人气","value":"0"},{"label":"吐槽","value":"1"},{"label":"订阅","value":"2"}]},{"type":"header","scope":"browse","name":"分类(搜索/查看排行榜时无效)"},{"id":"sortType","name":"排序","type":"select","scope":"browse","options":[{"label":"更新排序","value":"1"},{"label":"人气排序","value":"2"}]},{"id":"status","name":"进度","type":"select","scope":"browse","options":[{"label":"全部","value":"0"},{"label":"连载中","value":"2309"},{"label":"已完结","value":"2310"},{"label":"短篇","value":"29205"}]},{"id":"cate","name":"读者群","type":"select","scope":"browse","options":[{"label":"全部","value":"0"},{"label":"少年漫画","value":"3262"},{"label":"少女漫画","value":"3263"},{"label":"青年漫画","value":"3264"},{"label":"女青漫画","value":"13626"}]},{"id":"zone","name":"地区","type":"select","scope":"browse","options":[{"label":"全部","value":"0"},{"label":"日本","value":"2304"},{"label":"韩国","value":"2305"},{"label":"欧美","value":"2306"},{"label":"港台","value":"2307"},{"label":"内地","value":"2308"},{"label":"其他","value":"8435"}]},{"id":"theme","name":"题材","type":"select","scope":"browse","options":[{"label":"全部","value":"0"},{"label":"冒险","value":"4"},{"label":"欢乐向","value":"5"},{"label":"格斗","value":"6"},{"label":"科幻","value":"7"},{"label":"爱情","value":"8"},{"label":"侦探","value":"9"},{"label":"竞技","value":"10"},{"label":"魔法","value":"11"},{"label":"神鬼","value":"12"},{"label":"校园","value":"13"},{"label":"惊悚","value":"14"},{"label":"其他","value":"16"},{"label":"四格","value":"17"},{"label":"亲情","value":"3242"},{"label":"ゆり","value":"3243"},{"label":"秀吉","value":"3244"},{"label":"悬疑","value":"3245"},{"label":"纯爱","value":"3246"},{"label":"热血","value":"3248"},{"label":"泛爱","value":"3249"},{"label":"历史","value":"3250"},{"label":"战争","value":"3251"},{"label":"萌系","value":"3252"},{"label":"宅系","value":"3253"},{"label":"治愈","value":"3254"},{"label":"励志","value":"3255"},{"label":"武侠","value":"3324"},{"label":"机战","value":"3325"},{"label":"音乐舞蹈","value":"3326"},{"label":"美食","value":"3327"},{"label":"职场","value":"3328"},{"label":"西方魔幻","value":"3365"},{"label":"高清单行","value":"4459"},{"label":"TS","value":"4518"},{"label":"东方","value":"5077"},{"label":"魔幻","value":"5806"},{"label":"奇幻","value":"5848"},{"label":"节操","value":"6219"},{"label":"轻小说","value":"6316"},{"label":"颜艺","value":"6437"},{"label":"搞笑","value":"7568"},{"label":"仙侠","value":"7900"},{"label":"舰娘","value":"13627"},{"label":"动画","value":"17192"},{"label":"AA","value":"18522"},{"label":"福瑞","value":"23323"},{"label":"生存","value":"23388"},{"label":"日常","value":"30788"},{"label":"画集","value":"31137"}]}]}"###.as_bytes()} else {b"{\"filters\":[]}"};
+    payload_buf()[..schema.len()].copy_from_slice(schema);
+    write_success_payload("get_filters",schema.len())
 }
 
 fn run_image_request(req: &[u8]) -> u32 {
