@@ -8,7 +8,7 @@ use koma_source_sdk::{fetch_error_code, FetchError};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.kuaikan.koma",
     name: "快看漫画",
-    version: "0.1.5",
+    version: "0.1.6",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -23,7 +23,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     listings: true,
     manga_list: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: false,
     credentials: false,
     image_request: true,
@@ -267,6 +267,10 @@ fn run_search(req: &[u8]) -> u32 {
         .filter(|v| *v > since && count > 0);
     page_end("search", &mut n, next)
 }
+// Filter values apply only to browse; an unset sort preserves each original listing.
+fn browse_filters_supported(r: &[u8]) -> bool {
+    json_object_member(r,b"hostFeatures").map(trim_ascii).map_or(false,|v|v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|b|*b==b',').any(|p|trim_ascii(p)==br#""source_filter_scope_header_v1""#))
+}
 fn browse(req: &[u8], op: &str) -> u32 {
     let page = match cursor(req) {
         Ok(c) => c.unwrap_or(1),
@@ -276,17 +280,15 @@ fn browse(req: &[u8], op: &str) -> u32 {
         return write_error(op, "invalid_request", "page must be positive");
     }
     let latest = extract_json_string(req, b"listingId") == Some(b"latest");
+    let f=if browse_filters_supported(req) {json_object_member(req,b"args").and_then(|a|json_object_member(a,b"filters")).unwrap_or(b"{}")} else {b"{}"};
+    let genre=text(f,b"genre").filter(|v|matches!(*v,b"0" | b"20" | b"46" | b"80" | b"77" | b"47" | b"92" | b"22" | b"48" | b"52" | b"82" | b"63" | b"86" | b"65" | b"91" | b"67" | b"62" | b"71" | b"89" | b"68" | b"93" | b"85" | b"72" | b"54")).unwrap_or(b"0");
+    let region=text(f,b"region").filter(|v|matches!(*v,b"1" | b"2" | b"3" | b"4")).unwrap_or(b"1");
+    let pays=text(f,b"pays").filter(|v|matches!(*v,b"0" | b"1" | b"2" | b"3")).unwrap_or(b"0");
+    let status=text(f,b"status").filter(|v|matches!(*v,b"0" | b"1" | b"2")).unwrap_or(b"0");
+    let sort=text(f,b"sort").filter(|v|matches!(*v,b"1" | b"2" | b"3")).unwrap_or(if latest { b"3" } else { b"2" });
     let b = scratch_b();
     let mut n = 0;
-    let ok = write_bytes(
-        b,
-        &mut n,
-        if latest {
-            b"/tag/0?region=1&pays=0&state=0&sort=3&page="
-        } else {
-            b"/tag/0?region=1&pays=0&state=0&sort=2&page="
-        },
-    ) && write_usize(b, &mut n, page);
+    let ok=write_bytes(b,&mut n,b"/tag/") && write_bytes(b,&mut n,genre) && write_bytes(b,&mut n,b"?region=") && write_bytes(b,&mut n,region) && write_bytes(b,&mut n,b"&pays=") && write_bytes(b,&mut n,pays) && write_bytes(b,&mut n,b"&state=") && write_bytes(b,&mut n,status) && write_bytes(b,&mut n,b"&sort=") && write_bytes(b,&mut n,sort) && write_bytes(b,&mut n,b"&page=") && write_usize(b,&mut n,page);
     if !ok {
         return write_error(op, "invalid_request", "page too large");
     }
@@ -583,8 +585,10 @@ fn run_get_image_request(req: &[u8]) -> u32 {
 fn run_get_home(_r: &[u8]) -> u32 {
     write_error("get_home", "not_implemented", "not supported")
 }
-fn run_get_filters(_r: &[u8]) -> u32 {
-    write_error("get_filters", "not_implemented", "not supported")
+fn run_get_filters(r: &[u8]) -> u32 {
+    let schema=if browse_filters_supported(r) {r###"{"filters":[{"type":"header","scope":"browse","name":"注意：不影響按標題搜索"},{"id":"genre","name":"题材","type":"select","scope":"browse","options":[{"value":"0","label":"全部"},{"value":"20","label":"恋爱"},{"value":"46","label":"古风"},{"value":"80","label":"穿越"},{"value":"77","label":"大女主"},{"value":"47","label":"青春"},{"value":"92","label":"非人类"},{"value":"22","label":"奇幻"},{"value":"48","label":"都市"},{"value":"52","label":"总裁"},{"value":"82","label":"强剧情"},{"value":"63","label":"玄幻"},{"value":"86","label":"系统"},{"value":"65","label":"悬疑"},{"value":"91","label":"末世"},{"value":"67","label":"热血"},{"value":"62","label":"萌系"},{"value":"71","label":"搞笑"},{"value":"89","label":"重生"},{"value":"68","label":"异能"},{"value":"93","label":"冒险"},{"value":"85","label":"武侠"},{"value":"72","label":"竞技"},{"value":"54","label":"正能量"}]},{"id":"region","name":"区域","type":"select","scope":"browse","options":[{"value":"1","label":"全部"},{"value":"2","label":"国漫"},{"value":"3","label":"韩漫"},{"value":"4","label":"日漫"}]},{"id":"pays","name":"属性","type":"select","scope":"browse","options":[{"value":"0","label":"全部"},{"value":"1","label":"免费"},{"value":"2","label":"付费"},{"value":"3","label":"VIP抢先看"}]},{"id":"status","name":"进度","type":"select","scope":"browse","options":[{"value":"0","label":"全部"},{"value":"1","label":"连载中"},{"value":"2","label":"已完结"}]},{"id":"sort","name":"排序","type":"select","scope":"browse","options":[{"value":"1","label":"推荐"},{"value":"2","label":"最火热"},{"value":"3","label":"新上架"}]}]}"###.as_bytes()} else {b"{\"filters\":[]}"};
+    payload_buf()[..schema.len()].copy_from_slice(schema);
+    write_success_payload("get_filters",schema.len())
 }
 fn run_get_settings(_r: &[u8]) -> u32 {
     write_error("get_settings", "not_implemented", "not supported")

@@ -1343,7 +1343,7 @@ dependencies = [
 
 [[package]]
 name = "koma_kuaikan_source"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "koma_source_sdk",
 ]
