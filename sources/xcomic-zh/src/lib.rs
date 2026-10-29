@@ -20,7 +20,7 @@ use koma_source_sdk::{
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.xcomic.zh.koma",
     name: "XCOMIC",
-    version: "0.1.7",
+    version: "0.1.8",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -36,7 +36,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     listings: true,
     manga_list: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: true,
     image_request: true,
     credentials: false,
@@ -1187,6 +1187,12 @@ fn detail(r: &[u8]) -> Result<usize, E> {
     bytes(b, &mut n, b"}")?;
     Ok(n)
 }
+// Old hosts must not expose filters they cannot scope safely.
+fn filter_host(r: &[u8]) -> bool {
+    member(r,b"hostFeatures").ok().flatten().and_then(|v| Array::new(v).ok()).map_or(false,|mut a| {
+        while let Ok(Some(v))=a.next() { if v==br#""source_filter_scope_header_v1""# {return true;} } false
+    })
+}
 fn list(r: &[u8], search: bool) -> Result<usize, E> {
     let cleaner = title_cleaner(r)?;
     let a = args(r)?;
@@ -1206,6 +1212,13 @@ fn list(r: &[u8], search: bool) -> Result<usize, E> {
             _ => return Err("unknown listing"),
         }
     };
+    // An unselected sort preserves each existing listing's own order.
+    let sort = if filter_host(r) {
+        match member(a,b"filters")?.and_then(|f| optional_text(f,b"sort").ok().flatten()) {
+            Some(v @ (b"field_score" | b"field_update" | b"field_create" | b"field_name_asc" | b"field_name_desc" | b"field_follow" | b"field_review" | b"field_comment" | b"field_chapter")) => v,
+            _ => sort,
+        }
+    } else { sort };
     let mut vars = [0; 8192];
     let mut v = 0;
     bytes(&mut vars, &mut v, b"{\"select\":{\"page\":")?;
@@ -1685,8 +1698,10 @@ fn run_get_listings(_: &[u8]) -> u32 {
 fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_implemented", "not supported")
 }
-fn run_get_filters(_: &[u8]) -> u32 {
-    write_error("get_filters", "not_implemented", "not supported")
+fn run_get_filters(r: &[u8]) -> u32 {
+    let schema = if filter_host(r) { br#"{"filters":[{"id":"sort","name":"Order by","type":"select","options":[{"value":"field_score","label":"Rating Score"},{"value":"field_update","label":"Latest Update"},{"value":"field_create","label":"Recently Added"},{"value":"field_name_asc","label":"Name A-Z"},{"value":"field_name_desc","label":"Name Z-A"},{"value":"field_follow","label":"Most Follows"},{"value":"field_review","label":"Most Reviews"},{"value":"field_comment","label":"Most Comments"},{"value":"field_chapter","label":"Most Chapters"}]}]}"#.as_slice() } else { br#"{"filters":[]}"#.as_slice() };
+    payload_buf()[..schema.len()].copy_from_slice(schema);
+    write_success_payload("get_filters",schema.len())
 }
 fn run_get_settings(req: &[u8]) -> u32 {
     let schema = r#"{"settings":[{"id":"REMOVE_TITLE_VERSION","name":"Remove Version Information From Entry Titles","kind":"toggle","default":"false","description":"This removes version tags like '(Official)' or '(Yaoi)' from entry titles."},{"id":"IGNORE_GENRE_BLOCKLIST","name":"Ignore WebView Genre Blocklist","kind":"toggle","default":"false"}]}"#.as_bytes();
