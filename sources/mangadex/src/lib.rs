@@ -28,7 +28,7 @@ koma_source_sdk::koma_source_helpers!();
 // host response capacity while preserving the page size expected by Koma.
 const JSON_BUF_CAP: usize = 512 * 1024;
 
-#[path = "../first_volume_cover.rs"]
+#[path = "../first_volume_cover_en.rs"]
 mod first_volume_cover;
 #[path = "../original_language.rs"]
 mod original_language;
@@ -135,7 +135,7 @@ fn append_manga_title(out: &mut [u8], n: &mut usize, obj: &[u8], req: &[u8]) -> 
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "org.mangadex.koma",
     name: "MangaDex",
-    version: "0.1.21",
+    version: "0.1.22",
     api_version: "0.2",
     language: "en",
     author: "Koma",
@@ -1075,7 +1075,16 @@ fn latest_object<'a>(v: &'a [u8], id: &[u8]) -> Option<&'a [u8]> {
     let mut it=api_array(v,b"data")?; while let Some(obj)=it.next_object(){if api_string(obj,b"id")==Some(id){return Some(obj)}} None
 }
 fn emit_latest_items(out:&mut [u8], n:&mut usize, req:&[u8], latest:&FilteredLatest, home:bool) -> bool {
-    let covers=first_covers(req,latest.data); let mut written=0;
+    // Cover metadata belongs only to rows this operation will actually emit.
+    let mut selected=[[0u8;36];100]; let mut count=0;
+    for id in &latest.ids[..latest.count] {
+        if latest_object(latest.data,id).is_none() {continue}
+        if home && count==10 {break}
+        selected[count].copy_from_slice(id); count+=1;
+    }
+    let covers=first_volume_cover::load_selected(req,b"tryUsingFirstVolumeCover_en",latest.data,Some(&selected[..count]),|url| {
+        fetch_json_into(url, unsafe { &mut *core::ptr::addr_of_mut!(COVER_JSON) }).ok()
+    }); let mut written=0;
     for id in &latest.ids[..latest.count] {
         let Some(obj)=latest_object(latest.data,id) else {continue};
         if home && written==10 {break}
