@@ -137,7 +137,7 @@ fn append_manga_title(out: &mut [u8], n: &mut usize, obj: &[u8], req: &[u8]) -> 
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "org.mangadex.koma",
     name: "MangaDex",
-    version: "0.1.24",
+    version: "0.1.25",
     api_version: "0.2",
     language: "en",
     author: "Koma",
@@ -604,6 +604,10 @@ fn extract_artist_name(obj: &[u8]) -> Option<&[u8]> {
 }
 
 // The cursor carries only this traversal's facts, never chapter identity or URLs.
+fn exclusion_host(req: &[u8]) -> bool {
+    json_object_member(req,b"hostFeatures").map(|v|v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|c|*c==b',').any(|s|s.trim_ascii()==br#""source_chapter_exclusions_v1""#)).unwrap_or(false)
+}
+
 struct ChapterTraversal {
     page: usize,
     known: bool,
@@ -647,11 +651,20 @@ fn chapter_traversal(req: &[u8]) -> Option<ChapterTraversal> {
 // Offsets are never compared between filtered and unfiltered sets because their
 // pagination shifts when chapters are excluded.
 fn append_chapter_exclusions(out: &mut [u8], pos: &mut usize, req: &[u8], manga: &[u8],
-    language: &[u8], start: usize, last_filtered_page: bool) -> Result<usize, (&'static str, &'static str)> {
+    language: &[u8], start: usize, last_filtered_page: bool, hidden: &[[u8;36]]) -> Result<usize, (&'static str, &'static str)> {
     let invalid = ("parse_error", "invalid unfiltered chapter feed");
     if !write_bytes(out, pos, br#","excludedChapterIds":["#) { return Err(("internal_error", "overflow")); }
     let mut offset = start;
     let mut first = true; let mut excluded = 0usize;
+    for id in hidden {
+        if !first && !write_bytes(out,pos,b",") {return Err(("internal_error","overflow"));}
+        if !(write_bytes(out,pos,br#""ch:"#) && write_bytes(out,pos,id) && write_bytes(out,pos,b"\"")) {return Err(("internal_error","overflow"));}
+        first=false; excluded+=1;
+    }
+    if !blacklist::active(req,b"blockedGroups_en",b"blockedUploader_en") {
+        if !write_bytes(out,pos,b"]") {return Err(("internal_error","overflow"));}
+        return Ok(excluded);
+    }
     loop {
         if host::check_cancel() { return Err(("cancelled", "request cancelled")); }
         let mut url = [0u8; 1024]; let mut n = 0;
@@ -661,6 +674,7 @@ fn append_chapter_exclusions(out: &mut [u8], pos: &mut usize, req: &[u8], manga:
             && write_url_encoded(&mut url,&mut n,language) && write_bytes(&mut url,&mut n,b"&order%5Bchapter%5D=desc")) {
             return Err(("internal_error", "url overflow"));
         }
+        if exclusion_host(req) && !write_bytes(&mut url, &mut n, b"&includeUnavailable=1") { return Err(("internal_error", "url overflow")); }
         let data = fetch_json(&url[..n]).map_err(fetch_error_code)?;
         let number = |key: &[u8]| api_number(data,key).and_then(|v|core::str::from_utf8(v).ok()).and_then(|v|v.parse::<usize>().ok());
         if api_string(data,b"result") != Some(b"ok") || number(b"offset") != Some(offset) || number(b"limit") != Some(100) { return Err(invalid); }
@@ -754,6 +768,11 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         && write_bytes(url_buf, &mut url_cursor, b"&translatedLanguage%5B%5D=")
         && write_url_encoded(url_buf, &mut url_cursor, language)
         && write_bytes(url_buf, &mut url_cursor, b"&order%5Bchapter%5D=desc") };
+    // Keep default visible chapters: request unavailable metadata so explicit exclusions
+    // prevent retained chapters reappearing; additional feed pages may be needed.
+    // Unlike the reference, external and zero-page chapters remain excluded; no permission is granted.
+    let include_unavailable = exclusion_host(req) && matches!(json_object_member(req, b"settings").and_then(|v| json_object_member(v, b"includeUnavailable_en")), Some(b"true") | Some(br#""true""#));
+    if exact_chapter.is_none() && exclusion_host(req) && !write_bytes(url_buf, &mut url_cursor, b"&includeUnavailable=1&includes%5B%5D=scanlation_group") { return write_error("get_chapters", "internal_error", "url overflow"); }
     if exact_chapter.is_none() && !blacklist::append(url_buf, &mut url_cursor, req, b"blockedGroups_en", b"blockedUploader_en") { return write_error("get_chapters", "invalid_request", "invalid blacklist or URL capacity"); }
     if !ok { return write_error("get_chapters", "internal_error", "url overflow"); }
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
@@ -806,6 +825,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     } else { None };
 
     let mut written = 0usize;
+    let mut hidden = [[0u8;36];100]; let mut hidden_count=0usize;
     while let Some(obj) = exact_item.take().or_else(|| iter.as_mut().and_then(|it| it.next_object())) {
         if written >= 100 { break; }
         let ch_id = match api_string(obj, b"id") {
@@ -826,13 +846,23 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             Some(p) => p == b"0",
             None => false,
         };
-        if has_external || pages_zero {
+        let unavailable = json_object_member(api_attributes(obj), b"isUnavailable") == Some(b"true");
+        // Do not present an unavailable row as hosted without a known positive page count.
+        if has_external || pages_zero || (exclusion_host(req) && unavailable && pages.is_none()) {
             if has_external && api_string(api_attributes(obj), b"externalUrl").map_or(false, |value| !value.is_empty()) {
                 traversal.external = true;
             } else { traversal.other = true; }
             continue;
         }
 
+        if exact_chapter.is_none() && exclusion_host(req) && unavailable && !include_unavailable {
+            if ch_id.len()!=36 || !ch_id.iter().enumerate().all(|(i,c)| if matches!(i,8|13|18|23) {*c==b'-'} else {c.is_ascii_hexdigit()}) {return write_error("get_chapters","parse_error","invalid chapter ID");}
+            let mut owned=false;
+            if let Some(mut rels)=api_array(obj,b"relationships") {while let Some(rel)=rels.next_object() {if api_string(rel,b"type")==Some(b"manga") && api_string(rel,b"id")==Some(uuid) {owned=true;}}}
+            if !owned || lang != language || pages.is_none() {return write_error("get_chapters","parse_error","invalid chapter owner or pages");}
+            if hidden_count>=100 {return write_error("get_chapters","parse_error","too many chapters");}
+            hidden[hidden_count].copy_from_slice(ch_id); hidden_count+=1; traversal.other=true; continue;
+        }
         if written > 0 {
             if !write_bytes(payload, &mut c, b",") { return write_error("get_chapters", "internal_error", "overflow"); }
         }
@@ -858,14 +888,30 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         } else {
             if !write_bytes(payload, &mut c, b"null") { return write_error("get_chapters", "internal_error", "overflow"); }
         }
+        if include_unavailable && unavailable {
+            let mut group = None;
+            if let Some(mut relations) = api_array(obj, b"relationships") {
+                while let Some(rel) = relations.next_object() {
+                    if api_string(rel, b"type") == Some(b"scanlation_group") {
+                        group = api_string(api_attributes(rel), b"name");
+                        if group.is_some() { break; }
+                    }
+                }
+            }
+            if !write_bytes(payload, &mut c, br#","scanlator":"UNAVAILABLE"#) { return write_error("get_chapters", "internal_error", "overflow"); }
+            if let Some(name) = group {
+                if !write_bytes(payload, &mut c, b" - ") || !append_api_string(payload, &mut c, name) { return write_error("get_chapters", "internal_error", "overflow"); }
+            }
+            if !write_bytes(payload, &mut c, b"\"") { return write_error("get_chapters", "internal_error", "overflow"); }
+        }
         if !write_bytes(payload, &mut c, b"}") { return write_error("get_chapters", "internal_error", "overflow"); }
         written += 1;
         traversal.hosted = true;
     }
 
     if !write_bytes(payload,&mut c,b"]") { return write_error("get_chapters", "internal_error", "overflow"); }
-    if exact_chapter.is_none() && blacklist::active(req,b"blockedGroups_en",b"blockedUploader_en") {
-        match append_chapter_exclusions(payload,&mut c,req,uuid,language,offset,!has_more) {
+    if exact_chapter.is_none() && (blacklist::active(req,b"blockedGroups_en",b"blockedUploader_en") || hidden_count>0) {
+        match append_chapter_exclusions(payload,&mut c,req,uuid,language,offset,!has_more,&hidden[..hidden_count]) {
             // Remember a real excluded hosted chapter across the existing cursor so
             // an external-only filtered remainder cannot hide that valid exclusion.
             Ok(count) if count > 0 => traversal.other = true,
@@ -1492,14 +1538,20 @@ fn run_get_settings(req: &[u8]) -> u32 {
             }else{write_bytes(payload,&mut n,field)};
             if !ok{return write_error("get_settings","internal_error","payload overflow");}
         }
+        if exclusion_host(req) && !write_bytes(payload,&mut n,br#",{"id":"includeUnavailable_en","name":"Show unavailable chapters","kind":"toggle","default":"false"}"#) {return write_error("get_settings","internal_error","payload overflow");}
         if blacklist::supported(req) && !write_bytes(payload,&mut n,br#",{"id":"blockedGroups_en","name":"Block groups by UUID","kind":"text","description":"Chapters from blocked groups will not show up in Latest or Manga feed. Enter as a Comma-separated list of group UUIDs","default":"","validation":{"kind":"uuid_list","message":"The text contains invalid UUIDs"}},{"id":"blockedUploader_en","name":"Block uploader by UUID","kind":"text","description":"Chapters from blocked uploaders will not show up in Latest or Manga feed. Enter as a Comma-separated list of uploader UUIDs","default":"","validation":{"kind":"uuid_list","message":"The text contains invalid UUIDs"}}"#) { return write_error("get_settings","internal_error","payload overflow"); }
         if !write_bytes(payload,&mut n,b"]}"){return write_error("get_settings","internal_error","payload overflow");}
         return write_success_payload("get_settings",n);
     }
     let payload = payload_buf();
+    if exclusion_host(req) && !blacklist::supported(req) {
+        let mut n=0;
+        if !(write_bytes(payload,&mut n,&SETTINGS_JSON[..SETTINGS_JSON.len()-2]) && write_bytes(payload,&mut n,br#",{"id":"includeUnavailable_en","name":"Show unavailable chapters","kind":"toggle","default":"false"}]}"#)) {return write_error("get_settings","internal_error","payload overflow");}
+        return write_success_payload("get_settings",n);
+    }
     if blacklist::supported(req) {
         let mut n=0;
-        if !(write_bytes(payload,&mut n,&SETTINGS_JSON[..SETTINGS_JSON.len()-2]) && write_bytes(payload,&mut n,br#",{"id":"blockedGroups_en","name":"Block groups by UUID","kind":"text","description":"Chapters from blocked groups will not show up in Latest or Manga feed. Enter as a Comma-separated list of group UUIDs","default":"","validation":{"kind":"uuid_list","message":"The text contains invalid UUIDs"}},{"id":"blockedUploader_en","name":"Block uploader by UUID","kind":"text","description":"Chapters from blocked uploaders will not show up in Latest or Manga feed. Enter as a Comma-separated list of uploader UUIDs","default":"","validation":{"kind":"uuid_list","message":"The text contains invalid UUIDs"}}"#) && write_bytes(payload,&mut n,b"]}")) { return write_error("get_settings","internal_error","payload overflow"); }
+        if !(write_bytes(payload,&mut n,&SETTINGS_JSON[..SETTINGS_JSON.len()-2]) && write_bytes(payload,&mut n,br#",{"id":"includeUnavailable_en","name":"Show unavailable chapters","kind":"toggle","default":"false"}"#) && write_bytes(payload,&mut n,br#",{"id":"blockedGroups_en","name":"Block groups by UUID","kind":"text","description":"Chapters from blocked groups will not show up in Latest or Manga feed. Enter as a Comma-separated list of group UUIDs","default":"","validation":{"kind":"uuid_list","message":"The text contains invalid UUIDs"}},{"id":"blockedUploader_en","name":"Block uploader by UUID","kind":"text","description":"Chapters from blocked uploaders will not show up in Latest or Manga feed. Enter as a Comma-separated list of uploader UUIDs","default":"","validation":{"kind":"uuid_list","message":"The text contains invalid UUIDs"}}"#) && write_bytes(payload,&mut n,b"]}")) { return write_error("get_settings","internal_error","payload overflow"); }
         return write_success_payload("get_settings",n);
     }
     let flen = SETTINGS_JSON.len();
