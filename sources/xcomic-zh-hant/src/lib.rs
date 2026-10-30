@@ -4,6 +4,8 @@ extern crate alloc;
 static ALLOCATOR: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
 use regex::Regex;
 use alloc::{string::{String,ToString},vec::Vec,collections::{BTreeMap,BTreeSet}};
+#[path = "../../xcomic_java_regex.rs"]
+mod xcomic_java_regex;
 #[path = "../../xcomic-zh/chapter_editions.rs"]
 mod chapter_editions;
 #[path = "../../xcomic-zh/dedup.rs"]
@@ -22,7 +24,7 @@ use koma_source_sdk::{
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.xcomic.zh-hant.koma",
     name: "XCOMIC",
-    version: "0.1.12",
+    version: "0.1.13",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -1067,11 +1069,12 @@ fn title_cleaner(r: &[u8]) -> Result<Option<Regex>, E> {
         Ok(None)
     }
 }
-fn emit_title(b: &mut [u8], n: &mut usize, raw: &[u8], cleaner: Option<&Regex>, fallback: Option<&[u8]>) -> Result<(), E> {
-    let Some(cleaner) = cleaner else { return rawq(b, n, raw) };
+fn emit_title(b: &mut [u8], n: &mut usize, raw: &[u8], cleaner: Option<&Regex>, custom: Option<&str>, fallback: Option<&[u8]>) -> Result<(), E> {
+    if cleaner.is_none() && custom.is_none() { return rawq(b, n, raw); }
     let mut decoded = alloc::vec![0; raw.len()];
     let original = core::str::from_utf8(unescape(quoted(raw)?, &mut decoded)?).map_err(|_| "invalid UTF8")?;
-    let removed = cleaner.replace_all(original, "");
+    let input = custom.unwrap_or(original);
+    let removed = cleaner.map(|value| value.replace_all(input, "")).unwrap_or_else(|| alloc::borrow::Cow::Borrowed(input));
     // Kotlin Char.isWhitespace = Java isWhitespace || isSpaceChar.
     let trimmed = removed.trim_matches(|c: char| (c.is_whitespace() && c != '\u{85}') || ('\u{1c}'..='\u{1f}').contains(&c));
     let shown = if trimmed.is_empty() { fallback.unwrap_or(b"") } else { trimmed.as_bytes() };
@@ -1101,13 +1104,14 @@ fn emit_manga(
     comic: Option<&[u8]>,
     work: &[u8],
     cleaner: Option<&Regex>,
+    custom: Option<&str>,
     browse: bool,
 ) -> Result<(), E> {
     id(work)?;
     bytes(b, n, b"{\"id\":")?;
     qid(b, n, MP, work, None)?;
     bytes(b, n, b",\"title\":")?;
-    emit_title(b, n, required(title, b"title")?, cleaner, if browse { Some(work) } else { None })?;
+    emit_title(b, n, required(title, b"title")?, cleaner, custom, if browse { Some(work) } else { None })?;
     let cover = optional_text(title, b"cover_local_url")?.or(optional_text(title, b"cover_url")?);
     if let Some(c) = cover {
         let mut u = [0; 2048];
@@ -1192,14 +1196,15 @@ fn detail(r: &[u8]) -> Result<usize, E> {
             }
         }
     }
+    let custom = xcomic_java_regex::pattern(r).and_then(|pattern| xcomic_java_regex::decode_title(required(title,b"title").ok()?).and_then(|t| xcomic_java_regex::remove(&pattern,&[t])).and_then(|mut v| v.pop()));
     let b = payload_buf();
     let mut n = 0;
     bytes(b, &mut n, b"{\"manga\":")?;
     if best.is_some() {
         let c = unsafe { &COMIC[..comic_len] };
-        emit_manga(b, &mut n, title, Some(c), work, cleaner.as_ref(), false)?
+        emit_manga(b, &mut n, title, Some(c), work, cleaner.as_ref(), custom.as_deref(), false)?
     } else {
-        emit_manga(b, &mut n, title, None, work, cleaner.as_ref(), false)?
+        emit_manga(b, &mut n, title, None, work, cleaner.as_ref(), custom.as_deref(), false)?
     };
     detail_context::emit(b,&mut n,r,title,work,good)?;
     bytes(b, &mut n, b"}")?;
@@ -1278,6 +1283,16 @@ fn list(r: &[u8], search: bool) -> Result<usize, E> {
     if next != 0 && next != p + 1 {
         return Err("invalid browse pagination");
     };
+    // One local RPC for the returned page, avoiding a synchronous round trip per title.
+    let customs = xcomic_java_regex::pattern(r).and_then(|pattern| {
+        let mut values = Vec::new();
+        let mut titles = Array::new(unsafe { &BROWSE[..len] }).ok()?;
+        while let Some(node) = titles.next().ok()? {
+            let data = required(node,b"data").ok()?;
+            values.push(xcomic_java_regex::decode_title(required(data,b"title").ok()?)?);
+        }
+        xcomic_java_regex::remove(&pattern,&values)
+    });
     let mut seen = [NO_ID; 12];
     let mut count = 0;
     let mut arr = Array::new(unsafe { &BROWSE[..len] })?;
@@ -1310,7 +1325,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, E> {
         if count > 0 {
             bytes(b, &mut n, b",")?
         };
-        emit_manga(b, &mut n, t, None, ident.as_bytes(), cleaner.as_ref(), true)?;
+        emit_manga(b, &mut n, t, None, ident.as_bytes(), cleaner.as_ref(), customs.as_ref().and_then(|v| v.get(count)).map(|v| v.as_str()), true)?;
         count += 1
     }
     if (next != 0 && count != 12) || ((p - 1) * 12 + count > total) {
@@ -1751,8 +1766,11 @@ fn run_get_filters(r: &[u8]) -> u32 {
 fn run_get_settings(req: &[u8]) -> u32 {
     let schema = r#"{"settings":[{"id":"REMOVE_TITLE_VERSION","name":"Remove Version Information From Entry Titles","kind":"toggle","default":"false","description":"This removes version tags like '(Official)' or '(Yaoi)' from entry titles."},{"id":"IGNORE_GENRE_BLOCKLIST","name":"Ignore WebView Genre Blocklist","kind":"toggle","default":"false"},{"id":"GROUP_BY_SOURCE","name":"Group Chapters By Edition","kind":"toggle","default":"false","description":"Sort chapters by edition label, then chapter number."}]}"#.as_bytes();
     let out=payload_buf();let mut n=0;
-    if !chapter_editions::supported(req){out[..schema.len()].copy_from_slice(schema);return write_success_payload("get_settings",schema.len());}
-    if bytes(out,&mut n,&schema[..schema.len()-2]).is_err() || bytes(out,&mut n,br#",{"id":"DEDUPLICATE_CHAPTERS","name":"Deduplicate Chapter List","kind":"toggle","default":"false","description":"Use the provider deduplicated list; duplicate uploads from the same edition may be hidden."},{"id":"SOURCE_INCLUDE","name":"Chapter Editions To Include","kind":"text","default":"","description":"Comma-separated edition labels; a base label includes matching editions, while a suffixed label selects one. Empty includes all editions."}]}"#).is_err(){return write_error("get_settings","internal_error","payload overflow");}
+    if !chapter_editions::supported(req) && !xcomic_java_regex::supported(req){out[..schema.len()].copy_from_slice(schema);return write_success_payload("get_settings",schema.len());}
+    if bytes(out,&mut n,&schema[..schema.len()-2]).is_err() {return write_error("get_settings","internal_error","payload overflow");}
+    if chapter_editions::supported(req) && bytes(out,&mut n,br#",{"id":"DEDUPLICATE_CHAPTERS","name":"Deduplicate Chapter List","kind":"toggle","default":"false","description":"Use the provider deduplicated list; duplicate uploads from the same edition may be hidden."},{"id":"SOURCE_INCLUDE","name":"Chapter Editions To Include","kind":"text","default":"","description":"Comma-separated edition labels; a base label includes matching editions, while a suffixed label selects one. Empty includes all editions."}"#).is_err() {return write_error("get_settings","internal_error","payload overflow");}
+    if xcomic_java_regex::supported(req) && bytes(out,&mut n,br#",{"id":"REMOVE_TITLE_CUSTOM","name":"Custom Regex To Be Removed From Title","kind":"text","default":"","validation":{"kind":"java_regex","message":"Invalid regular expression"}}"#).is_err() {return write_error("get_settings","internal_error","payload overflow");}
+    if bytes(out,&mut n,b"]}").is_err() {return write_error("get_settings","internal_error","payload overflow");}
     write_success_payload("get_settings",n)
 }
 // Source-local ABI gate; SDK remains byte-identical. Check before helper forms a slice.
