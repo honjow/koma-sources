@@ -105,7 +105,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "online.baozimh.koma",
     name: "包子漫畫 (Baozimh)",
-    version: "0.1.15",
+    version: "0.1.16",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -594,6 +594,18 @@ fn run_get_manga(req: &[u8]) -> u32 {
     result
 }
 
+// Older hosts must keep the original identity and never expose this option.
+fn chapter_identity_feature(req: &[u8]) -> bool {
+    json_object_member(req, b"hostFeatures").map(|v| v.starts_with(b"[") && v.ends_with(b"]") &&
+        v[1..v.len()-1].split(|c| *c == b',').any(|x| x.trim_ascii() == br#""source_baozi_chapter_identity_v1""#)).unwrap_or(false)
+}
+
+// Kotlin Char.isDigit tests individual UTF-16 units, not supplementary code points.
+fn reference_title_has_digit(title: &[u8]) -> bool {
+    const ND: &[(u32,u32)] = &[(0x30,0x39),(0x660,0x669),(0x6f0,0x6f9),(0x7c0,0x7c9),(0x966,0x96f),(0x9e6,0x9ef),(0xa66,0xa6f),(0xae6,0xaef),(0xb66,0xb6f),(0xbe6,0xbef),(0xc66,0xc6f),(0xce6,0xcef),(0xd66,0xd6f),(0xde6,0xdef),(0xe50,0xe59),(0xed0,0xed9),(0xf20,0xf29),(0x1040,0x1049),(0x1090,0x1099),(0x17e0,0x17e9),(0x1810,0x1819),(0x1946,0x194f),(0x19d0,0x19d9),(0x1a80,0x1a89),(0x1a90,0x1a99),(0x1b50,0x1b59),(0x1bb0,0x1bb9),(0x1c40,0x1c49),(0x1c50,0x1c59),(0xa620,0xa629),(0xa8d0,0xa8d9),(0xa900,0xa909),(0xa9d0,0xa9d9),(0xa9f0,0xa9f9),(0xaa50,0xaa59),(0xabf0,0xabf9),(0xff10,0xff19)];
+    core::str::from_utf8(title).map(|s| s.chars().any(|c| ND.iter().any(|(a,b)| (*a..=*b).contains(&(c as u32))))).unwrap_or(false)
+}
+
 fn run_get_chapters(req: &[u8]) -> u32 {
     let manga_id = match extract_json_string(req, b"mangaId") {
         Some(v) => v,
@@ -604,6 +616,9 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         return write_error("get_chapters", "invalid_request", "unexpected mangaId");
     }
     let slug = &manga_id[prefix.len()..];
+    let order_mode = if chapter_identity_feature(req) {
+        json_object_member(req, b"settings").and_then(|v| extract_json_string(v, b"CHAPTER_ORDER")).unwrap_or(b"0")
+    } else { b"0" };
 
     let url_buf = scratch_a();
     let mut url_cursor = 0usize;
@@ -693,10 +708,15 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         if written > 0 {
             if !write_bytes(payload, &mut c, b",") { return write_error("get_chapters", "internal_error", "payload overflow"); }
         }
+        let use_title = order_mode == b"2" || (order_mode == b"1" && title.map(reference_title_has_digit).unwrap_or(false));
+        if use_title && complete_title.map(|value| value.is_empty()).unwrap_or(true) {
+            return write_error("get_chapters", "source_error", "chapter title unavailable or truncated");
+        }
         let ok = write_bytes(payload, &mut c, br#"{"id":"chapter:"#)
             && append_json_escaped(payload, &mut c, slug)
             && write_bytes(payload, &mut c, b":")
             && append_json_escaped(payload, &mut c, slot)
+            && (!use_title || (write_bytes(payload, &mut c, b"#") && append_json_escaped(payload, &mut c, complete_title.unwrap())))
             && write_bytes(payload, &mut c, br#"","mangaId":"manga:"#)
             && append_json_escaped(payload, &mut c, slug)
             && write_bytes(payload, &mut c, br#"","title":""#)
@@ -807,9 +827,14 @@ fn probe_image_head(parts: &[&[u8]]) -> Result<bool, ()> {
 }
 
 fn run_get_pages(req: &[u8]) -> u32 {
-    let chapter_id = match extract_json_string(req, b"chapterId") {
+    let raw_chapter_id = match extract_json_string(req, b"chapterId") {
         Some(v) => v,
         None => return write_error("get_pages", "invalid_request", "missing chapterId"),
+    };
+    let mut decoded_id = [0u8; 4096];
+    let chapter_id = match koma_source_sdk::plain_text::decode_json_content(raw_chapter_id, &mut decoded_id) {
+        Ok(v) => v,
+        Err(_) => return write_error("get_pages", "invalid_request", "invalid chapterId"),
     };
     let prefix = b"chapter:";
     if chapter_id.len() <= prefix.len() || &chapter_id[..prefix.len()] != prefix {
@@ -821,7 +846,8 @@ fn run_get_pages(req: &[u8]) -> u32 {
         None => return write_error("get_pages", "invalid_request", "chapterId missing slot"),
     };
     let slug = &rest[..colon_idx];
-    let slot = &rest[colon_idx + 1..];
+    let full_slot = &rest[colon_idx + 1..];
+    let slot = full_slot.split(|c| *c == b'#').next().unwrap_or(full_slot);
 
     let url_buf = scratch_a();
     let mut url_cursor = 0usize;
@@ -911,10 +937,8 @@ fn run_get_pages(req: &[u8]) -> u32 {
 
     let payload = payload_buf();
     let mut c = 0usize;
-    let ok = write_bytes(payload, &mut c, br#"{"chapterId":"chapter:"#)
-        && append_json_escaped(payload, &mut c, slug)
-        && write_bytes(payload, &mut c, b":")
-        && append_json_escaped(payload, &mut c, slot)
+    let ok = write_bytes(payload, &mut c, br#"{"chapterId":""#)
+        && append_json_escaped(payload, &mut c, chapter_id)
         && write_bytes(payload, &mut c, br#"","pages":["#);
     if !ok {
         return write_error("get_pages", "internal_error", "payload overflow");
@@ -1300,23 +1324,17 @@ fn run_get_settings(req: &[u8]) -> u32 {
     const SETTINGS_JSON: &str = "{\"settings\":[{\"id\":\"defaultRegion\",\"name\":\"預設地區\",\"kind\":\"select\",\"options\":[{\"value\":\"all\",\"label\":\"全部\"},{\"value\":\"cn\",\"label\":\"國漫\"},{\"value\":\"jp\",\"label\":\"日本\"},{\"value\":\"kr\",\"label\":\"韓國\"},{\"value\":\"en\",\"label\":\"歐美\"}],\"default\":\"all\"},{\"id\":\"defaultState\",\"name\":\"預設狀態\",\"kind\":\"select\",\"options\":[{\"value\":\"all\",\"label\":\"全部\"},{\"value\":\"serial\",\"label\":\"連載中\"},{\"value\":\"pub\",\"label\":\"已完結\"}],\"default\":\"all\"}]}";
 
     const BANNER: &str = r#",{"id":"BAOZI_BANNER","name":"移除包子漫畫橫幅 (v2.1)","description":"普通模式只能移除上端或下端的一處橫幅，強力模式可以移除多個層疊的橫幅。","kind":"select","options":[{"value":"0","label":"禁用"},{"value":"1","label":"普通模式"},{"value":"2","label":"強力模式"}],"default":"1"}]}"#;
-    if banner_feature(req) {
-        let payload = payload_buf();
-        let mut n = 0;
-        let original = SETTINGS_JSON.as_bytes();
-        if !write_bytes(payload, &mut n, &original[..original.len()-2]) || !write_bytes(payload, &mut n, BANNER.as_bytes()) {
-            return write_error("get_settings", "internal_error", "payload overflow");
-        }
-        return write_success_payload("get_settings", n);
-    }
-    let settings_bytes = SETTINGS_JSON.as_bytes();
+    const ORDER: &str = r#",{"id":"CHAPTER_ORDER","name":"修复章节顺序错误导致的错标已读","description":"部分作品的章节顺序错误，最新章节总是显示为一个旧章节，导致检查更新时新章节被错标为已读。开启后，将会正确判断新章节和已读情况，但是错误的章节顺序不会改变。警告：修改此设置后第一次刷新可能会导致已读状态出现错乱，请谨慎使用。","kind":"select","options":[{"value":"0","label":"关闭"},{"value":"1","label":"开启 (对有标号的章节有效)"},{"value":"2","label":"强力模式 (对所有章节有效)"}],"default":"0"}]}"#;
     let payload = payload_buf();
-    let flen = settings_bytes.len();
-    if flen > payload.len() {
+    let mut n = 0;
+    let original = SETTINGS_JSON.as_bytes();
+    if !write_bytes(payload, &mut n, &original[..original.len()-2]) ||
+        (banner_feature(req) && !write_bytes(payload, &mut n, &BANNER.as_bytes()[..BANNER.len()-2])) ||
+        (chapter_identity_feature(req) && !write_bytes(payload, &mut n, &ORDER.as_bytes()[..ORDER.len()-2])) ||
+        !write_bytes(payload, &mut n, b"]}") {
         return write_error("get_settings", "internal_error", "payload overflow");
     }
-    payload[..flen].copy_from_slice(settings_bytes);
-    write_success_payload("get_settings", flen)
+    write_success_payload("get_settings", n)
 }
 
 fn extract_query_param<'a>(url: &[u8], key: &[u8], out: &'a mut [u8]) -> Option<&'a [u8]> {
