@@ -43,6 +43,13 @@ fn fetch(url: &[u8]) -> Result<usize, E> {
         return Err("HTTP capacity");
     }
     valid_json(&http_out()[..len])?;
+    // A host transport failure has no HTTP status; preserve its failure class.
+    if json_object_member(&http_out()[..len], b"ok") == Some(b"false".as_slice()) {
+        let error = json_object_member(&http_out()[..len], b"error");
+        return Err(if error.and_then(|e| json_object_member(e, b"code")) == Some(br#""timeout""#.as_slice()) {
+            "HTTP timeout"
+        } else { "HTTP transport" });
+    }
     let status = field_num(&http_out()[..len], b"status")?;
     if !(200..300).contains(&status) {
         unsafe { LAST_HTTP_STATUS = status; }
@@ -683,7 +690,7 @@ fn execute(op: &str, res: Result<usize, E>) -> u32 {
                     }
                 }
             }
-            write_error(op, if e == "HTTP transport" { "network_error" } else { "source_contract_error" }, e)
+            write_error(op, if e == "HTTP timeout" { "timeout" } else if e == "HTTP transport" { "network_error" } else { "source_contract_error" }, e)
         },
     }
 }
@@ -722,7 +729,7 @@ fn run_get_settings(_: &[u8]) -> u32 {
     write_success_payload("get_settings", schema.len())
 }
 
-const INFO_JSON: &str = r#"{"sourceInfo":{"id":"com.simplyhentai.zh.koma","name":"Simply Hentai","version":"0.1.3","apiVersion":"0.2","language":"zh","author":"Koma","contentRating":"nsfw","description":"Chinese language metadata listing; NSFW source; per-work rating and usage unknown.","localizedNames":{"zh-Hans":"Simply Hentai（中文）","zh-Hant":"Simply Hentai（中文）","en":"Simply Hentai (Chinese)"}},"capabilities":{"search":true,"mangaDetail":true,"chapters":true,"pages":true,"listings":true,"mangaList":true,"imageRequest":true,"home":false,"filters":false,"settings":true,"future":{"login":false,"auth":false,"process_page_image":false,"page_description":false,"base_url":false,"deeplink":false,"migration":false}}}"#;
+const INFO_JSON: &str = r#"{"sourceInfo":{"id":"com.simplyhentai.zh.koma","name":"Simply Hentai","version":"0.1.4","apiVersion":"0.2","language":"zh","author":"Koma","contentRating":"nsfw","description":"Chinese language metadata listing; NSFW source; per-work rating and usage unknown.","localizedNames":{"zh-Hans":"Simply Hentai（中文）","zh-Hant":"Simply Hentai（中文）","en":"Simply Hentai (Chinese)"}},"capabilities":{"search":true,"mangaDetail":true,"chapters":true,"pages":true,"listings":true,"mangaList":true,"imageRequest":true,"home":false,"filters":false,"settings":true,"future":{"login":false,"auth":false,"process_page_image":false,"page_description":false,"base_url":false,"deeplink":false,"migration":false}}}"#;
 // Source-local ABI gate; SDK remains byte-identical. Check before helper forms a slice.
 fn checked_request(ptr: u32, len: u32) -> Option<&'static [u8]> {
     let cap = core::arch::wasm32::memory_size::<0>().checked_mul(65536)?;
