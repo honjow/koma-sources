@@ -4,5 +4,6 @@
     "zh-Hant": "GoDa漫畫",
     "en": "GoDa Manhua"
   },
-  "homepage": "https://godamh.com/"
+  "homepage": "https://godamh.com/",
+  "chapterOrder": "newest_first"
 }

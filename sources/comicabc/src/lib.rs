@@ -15,7 +15,7 @@ const BASE: &[u8] = b"https://www.8comic.com";
 const READER: &[u8] = b"https://articles.onemoreplace.tw";
 const UA:&[u8]=b"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36";
 const MOBILE_UA: &[u8] = UA;
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.comicabc.koma",name:"無限動漫",version:"0.1.10",api_version:"0.2",language:"zh",author:"Koma",description:"ComicABC public Chinese catalogues and bounded literal-record pages; no accounts or JavaScript execution.",content_rating:"safe"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.comicabc.koma",name:"無限動漫",version:"0.1.11",api_version:"0.2",language:"zh",author:"Koma",description:"ComicABC public Chinese catalogues and bounded literal-record pages; no accounts or JavaScript execution.",content_rating:"safe"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,

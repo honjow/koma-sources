@@ -1196,21 +1196,21 @@ dependencies = [
 
 [[package]]
 name = "koma_cartoon18_zh_source"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_comicabc_source"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_comicfury_zh_source"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1280,7 +1280,7 @@ dependencies = [
 
 [[package]]
 name = "koma_goda_source"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1294,14 +1294,14 @@ dependencies = [
 
 [[package]]
 name = "koma_hanman18_source"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_happymh_source"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1393,7 +1393,7 @@ dependencies = [
 
 [[package]]
 name = "koma_mangapluscreators_en_source"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1421,7 +1421,7 @@ dependencies = [
 
 [[package]]
 name = "koma_manhuashe_source"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1435,7 +1435,7 @@ dependencies = [
 
 [[package]]
 name = "koma_mh1234_source"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1498,7 +1498,7 @@ dependencies = [
 
 [[package]]
 name = "koma_sixmh_source"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "aes",
  "cbc",
@@ -1581,14 +1581,14 @@ dependencies = [
 
 [[package]]
 name = "koma_webtoons_source"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_webtoons_zh_hant_source"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1612,7 +1612,7 @@ dependencies = [
 
 [[package]]
 name = "koma_xkcd_zh_source"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -3660,7 +3660,7 @@ dependencies = [
 
 [[package]]
 name = "koma_mangaxiaosi_zh_source"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "koma_source_sdk",
 ]

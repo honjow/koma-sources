@@ -4,5 +4,6 @@
     "zh-Hant": "xkcd（中文）",
     "en": "xkcd (Chinese)"
   },
-  "homepage": "https://xkcd.tw/"
+  "homepage": "https://xkcd.tw/",
+  "chapterOrder": "newest_first"
 }

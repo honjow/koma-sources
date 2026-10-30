@@ -10,7 +10,7 @@ type E = &'static str;
 type R<T> = Result<T, E>;
 const MAX: usize = 1048576;
 const WEB: &[u8] = b"https://www.cartoon18.com";
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.cartoon18.zh.koma",name:"Cartoon18",version:"0.1.1",api_version:"0.2",language:"zh",author:"Koma",description:"Cartoon18 published Chinese interface and anonymous manga metadata. Per-work rating, artwork availability and usage unknown.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.cartoon18.zh.koma",name:"Cartoon18",version:"0.1.2",api_version:"0.2",language:"zh",author:"Koma",description:"Cartoon18 published Chinese interface and anonymous manga metadata. Per-work rating, artwork availability and usage unknown.",content_rating:"nsfw"};
 #[allow(dead_code)]
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,

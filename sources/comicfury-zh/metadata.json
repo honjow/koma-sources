@@ -4,5 +4,6 @@
     "zh-Hant": "Comic Fury（中文）",
     "en": "Comic Fury (Chinese)"
   },
-  "homepage": "https://comicfury.com"
+  "homepage": "https://comicfury.com",
+  "chapterOrder": "newest_first"
 }

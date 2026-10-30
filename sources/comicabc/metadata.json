@@ -4,5 +4,6 @@
     "zh-Hant": "無限動漫",
     "en": "ComicABC"
   },
-  "homepage": "https://www.8comic.com"
+  "homepage": "https://www.8comic.com",
+  "chapterOrder": "oldest_first"
 }

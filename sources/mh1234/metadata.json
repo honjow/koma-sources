@@ -4,5 +4,6 @@
     "zh-Hant": "漫畫1234網",
     "en": "MH1234"
   },
-  "homepage": "https://m.wmh1234.com"
+  "homepage": "https://m.wmh1234.com",
+  "chapterOrder": "oldest_first"
 }

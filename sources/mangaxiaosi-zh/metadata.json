@@ -4,5 +4,6 @@
     "zh-Hant": "漫小肆",
     "en": "Manga Xiao Si (Chinese)"
   },
-  "homepage": "https://www.jjmhw2.top"
+  "homepage": "https://www.jjmhw2.top",
+  "chapterOrder": "newest_first"
 }

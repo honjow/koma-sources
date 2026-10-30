@@ -15,7 +15,7 @@ fn selected_base(r: &[u8]) -> &'static [u8] {
         _ => BASE,
     }
 }
-const SOURCE_INFO: SourceInfo = SourceInfo { id:"com.manhuashe.koma", name:"漫画社 (Manhuashe)", version:"0.1.9", api_version:"0.2",language:"zh",author:"Koma",description:"",content_rating:"nsfw" };
+const SOURCE_INFO: SourceInfo = SourceInfo { id:"com.manhuashe.koma", name:"漫画社 (Manhuashe)", version:"0.1.10", api_version:"0.2",language:"zh",author:"Koma",description:"",content_rating:"nsfw" };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,

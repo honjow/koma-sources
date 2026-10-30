@@ -4,5 +4,6 @@
     "zh-Hant": "色漫網",
     "en": "Cartoon18 (Chinese)"
   },
-  "homepage": "https://www.cartoon18.com"
+  "homepage": "https://www.cartoon18.com",
+  "chapterOrder": "newest_first"
 }

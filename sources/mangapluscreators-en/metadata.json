@@ -4,5 +4,6 @@
     "zh-Hant": "MANGA Plus Creators（英語）",
     "en": "MANGA Plus Creators by SHUEISHA"
   },
-  "homepage": "https://mangaplus-creators.jp"
+  "homepage": "https://mangaplus-creators.jp",
+  "chapterOrder": "newest_first"
 }

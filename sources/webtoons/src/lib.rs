@@ -35,7 +35,7 @@ static mut SELECT_BUFFER: [u8; 4096] = [0; 4096];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.webtoons.koma",
     name: "WEBTOON (English)",
-    version: "0.1.6",
+    version: "0.1.7",
     api_version: "0.2",
     language: "en",
     author: "Koma source contributors",

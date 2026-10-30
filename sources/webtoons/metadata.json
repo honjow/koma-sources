@@ -4,5 +4,6 @@
     "zh-Hant": "WEBTOON（英語）",
     "en": "WEBTOON (English)"
   },
-  "homepage": "https://www.webtoons.com"
+  "homepage": "https://www.webtoons.com",
+  "chapterOrder": "oldest_first"
 }
