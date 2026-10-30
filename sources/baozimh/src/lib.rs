@@ -105,7 +105,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "online.baozimh.koma",
     name: "包子漫畫 (Baozimh)",
-    version: "0.1.14",
+    version: "0.1.15",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -1125,6 +1125,15 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     write_success_payload("get_manga_list", c)
 }
 
+// Optional presentation processing is advertised only to Hosts that can keep
+// originals and derived page images separate. Unsupported Hosts keep old pages.
+fn banner_feature(req: &[u8]) -> bool {
+    json_object_member(req, b"hostFeatures").map(|v| {
+        v.starts_with(b"[") && v.ends_with(b"]") &&
+            v[1..v.len()-1].split(|c| *c == b',').any(|x| x.trim_ascii() == br#""source_page_image_processing_v1""#)
+    }).unwrap_or(false)
+}
+
 fn run_modify_image_request(req: &[u8]) -> u32 {
     // baozimh images are freely accessible, no modification needed.
     // Just extract the URL and return an unmodified request
@@ -1135,9 +1144,20 @@ fn run_modify_image_request(req: &[u8]) -> u32 {
 
     let payload = payload_buf();
     let mut c = 0usize;
+    let mode = json_object_member(req, b"settings")
+        .and_then(|settings| extract_json_string(settings, b"BAOZI_BANNER"))
+        .unwrap_or(b"1");
+    let mode = if mode == b"1" || mode == b"2" { Some(mode) } else { None };
     let ok = write_bytes(payload, &mut c, br#"{"url":""#)
         && append_json_escaped(payload, &mut c, url)
-        && write_bytes(payload, &mut c, br#"","headers":{}}"#);
+        && write_bytes(payload, &mut c, br#"","headers":{}"#)
+        && if banner_feature(req) {
+            if let Some(mode) = mode {
+                write_bytes(payload, &mut c, br#", "imageProcessing":{"kind":"baozi_banner","mode":""#)
+                    && write_bytes(payload, &mut c, mode) && write_bytes(payload, &mut c, b"\"}")
+            } else { true }
+        } else { true }
+        && write_bytes(payload, &mut c, b"}");
     if !ok {
         return write_error("get_image_request", "internal_error", "payload overflow");
     }
@@ -1276,9 +1296,19 @@ fn run_get_home(req: &[u8]) -> u32 {
 
 // --- get_settings: source-level user preferences ---
 
-fn run_get_settings(_req: &[u8]) -> u32 {
+fn run_get_settings(req: &[u8]) -> u32 {
     const SETTINGS_JSON: &str = "{\"settings\":[{\"id\":\"defaultRegion\",\"name\":\"預設地區\",\"kind\":\"select\",\"options\":[{\"value\":\"all\",\"label\":\"全部\"},{\"value\":\"cn\",\"label\":\"國漫\"},{\"value\":\"jp\",\"label\":\"日本\"},{\"value\":\"kr\",\"label\":\"韓國\"},{\"value\":\"en\",\"label\":\"歐美\"}],\"default\":\"all\"},{\"id\":\"defaultState\",\"name\":\"預設狀態\",\"kind\":\"select\",\"options\":[{\"value\":\"all\",\"label\":\"全部\"},{\"value\":\"serial\",\"label\":\"連載中\"},{\"value\":\"pub\",\"label\":\"已完結\"}],\"default\":\"all\"}]}";
 
+    const BANNER: &str = r#",{"id":"BAOZI_BANNER","name":"移除包子漫畫橫幅 (v2.1)","description":"普通模式只能移除上端或下端的一處橫幅，強力模式可以移除多個層疊的橫幅。","kind":"select","options":[{"value":"0","label":"禁用"},{"value":"1","label":"普通模式"},{"value":"2","label":"強力模式"}],"default":"1"}]}"#;
+    if banner_feature(req) {
+        let payload = payload_buf();
+        let mut n = 0;
+        let original = SETTINGS_JSON.as_bytes();
+        if !write_bytes(payload, &mut n, &original[..original.len()-2]) || !write_bytes(payload, &mut n, BANNER.as_bytes()) {
+            return write_error("get_settings", "internal_error", "payload overflow");
+        }
+        return write_success_payload("get_settings", n);
+    }
     let settings_bytes = SETTINGS_JSON.as_bytes();
     let payload = payload_buf();
     let flen = settings_bytes.len();
