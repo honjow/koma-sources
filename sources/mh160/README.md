@@ -6,6 +6,8 @@ Upstream rating SAFE; actual source contents are unverified, so Koma source/cont
 
 Canonical source id `com.mh160.koma`; manga identity `mh160:<original slug>`, chapter identity `mh160ch:<original public path>`, page identity `page:mh160:<original chapter path>:<1-based index>`. Upstream catalogue order is preserved, chapterNumber remains null.
 
+图片请求使用源官网的 Referer 和 Origin，封面与正文共用该请求合同；图片 URL 与作品、章节身份保持不变。
+
 ## 0.1.5 原源序与首次未读
 
 按本轮用户采用的Mihon规则，包显式声明`chapterOrder: newest_first`。固定Keiyoushi10f06eb的`Mh160.parseChapters`与本源`chapters`都按相同DOM选择直接输出，遵循Mihon最新在前接口；声明不改变任何目录项或请求。237现存《风起苍岚》782章原快照首为第2季352，末为第1话苍岚之巅1/43350001，且没有该书进度。整表含番外、请假条、标题漏字和第8话异常插入，不能宣称话数严格单调，不能据此从标题猜数、去重或整理目录。

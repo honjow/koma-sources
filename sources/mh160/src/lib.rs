@@ -13,7 +13,7 @@ const MOBILE: &[u8] = b"https://m.mh160mh.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mh160.koma",
     name: "漫画160",
-    version: "0.1.6",
+    version: "0.1.7",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -31,7 +31,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     home: false,
     filters: true,
     settings: false,
-    image_request: false,
+    image_request: true,
     credentials: false,
 };
 koma_source_sdk::koma_source_buffers! { payload:512*1024,http_out:2*1024*1024,body:1024*1024,http_req:4096,scratch:8192, }
@@ -1093,7 +1093,28 @@ fn run_get_filters(r: &[u8]) -> u32 {
 fn run_get_settings(_: &[u8]) -> u32 {
     write_error("get_settings", "not_implemented", "not supported")
 }
-fn run_get_image_request(_: &[u8]) -> u32 {
-    write_error("get_image_request", "not_implemented", "not supported")
+fn run_get_image_request(req: &[u8]) -> u32 {
+    let raw = match string(args(req), b"url") {
+        Some(value) => value,
+        None => return write_error("get_image_request", "invalid_request", "missing image URL"),
+    };
+    let mut decoded = [0u8; 8192];
+    let uri = match unescape(raw, &mut decoded) {
+        Ok(value) => value,
+        Err(_) => return write_error("get_image_request", "invalid_request", "invalid image URL"),
+    };
+    let mut normalized = [0u8; 8192];
+    let url = match absolute(uri, &mut normalized) {
+        Ok(value) => value,
+        Err(_) => return write_error("get_image_request", "invalid_request", "invalid image URL"),
+    };
+    let out = payload_buf();
+    let mut n = 0;
+    // KeiSource's inherited imageRequest uses its source headers for images.
+    let result = bytes(out, &mut n, br#"{"url":"#)
+        .and_then(|_| q(out, &mut n, url))
+        .and_then(|_| bytes(out, &mut n, br#", "headers":{"Referer":"https://www.mh160mh.com/","Origin":"https://www.mh160mh.com"}}"#));
+    if result.is_err() { return write_error("get_image_request", "internal_error", "payload overflow"); }
+    write_success_payload("get_image_request", n)
 }
 koma_source_sdk::koma_source_exports!("mh160");
