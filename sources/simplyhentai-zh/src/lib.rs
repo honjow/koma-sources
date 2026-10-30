@@ -10,7 +10,19 @@ static mut DETAIL: [u8; MAX] = [0; MAX];
 static mut IDS: [usize; 4096] = [0; 4096];
 // Operation-local diagnostic only; never infer verification or login from HTTP403.
 static mut LAST_HTTP_STATUS: usize = 0;
-fn reset_http_status() { unsafe { LAST_HTTP_STATUS = 0; } }
+static mut CHALLENGE_ENABLED: bool = false;
+static mut LAST_CHALLENGE: bool = false;
+static mut CHALLENGE_ID: [u8; 384] = [0; 384];
+static mut CHALLENGE_ID_LEN: usize = 0;
+fn reset_http_status() { unsafe { LAST_HTTP_STATUS = 0; CHALLENGE_ENABLED = false; LAST_CHALLENGE = false; CHALLENGE_ID_LEN = 0; } }
+fn enable_challenge(r: &[u8]) {
+    let enabled = json_object_member(r, b"hostFeatures").map(|v| {
+        let v = trim_ascii(v);
+        v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|c| *c == b',')
+            .any(|x| trim_ascii(x) == br#""source_http_challenge_cause_v1""#)
+    }).unwrap_or(false);
+    unsafe { CHALLENGE_ENABLED = enabled; }
+}
 
 fn fetch(url: &[u8]) -> Result<usize, E> {
     if host::check_cancel() {
@@ -23,7 +35,9 @@ fn fetch(url: &[u8]) -> Result<usize, E> {
     let mut n = 0;
     bytes(req, &mut n, b"{\"version\":1,\"method\":\"GET\",\"url\":")?;
     q(req, &mut n, url)?;
-    bytes(req,&mut n,b",\"headers\":{\"User-Agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0\",\"Referer\":\"https://www.simply-hentai.com/\",\"Origin\":\"https://www.simply-hentai.com\",\"Cache-Control\":\"max-age=600\"}}")?;
+    bytes(req,&mut n,b",\"headers\":{\"User-Agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0\",\"Referer\":\"https://www.simply-hentai.com/\",\"Origin\":\"https://www.simply-hentai.com\",\"Cache-Control\":\"max-age=600\"}")?;
+    if unsafe { CHALLENGE_ENABLED } { bytes(req, &mut n, br#", "wantChallengeRequestId":true"#)?; }
+    bytes(req, &mut n, b"}")?;
     let len = host::http_request(&http_req_buf()[..n], http_out()).map_err(|_| "HTTP transport")?;
     if len == 0 || len > MAX {
         return Err("HTTP capacity");
@@ -32,6 +46,15 @@ fn fetch(url: &[u8]) -> Result<usize, E> {
     let status = field_num(&http_out()[..len], b"status")?;
     if !(200..300).contains(&status) {
         unsafe { LAST_HTTP_STATUS = status; }
+        let response = &http_out()[..len];
+        if unsafe { CHALLENGE_ENABLED } && json_object_member(response, b"accessSignal") == Some(br#""challenge_required""#.as_slice()) {
+            unsafe { LAST_CHALLENGE = true; }
+            if let Some(id) = json_object_member(response, b"challengeRequestId") {
+                if id.len() > 2 && id.len() <= 384 && id.first() == Some(&b'"') && id.last() == Some(&b'"') {
+                    unsafe { CHALLENGE_ID[..id.len()].copy_from_slice(id); CHALLENGE_ID_LEN = id.len(); }
+                }
+            }
+        }
         let mut diagnostic = [0; 64];
         let mut dn = 0;
         if bytes(&mut diagnostic, &mut dn, b"simplyhentai HTTP status=").is_ok()
@@ -639,6 +662,17 @@ fn execute(op: &str, res: Result<usize, E>) -> u32 {
         Err(e) => {
             if e == "HTTP status" {
                 let status = unsafe { LAST_HTTP_STATUS };
+                if unsafe { LAST_CHALLENGE } {
+                    let mut out = [0u8; 1024]; let mut n = 0;
+                    let ok = bytes(&mut out,&mut n,br#"{"type":"response","version":1,"ok":false,"operation":""#).is_ok()
+                        && bytes(&mut out,&mut n,op.as_bytes()).is_ok()
+                        && bytes(&mut out,&mut n,br#"","error":{"code":"challenge_required","message":"website verification required","status":"#).is_ok()
+                        && wn(&mut out,&mut n,status).is_ok()
+                        && unsafe { if CHALLENGE_ID_LEN > 0 { bytes(&mut out,&mut n,br#", "challengeRequestId":"#).is_ok() && bytes(&mut out,&mut n,&CHALLENGE_ID[..CHALLENGE_ID_LEN]).is_ok() } else { true } }
+                        && bytes(&mut out,&mut n,br#"},"hostHints":{"network":false},"warnings":[]}"#).is_ok();
+                    if ok { return response_buffer().write(&out[..n], false); }
+                    return write_error(op,"internal_error","error response overflow");
+                }
                 if (400..=599).contains(&status) {
                     let mut message = [0; 32];
                     let mut n = 0;
@@ -689,7 +723,7 @@ fn run_get_settings(_: &[u8]) -> u32 {
     write_success_payload("get_settings", schema.len())
 }
 
-const INFO_JSON: &str = r#"{"sourceInfo":{"id":"com.simplyhentai.zh.koma","name":"Simply Hentai","version":"0.1.1","apiVersion":"0.2","language":"zh","author":"Koma","contentRating":"nsfw","description":"Chinese language metadata listing; NSFW source; per-work rating and usage unknown.","localizedNames":{"zh-Hans":"Simply Hentai（中文）","zh-Hant":"Simply Hentai（中文）","en":"Simply Hentai (Chinese)"}},"capabilities":{"search":true,"mangaDetail":true,"chapters":true,"pages":true,"listings":true,"mangaList":true,"imageRequest":true,"home":false,"filters":false,"settings":true,"future":{"login":false,"auth":false,"process_page_image":false,"page_description":false,"base_url":false,"deeplink":false,"migration":false}}}"#;
+const INFO_JSON: &str = r#"{"sourceInfo":{"id":"com.simplyhentai.zh.koma","name":"Simply Hentai","version":"0.1.2","apiVersion":"0.2","language":"zh","author":"Koma","contentRating":"nsfw","description":"Chinese language metadata listing; NSFW source; per-work rating and usage unknown.","localizedNames":{"zh-Hans":"Simply Hentai（中文）","zh-Hant":"Simply Hentai（中文）","en":"Simply Hentai (Chinese)"}},"capabilities":{"search":true,"mangaDetail":true,"chapters":true,"pages":true,"listings":true,"mangaList":true,"imageRequest":true,"home":false,"filters":false,"settings":true,"future":{"login":false,"auth":false,"process_page_image":false,"page_description":false,"base_url":false,"deeplink":false,"migration":false}}}"#;
 // Source-local ABI gate; SDK remains byte-identical. Check before helper forms a slice.
 fn checked_request(ptr: u32, len: u32) -> Option<&'static [u8]> {
     let cap = core::arch::wasm32::memory_size::<0>().checked_mul(65536)?;
@@ -720,7 +754,7 @@ macro_rules! export_op {
         pub extern "C" fn $f(ptr: u32, len: u32) -> u32 {
             reset_http_status();
             match checked_request(ptr, len) {
-                Some(r) => $run(r),
+                Some(r) => { enable_challenge(r); $run(r) },
                 None => write_error($op, "invalid_request", "invalid ABI request range"),
             }
         }

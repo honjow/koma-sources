@@ -10,7 +10,7 @@ const BASE: &[u8] = b"https://www.mhua5.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.manhuawu.koma",
     name: "漫画屋 (Manhuawu)",
-    version: "0.1.7",
+    version: "0.1.8",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -418,11 +418,26 @@ fn code(e: &str) -> &'static str {
         _ => "parse_error",
     }
 }
+// The opaque token comes only from the particular challenged Host response.
+#[derive(Copy,Clone)]
+struct ChallengeId { raw:[u8;384], len:usize }
+impl ChallengeId {
+    fn from_response(response:&[u8])->Self {
+        let mut id=Self{raw:[0;384],len:0};
+        if let Some(v)=json_object_member(response,b"challengeRequestId") {
+            if v.len()<=id.raw.len() && v.first()==Some(&b'"') && v.last()==Some(&b'"') && {let mut decoded=[0u8;384];unescape(&v[1..v.len()-1],&mut decoded).map(|x|!x.is_empty()&&x.len()<=64).unwrap_or(false)} {id.raw[..v.len()].copy_from_slice(v);id.len=v.len();}
+        } id
+    }
+}
+fn challenge_cause_enabled(r:&[u8])->bool {
+    let Some(v)=json_object_member(r,b"hostFeatures") else{return false};
+    v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|c|*c==b',').any(|x|x.trim_ascii()==br#""source_http_challenge_cause_v1""#)
+}
 #[derive(Copy, Clone)]
 enum OperationError {
     Message(&'static str),
     Http(u16),
-    Challenge(u16),
+    Challenge(u16, ChallengeId),
 }
 impl From<&'static str> for OperationError {
     fn from(message: &'static str) -> Self { Self::Message(message) }
@@ -440,13 +455,13 @@ fn http_message(status: u16) -> &'static str {
 fn write_operation_error(op: &str, error: OperationError) -> u32 {
     let status = match error {
         OperationError::Message(message) => return write_error(op, code(message), message),
-        OperationError::Http(status) | OperationError::Challenge(status) => status,
+        OperationError::Http(status) | OperationError::Challenge(status, _) => status,
     };
     let (error_code, message) = match error {
-        OperationError::Challenge(_) => ("challenge_required", "website verification required"),
+        OperationError::Challenge(_, _) => ("challenge_required", "website verification required"),
         _ => (code(http_message(status)), http_message(status)),
     };
-    let mut envelope = [0u8; 512];
+    let mut envelope = [0u8; 1024];
     let mut n = 0;
     let ok = write_bytes(&mut envelope, &mut n, br#"{"type":"response","version":1,"ok":false,"operation":""#)
         && append_json_escaped(&mut envelope, &mut n, op.as_bytes())
@@ -456,6 +471,7 @@ fn write_operation_error(op: &str, error: OperationError) -> u32 {
         && append_json_escaped(&mut envelope, &mut n, message.as_bytes())
         && write_bytes(&mut envelope, &mut n, br#"","status":"#)
         && write_usize(&mut envelope, &mut n, status as usize)
+        && match error { OperationError::Challenge(_,id) if id.len>0 => write_bytes(&mut envelope,&mut n,br#", "challengeRequestId":"#) && write_bytes(&mut envelope,&mut n,&id.raw[..id.len]), _=>true }
         && write_bytes(&mut envelope, &mut n, br#"},"hostHints":{"network":false},"warnings":[]}"#);
     if !ok { return write_error(op, "internal_error", "error response overflow"); }
     response_buffer().write(&envelope[..n], false)
@@ -471,10 +487,10 @@ fn execute<E: Into<OperationError>>(op: &str, r: Result<usize, E>) -> u32 {
             let message = match error {
                 OperationError::Message(message) => message,
                 OperationError::Http(status) => http_message(status),
-                OperationError::Challenge(_) => "website verification required",
+                OperationError::Challenge(_, _) => "website verification required",
             };
             let error_code = match error {
-                OperationError::Challenge(_) => "challenge_required",
+                OperationError::Challenge(_, _) => "challenge_required",
                 _ => code(message),
             };
             diagnostic(b"operation_error", error_code.as_bytes());
@@ -485,7 +501,7 @@ fn execute<E: Into<OperationError>>(op: &str, r: Result<usize, E>) -> u32 {
 fn valid_status(s: &[u8]) -> Option<usize> {
     number(s).filter(|n| (100..=599).contains(n))
 }
-fn fetch(path: &[u8]) -> Result<Node, OperationError> {
+fn fetch(path: &[u8], request:&[u8]) -> Result<Node, OperationError> {
     host::log_info(b"manhuawu stage=fetch_begin");
     let mut url = [0; 8192];
     let mut n = 0;
@@ -497,6 +513,10 @@ fn fetch(path: &[u8]) -> Result<Node, OperationError> {
             "network failure"
         },
     )?;
+    let len = if challenge_cause_enabled(request) {
+        let b=http_req_buf();let mut n=len.checked_sub(1).ok_or("network failure")?;
+        bytes(b,&mut n,br#", "wantChallengeRequestId":true}"#)?;n
+    } else {len};
     let len = host::http_request(&http_req_buf()[..len], http_out()).map_err(|e| {
         diagnostic(
             b"http_return",
@@ -528,7 +548,7 @@ fn fetch(path: &[u8]) -> Result<Node, OperationError> {
             if matches!(status, 401 | 403 | 503)
                 && json_object_member(response, b"accessSignal") == Some(b"\"challenge_required\"".as_slice())
             {
-                return Err(OperationError::Challenge(status as u16));
+                return Err(OperationError::Challenge(status as u16, if challenge_cause_enabled(request) {ChallengeId::from_response(response)} else {ChallengeId{raw:[0;384],len:0}}));
             }
             return Err(OperationError::Http(status as u16));
         }
@@ -765,7 +785,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, OperationError> {
             return Err("payload overflow".into());
         }
     }
-    let root = fetch(&path[..n])?;
+    let root = fetch(&path[..n],r)?;
     if root.select(b"#code-div").is_ok() {
         return Err("permission denied".into());
     }
@@ -866,7 +886,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, OperationError> {
 fn detail(r: &[u8]) -> Result<usize, OperationError> {
     let (id, slug) = manga_identity(r)?;
     let mut path = [0; 1024];
-    let root = fetch(detail_path(slug, &mut path)?)?;
+    let root = fetch(detail_path(slug, &mut path)?,r)?;
     let owner = root.select(b".de-info__box")?;
     let mut text = [0; 32768];
     let title = owner.select(b".comic-title")?.text(&mut text)?;
@@ -932,7 +952,7 @@ fn explicit_chapter_number(title: &[u8]) -> Option<&[u8]> {
 fn chapters(r: &[u8]) -> Result<usize, OperationError> {
     let (id, slug) = manga_identity(r)?;
     let mut path = [0; 1024];
-    let root = fetch(detail_path(slug, &mut path)?)?;
+    let root = fetch(detail_path(slug, &mut path)?,r)?;
     let _owner = root.select(b".chapter__list-box")?;
     let nodes = Nodes::get(&root, b".chapter__list-box > li > :first-child")?;
     if nodes.n == 0 {
@@ -976,7 +996,7 @@ fn chapters(r: &[u8]) -> Result<usize, OperationError> {
 }
 fn pages(r: &[u8]) -> Result<usize, OperationError> {
     let cp = chapter_id(r)?;
-    let root = fetch(cp)?;
+    let root = fetch(cp,r)?;
     let nodes = Nodes::get(&root, b"img[data-original]")?;
     if nodes.n == 0 {
         return Err("page structure missing".into());
