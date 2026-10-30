@@ -24,7 +24,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.noyacg.koma",
     name: "NoyAcg",
-    version: "0.1.6",
+    version: "0.1.7",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -586,7 +586,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
         && write_tags(payload, &mut c, info)
         && write_bytes(payload, &mut c, br#"],"links":[{"kind":"source","url":""#)
         && write_bytes(payload, &mut c, BASE_URL)
-        && write_bytes(payload, &mut c, b"/book/")
+        && write_bytes(payload, &mut c, b"/manga/")
         && append_json_escaped(payload, &mut c, id)
         && write_bytes(payload, &mut c, br#""}]}}"#);
     if !ok {
