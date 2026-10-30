@@ -50,7 +50,7 @@ jobs:
         run: bash build.sh --package-only --tag "sources-${GITHUB_SHA}"
       - name: Publication coverage
         run: |
-          jq -r '"Installable: \([.[] | select(.available)] | length)\nPending identity asset: \([.[] | select(.available == false)] | length)", (.[] | select(.available == false) | "- \(.name) (\(.id)): \(.reason)")' dist/catalogue.json >> "$GITHUB_STEP_SUMMARY"
+          jq -r '"Installable: \([.[] | select(.available)] | length)\nUnavailable: \([.[] | select(.available == false)] | length)", (.[] | select(.available == false) | "- \(.name) (\(.id)): \(.reason)")' dist/catalogue.json >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
           name: source-library-${{ github.sha }}
@@ -73,7 +73,7 @@ jobs:
               exit 0
             fi
           else
-            gh release create "$RELEASE_TAG" --draft --target "$GITHUB_SHA" --title "Source library ${GITHUB_SHA:0:8}" --notes "Automatic source library. index.json lists installable packages; catalogue.json records every production source and any missing identity asset. Build success does not certify all provider content."
+            gh release create "$RELEASE_TAG" --draft --target "$GITHUB_SHA" --title "Source library ${GITHUB_SHA:0:8}" --notes "Automatic source library. index.json lists installable packages; catalogue.json records every production source and its availability status. Build success does not certify all provider content."
           fi
           gh release upload "$RELEASE_TAG" dist/index.json dist/catalogue.json dist/release-packages/* dist/release-icons/* --clobber
           gh release edit "$RELEASE_TAG" --draft=false --latest

@@ -564,13 +564,15 @@ for name in $(selected_source_names | sort); do
   INDEX_ENTRIES+=("$json")
 done
 
-# The complete production catalogue is also published for discovery/auditing.
-printf '%s\n' "${INDEX_ENTRIES[@]}" | jq -s 'map(. + {available: true})' > "$OUTPUT_DIR/catalogue.json"
+# Keep the source and package for existing installations, but stop offering new
+# installs while its upstream is unavailable. Restore discovery only when that
+# source is usable again; this does not remove installed data or old releases.
+printf '%s\n' "${INDEX_ENTRIES[@]}" | jq -s 'map(if .id == "com.happymh.koma" then . + {available: false, reason: "upstream unavailable"} else . + {available: true} end)' > "$OUTPUT_DIR/catalogue.json"
 
 # Generate index.json
 log ""
 log "▸ Generating index.json..."
-printf '%s\n' "${INDEX_ENTRIES[@]}" | jq -s '.' > "$OUTPUT_DIR/index.json"
+jq '[.[] | select(.available) | del(.available)]' "$OUTPUT_DIR/catalogue.json" > "$OUTPUT_DIR/index.json"
 count=$(jq 'length' "$OUTPUT_DIR/index.json")
 log "  ✓ index.json ($count sources)"
 
