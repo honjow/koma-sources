@@ -21,10 +21,13 @@ koma_source_sdk::koma_source_buffers! {
 }
 koma_source_sdk::koma_source_helpers!();
 
+// Preserve decoded query bytes independently from URL/form scratch buffers.
+static mut SEARCH_QUERY: [u8; 8192] = [0; 8192];
+
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.noyacg.koma",
     name: "NoyAcg",
-    version: "0.1.8",
+    version: "0.1.9",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -422,7 +425,18 @@ fn search_filter_values<'a>(req: &'a [u8], mode: &'a [u8]) -> Option<(&'a [u8], 
     Some((mode,if sort==b"time" {b""} else {sort},if finished==b"all" {b""} else {finished}))
 }
 fn run_search(req: &[u8]) -> u32 {
-    let query = extract_json_string(req, b"query").unwrap_or(b"");
+    // JSON escapes belong to the host request, not the search term sent to the provider.
+    let args = json_object_member(req, b"args").unwrap_or(req);
+    let raw = match json_object_member(args, b"query") {
+        None => b"".as_slice(),
+        Some(v) if v.len() >= 2 && v[0] == b'"' && v[v.len() - 1] == b'"' => &v[1..v.len() - 1],
+        Some(_) => return write_error("search", "invalid_request", "invalid query"),
+    };
+    let out = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
+    let query = match koma_source_sdk::plain_text::decode_json_content(raw, out) {
+        Ok(v) if core::str::from_utf8(v).is_ok() => v,
+        _ => return write_error("search", "invalid_request", "invalid query"),
+    };
     let page = request_page(req);
     let mode = extract_json_string(req, b"mode").unwrap_or(b"default");
     let Some((mode,sort,finished)) = search_filter_values(req,mode) else { return write_error("search", "invalid_request", "invalid search filter"); };
