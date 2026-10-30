@@ -10,7 +10,15 @@ type E = &'static str;
 type R<T> = Result<T, E>;
 const MAX: usize = 1048576;
 const WEB: &[u8] = b"https://www.jjmhw2.top";
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.mangaxiaosi.zh.koma",name:"Manga Xiao Si",version:"0.1.5",api_version:"0.2",language:"zh",author:"Koma",description:"Manga Xiao Si published finite rank and query catalogue. Per-work rating, picture availability and usage unknown.",content_rating:"nsfw"};
+const MIRROR: &[u8] = b"https://www.jjmh.top";
+// Only the two fixed reference domains are accepted; saved IDs never contain a domain.
+fn request_origin(r: &[u8]) -> &'static [u8] {
+    match json_object_member(r,b"settings").and_then(|v|extract_json_string(v,b"preferredMirror")) {
+        Some(v) if v == MIRROR => MIRROR,
+        _ => WEB,
+    }
+}
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.mangaxiaosi.zh.koma",name:"Manga Xiao Si",version:"0.1.6",api_version:"0.2",language:"zh",author:"Koma",description:"Manga Xiao Si published finite rank and query catalogue. Per-work rating, picture availability and usage unknown.",content_rating:"nsfw"};
 #[allow(dead_code)]
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
@@ -22,7 +30,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     image_request: true,
     home: false,
     filters: true,
-    settings: false,
+    settings: true,
     credentials: false,
 };
 koma_source_sdk::koma_source_buffers! {payload:1048000,http_out:MAX,body:MAX,http_req:32768,scratch:8192,}
@@ -432,11 +440,11 @@ fn st<'a>(d: HtmlDescriptor, s: &[u8], b: &'a mut [u8]) -> R<&'a [u8]> {
     txt(x.0, b)
 }
 const UA: &[u8] = b"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
-fn fetch(url: &[u8]) -> R<Owned> {
+fn fetch(url: &[u8], origin: &[u8]) -> R<Owned> {
     if host::check_cancel() {
         return Err("cancelled");
     }
-    if !url.starts_with(b"https://www.jjmhw2.top/") {
+    if !url.strip_prefix(origin).map_or(false,|v|v.starts_with(b"/")) {
         return Err("metadata host");
     }
     let dst = http_req_buf();
@@ -491,12 +499,12 @@ fn child(d: HtmlDescriptor, s: &[u8]) -> R<Owned> {
         host::html_select(d, s).map_err(|_| "missing HTML field")?,
     ))
 }
-fn abs<'a>(v: &[u8], b: &'a mut [u8]) -> R<&'a [u8]> {
+fn abs<'a>(v: &[u8], b: &'a mut [u8], origin: &[u8]) -> R<&'a [u8]> {
     let mut n = 0;
     if v.starts_with(b"//") {
         bytes(b, &mut n, b"https:")?
     } else if v.starts_with(b"/") {
-        bytes(b, &mut n, WEB)?
+        bytes(b, &mut n, origin)?
     } else if !v.starts_with(b"https://") {
         return Err("URL scheme");
     }
@@ -505,7 +513,7 @@ fn abs<'a>(v: &[u8], b: &'a mut [u8]) -> R<&'a [u8]> {
 }
 fn href_id<'a>(v: &'a [u8], kind: &[u8]) -> R<&'a [u8]> {
     ident(
-        v.strip_prefix(WEB)
+        v.strip_prefix(WEB).or_else(||v.strip_prefix(MIRROR))
             .unwrap_or(v)
             .strip_prefix(kind)
             .ok_or("href identity")?,
@@ -522,6 +530,8 @@ fn image_path(v: &[u8]) -> R<&[u8]> {
     let p = v
         .strip_prefix(b"https://www.jjmhw9.top/static/upload/book/")
         .or_else(|| v.strip_prefix(b"https://www.jjmhw10.top/static/upload/book/"))
+        // Current reference mirror returns this exact origin; work/chapter ownership remains mandatory.
+        .or_else(|| v.strip_prefix(b"https://www.jjmhw11.top/static/upload/book/"))
         .ok_or("image host")?;
     if p.is_empty()
         || p.len() > 900
@@ -550,7 +560,7 @@ fn title<'a>(d: HtmlDescriptor, s: &[u8], b: &'a mut [u8]) -> R<&'a [u8]> {
         Ok(x)
     }
 }
-fn emit_card(out: &mut [u8], n: &mut usize, d: HtmlDescriptor, rank: bool) -> R<usize> {
+fn emit_card(out: &mut [u8], n: &mut usize, d: HtmlDescriptor, rank: bool, origin: &[u8]) -> R<usize> {
     let mut hb = [0; 256];
     let id = href_id(
         sa(
@@ -585,7 +595,7 @@ fn emit_card(out: &mut [u8], n: &mut usize, d: HtmlDescriptor, rank: bool) -> R<
         raw
     };
     let mut cb = [0; 1024];
-    let cv = abs(raw, &mut cb)?;
+    let cv = abs(raw, &mut cb, origin)?;
     cover(cv, id)?;
     bytes(out, n, b"{\"id\":\"mx:zh:")?;
     bytes(out, n, id)?;
@@ -616,6 +626,7 @@ fn selected<'a>(f: &'a [u8], k: &[u8], out: &'a mut [u8], fallback: &'a [u8]) ->
     match member(f,k)? { Some(v)=>uq(v,out), None=>Ok(fallback) }
 }
 fn list(r: &[u8], search: bool) -> R<usize> {
+    let origin=request_origin(r);
     let a=args(r)?;
     let f = if !search && filter_feature(r) {member(a,b"filters")?.unwrap_or(b"{}")} else {b"{}"};
     let filtered = member(f,b"tag")?.is_some() || member(f,b"area")?.is_some() || member(f,b"status")?.is_some();
@@ -636,14 +647,14 @@ fn list(r: &[u8], search: bool) -> R<usize> {
         if trim_ascii(query).is_empty() {
             return Err("empty query");
         };
-        bytes(&mut ub, &mut un, WEB)?;
+        bytes(&mut ub, &mut un, origin)?;
         bytes(&mut ub, &mut un, b"/search?keyword=")?;
         if !write_url_encoded(&mut ub, &mut un, query) {
             return Err("query capacity");
         }
     } else {
         if text(args(r)?, b"listingId")? != b"listing:popular" {return Err("listing identity");}
-        bytes(&mut ub,&mut un,WEB)?;
+        bytes(&mut ub,&mut un,origin)?;
         if filtered {
             bytes(&mut ub,&mut un,b"/booklist?page=")?;wn(&mut ub,&mut un,page)?;
             bytes(&mut ub,&mut un,b"&tag=")?;if !write_url_encoded(&mut ub,&mut un,tag) {return Err("tag capacity");}
@@ -651,7 +662,7 @@ fn list(r: &[u8], search: bool) -> R<usize> {
             bytes(&mut ub,&mut un,b"&end=")?;bytes(&mut ub,&mut un,status)?;
         } else {bytes(&mut ub,&mut un,b"/rank")?;}
     }
-    let doc = fetch(&ub[..un])?;
+    let doc = fetch(&ub[..un],origin)?;
     let mut section = None;
     let mut sections_owner: Option<All> = None;
     if !search && !filtered {
@@ -689,7 +700,7 @@ fn list(r: &[u8], search: bool) -> R<usize> {
     if next.len > 0 {
         if !filtered || next.len != 1 {return Err("unverified query pagination");}
         let mut hb=[0u8;2048];let href=attr(next.at(0),b"href",&mut hb)?;
-        let query=href.strip_prefix(WEB).unwrap_or(href).strip_prefix(b"/booklist?").ok_or("next path")?;
+        let query=href.strip_prefix(origin).or_else(||href.strip_prefix(WEB)).unwrap_or(href).strip_prefix(b"/booklist?").ok_or("next path")?;
         let mut seen=0u8;let mut encoded_tag=[0u8;512];let mut etn=0;
         if !write_url_encoded(&mut encoded_tag,&mut etn,tag) {return Err("tag capacity");}
         for part in query.split(|v|*v==b'&') {
@@ -707,7 +718,7 @@ fn list(r: &[u8], search: bool) -> R<usize> {
         if i > 0 {
             bytes(out, &mut n, b",")?
         };
-        let id = emit_card(out, &mut n, cards.at(i), !search && !filtered)?;
+        let id = emit_card(out, &mut n, cards.at(i), !search && !filtered, origin)?;
         if seen[..i].contains(&id) {
             return Err("listing duplicate");
         };
@@ -718,13 +729,13 @@ fn list(r: &[u8], search: bool) -> R<usize> {
     else {bytes(out,&mut n,b"null,\"hasMore\":false}}")?;}
     Ok(n)
 }
-fn detail_doc(id: &[u8]) -> R<Owned> {
+fn detail_doc(id: &[u8], origin: &[u8]) -> R<Owned> {
     let mut b = [0; 128];
-    let doc = fetch(make(&[WEB, b"/book/", id], &mut b)?)?;
+    let doc = fetch(make(&[origin, b"/book/", id], &mut b)?,origin)?;
     let mut cb = [0; 1024];
     let cv = sa(doc.0, b".banner_detail_form .cover img", b"src", &mut cb)?;
     let mut ab = [0; 1024];
-    cover(abs(cv, &mut ab)?, id)?;
+    cover(abs(cv, &mut ab,origin)?, id)?;
     let mut t = [0; 4096];
     title(doc.0, b".banner_detail_form .info h1", &mut t)?;
     Ok(doc)
@@ -780,8 +791,9 @@ fn chapter_number<'a>(t: &'a [u8]) -> Option<&'a [u8]> {
     Some(raw)
 }
 fn detail(r: &[u8], chapters: bool) -> R<usize> {
+    let origin=request_origin(r);
     let id = work(r)?;
-    let doc = detail_doc(id)?;
+    let doc = detail_doc(id,origin)?;
     let out = payload_buf();
     let mut n = 0;
     if chapters {
@@ -817,7 +829,7 @@ fn detail(r: &[u8], chapters: bool) -> R<usize> {
     let mut cb = [0; 1024];
     let cv = sa(doc.0, b".banner_detail_form .cover img", b"src", &mut cb)?;
     let mut ab = [0; 1024];
-    let cv = abs(cv, &mut ab)?;
+    let cv = abs(cv, &mut ab,origin)?;
     cover(cv, id)?;
     bytes(out, &mut n, b"{\"manga\":{\"id\":\"mx:zh:")?;
     bytes(out, &mut n, id)?;
@@ -883,18 +895,17 @@ fn detail(r: &[u8], chapters: bool) -> R<usize> {
     }
     bytes(out, &mut n, b"],\"status\":")?;
     q(out, &mut n, status)?;
-    bytes(
-        out,
-        &mut n,
-        b",\"links\":[{\"kind\":\"source\",\"url\":\"https://www.jjmhw2.top/book/",
-    )?;
+    bytes(out, &mut n, b",\"links\":[{\"kind\":\"source\",\"url\":\"")?;
+    bytes(out, &mut n, origin)?;
+    bytes(out, &mut n, b"/book/")?;
     bytes(out, &mut n, id)?;
     bytes(out, &mut n, b"\"}]}}")?;
     Ok(n)
 }
 fn pages(r: &[u8]) -> R<usize> {
+    let origin=request_origin(r);
     let (wid, cid) = chapter_id(r)?;
-    let doc = detail_doc(wid)?;
+    let doc = detail_doc(wid,origin)?;
     let ch = collect(&doc)?;
     let mut matched = false;
     for i in 0..ch.len {
@@ -909,7 +920,7 @@ fn pages(r: &[u8]) -> R<usize> {
     drop(ch);
     drop(doc);
     let mut u = [0; 256];
-    let doc = fetch(make(&[WEB, b"/chapter/", cid], &mut u)?)?;
+    let doc = fetch(make(&[origin, b"/chapter/", cid], &mut u)?,origin)?;
     let mut h = [0; 256];
     if href_id(sa(doc.0, b"a.comic-name", b"href", &mut h)?, b"/book/")? != wid {
         return Err("chapter work ownership");
@@ -930,7 +941,7 @@ fn pages(r: &[u8]) -> R<usize> {
             raw
         };
         let mut ub = [0; 1024];
-        let url = abs(raw, &mut ub)?;
+        let url = abs(raw, &mut ub,origin)?;
         let p = image_path(url)?;
         let mut pre = [0; 128];
         let pre = make(&[wid, b"/", cid, b"/"], &mut pre)?;
@@ -1043,7 +1054,9 @@ fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_supported", "not supported")
 }
 fn run_get_settings(_: &[u8]) -> u32 {
-    write_error("get_settings", "not_supported", "not supported")
+    let data = r#"{"settings":[{"id":"preferredMirror","name":"首选镜像","kind":"select","default":"https://www.jjmhw2.top","options":[{"value":"https://www.jjmhw2.top","label":"www.jjmhw2.top"},{"value":"https://www.jjmh.top","label":"www.jjmh.top"}]}]}"#.as_bytes();
+    payload_buf()[..data.len()].copy_from_slice(data);
+    write_success_payload("get_settings",data.len())
 }
 fn run_get_filters(r: &[u8]) -> u32 {
     let data=if filter_feature(r) {r###"{"filters":[{"id":"notice","type":"header","name":"注意：搜索时不支持分类过滤","scope":"browse"},{"id":"tag","name":"题材","type":"select","scope":"browse","options":[{"label":"全部","value":"全部"},{"label":"青春","value":"青春"},{"label":"性感","value":"性感"},{"label":"长腿","value":"长腿"},{"label":"多人","value":"多人"},{"label":"御姐","value":"御姐"},{"label":"巨乳","value":"巨乳"},{"label":"新婚","value":"新婚"},{"label":"媳妇","value":"媳妇"},{"label":"暧昧","value":"暧昧"},{"label":"清纯","value":"清纯"},{"label":"调教","value":"调教"},{"label":"少妇","value":"少妇"},{"label":"风骚","value":"风骚"},{"label":"同居","value":"同居"},{"label":"淫乱","value":"淫乱"},{"label":"好友","value":"好友"},{"label":"女神","value":"女神"},{"label":"诱惑","value":"诱惑"},{"label":"偷情","value":"偷情"},{"label":"出轨","value":"出轨"},{"label":"正妹","value":"正妹"},{"label":"家教","value":"家教"}]},{"id":"area","name":"地区","type":"select","scope":"browse","options":[{"label":"全部","value":"-1"},{"label":"韩国","value":"1"},{"label":"日本","value":"2"},{"label":"台湾","value":"3"}]},{"id":"status","name":"进度","type":"select","scope":"browse","options":[{"label":"全部","value":"-1"},{"label":"连载","value":"0"},{"label":"完结","value":"1"}]}]}"###.as_bytes()} else {b"{\"filters\":[]}"};
@@ -1071,7 +1084,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 pub extern "C" fn koma_source_info() -> u32 {
     response_buffer().write_success_parts("source_info", &[
  b"{\"sourceInfo\":{\"id\":\"", SOURCE_INFO.id.as_bytes(), b"\",\"name\":\"", SOURCE_INFO.name.as_bytes(), b"\",\"version\":\"", SOURCE_INFO.version.as_bytes(), b"\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"",SOURCE_INFO.description.as_bytes(),
- "\",\"contentRating\":\"nsfw\",\"localizedNames\":{\"zh-Hans\":\"漫小肆\",\"zh-Hant\":\"漫小肆\",\"en\":\"Manga Xiao Si (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":true,\"settings\":false,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes()
+ "\",\"contentRating\":\"nsfw\",\"localizedNames\":{\"zh-Hans\":\"漫小肆\",\"zh-Hant\":\"漫小肆\",\"en\":\"Manga Xiao Si (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":true,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes()
  ])
 }
 macro_rules! export_op {
