@@ -11,6 +11,25 @@ use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{build_get_request, fetch_error_code, FetchError};
 
 const BASE_URL: &[u8] = b"https://www.mangabz.com";
+const XM_URL: &[u8] = b"https://xmanhua.com";
+const YY_URL: &[u8] = b"https://yymanhua.com";
+fn mirror_supported(req: &[u8]) -> bool {
+    json_object_member(req,b"hostFeatures").map(|v| v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|b|*b==b',').any(|v|v.trim_ascii()==br#""mangabz_mirror_session_v1""#)).unwrap_or(false)
+}
+fn mirror_origin(req: &[u8]) -> &'static [u8] {
+    if !mirror_supported(req) { return BASE_URL; }
+    match json_object_member(req,b"settings").and_then(|v|extract_json_string(v,b"preferredMirror")) {
+        Some(v) if v==XM_URL => XM_URL, Some(v) if v==YY_URL => YY_URL, _ => BASE_URL,
+    }
+}
+fn mirror_suffix(origin: &[u8]) -> &'static [u8] { if origin==XM_URL {b"xm"} else if origin==YY_URL {b"yy"} else {b"bz"} }
+// Canonical stored work IDs remain bz; only requests use the selected suffix.
+fn mirror_work<'a>(id: &'a [u8], origin: &[u8], out: &'a mut [u8]) -> Option<&'a [u8]> {
+    if origin==BASE_URL { return Some(id); }
+    let stem=id.strip_suffix(b"bz")?; if stem.is_empty() {return None}
+    let mut n=0; if !write_bytes(out,&mut n,stem) || !write_bytes(out,&mut n,mirror_suffix(origin)) {return None} Some(&out[..n])
+}
+
 koma_source_sdk::koma_source_buffers! {
     payload: 1024 * 1024,
     http_out: 2 * 1024 * 1024,
@@ -23,7 +42,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mangabz.koma",
     name: "Mangabz",
-    version: "0.1.10",
+    version: "0.1.11",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -60,17 +79,19 @@ fn language_supported(req: &[u8]) -> bool {
 fn language_cookie(req: &[u8]) -> Option<&'static [u8]> {
     if !language_supported(req) { return None; }
     let value = json_object_member(req, b"settings").and_then(|v| json_object_member(v, b"showZhHantWebsite"));
-    Some(if matches!(value, Some(b"true") | Some(br#""true""#)) { b"mangabz_lang=1" } else { b"mangabz_lang=2" })
+    let trad = matches!(value, Some(b"true") | Some(br#""true""#));
+    Some(match (mirror_origin(req),trad) { (XM_URL,true)=>b"xmanhua_lang=1",(XM_URL,false)=>b"xmanhua_lang=2",(YY_URL,true)=>b"yymanhua_lang=1",(YY_URL,false)=>b"yymanhua_lang=2",(_,true)=>b"mangabz_lang=1",(_,false)=>b"mangabz_lang=2" })
 }
-fn language_cookie_host(url: &[u8]) -> bool {
+fn language_cookie_host(url: &[u8], cookie: &[u8]) -> bool {
     let rest = match url.strip_prefix(b"https://").or_else(|| url.strip_prefix(b"http://")) { Some(v) => v, None => return false };
     let authority = &rest[..rest.iter().position(|b| matches!(*b,b'/'|b'?'|b'#')).unwrap_or(rest.len())];
     if authority.contains(&b'@') { return false; }
     let host = &authority[..authority.iter().position(|b| *b == b':').unwrap_or(authority.len())];
-    host.eq_ignore_ascii_case(b"mangabz.com") || (host.len() > b".mangabz.com".len() && host[host.len()-b".mangabz.com".len()..].eq_ignore_ascii_case(b".mangabz.com"))
+    let domain = if cookie.starts_with(b"xmanhua_lang=") { b"xmanhua.com".as_slice() } else if cookie.starts_with(b"yymanhua_lang=") { b"yymanhua.com".as_slice() } else { b"mangabz.com".as_slice() };
+    host.eq_ignore_ascii_case(domain) || (host.len()>domain.len() && host[host.len()-domain.len()-1]==b'.' && host[host.len()-domain.len()..].eq_ignore_ascii_case(domain))
 }
 fn fetch_body(url: &[u8], referer: Option<&[u8]>, cookie: Option<&[u8]>) -> Result<usize, FetchError> {
-    let cookie = cookie.filter(|_| language_cookie_host(url));
+    let cookie = cookie.filter(|v| language_cookie_host(url,v));
     let headers: [(&[u8], &[u8]); 2] = [(b"User-Agent", b"Koma/0.1"), (b"Cookie", cookie.unwrap_or(b""))];
     let req_len = build_get_request(
         http_req_buf(),
@@ -123,7 +144,7 @@ fn make_url(parts: &[&[u8]]) -> Option<usize> {
     Some(c)
 }
 
-fn manga_id_from_href(href: &[u8]) -> Option<&[u8]> {
+fn manga_id_from_href<'a>(href: &'a [u8], origin: &[u8]) -> Option<&'a [u8]> {
     if href.len() < 4 || href[0] != b'/' {
         return None;
     }
@@ -131,7 +152,7 @@ fn manga_id_from_href(href: &[u8]) -> Option<&[u8]> {
     while end < href.len() && href[end] != b'/' && href[end] != b'?' && href[end] != b'#' {
         end += 1;
     }
-    if end <= 2 || &href[end - 2..end] != b"bz" {
+    if end <= 2 || &href[end - 2..end] != mirror_suffix(origin) {
         return None;
     }
     Some(&href[1..end])
@@ -224,7 +245,7 @@ fn write_card_item(
         && write_bytes(payload, c, br#""]}"#)
 }
 
-fn parse_cards(html: &[u8], payload: &mut [u8], c: &mut usize, tag: &[u8]) -> Result<usize, &'static str> {
+fn parse_cards(html: &[u8], payload: &mut [u8], c: &mut usize, tag: &[u8], origin: &[u8]) -> Result<usize, &'static str> {
     let mut pos = 0usize;
     let mut written = 0usize;
     loop {
@@ -243,7 +264,7 @@ fn parse_cards(html: &[u8], payload: &mut [u8], c: &mut usize, tag: &[u8]) -> Re
             Some(v) => v,
             None => continue,
         };
-        let id = match manga_id_from_href(href) {
+        let id = match manga_id_from_href(href, origin) {
             Some(v) => v,
             None => continue,
         };
@@ -261,6 +282,11 @@ fn parse_cards(html: &[u8], payload: &mut [u8], c: &mut usize, tag: &[u8]) -> Re
                 .unwrap_or(a_start);
             cover = attr_value(&html[img_start..img_end], b"src").unwrap_or(b"");
         }
+        let mut canonical = [0u8; 512]; let id = if origin == BASE_URL { id } else {
+            let Some(stem)=id.strip_suffix(mirror_suffix(origin)) else {continue};
+            if stem.is_empty() {continue}
+            let mut n=0; if !write_bytes(&mut canonical,&mut n,stem) || !write_bytes(&mut canonical,&mut n,b"bz") {return Err("work id overflow")}; &canonical[..n]
+        };
         if written > 0 && !write_bytes(payload, c, b",") {
             return Err("payload overflow");
         }
@@ -287,7 +313,7 @@ fn find_last_subslice(haystack: &[u8], needle: &[u8]) -> Option<usize> {
     result
 }
 
-fn write_manga_page_from_url(operation: &str, url: &[u8], page: usize, cookie: Option<&[u8]>) -> u32 {
+fn write_manga_page_from_url(operation: &str, url: &[u8], page: usize, cookie: Option<&[u8]>, origin: &[u8]) -> u32 {
     let html_len = match fetch_body(url, None, cookie) {
         Ok(n) => n,
         Err(e) => {
@@ -301,7 +327,7 @@ fn write_manga_page_from_url(operation: &str, url: &[u8], page: usize, cookie: O
     if !write_bytes(payload, &mut c, br#"{"items":["#) {
         return write_error(operation, "internal_error", "payload overflow");
     }
-    let written = match parse_cards(html, payload, &mut c, b"mangabz") {
+    let written = match parse_cards(html, payload, &mut c, b"mangabz", origin) {
         Ok(count) => count,
         Err(message) => return write_error(operation, "parse_error", message),
     };
@@ -350,7 +376,8 @@ fn run_search(req: &[u8]) -> u32 {
     }
     if query.starts_with(b"id:") {
         let id = &query[3..];
-        let url_len = match make_url(&[BASE_URL, b"/", id, b"/"]) {
+        let mut mirror_id=[0u8;512]; let Some(request_id)=mirror_work(id,mirror_origin(req),&mut mirror_id) else {return write_error("search","invalid_request","unexpected mangaId")};
+        let url_len = match make_url(&[mirror_origin(req), b"/", request_id, b"/"]) {
             Some(n) => n,
             None => return write_error("search", "internal_error", "url overflow"),
         };
@@ -363,7 +390,7 @@ fn run_search(req: &[u8]) -> u32 {
     };
     let mut c = 0usize;
     let url_buf = scratch_a();
-    if !(write_bytes(url_buf, &mut c, BASE_URL)
+    if !(write_bytes(url_buf, &mut c, mirror_origin(req))
         && write_bytes(url_buf, &mut c, b"/search?title=")
         && write_url_encoded(url_buf, &mut c, query)
         && write_bytes(url_buf, &mut c, b"&page=")
@@ -372,7 +399,7 @@ fn run_search(req: &[u8]) -> u32 {
         return write_error("search", "internal_error", "url overflow");
     }
     let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), c) };
-    write_manga_page_from_url("search", url, page, language_cookie(req))
+    write_manga_page_from_url("search", url, page, language_cookie(req), mirror_origin(req))
 }
 
 fn search_single_manga(url: &[u8], id: &[u8], cookie: Option<&[u8]>) -> u32 {
@@ -545,7 +572,8 @@ fn run_get_manga(req: &[u8]) -> u32 {
         return write_error("get_manga", "invalid_request", "unexpected mangaId");
     }
     let id = &manga_id[6..];
-    let url_len = match make_url(&[BASE_URL, b"/", id, b"/"]) {
+    let mut mirror_id=[0u8;512]; let Some(request_id)=mirror_work(id,mirror_origin(req),&mut mirror_id) else {return write_error("get_manga","invalid_request","unexpected mangaId")};
+    let url_len = match make_url(&[mirror_origin(req), b"/", request_id, b"/"]) {
         Some(n) => n,
         None => return write_error("get_manga", "internal_error", "url overflow"),
     };
@@ -612,7 +640,8 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         return write_error("get_chapters", "invalid_request", "unexpected mangaId");
     }
     let id = &manga_id[6..];
-    let url_len = match make_url(&[BASE_URL, b"/", id, b"/"]) {
+    let mut mirror_id=[0u8;512]; let Some(request_id)=mirror_work(id,mirror_origin(req),&mut mirror_id) else {return write_error("get_chapters","invalid_request","unexpected mangaId")};
+    let url_len = match make_url(&[mirror_origin(req), b"/", request_id, b"/"]) {
         Some(n) => n,
         None => return write_error("get_chapters", "internal_error", "url overflow"),
     };
@@ -821,7 +850,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
     let mut page = 1usize;
     let mut written = 0usize;
     while page <= page_count {
-        let got = match fetch_chapter_images(manga, cid, page, payload, &mut c, &mut written, language_cookie(req)) {
+        let got = match fetch_chapter_images(manga, cid, page, payload, &mut c, &mut written, language_cookie(req), mirror_origin(req)) {
             Ok(n) => n,
             Err(e) => {
                 let (code, msg) = fetch_error_code(e);
@@ -874,10 +903,11 @@ fn fetch_chapter_images(
     c: &mut usize,
     written: &mut usize,
     cookie: Option<&[u8]>,
+    origin: &[u8],
 ) -> Result<usize, FetchError> {
     let url_buf = scratch_a();
     let mut u = 0usize;
-    if !(write_bytes(url_buf, &mut u, BASE_URL)
+    if !(write_bytes(url_buf, &mut u, origin)
         && write_bytes(url_buf, &mut u, b"/m")
         && write_bytes(url_buf, &mut u, cid)
         && write_bytes(url_buf, &mut u, b"/chapterimage.ashx?cid=")
@@ -890,7 +920,7 @@ fn fetch_chapter_images(
     let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), u) };
     let referer_buf = scratch_b();
     let mut r = 0usize;
-    if !(write_bytes(referer_buf, &mut r, BASE_URL)
+    if !(write_bytes(referer_buf, &mut r, origin)
         && write_bytes(referer_buf, &mut r, b"/m")
         && write_bytes(referer_buf, &mut r, cid)
         && write_bytes(referer_buf, &mut r, b"/"))
@@ -1118,15 +1148,15 @@ fn run_manga_list(req: &[u8], op: &str) -> u32 {
     let ok=if let Some(mut ids)=base {
         if listing==b"latest" && selected[2].is_none(){ids[2]=2;}
         for i in 0..3 {if let Some(v)=selected[i]{ids[i]=v;}}
-        write_bytes(url_buf,&mut c,BASE_URL) && write_bytes(url_buf,&mut c,b"/manga-list-") && write_usize(url_buf,&mut c,ids[0]) && write_bytes(url_buf,&mut c,b"-") && write_usize(url_buf,&mut c,ids[1]) && write_bytes(url_buf,&mut c,b"-") && write_usize(url_buf,&mut c,ids[2]) && write_bytes(url_buf,&mut c,b"-p") && write_usize(url_buf,&mut c,page) && write_bytes(url_buf,&mut c,b"/")
+        write_bytes(url_buf,&mut c,mirror_origin(req)) && write_bytes(url_buf,&mut c,b"/manga-list-") && write_usize(url_buf,&mut c,ids[0]) && write_bytes(url_buf,&mut c,b"-") && write_usize(url_buf,&mut c,ids[1]) && write_bytes(url_buf,&mut c,b"-") && write_usize(url_buf,&mut c,ids[2]) && write_bytes(url_buf,&mut c,b"-p") && write_usize(url_buf,&mut c,page) && write_bytes(url_buf,&mut c,b"/")
     }else{
-        write_bytes(url_buf,&mut c,BASE_URL) && if listing==b"latest" {write_bytes(url_buf,&mut c,b"/manga-list-0-0-2-p")}else{write_bytes(url_buf,&mut c,b"/manga-list-p")} && write_usize(url_buf,&mut c,page) && write_bytes(url_buf,&mut c,b"/")
+        write_bytes(url_buf,&mut c,mirror_origin(req)) && if listing==b"latest" {write_bytes(url_buf,&mut c,b"/manga-list-0-0-2-p")}else{write_bytes(url_buf,&mut c,b"/manga-list-p")} && write_usize(url_buf,&mut c,page) && write_bytes(url_buf,&mut c,b"/")
     };
     if !ok {
         return write_error(op, "internal_error", "url overflow");
     }
     let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), c) };
-    write_manga_page_from_url(op, url, page, language_cookie(req))
+    write_manga_page_from_url(op, url, page, language_cookie(req), mirror_origin(req))
 }
 
 fn run_get_home(_req: &[u8]) -> u32 {
@@ -1145,7 +1175,8 @@ fn run_get_filters(req:&[u8])->u32 {
     let fetch=json_object_member(req,b"args").and_then(|a|json_object_member(a,b"fetchFilterData"))==Some(b"true");
     let keys=[b"genre".as_slice(),b"status",b"sort"];let names=["题材","状态","排序"];let mut defaults=[0usize;3];let mut assigned=[false;3];let mut groups=[0i32;3];
     let doc=if fetch {
-        let n=match fetch_body(b"https://www.mangabz.com/manga-list-p1/",None,language_cookie(req)){Ok(v)=>v,Err(e)=>{let (c,m)=fetch_error_code(e);return write_error("get_filters",c,m)}};
+        let mut u=[0u8;256];let mut un=0; if !write_bytes(&mut u,&mut un,mirror_origin(req)) || !write_bytes(&mut u,&mut un,b"/manga-list-p1/") {return write_error("get_filters","internal_error","url overflow")};
+        let n=match fetch_body(&u[..un],None,language_cookie(req)){Ok(v)=>v,Err(e)=>{let (c,m)=fetch_error_code(e);return write_error("get_filters",c,m)}};
         let html=unsafe{core::slice::from_raw_parts(BODY_BUF.as_ptr(),n)};let doc=match host::html_parse(html){Ok(v)=>FilterDoc(v),Err(_)=>return write_error("get_filters","parse_error","category HTML")};
         if filter_select(doc.0,b".class-line",&mut groups)!=Some(3){return write_error("get_filters","parse_error","category groups")}
         for i in 0..3 {
@@ -1176,7 +1207,8 @@ fn run_get_filters(req:&[u8])->u32 {
 
 fn run_get_settings(req: &[u8]) -> u32 {
     let schema = r#"{"settings":[{"id":"showZhHantWebsite","name":"使用繁体中文","kind":"toggle","default":"false","description":"新请求使用所选语言；不会因切换自动重写库内旧标题。"}]}"#.as_bytes();
-    let settings: &[u8] = if language_supported(req) { schema } else { br#"{"settings":[]}"# };
+    let mirror_schema = r#"{"settings":[{"id":"preferredMirror","name":"首选镜像","kind":"select","default":"https://www.mangabz.com","options":[{"value":"https://www.mangabz.com","label":"mangabz.com"},{"value":"https://xmanhua.com","label":"xmanhua.com"},{"value":"https://yymanhua.com","label":"yymanhua.com"}]},{"id":"showZhHantWebsite","name":"使用繁体中文","kind":"toggle","default":"false","description":"新请求使用所选语言；不会因切换自动重写库内旧标题。"}]}"#.as_bytes();
+    let settings: &[u8] = if mirror_supported(req) && language_supported(req) { mirror_schema } else if language_supported(req) { schema } else { br#"{"settings":[]}"# };
     let payload = payload_buf();
     if settings.len() > payload.len() {
         return write_error("get_settings", "internal_error", "payload overflow");
@@ -1194,8 +1226,10 @@ fn run_get_image_request(req: &[u8]) -> u32 {
     let mut c = 0usize;
     let ok = write_bytes(payload, &mut c, br#"{"url":""#)
         && append_json_escaped(payload, &mut c, url)
-        && write_bytes(payload, &mut c, br#"","headers":{"Referer":"https://www.mangabz.com/","User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0""#)
-        && if let Some(cookie) = language_cookie(req).filter(|_| language_cookie_host(url)) {
+        && write_bytes(payload, &mut c, br#"","headers":{"Referer":""#)
+        && write_bytes(payload, &mut c, mirror_origin(req))
+        && write_bytes(payload, &mut c, br#"/","User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0""#)
+        && if let Some(cookie) = language_cookie(req).filter(|v| language_cookie_host(url,v)) {
             write_bytes(payload, &mut c, br#","Cookie":""#) && write_bytes(payload, &mut c, cookie) && write_bytes(payload, &mut c, b"\"")
         } else { true }
         && write_bytes(payload, &mut c, b"}}");
