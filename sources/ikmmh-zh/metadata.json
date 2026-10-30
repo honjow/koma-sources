@@ -4,5 +4,6 @@
     "zh-Hant": "愛看漫",
     "en": "Ikmmh (Chinese)"
   },
-  "homepage": "https://ymcdnyfqdapp.ikmmh.com"
+  "homepage": "https://ymcdnyfqdapp.ikmmh.com",
+  "chapterOrder": "newest_first"
 }
