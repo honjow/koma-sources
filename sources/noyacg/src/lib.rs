@@ -24,7 +24,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.noyacg.koma",
     name: "NoyAcg",
-    version: "0.1.5",
+    version: "0.1.6",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -42,7 +42,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     home: false,
     filters: true,
     settings: true,
-    image_request: false,
+    image_request: true,
     credentials: false,
 };
 
@@ -56,39 +56,26 @@ fn scratch_b_slice(len: usize) -> &'static [u8] {
     unsafe { core::slice::from_raw_parts(core::ptr::addr_of!(SCRATCH_B).cast::<u8>(), len) }
 }
 
-fn build_headers(dst: &mut [u8], c: &mut usize, form: bool) -> bool {
-    if !write_bytes(
-        dst,
-        c,
-        br#"","headers":{"Accept":"application/json, text/plain, */*","User-Agent":"Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36","referer":"https://noymanga.com/","allow-adult":"both""#,
-    ) {
-        return false;
+// Fixed reference values only; absent or malformed preferences retain both.
+fn adult(req:&[u8])->&'static [u8] {
+    match json_object_member(req,b"settings").and_then(|s|extract_json_string(s,b"ADULT")) {
+        Some(b"false")=>b"false", Some(b"true")=>b"true", _=>b"both",
     }
-    if form
-        && !write_bytes(
-            dst,
-            c,
-            br#","Content-Type":"application/x-www-form-urlencoded""#,
-        )
-    {
-        return false;
-    }
-    write_bytes(dst, c, b"}")
 }
-
-fn build_post_form_request(dst: &mut [u8], url: &[u8], body: &[u8]) -> Option<usize> {
+fn build_headers(dst: &mut [u8], c: &mut usize, form: bool, adult: &[u8]) -> bool {
+    if !(write_bytes(dst,c,br#"","headers":{"Accept":"application/json, text/plain, */*","User-Agent":"Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36","referer":"https://noymanga.com/","allow-adult":""#)
+        && write_bytes(dst,c,adult) && write_bytes(dst,c,b"\"")) {return false}
+    if form && !write_bytes(dst,c,br#","Content-Type":"application/x-www-form-urlencoded""#) {return false}
+    write_bytes(dst,c,b"}")
+}
+fn build_post_form_request(dst: &mut [u8], url: &[u8], body: &[u8], adult: &[u8]) -> Option<usize> {
     let mut c = 0usize;
     write_bytes(dst, &mut c, br#"{"version":1,"method":"POST","url":""#).then_some(())?;
     append_json_escaped(dst, &mut c, url).then_some(())?;
-    build_headers(dst, &mut c, true).then_some(())?;
+    build_headers(dst, &mut c, true, adult).then_some(())?;
     write_bytes(dst, &mut c, br#","bodyBase64":""#).then_some(())?;
     append_json_escaped(dst, &mut c, body).then_some(())?;
-    write_bytes(
-        dst,
-        &mut c,
-        br#"","timeoutMs":15000,"responseKind":"bodyText"}"#,
-    )
-    .then_some(())?;
+    write_bytes(dst,&mut c,br#"","timeoutMs":15000,"responseKind":"bodyText"}"#).then_some(())?;
     Some(c)
 }
 
@@ -115,8 +102,8 @@ fn fetch_with_request(req_len: usize) -> Result<usize, FetchError> {
     decode_json_body(&http_out()[..resp_len])
 }
 
-fn fetch_post_form(url: &[u8], body: &[u8]) -> Result<usize, FetchError> {
-    let req_len = build_post_form_request(http_req_buf(), url, body).ok_or(FetchError::Network)?;
+fn fetch_post_form(url: &[u8], body: &[u8], req: &[u8]) -> Result<usize, FetchError> {
+    let req_len = build_post_form_request(http_req_buf(), url, body, adult(req)).ok_or(FetchError::Network)?;
     fetch_with_request(req_len)
 }
 
@@ -458,7 +445,7 @@ fn run_search(req: &[u8]) -> u32 {
         Some(n) => n,
         None => return write_error("search", "internal_error", "url overflow"),
     };
-    let len = match fetch_post_form(scratch_a_slice(url_len), scratch_b_slice(bc)) {
+    let len = match fetch_post_form(scratch_a_slice(url_len), scratch_b_slice(bc), req) {
         Ok(n) => n,
         Err(e) => {
             let (c, m) = fetch_error_code(e);
@@ -468,7 +455,7 @@ fn run_search(req: &[u8]) -> u32 {
     write_manga_list_response("search", body_slice(len), b"data", page, b"search")
 }
 
-fn fetch_leaderboard(operation: &str, page: usize, typ: &[u8]) -> u32 {
+fn fetch_leaderboard(operation: &str, page: usize, typ: &[u8], req: &[u8]) -> u32 {
     let body = scratch_b();
     let mut bc = 0usize;
     if !(write_bytes(body, &mut bc, b"type=")
@@ -482,7 +469,7 @@ fn fetch_leaderboard(operation: &str, page: usize, typ: &[u8]) -> u32 {
         Some(n) => n,
         None => return write_error(operation, "internal_error", "url overflow"),
     };
-    let len = match fetch_post_form(scratch_a_slice(url_len), scratch_b_slice(bc)) {
+    let len = match fetch_post_form(scratch_a_slice(url_len), scratch_b_slice(bc), req) {
         Ok(n) => n,
         Err(e) => {
             let (c, m) = fetch_error_code(e);
@@ -492,7 +479,7 @@ fn fetch_leaderboard(operation: &str, page: usize, typ: &[u8]) -> u32 {
     write_manga_list_response(operation, body_slice(len), b"info", page, b"popular")
 }
 
-fn fetch_latest(operation: &str, page: usize) -> u32 {
+fn fetch_latest(operation: &str, page: usize, req: &[u8]) -> u32 {
     let body = scratch_b();
     let mut bc = 0usize;
     if !(write_bytes(body, &mut bc, b"page=")
@@ -505,7 +492,7 @@ fn fetch_latest(operation: &str, page: usize) -> u32 {
         Some(n) => n,
         None => return write_error(operation, "internal_error", "url overflow"),
     };
-    let len = match fetch_post_form(scratch_a_slice(url_len), scratch_b_slice(bc)) {
+    let len = match fetch_post_form(scratch_a_slice(url_len), scratch_b_slice(bc), req) {
         Ok(n) => n,
         Err(e) => {
             let (c, m) = fetch_error_code(e);
@@ -534,7 +521,7 @@ fn chapter_id_value<'a>(id: &'a [u8]) -> Option<(&'a [u8], &'a [u8])> {
     Some((&rest[..sep], &rest[sep + 1..]))
 }
 
-fn fetch_detail(id: &[u8]) -> Result<usize, FetchError> {
+fn fetch_detail(id: &[u8], req: &[u8]) -> Result<usize, FetchError> {
     let buf = scratch_a();
     let mut c = 0usize;
     if !(write_bytes(buf, &mut c, BASE_URL)
@@ -543,7 +530,10 @@ fn fetch_detail(id: &[u8]) -> Result<usize, FetchError> {
     {
         return Err(FetchError::Network);
     }
-    fetch_get(scratch_a_slice(c), None)
+    if adult(req)==b"both" { return fetch_get(scratch_a_slice(c), None); }
+    let n=koma_source_sdk::build_get_request(http_req_buf(),scratch_a_slice(c),None,&[(b"allow-adult",adult(req))]).ok_or(FetchError::Network)?;
+    let len=http_request(&http_req_buf()[..n],http_out()).map_err(|_|FetchError::Network)?;
+    decode_json_body(&http_out()[..len])
 }
 
 fn run_get_manga(req: &[u8]) -> u32 {
@@ -555,7 +545,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
         Some(v) => v,
         None => return write_error("get_manga", "invalid_request", "unexpected mangaId"),
     };
-    let len = match fetch_detail(id) {
+    let len = match fetch_detail(id, req) {
         Ok(n) => n,
         Err(e) => {
             let (c, m) = fetch_error_code(e);
@@ -614,7 +604,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         Some(v) => v,
         None => return write_error("get_chapters", "invalid_request", "unexpected mangaId"),
     };
-    let len = match fetch_detail(id) {
+    let len = match fetch_detail(id, req) {
         Ok(n) => n,
         Err(e) => {
             let (c, m) = fetch_error_code(e);
@@ -693,7 +683,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     write_success_payload("get_chapters", c)
 }
 
-fn fetch_chapter(chapter_id: &[u8]) -> Result<usize, FetchError> {
+fn fetch_chapter(chapter_id: &[u8], req: &[u8]) -> Result<usize, FetchError> {
     let buf = scratch_a();
     let mut c = 0usize;
     if !(write_bytes(buf, &mut c, BASE_URL)
@@ -702,7 +692,10 @@ fn fetch_chapter(chapter_id: &[u8]) -> Result<usize, FetchError> {
     {
         return Err(FetchError::Network);
     }
-    fetch_get(scratch_a_slice(c), None)
+    if adult(req)==b"both" { return fetch_get(scratch_a_slice(c), None); }
+    let n=koma_source_sdk::build_get_request(http_req_buf(),scratch_a_slice(c),None,&[(b"allow-adult",adult(req))]).ok_or(FetchError::Network)?;
+    let len=http_request(&http_req_buf()[..n],http_out()).map_err(|_|FetchError::Network)?;
+    decode_json_body(&http_out()[..len])
 }
 
 fn looks_like_image_url(url: &[u8]) -> bool {
@@ -746,7 +739,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
         Some(v) => v,
         None => return write_error("get_pages", "invalid_request", "unexpected chapterId"),
     };
-    let len = match fetch_chapter(cid) {
+    let len = match fetch_chapter(cid, req) {
         Ok(n) => n,
         Err(e) => {
             let (c, m) = fetch_error_code(e);
@@ -813,7 +806,7 @@ fn popular_type(req: &[u8]) -> &'static [u8] {
 }
 
 fn run_get_settings(_req: &[u8]) -> u32 {
-    const SETTINGS: &str = r#"{"settings":[{"id":"POPULAR_MANGAS","name":"熱門漫畫顯示內容","kind":"select","default":"day","options":[{"value":"day","label":"日閱讀榜"},{"value":"week","label":"周閱讀榜"},{"value":"month","label":"月閱讀榜"}]}]}"#;
+    const SETTINGS: &str = r#"{"settings":[{"id":"POPULAR_MANGAS","name":"熱門漫畫顯示內容","kind":"select","default":"day","options":[{"value":"day","label":"日閱讀榜"},{"value":"week","label":"周閱讀榜"},{"value":"month","label":"月閱讀榜"}]},{"id":"ADULT","name":"漫畫內容類型","kind":"select","default":"both","options":[{"value":"false","label":"僅顯示全年齡內容"},{"value":"true","label":"僅顯示成人内容"},{"value":"both","label":"顯示所有内容"}]}]}"#;
     payload_buf()[..SETTINGS.len()].copy_from_slice(SETTINGS.as_bytes());
     write_success_payload("get_settings", SETTINGS.len())
 }
@@ -823,9 +816,9 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     let listing = extract_json_string(req, b"listingId").unwrap_or(b"latest");
     if listing == b"popular" || listing == b"day" || listing == b"week" || listing == b"month" {
         let typ = if listing == b"popular" { popular_type(req) } else { listing };
-        fetch_leaderboard("get_manga_list", page, typ)
+        fetch_leaderboard("get_manga_list", page, typ, req)
     } else {
-        fetch_latest("get_manga_list", page)
+        fetch_latest("get_manga_list", page, req)
     }
 }
 
@@ -856,11 +849,11 @@ fn run_get_image_request(req: &[u8]) -> u32 {
     let mut c = 0usize;
     let ok = write_bytes(payload, &mut c, br#"{"url":""#)
         && append_json_unescaped_then_escaped(payload, &mut c, url)
-        && write_bytes(
-            payload,
-            &mut c,
-            br#"","headers":{"referer":"https://beta.noyteam.online/","allow-adult":"both"}}"#,
-        );
+        && if adult(req)==b"both" { write_bytes(payload,&mut c,br#""}"#) } else {
+            write_bytes(payload,&mut c,br#"","headers":{"allow-adult":""#)
+                && write_bytes(payload,&mut c,adult(req))
+                && write_bytes(payload,&mut c,br#""}}"#)
+        };
     if !ok {
         return write_error("get_image_request", "internal_error", "payload overflow");
     }
