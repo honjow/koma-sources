@@ -39,7 +39,7 @@ static mut AUTH_TOKEN_LEN: usize = 0;
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.manhuaren.koma",
     name: "漫画人",
-    version: "0.1.5",
+    version: "0.1.6",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -1180,6 +1180,7 @@ fn write_chapters_from_array(
     extra: bool,
     written: &mut usize,
     manga_id: &[u8],
+    reading_order: bool,
 ) -> bool {
     let Some(mut iter) = ObjectArrayIter::new(api_json, key) else {
         return true;
@@ -1225,7 +1226,18 @@ fn write_chapters_from_array(
                     && append_json_unescaped_then_escaped(payload, c, release_time)
                     && write_bytes(payload, c, b"\"")
             }
-            && write_bytes(payload, c, br#","updatedAt":null,"pageCount":null}"#))
+            && write_bytes(payload, c, br#","updatedAt":null,"pageCount":null"#)
+            // The provider's distinct arrays are distinct edition sequences;
+            // a lock is an access condition, not a chronology condition.
+            && (!reading_order || (write_bytes(payload, c, br#", "readingGroup":""#)
+                && append_json_escaped(payload, c, key) && write_bytes(payload, c, b"\"")
+                && match extract_json_number(obj, b"sectionSort") {
+                    Some(value) if !value.is_empty() && value.iter().all(u8::is_ascii_digit) =>
+                        write_bytes(payload, c, br#", "continuationEligible":true, "readingOrder":"#)
+                            && append_json_escaped(payload, c, value),
+                    _ => write_bytes(payload, c, br#", "continuationEligible":false"#),
+                }))
+            && write_bytes(payload, c, b"}"))
         {
             return false;
         }
@@ -1280,6 +1292,9 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         return write_error("get_chapters", "internal_error", "overflow");
     }
     let mut written = 0usize;
+    let reading_order = json_object_member(req, b"hostFeatures").map(|v| v.trim_ascii())
+        .map_or(false, |v| v.starts_with(b"[") && v.ends_with(b"]") &&
+            v[1..v.len()-1].split(|b| *b == b',').any(|p| p.trim_ascii() == br#""chapter_reading_order_v1""#));
     if !(write_chapters_from_array(
         payload,
         &mut c,
@@ -1288,6 +1303,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         true,
         &mut written,
         id,
+        reading_order,
     ) && write_chapters_from_array(
         payload,
         &mut c,
@@ -1296,6 +1312,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         false,
         &mut written,
         id,
+        reading_order,
     ) && write_chapters_from_array(
         payload,
         &mut c,
@@ -1304,6 +1321,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         false,
         &mut written,
         id,
+        reading_order,
     )) {
         return write_error("get_chapters", "internal_error", "overflow");
     }

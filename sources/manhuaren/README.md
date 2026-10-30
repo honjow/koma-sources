@@ -1,6 +1,8 @@
 # 漫画人
 
-源 ID `com.manhuaren.koma`，版本 0.1.5，API 0.2，要求 Koma 0.1.4 与 `source_private_session_v1`。业务请求使用站点正常游客初始化与私有会话；游客令牌不写入公开设置。未声明该宿主能力时业务操作返回 `host_feature_required`，不发送业务请求；作品和章节身份保持。
+支持章节阅读序能力的宿主按站点原数组和有效 sectionSort 组织续读；锁章仍保留序号，缺少序号的章节不自动续读。
+
+源 ID `com.manhuaren.koma`，版本 0.1.6，API 0.2，要求 Koma 0.1.4 与 `source_private_session_v1`。业务请求使用站点正常游客初始化与私有会话；游客令牌不写入公开设置。未声明该宿主能力时业务操作返回 `host_feature_required`，不发送业务请求；作品和章节身份保持。
 
 ## 237 普通安装与独立搜索（2026-10-21）
 

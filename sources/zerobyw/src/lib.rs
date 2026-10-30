@@ -59,7 +59,7 @@ static mut SELECT_BUF: [u8; SELECT_CAP] = [0; SELECT_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.zerobyw.koma",
     name: "Zerobyw",
-    version: "0.1.8",
+    version: "0.1.9",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -852,7 +852,13 @@ fn pc_chapters(html: &[u8], doc: HtmlDescriptor) -> Result<usize, &'static str> 
     if unsafe { PC_CHAPTERS[..count].iter().any(|item| !item.accessible && item.lock == 0) } { return Err("chapter accessibility unknown"); }
     Ok(count)
 }
-fn emit_pc_chapters(id: &[u8], count: usize) -> u32 {
+fn emit_pc_chapters(id: &[u8], count: usize, req: &[u8]) -> u32 {
+    // PC chapter metadata is emitted newest first; its original full array gives
+    // the order independently of chapter titles and access permissions.
+    let reading_order = json_object_member(req, b"hostFeatures")
+        .map(|v| v.trim_ascii())
+        .map_or(false, |v| v.starts_with(b"[") && v.ends_with(b"]") &&
+            v[1..v.len()-1].split(|b| *b == b',').any(|p| p.trim_ascii() == br#""chapter_reading_order_v1""#));
     let out = payload_buf(); let mut n = 0usize;
     if !write_bytes(out, &mut n, br#"{"items":["#) { return write_error("get_chapters", "internal_error", "overflow"); }
     for i in 0..count {
@@ -867,7 +873,9 @@ fn emit_pc_chapters(id: &[u8], count: usize) -> u32 {
             && write_bytes(out, &mut n, br#"","title":""#)
             && (entry.accessible || write_bytes(out, &mut n, "🔒 ".as_bytes()))
             && append_json_escaped(out, &mut n, &entry.title[..entry.title_len])
-            && write_bytes(out, &mut n, br#"","chapterNumber":null,"volumeNumber":null,"language":"zh","publishedAt":null,"updatedAt":null,"pageCount":null}"#);
+            && write_bytes(out, &mut n, br#"","chapterNumber":null,"volumeNumber":null,"language":"zh","publishedAt":null,"updatedAt":null,"pageCount":null"#)
+            && (!reading_order || (write_bytes(out, &mut n, br#", "readingGroup":"pc-catalog", "continuationEligible":true, "readingOrder":"#) && write_usize(out, &mut n, count - i - 1)))
+            && write_bytes(out, &mut n, b"}");
         if !ok { return write_error("get_chapters", "internal_error", "overflow"); }
     }
     if !write_bytes(out, &mut n, br#"],"page":{"nextCursor":null,"hasMore":false}}"#) { return write_error("get_chapters", "internal_error", "overflow"); }
@@ -890,7 +898,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     if is_pc_id(id) {
         let html = unsafe { core::slice::from_raw_parts(core::ptr::addr_of!(BODY_BUF).cast::<u8>(), html_len) };
         return match pc_chapters(html, doc.0) {
-            Ok(count) => emit_pc_chapters(id, count),
+            Ok(count) => emit_pc_chapters(id, count, req),
             Err(e) => write_error("get_chapters", "parse_error", e),
         };
     }

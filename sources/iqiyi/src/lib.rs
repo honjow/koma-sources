@@ -6,7 +6,7 @@ use koma_source_sdk::{
 };
 type E = &'static str;
 const MAX: usize = 1048576;
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.iqiyi.koma",name:"Iqiyi",version:"0.1.2",api_version:"0.2",language:"zh-Hans",author:"Koma",description:"Iqiyi Bada public metadata API; requires real host clock and entropy. Usage and per-work rating unknown.",content_rating:"safe"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.iqiyi.koma",name:"Iqiyi",version:"0.1.3",api_version:"0.2",language:"zh-Hans",author:"Koma",description:"Iqiyi Bada public metadata API; requires real host clock and entropy. Usage and per-work rating unknown.",content_rating:"safe"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -493,6 +493,14 @@ fn chapters(r: &[u8]) -> Result<usize, E> {
     let id = work(text(a, b"mangaId")?)?;
     let (len, count) = catalogue(id)?;
     let d = dt(len);
+    let reading_metadata = member(r, b"hostFeatures")?.and_then(|raw| Array::new(raw).ok())
+        .map_or(false, |mut values| {
+            while let Ok(Some(value)) = values.next() {
+                if value == br#""chapter_reading_order_v1""# { return true; }
+            }
+            false
+        });
+    // The provider's episodeOrder is independent of the displayed directory.
     let b = payload_buf();
     let mut n = 0;
     bytes(b, &mut n, b"{\"items\":[")?;
@@ -515,6 +523,10 @@ fn chapters(r: &[u8]) -> Result<usize, E> {
         bytes(b, &mut n, b"\"")?;
         bytes(b, &mut n, b",\"chapterNumber\":")?;
         wn(b, &mut n, field_num(e, b"episodeOrder")?)?;
+        if reading_metadata {
+            bytes(b, &mut n, b",\"readingGroup\":\"main\",\"continuationEligible\":true,\"readingOrder\":")?;
+            wn(b, &mut n, field_num(e, b"episodeOrder")?)?;
+        }
         bytes(
             b,
             &mut n,
@@ -724,7 +736,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
-    response_buffer().write_success_parts("source_info",&[b"{\"sourceInfo\":{\"id\":\"com.iqiyi.koma\",\"name\":\"Iqiyi\",\"version\":\"0.1.2\",\"apiVersion\":\"0.2\",\"language\":\"zh-Hans\",\"author\":\"Koma\",\"contentRating\":\"safe\",\"localizedNames\":{", "\"zh-Hans\":\"爱奇艺叭嗒\",\"zh-Hant\":\"愛奇藝叭嗒\",\"en\":\"Iqiyi Bada\"".as_bytes(), b"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":false,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}"])
+    response_buffer().write_success_parts("source_info",&[b"{\"sourceInfo\":{\"id\":\"com.iqiyi.koma\",\"name\":\"Iqiyi\",\"version\":\"0.1.3\",\"apiVersion\":\"0.2\",\"language\":\"zh-Hans\",\"author\":\"Koma\",\"contentRating\":\"safe\",\"localizedNames\":{", "\"zh-Hans\":\"爱奇艺叭嗒\",\"zh-Hant\":\"愛奇藝叭嗒\",\"en\":\"Iqiyi Bada\"".as_bytes(), b"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":false,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}"])
 }
 macro_rules! export_op {
     ($f:ident,$op:literal,$run:ident) => {

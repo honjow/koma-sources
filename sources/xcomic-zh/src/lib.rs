@@ -22,7 +22,7 @@ use koma_source_sdk::{
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.xcomic.zh.koma",
     name: "XCOMIC",
-    version: "0.1.10",
+    version: "0.1.11",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -1607,6 +1607,9 @@ fn chapters(r: &[u8]) -> Result<usize, E> {
             .then_with(|| b.number.partial_cmp(&a.number).unwrap_or(core::cmp::Ordering::Equal))
             .then_with(|| a.ordinal.cmp(&b.ordinal))) };
     }
+    // The directory can be sorted by label or globally by number. Keep
+    // continuation scoped to the same edition, independent of display order.
+    let reading_feature = json_object_member(r,b"hostFeatures").map(|v|v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|c|*c==b',').any(|v|v.trim_ascii()==br#""chapter_reading_order_v1""#)).unwrap_or(false);
     let b = payload_buf();let mut n = 0;let mut written=0;let mut excluded=Vec::new();
     bytes(b, &mut n, b"{\"items\":[")?;
     for (index,ch) in unsafe{&CHS[..count]}.iter().enumerate() {
@@ -1621,6 +1624,15 @@ fn chapters(r: &[u8]) -> Result<usize, E> {
         }
         if written>0{bytes(b,&mut n,b",")?;}
         if labels.is_empty(){bytes(b,&mut n,raw)?;}else{emit_edition_chapter(b,&mut n,raw,&label)?;}
+        if reading_feature && exact.is_none() {
+            let edition=core::str::from_utf8(ch.edition.as_bytes()).map_err(|_|"invalid edition identity")?;
+            n=n.checked_sub(1).ok_or("invalid chapter JSON")?;
+            bytes(b,&mut n,b",\"readingGroup\":")?;q(b,&mut n,edition.as_bytes())?;
+            let eligible=ch.numbered && ch.number >= 0.0;
+            bytes(b,&mut n,b",\"continuationEligible\":")?;bytes(b,&mut n,if eligible{b"true"}else{b"false"})?;
+            if eligible {bytes(b,&mut n,b",\"readingOrder\":")?;bytes(b,&mut n,required(raw,b"chapterNumber")?)?;}
+            bytes(b,&mut n,b"}")?;
+        }
         written+=1;
     }
     if exact.is_some()&&written!=1{return Err("chapter ownership mismatch");}

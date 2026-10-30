@@ -37,7 +37,7 @@ hentaifox-zh|hentaifox-zh|true|0.1.1
 nnhanman-zh|nnhanman-zh|true|0.1.1
 mangaxiaosi-zh|mangaxiaosi-zh|true|0.1.1
 huanta-zh|huanta-zh|false|0.1.1
-xcomic-zh|xcomic-zh|true|0.1.1
+xcomic-zh|xcomic-zh|true|0.1.4
 asmhentai-zh|asmhentai-zh|true|0.1.1
 mh160|mh160|false|0.1.1
 nhentaixxx-zh|nhentaixxx-zh|true|0.1.1
@@ -71,7 +71,7 @@ soc-zh|soc-zh|false|0.1.1
 guazimanhua|guazimanhua|false|0.1.0
 pixiv-zh|pixiv-zh|true|0.1.0
 mangaball-zh|mangaball-zh|true|0.1.0
-xcomic-zh-hant|xcomic-zh-hant|true|0.1.0
+xcomic-zh-hant|xcomic-zh-hant|true|0.1.4
 bluearchive-zh|bluearchive-zh|false|0.1.1
 dota2-zh|dota2-zh|false|0.1.1
 majsoul-zh|majsoul-zh|false|0.1.1
@@ -104,7 +104,7 @@ zerobyw|zerobyw|true|0.1.0
 manhuashe|manhuashe|true|0.1.0
 dongmanmanhua|dongmanmanhua|false|0.1.0
 manhuawu|manhuawu|false|0.1.0
-iqiyi|iqiyi|false|0.1.1
+iqiyi|iqiyi|false|0.1.4
 jiuermanhua|jiuermanhua|true|0.1.0
 zazhimi|zazhimi|false|0.1.0
 mh1234|mh1234|false|0.1.0

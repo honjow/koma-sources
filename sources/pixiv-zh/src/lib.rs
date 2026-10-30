@@ -6,7 +6,7 @@ use koma_source_sdk::{
     json_utils::*,
     source::{SourceCapabilities, SourceInfo},
 };
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.pixiv.zh.koma",name:"pixiv",version:"0.1.12",api_version:"0.2",language:"zh",author:"Koma",description:"支持搜索漫画作品和系列。",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.pixiv.zh.koma",name:"pixiv",version:"0.1.13",api_version:"0.2",language:"zh",author:"Koma",description:"支持搜索漫画作品和系列。",content_rating:"nsfw"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -606,7 +606,7 @@ fn artwork_card(b: &mut [u8], n: &mut usize, v: &[u8], x: u64) -> Result<(), E> 
     wi(b, n, x)?;
     bytes(b, n, b"\"}]}")
 }
-fn emit_chapter(b: &mut [u8], n: &mut usize, s: Option<u64>, v: &[u8]) -> Result<(), E> {
+fn emit_chapter(b: &mut [u8], n: &mut usize, s: Option<u64>, v: &[u8], reading_order: bool) -> Result<(), E> {
     let x = field_id(v, b"id")?;
     bytes(b, n, b"{\"id\":\"pixivch:")?;
     if let Some(s) = s {
@@ -621,11 +621,15 @@ fn emit_chapter(b: &mut [u8], n: &mut usize, s: Option<u64>, v: &[u8]) -> Result
     manga_key(b, n, s.is_some(), s.unwrap_or(x))?;
     bytes(b, n, b",\"title\":")?;
     rawq(b, n, raw_string(v, b"title")?)?;
-    bytes(
-        b,
-        n,
-        b",\"chapterNumber\":null,\"volumeNumber\":null,\"language\":null}",
-    )
+    bytes(b, n, b",\"chapterNumber\":null,\"volumeNumber\":null,\"language\":null")?;
+    if reading_order && s.is_some() {
+        // The API's validated content_order belongs to the series, independent
+        // of listing/display order and artwork title.
+        let order = field_num(required(v, b"series")?, b"content_order")?;
+        bytes(b, n, br#", "readingGroup":"pixiv-series", "continuationEligible":true, "readingOrder":"#)?;
+        wn(b, n, order)?;
+    }
+    bytes(b, n, b"}")
 }
 fn art_detail(x: u64) -> Result<&'static [u8], E> {
     let d = fetch(make_url(
@@ -641,7 +645,7 @@ fn art_detail(x: u64) -> Result<&'static [u8], E> {
     Ok(v)
 }
 // Complete catalogue is validated before emitting any successful series card/chapter list.
-fn collect(s: u64) -> Result<(usize, usize, usize), E> {
+fn collect(s: u64, reading_order: bool) -> Result<(usize, usize, usize), E> {
     let d = fetch(make_url(b"/touch/ajax/illust/series/", s, b"?lang=zh")?)?;
     let d = required(d, b"series")?;
     if field_id(d, b"id")? != s {
@@ -746,7 +750,7 @@ fn collect(s: u64) -> Result<(usize, usize, usize), E> {
                 if count > 0 {
                     bytes(&mut CH_BYTES, &mut cn, b",")?
                 };
-                emit_chapter(&mut CH_BYTES, &mut cn, Some(s), v)?;
+                emit_chapter(&mut CH_BYTES, &mut cn, Some(s), v, reading_order)?;
             }
             count += 1;
         }
@@ -1025,7 +1029,7 @@ fn detail(r: &[u8]) -> Result<usize, E> {
     let mut n = 0;
     bytes(b, &mut n, b"{\"manga\":")?;
     if series {
-        let (_, _, len) = collect(x)?;
+        let (_, _, len) = collect(x, false)?;
         unsafe { bytes(b, &mut n, &CARD[..len])? }
     } else {
         artwork_card(b, &mut n, art_detail(x)?, x)?
@@ -1039,10 +1043,17 @@ fn chapters(r: &[u8]) -> Result<usize, E> {
     let mut n = 0;
     bytes(b, &mut n, b"{\"items\":[")?;
     if series {
-        let (_, len, _) = collect(x)?;
+        let reading_order = member(r, b"hostFeatures")?.and_then(|raw| Array::new(raw).ok())
+            .map_or(false, |mut values| {
+                while let Ok(Some(value)) = values.next() {
+                    if value == br#""chapter_reading_order_v1""# { return true; }
+                }
+                false
+            });
+        let (_, len, _) = collect(x, reading_order)?;
         unsafe { bytes(b, &mut n, &CH_BYTES[..len])? }
     } else {
-        emit_chapter(b, &mut n, None, art_detail(x)?)?
+        emit_chapter(b, &mut n, None, art_detail(x)?, false)?
     }
     bytes(b, &mut n, b"]}")?;
     Ok(n)
@@ -1063,7 +1074,7 @@ fn pages(r: &[u8]) -> Result<usize, E> {
     let quality = requested_image_quality(r)?;
     let artwork = ch.unwrap_or(x);
     let expected = if series {
-        let (count, _, _) = collect(x)?;
+        let (count, _, _) = collect(x, false)?;
         let ix = unsafe { CH_IDS[..count].iter().position(|id| *id == artwork) }
             .ok_or("chapter ownership mismatch")?;
         unsafe { CH_PAGES[ix] }

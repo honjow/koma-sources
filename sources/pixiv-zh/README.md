@@ -1,4 +1,6 @@
-# pixiv 0.1.12
+# pixiv 0.1.13
+
+支持章节阅读序能力的宿主使用系列已校验的 content_order 续读；单幅作品和旧宿主行为保持原样。
 
 Pixiv anonymous All ages manga search; separate artwork and complete series. Service zh is UI language, not a body-language claim; usage unknown. No user/login, popular/latest/home/listings.
 Raw page cursor carries exact query, cumulative unique artwork IDs and emitted series IDs. Complete catalogue before success; no fabricated book total or chapter numbers. Chapter/volume and content language null. Original images remain the default with the existing Pixiv Referer. Explicit quality preferences use only the same API page's real URL variants.
