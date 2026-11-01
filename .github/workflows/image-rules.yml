@@ -45,7 +45,7 @@ jobs:
           else
             git read-tree --empty
           fi
-          for file in image-rules/dist/index.json image-rules/dist/packs/*.json; do
+          for file in image-rules/dist/index.json image-rules/dist/*.json image-rules/dist/packs/*.json; do
             path="${file#image-rules/dist/}"
             hash="$(git hash-object -w "$file")"
             git update-index --add --cacheinfo "100644,$hash,$path"
@@ -54,3 +54,23 @@ jobs:
           git -c user.name=github-actions -c user.email=github-actions@github.com \
             commit-tree "$tree" "${parent[@]}" -m "Publish image rules from $GITHUB_SHA" > /tmp/image-rules-commit
           git push origin "$(cat /tmp/image-rules-commit):refs/heads/image-rules"
+      - name: Publish fixed release assets
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag=image-rules-v1
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --target "$(cat /tmp/image-rules-commit)" --title "Image rules" --notes "Content-addressed image rule packs." --latest=false
+          fi
+          pack="$(jq -r '.packs[0].path' image-rules/dist/index.json)"
+          if gh release view "$tag" --json assets --jq '.assets[].name' | grep -Fxq "$pack"; then
+            mkdir -p /tmp/image-rules-existing
+            gh release download "$tag" --pattern "$pack" --dir /tmp/image-rules-existing
+            cmp "image-rules/dist/$pack" "/tmp/image-rules-existing/$pack"
+          else
+            gh release upload "$tag" "image-rules/dist/$pack"
+          fi
+          # Publish the index only after the immutable pack is present.
+          gh release upload "$tag" image-rules/dist/index.json --clobber

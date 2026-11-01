@@ -36,9 +36,11 @@ rule = {'id': 'edge-banners', 'kind': 'edge_signature_v1', 'crossSource': True,
         'legacy': [{'kind': 'baozi_banner', 'singleModes': ['1'], 'stackedModes': ['2']}]}
 pack = encode({'schemaVersion': 1, 'id': 'edge-banners', 'version': PACK_VERSION, 'rules': [rule]})
 digest = hashlib.sha256(pack).hexdigest()
-path = 'packs/' + digest + '.json'
+path = digest + '.json'
 index = encode({'schemaVersion': 1, 'revision': digest, 'packs': [{'id': 'edge-banners', 'version': PACK_VERSION, 'path': path, 'sha256': digest}]})
 (OUT / 'packs').mkdir(parents=True, exist_ok=True)
 (OUT / path).write_bytes(pack)
+# Keep the previous branch layout available to clients holding an old index.
+(OUT / 'packs' / path).write_bytes(pack)
 (OUT / 'index.json').write_bytes(index)
 print(OUT / path, digest)

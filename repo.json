@@ -5,6 +5,6 @@
   },
   "imageRules": {
     "schemaVersion": 1,
-    "indexUrl": "https://raw.githubusercontent.com/honjow/koma-sources/image-rules/index.json"
+    "indexUrl": "https://github.com/honjow/koma-sources/releases/download/image-rules-v1/index.json"
   }
 }
