@@ -8,7 +8,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parent
 OUT = ROOT / 'dist'
 # Increment when the published pack changes.
-PACK_VERSION = 1
+PACK_VERSION = 2
 
 def encode(value):
     return (json.dumps(value, ensure_ascii=False, separators=(',', ':')) + '\n').encode()
@@ -33,7 +33,7 @@ rule = {'id': 'edge-banners', 'kind': 'edge_signature_v1', 'crossSource': True,
         'signatures': [signature('current', (800, 200)), signature('old', (800, 282)), signature('narrow', (640, 186))],
         'top': [{'signature': n} for n in ('current', 'old', 'narrow')],
         'bottom': [{'signature': 'old'}, {'signature': 'current'}, {'signature': 'narrow', 'height': 160}],
-        'legacy': [{'kind': 'baozi_banner', 'singleModes': ['1'], 'stackedModes': ['2']}]}
+        'legacy': [{'kind': 'baozi_banner', 'singleModes': ['1'], 'stackedModes': ['2'], 'sourceIds': ['online.baozimh.koma']}]}
 pack = encode({'schemaVersion': 1, 'id': 'edge-banners', 'version': PACK_VERSION, 'rules': [rule]})
 digest = hashlib.sha256(pack).hexdigest()
 path = digest + '.json'
