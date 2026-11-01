@@ -11,11 +11,11 @@ const LIST: &[u8] = b"https://www.dragonball-multiverse.com/cn/read.html";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.dragonballmultiverse.zh.koma",
     name: "Dragon Ball Multiverse",
-    version: "0.1.1",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "Chinese translated public image comics; overlay chapters unsupported.",
+    description: "Chinese public image comics with host-supported text overlays.",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
@@ -410,41 +410,109 @@ fn chapters(req: &[u8]) -> R<W> {
     w.put(b"]}")?;
     Ok(w)
 }
-fn image<'a>(url: &[u8], out: &'a mut [u8]) -> R<&'a [u8]> {
-    let doc = fetch(url)?;
-    let containers = All::new(doc.0, b"#balloonsimg")?;
-    if containers.len != 1 {
-        return Err("missing_or_ambiguous_image");
+// Text overlay is negotiated separately: without it the old host must never
+// receive a page whose dialogue would be missing from the original image.
+fn overlay_enabled(req: &[u8]) -> bool {
+    json_object_member(req, b"hostFeatures").map(|v| v.starts_with(b"[") && v.ends_with(b"]") &&
+        v[1..v.len()-1].split(|c| *c == b',').any(|x| trim_ascii(x) == br#""source_page_text_overlay_v1""#)).unwrap_or(false)
+}
+fn decimal(v: &[u8]) -> R<f32> {
+    let text = core::str::from_utf8(v).map_err(|_| "unsupported_chapter_overlay")?;
+    let value = text.parse::<f32>().map_err(|_| "unsupported_chapter_overlay")?;
+    if !value.is_finite() || value < 0.0 || value > 65535.0 { return Err("unsupported_chapter_overlay"); }
+    Ok(value)
+}
+fn css_number(style: &[u8], name: &[u8]) -> R<f32> {
+    let key = name.strip_suffix(b":").ok_or("unsupported_chapter_overlay")?;
+    let mut found: Option<f32> = None;
+    for declaration in style.split(|c| *c == b';') {
+        let Some(colon) = declaration.iter().position(|c| *c == b':') else { continue; };
+        if trim_ascii(&declaration[..colon]) != key { continue; }
+        if found.is_some() { return Err("unsupported_chapter_overlay"); }
+        let mut value = trim_ascii(&declaration[colon + 1..]);
+        if let Some(number) = value.strip_suffix(b"px") { value = trim_ascii(number); }
+        if value.is_empty() || !value.iter().any(u8::is_ascii_digit) ||
+            value.iter().any(|c| !c.is_ascii_digit() && *c != b'.') ||
+            value.iter().filter(|c| **c == b'.').count() > 1 {
+            return Err("unsupported_chapter_overlay");
+        }
+        found = Some(decimal(value)?);
     }
-    let d = containers.at(0);
-    let bubbles = All::new(d, b".balloon")?;
-    if bubbles.len > 0 {
-        return Err("unsupported_chapter_overlay");
-    }
-    let mut src = [0; 4096];
-    if let Ok(v) = attr(d, b"src", &mut src) {
-        if !v.is_empty() {
-            return absolute(v, out);
+    found.ok_or("unsupported_chapter_overlay")
+}
+fn scale(style: &[u8]) -> R<f32> {
+    let Some(i) = find_subslice(style, b"scale(") else { return Ok(1.0); };
+    let s = &style[i + 6..];
+    let n = s.iter().position(|c| *c == b')').ok_or("unsupported_chapter_overlay")?;
+    let v = decimal(trim_ascii(&s[..n]))?;
+    if v <= 0.0 || v > 64.0 { return Err("unsupported_chapter_overlay"); }
+    Ok(v)
+}
+fn overlay_number(w: &mut W, v: f32) -> R<()> {
+    if !v.is_finite() || v < 0.0 || v > 65535.0 { return Err("unsupported_chapter_overlay"); }
+    struct NumberWriter<'a>(&'a mut W);
+    impl core::fmt::Write for NumberWriter<'_> {
+        fn write_str(&mut self, s: &str) -> core::fmt::Result {
+            self.0.put(s.as_bytes()).map_err(|_| core::fmt::Error)
         }
     }
-    let imgs = All::new(d, b"img")?;
-    if imgs.len > 1 {
-        return Err("ambiguous_image");
+    core::fmt::write(&mut NumberWriter(w), format_args!("{}", v)).map_err(|_| "capacity_exceeded")
+}
+
+fn image(url: &[u8], out: &mut [u8], w: &mut W, enabled: bool) -> R<()> {
+    let doc = fetch(url)?;
+    let containers = All::new(doc.0, b"#balloonsimg")?;
+    if containers.len != 1 { return Err("missing_or_ambiguous_image"); }
+    let d = containers.at(0);
+    let bubbles = All::new(d, b".balloon")?;
+    if bubbles.len > 0 && (!enabled || bubbles.len > 128) { return Err("unsupported_chapter_overlay"); }
+    let mut src = [0; 4096];
+    let direct = attr(d, b"src", &mut src).unwrap_or(b"");
+    let len = if !direct.is_empty() {
+        absolute(direct, out)?.len()
+    } else {
+        let imgs = All::new(d, b"img")?;
+        if imgs.len > 1 { return Err("ambiguous_image"); }
+        if imgs.len == 1 {
+            absolute(attr(imgs.at(0), b"src", &mut src)?, out)?.len()
+        } else {
+            let style = attr(d, b"style", &mut src)?;
+            let i = find_subslice(style, b"url(").ok_or("missing_image")?;
+            let s = &style[i + 4..];
+            let end = s.iter().position(|x| *x == b')').ok_or("invalid_image")?;
+            let mut v = trim_ascii(&s[..end]);
+            if v.len() >= 2 && ((v[0] == b'\'' && v[v.len()-1] == b'\'') || (v[0] == b'"' && v[v.len()-1] == b'"')) { v = &v[1..v.len()-1]; }
+            absolute(v, out)?.len()
+        }
+    };
+    let img = &out[..len];
+    if !img.starts_with(b"https://www.dragonball-multiverse.com/image.php?") { return Err("unsupported_image_url"); }
+    w.q(img)?;
+    if bubbles.len == 0 { return Ok(()); }
+    let mut container_style = [0; 4096];
+    let s = scale(attr(d, b"style", &mut container_style).unwrap_or(b""))?;
+    w.put(br#", "textOverlay":{"version":1,"balloons":["#)?;
+    let mut total = 0usize;
+    for i in 0..bubbles.len {
+        let bubble = bubbles.at(i);
+        let mut buf = [0; 4096];
+        let value = txt(bubble, &mut buf).map_err(|_| "unsupported_chapter_overlay")?;
+        total += value.len();
+        if total > 65536 { return Err("unsupported_chapter_overlay"); }
+        if i > 0 { w.put(b",")?; }
+        w.put(br#"{"text":"#)?; w.q(value)?;
+        let mut css = [0; 1024];
+        let style = attr(bubble, b"style", &mut css).map_err(|_| "unsupported_chapter_overlay")?;
+        let x = css_number(style, b"left:")? * s;
+        let y = css_number(style, b"top:")? * s;
+        let width = css_number(style, b"width:")? * s;
+        if !width.is_finite() || width > 65535.0 { return Err("unsupported_chapter_overlay"); }
+        w.put(br#", "x":"#)?; overlay_number(w, x)?;
+        w.put(br#", "y":"#)?; overlay_number(w, y)?;
+        w.put(br#", "width":"#)?; w.num((width as usize).max(1))?;
+        w.put(b"}")?;
     }
-    if imgs.len == 1 {
-        return absolute(attr(imgs.at(0), b"src", &mut src)?, out);
-    }
-    let style = attr(d, b"style", &mut src)?;
-    let i = find_subslice(style, b"url(").ok_or("missing_image")?;
-    let s = &style[i + 4..];
-    let end = s.iter().position(|x| *x == b')').ok_or("invalid_image")?;
-    let mut v = trim_ascii(&s[..end]);
-    if v.len() >= 2
-        && ((v[0] == b'\'' && v[v.len() - 1] == b'\'') || (v[0] == b'"' && v[v.len() - 1] == b'"'))
-    {
-        v = &v[1..v.len() - 1]
-    }
-    absolute(v, out)
+    w.put(b"]}")
 }
 fn pages(req: &[u8]) -> R<W> {
     let id = extract_json_string(req, b"chapterId").ok_or("invalid_request")?;
@@ -470,10 +538,6 @@ fn pages(req: &[u8]) -> R<W> {
             return Err("invalid_page_url");
         }
         let mut direct = [0; 4096];
-        let img = image(u, &mut direct)?;
-        if !img.starts_with(b"https://www.dragonball-multiverse.com/image.php?") {
-            return Err("unsupported_image_url");
-        }
         if i > 0 {
             w.put(b",")?
         }
@@ -484,7 +548,7 @@ fn pages(req: &[u8]) -> R<W> {
         w.put(br#"","index":"#)?;
         w.num(i)?;
         w.put(br#", "image":{"kind":"url","url":"#)?;
-        w.q(img)?;
+        image(u, &mut direct, &mut w, overlay_enabled(req))?;
         w.put(b"}}")?;
     }
     w.put(b"]}")?;
