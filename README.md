@@ -15,26 +15,11 @@ https://github.com/honjow/koma-sources/releases/latest/download/index.json
 3. **管理订阅**：在“订阅地址”页可编辑、复制或移除已添加的地址；订阅提供项目主页时，也可从对应菜单打开。
 4. **本地导入**：也可以在 [最新发行版](https://github.com/honjow/koma-sources/releases/latest) 下载单个 .koma 文件，在 Koma 的书源管理右上角四点菜单中选择“本地导入”，通过文件选择器导入。
 
-向 master 推送后，GitHub Actions 会自动编译全部生产源和教学示例，生成包、图标、安装索引与完整目录。工作流先创建草稿发行版，只在这些资产全部生成、上传并通过检查后，才把这一版公开为 latest。构建失败不会覆盖当前可用的 latest；历史发行版仍保留在[发行记录](https://github.com/honjow/koma-sources/releases)中。
+书源更新会通过 GitHub Actions 自动发布至[最新发行版](https://github.com/honjow/koma-sources/releases/latest)。
 
 [index.json](https://github.com/honjow/koma-sources/releases/latest/download/index.json) 是 Koma 可安装源列表；[catalogue.json](https://github.com/honjow/koma-sources/releases/latest/download/catalogue.json) 是完整生产源目录。包和图标与索引位于同一发行目录，条目中的 pkg、icon 使用相对路径。
 
 同目录可选的 `repo.json` 使用 `{"meta":{"name":"订阅名","website":"https://项目页"}}` 提供订阅信息；两个字段均可省略，website 为 HTTP(S) 地址。它独立于数组格式的安装索引，旧客户端无需读取即可继续安装和更新。
-
-## 当前覆盖
-
-- **85 个生产源**纳入自动编译和发行；教学用 example-demo 也会编译检查，但不进入安装索引。
-- 完整目录保留 **85 项**；嗨皮漫画因上游不可用已从新安装索引撤下，当前安装索引为 **84 项**。已安装的嗨皮源和阅读数据不受此目录变更影响。
-- 版本按源独立维护，请以索引条目的 version 和 minAppVersion 为准。
-- 当前有 **32 个源标记为 NSFW**。请遵守所在地法律和站点条款；nsfw: false 或 unknown 不等于已证明适合所有年龄。
-
-图标均满足打包要求，但并非全部取得了官方高清原件：
-
-- IKMMH、Happy 和 92 漫画使用用户批准的临时名称字标 IKM / Happy / 92。它们是普通的 Koma 绿色透明 512px 名称字标，不是官方 Logo，也没有额外底板、阴影或遮罩。HentaiHand 使用其官网提供的原始 Logo，来源见 [素材说明](sources/hentaihand-zh/ASSET_SOURCES.md)。
-- 喵趣 0.1.2、XComic 简繁 0.1.1 已清理旧外底板或灰影；HComic 0.1.2 使用官网标识中的完整鲨鱼图形；MyComic 0.1.2、漫画1234 0.1.3 清理了保留下来的现有图标。这些处理保留身份，不代表取得新的官方高清原件。
-- 部分黑色图标使用固定白底以保证深色界面中的辨识度，并保留原图形。鸟鸟韩漫 0.1.2 已完成浅色、深色列表验证；泰拉记事社 0.1.7 保留原白底黑字图标。
-
-“可安装”只表示包、元数据和图标满足分发合同，不代表站点所有功能都经过验收。部分源会受登录或账户要求、站点访问限制、Cloudflare/TLS 拦截、地域限制或上游改版影响，也可能只覆盖公开免费的页面。各源的已验证范围和已知边界见 [sources/](sources) 下的说明。
 
 ## 常见问题
 
@@ -48,7 +33,7 @@ https://github.com/honjow/koma-sources/releases/latest/download/index.json
 
 ### 书源能安装，但打不开或没有内容
 
-这通常来自站点侧变化、登录要求、访问限制或上游改版，与索引资产是否完整是两个问题。先更新到最新版并查看该源目录中的边界说明。不要反复请求已明确拒绝或被挑战的地址。
+请在[源库 Issues](https://github.com/honjow/koma-sources/issues)反馈源名、操作步骤和页面提示。
 
 ### 如何反馈问题
 
@@ -56,8 +41,7 @@ https://github.com/honjow/koma-sources/releases/latest/download/index.json
 
 - 源名和索引中显示的版本；
 - 可重复的操作步骤；
-- 页面提示、HTTP 状态或日志中的错误；
-- 已尝试的更新或重新加载操作。
+- 页面提示、HTTP 状态或日志中的错误。
 
 请勿提供账号密码、Cookie、令牌或其他登录凭据。
 
@@ -84,6 +68,4 @@ cargo build --locked --release -p koma-source-dev
 
 完整写源说明见 [docs/WRITING_A_SOURCE.md](docs/WRITING_A_SOURCE.md)，贡献流程和源码规则见 [CONTRIBUTING.md](CONTRIBUTING.md)，最小示例见 [sources/example-demo](sources/example-demo)。也可以在独立仓库中生成同样结构的索引，供用户自行添加。
 
-## 说明与免责声明
-
-本仓库只提供书源适配代码，不托管漫画、图片或站点内容；内容、商标和图标权利归各自权利人。编译、打包或安装成功不等于站点当前可访问，也不等于全部站点功能、图片或下载流程都通过验收。请遵守站点条款、版权要求和所在地法律，并自行判断是否使用标记为 NSFW 的源。
+漫画、图片及相关内容的权利归原权利人所有。
