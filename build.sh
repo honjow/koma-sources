@@ -576,6 +576,19 @@ jq '[.[] | select(.available) | del(.available)]' "$OUTPUT_DIR/catalogue.json" >
 count=$(jq 'length' "$OUTPUT_DIR/index.json")
 log "  ✓ index.json ($count sources)"
 
+# Optional repository identity is a separate asset: the install index remains
+# an array so existing Koma versions and independent index consumers keep working.
+if [[ -f "$SCRIPT_DIR/repo.json" ]]; then
+  jq -e 'type == "object" and (.meta | type == "object") and
+    ((.meta.name == null) or (.meta.name | type == "string")) and
+    ((.meta.website == null) or ((.meta.website | type == "string") and (.meta.website | test("^https?://"))))' \
+    "$SCRIPT_DIR/repo.json" > /dev/null
+  cp "$SCRIPT_DIR/repo.json" "$OUTPUT_DIR/repo.json"
+else
+  # Do not publish stale identity when an independent repository removes it.
+  rm -f "$OUTPUT_DIR/repo.json"
+fi
+
 # Staging is retained; never remove unrelated existing distribution artifacts.
 
 validate_index_packages

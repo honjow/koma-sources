@@ -56,6 +56,7 @@ jobs:
           name: source-library-${{ github.sha }}
           path: |
             dist/index.json
+            dist/repo.json
             dist/catalogue.json
             dist/release-packages/*
             dist/release-icons/*
@@ -75,5 +76,5 @@ jobs:
           else
             gh release create "$RELEASE_TAG" --draft --target "$GITHUB_SHA" --title "Source library ${GITHUB_SHA:0:8}" --notes "Automatic source library. index.json lists installable packages; catalogue.json records every production source and its availability status. Build success does not certify all provider content."
           fi
-          gh release upload "$RELEASE_TAG" dist/index.json dist/catalogue.json dist/release-packages/* dist/release-icons/* --clobber
+          gh release upload "$RELEASE_TAG" dist/index.json dist/repo.json dist/catalogue.json dist/release-packages/* dist/release-icons/* --clobber
           gh release edit "$RELEASE_TAG" --draft=false --latest

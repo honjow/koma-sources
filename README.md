@@ -18,6 +18,8 @@ https://github.com/honjow/koma-sources/releases/latest/download/index.json
 
 [index.json](https://github.com/honjow/koma-sources/releases/latest/download/index.json) 是 Koma 可安装源列表；[catalogue.json](https://github.com/honjow/koma-sources/releases/latest/download/catalogue.json) 是完整生产源目录。包和图标与索引位于同一发行目录，条目中的 pkg、icon 使用相对路径。
 
+同目录可选的 `repo.json` 使用 `{"meta":{"name":"订阅名","website":"https://项目页"}}` 提供订阅信息；两个字段均可省略，website 为 HTTP(S) 地址。它独立于数组格式的安装索引，旧客户端无需读取即可继续安装和更新。
+
 ## 当前覆盖
 
 - **85 个生产源**纳入自动编译和发行；教学用 example-demo 也会编译检查，但不进入安装索引。
