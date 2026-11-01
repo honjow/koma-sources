@@ -1,0 +1,56 @@
+name: Build and publish image rules
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - image-rules/**
+      - .github/workflows/image-rules.yml
+  pull_request:
+    branches: [master]
+    paths:
+      - image-rules/**
+      - .github/workflows/image-rules.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: image-rules-publication
+  cancel-in-progress: false
+
+jobs:
+  rules:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install image decoder
+        run: sudo apt-get update && sudo apt-get install -y python3-pil
+      - name: Generate rules
+        run: python3 image-rules/generate.py
+      - name: Publish content-addressed resources
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        run: |
+          set -euo pipefail
+          export GIT_INDEX_FILE="$(mktemp)"
+          rm "$GIT_INDEX_FILE"
+          parent=()
+          if git ls-remote --exit-code --heads origin image-rules >/dev/null; then
+            git fetch --no-tags origin refs/heads/image-rules:refs/remotes/origin/image-rules
+            git read-tree refs/remotes/origin/image-rules
+            parent=(-p refs/remotes/origin/image-rules)
+          else
+            git read-tree --empty
+          fi
+          for file in image-rules/dist/index.json image-rules/dist/packs/*.json; do
+            path="${file#image-rules/dist/}"
+            hash="$(git hash-object -w "$file")"
+            git update-index --add --cacheinfo "100644,$hash,$path"
+          done
+          tree="$(git write-tree)"
+          git -c user.name=github-actions -c user.email=github-actions@github.com \
+            commit-tree "$tree" "${parent[@]}" -m "Publish image rules from $GITHUB_SHA" > /tmp/image-rules-commit
+          git push origin "$(cat /tmp/image-rules-commit):refs/heads/image-rules"

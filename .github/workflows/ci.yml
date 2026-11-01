@@ -3,8 +3,14 @@ name: Build and publish source library
 on:
   push:
     branches: [master]
+    paths-ignore:
+      - image-rules/**
+      - .github/workflows/image-rules.yml
   pull_request:
     branches: [master]
+    paths-ignore:
+      - image-rules/**
+      - .github/workflows/image-rules.yml
   workflow_dispatch:
 
 concurrency:

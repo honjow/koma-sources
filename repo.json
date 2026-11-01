@@ -2,5 +2,9 @@
   "meta": {
     "name": "Koma 书源库",
     "website": "https://github.com/honjow/koma-sources"
+  },
+  "imageRules": {
+    "schemaVersion": 1,
+    "indexUrl": "https://raw.githubusercontent.com/honjow/koma-sources/image-rules/index.json"
   }
 }
