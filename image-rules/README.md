@@ -6,7 +6,7 @@
 https://github.com/honjow/koma-sources/releases/download/image-rules-v1/index.json
 ```
 
-用户在订阅管理中明确选择图片规则；书源订阅不会自动添加它。
+在同一订阅管理入口添加图片规则地址，Koma 会按内容自动识别并分组；书源订阅不会自动添加图片规则。
 
 ## 新增或修改规则
 

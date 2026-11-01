@@ -23,7 +23,7 @@ https://github.com/honjow/koma-sources/releases/latest/download/index.json
 
 ## 横幅过滤
 
-书源和图片规则在同一个订阅管理入口中分别添加。图片规则订阅地址：
+书源和图片规则地址在同一个订阅管理入口中分别添加，Koma 会按内容自动识别并分组。图片规则订阅地址：
 
 ~~~text
 https://github.com/honjow/koma-sources/releases/download/image-rules-v1/index.json
