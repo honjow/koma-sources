@@ -8,6 +8,8 @@ https://github.com/honjow/koma-sources/releases/download/image-rules-v1/index.js
 
 在同一订阅管理入口添加图片规则地址，Koma 会按内容自动识别并分组；书源订阅不会自动添加图片规则。
 
+当前“包子漫画横幅”规则识别新版、旧版和窄版的顶部及底部横幅，支持连续叠加及转载图片。
+
 ## 新增或修改规则
 
 1. 将参考图放入 `templates/`，保留原始素材及来源说明。在 `definitions/` 新建一个 JSON 文件作为规则包，参照 [`edge-banners.json`](definitions/edge-banners.json)。每个包有独立 `id`、正整数 `version`、`meta`（`name`、`description`、HTTPS `website`）和 `rules`；每条规则有独立 `id`、`name`、`description`。

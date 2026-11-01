@@ -1,9 +1,9 @@
 {
   "id": "edge-banners",
-  "version": 3,
-  "meta": {"name": "页面边缘横幅", "description": "识别已知的顶部和底部横幅", "website": "https://github.com/honjow/koma-sources"},
+  "version": 4,
+  "meta": {"name": "包子漫画横幅", "description": "识别新版、旧版和窄版顶部及底部横幅，支持连续叠加和转载图片", "website": "https://github.com/honjow/koma-sources"},
   "rules": [{
-    "id": "edge-banners", "name": "已知边缘横幅", "description": "识别同款顶部和底部横幅", "kind": "edge_signature_v1", "crossSource": true,
+    "id": "edge-banners", "name": "包子漫画横幅", "description": "识别新版、旧版和窄版顶部及底部横幅，支持连续叠加和转载图片", "kind": "edge_signature_v1", "crossSource": true,
     "signatures": [
       {"id": "current", "image": "../templates/current.jpg"},
       {"id": "old", "image": "../templates/old.jpg"},
