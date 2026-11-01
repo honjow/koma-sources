@@ -1,8 +1,8 @@
 # Koma 书源库
 
-为 [Koma 阅读器](https://github.com/honjow/Koma) 提供可独立安装、更新的漫画书源。Koma 不内置书源；请只添加你信任的索引。
+为 [Koma 阅读器](https://github.com/honjow/Koma) 提供可独立安装、更新的漫画书源。Koma 不内置书源；请只添加你信任的订阅。
 
-持续更新索引：
+持续更新订阅地址：
 
 ~~~text
 https://github.com/honjow/koma-sources/releases/latest/download/index.json
@@ -10,9 +10,10 @@ https://github.com/honjow/koma-sources/releases/latest/download/index.json
 
 ## 在 Koma 中使用
 
-1. **添加索引**：打开 Koma 的“源包管理”，进入“源索引”，粘贴上面的地址并加载。
-2. **安装或更新**：在索引中选择需要的书源安装。已安装且来源相同的书源出现新版本时，可在同一索引中检查并更新。
-3. **本地导入**：也可以在 [最新发行版](https://github.com/honjow/koma-sources/releases/latest) 下载单个 .koma 文件，通过 Koma 的本地文件选择器导入。
+1. **添加订阅**：打开 Koma 的“浏览”，点右上角“书源管理”，再点右上角四点菜单中的“订阅地址”。在订阅地址页点右上角添加，粘贴上面的地址并保存。可以添加多个订阅；名称可自行填写，留空时使用订阅提供的名称。
+2. **安装或更新**：返回书源管理，选择需要的书源安装。下拉书源管理页面可检查更新；有更新的书源会集中显示在顶部，可分别更新。Koma 也会在后台检查，发现更新时在“浏览”显示角标。
+3. **管理订阅**：在“订阅地址”页可编辑、复制或移除已添加的地址；订阅提供项目主页时，也可从对应菜单打开。
+4. **本地导入**：也可以在 [最新发行版](https://github.com/honjow/koma-sources/releases/latest) 下载单个 .koma 文件，在 Koma 的书源管理右上角四点菜单中选择“本地导入”，通过文件选择器导入。
 
 向 master 推送后，GitHub Actions 会自动编译全部生产源和教学示例，生成包、图标、安装索引与完整目录。工作流先创建草稿发行版，只在这些资产全部生成、上传并通过检查后，才把这一版公开为 latest。构建失败不会覆盖当前可用的 latest；历史发行版仍保留在[发行记录](https://github.com/honjow/koma-sources/releases)中。
 
@@ -23,13 +24,13 @@ https://github.com/honjow/koma-sources/releases/latest/download/index.json
 ## 当前覆盖
 
 - **85 个生产源**纳入自动编译和发行；教学用 example-demo 也会编译检查，但不进入安装索引。
-- 当前 latest 的安装索引与完整目录均为 **85 项**，其中 **85 项提供必需图标并可安装**。
+- 完整目录保留 **85 项**；嗨皮漫画因上游不可用已从新安装索引撤下，当前安装索引为 **84 项**。已安装的嗨皮源和阅读数据不受此目录变更影响。
 - 版本按源独立维护，请以索引条目的 version 和 minAppVersion 为准。
 - 当前有 **32 个源标记为 NSFW**。请遵守所在地法律和站点条款；nsfw: false 或 unknown 不等于已证明适合所有年龄。
 
 图标均满足打包要求，但并非全部取得了官方高清原件：
 
-- IKMMH、HentaiHand、Happy 和 92 漫画使用用户批准的临时名称字标 IKM / HH / Happy / 92。它们是普通的 Koma 绿色透明 512px 名称字标，不是官方 Logo，也没有额外底板、阴影或遮罩。
+- IKMMH、Happy 和 92 漫画使用用户批准的临时名称字标 IKM / Happy / 92。它们是普通的 Koma 绿色透明 512px 名称字标，不是官方 Logo，也没有额外底板、阴影或遮罩。HentaiHand 使用其官网提供的原始 Logo，来源见 [素材说明](sources/hentaihand-zh/ASSET_SOURCES.md)。
 - 喵趣 0.1.2、XComic 简繁 0.1.1 已清理旧外底板或灰影；HComic 0.1.2 使用官网标识中的完整鲨鱼图形；MyComic 0.1.2、漫画1234 0.1.3 清理了保留下来的现有图标。这些处理保留身份，不代表取得新的官方高清原件。
 - 部分黑色图标使用固定白底以保证深色界面中的辨识度，并保留原图形。鸟鸟韩漫 0.1.2 已完成浅色、深色列表验证；泰拉记事社 0.1.7 保留原白底黑字图标。
 
@@ -37,13 +38,13 @@ https://github.com/honjow/koma-sources/releases/latest/download/index.json
 
 ## 常见问题
 
-### 索引加载失败
+### 订阅加载失败
 
-先确认地址与上方完全一致，并检查设备能否访问 GitHub。若网络正常，重新加载索引并查看错误提示；也可从[发行记录](https://github.com/honjow/koma-sources/releases)打开对应版本确认资产是否存在。
+先确认地址与上方完全一致，并检查设备能否访问 GitHub。地址尚未保存时，可在添加或编辑对话框中重试；已保存的订阅可返回书源管理页下拉检查。也可从[发行记录](https://github.com/honjow/koma-sources/releases)打开对应版本确认资产是否存在。
 
 ### 检查更新没有反应
 
-先确认安装来自持续更新索引，且索引条目的 version 确实高于已安装版本。重新加载索引后再检查更新。若是本地导入的旧包，可重新添加索引并检查一次；仍无反应时，请附上源名、已安装版本、索引版本和操作步骤反馈。
+先确认已添加持续更新的订阅地址，且订阅中的版本高于已安装版本。在书源管理页下拉检查更新；若是本地导入的旧包，也可添加对应订阅后再检查。仍无反应时，请附上源名、已安装版本、订阅中的版本和操作步骤反馈。
 
 ### 书源能安装，但打不开或没有内容
 
