@@ -23,7 +23,11 @@ https://github.com/honjow/koma-sources/releases/latest/download/index.json
 
 ## 横幅过滤
 
-规则随已有书源订阅自动获取，无需添加额外的规则订阅地址。
+书源和图片规则在同一个订阅管理入口中分别添加。图片规则订阅地址：
+
+~~~text
+https://github.com/honjow/koma-sources/releases/download/image-rules-v1/index.json
+~~~
 
 在“设置 → 阅读 → 横幅过滤（页面裁边分组）”中选择过滤方式，默认跟随书源；也可在单本漫画的阅读设置中单独选择，或使用全局设置。“自动识别”可识别其他书源转载的同款顶部或底部横幅。首批规则针对页面边缘横幅，不能清除任意水印。下载原文件和普通 CBZ 导出保留原图。
 

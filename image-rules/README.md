@@ -1,19 +1,24 @@
-# Image rules
+# 图片规则作者指南
 
-The three JPEG templates are extracted byte-for-byte from Koma's `SourceBaoziBannerTemplates.ets`, which cites Keiyoushi commit `949dea252eb8e867b7b40834a26e13088764ff55` and stevenyomi/baozibanner. Their SHA-256 values are:
+图片规则是独立订阅。添加到 Koma 的图片规则地址为：
 
-- current: `876cb19330763cb8aaeb3b09a5d563b5ddd537715e4a2a7b273814024b2b00fe`
-- old: `8d4706b611ab8c3799782698be3fe4e759d66418522504620d041e890cfc60d7`
-- narrow: `d900935cae37df0fed07d74b5f51d36ac1e491c67a56f9c24ac2d46f0395cb79`
-
-Set `PACK_VERSION` in `generate.py` when changing the published pack. Run `python3 image-rules/generate.py` with Pillow to produce the content-addressed pack and index in `image-rules/dist`. The `image-rules` branch keeps previous resources; the fixed, non-latest `image-rules-v1` release publishes the same pack before replacing its index. Each row averages 16 samples in the 20%–80% horizontal interval using integer floor. The narrow bottom match scales all 186 source rows before taking the scaled 160-row height. The generator uses Pillow's JPEG decoder; exact pixel equivalence to Harmony ImageKit has not been established.
-
-Legacy `sourceIds` identifies producers whose old cached pages may need declaration discovery. It does not restrict automatic matching or matching a declared processing kind.
-
-Subscription publishers can declare the rules in their existing `repo.json`:
-
-```json
-{"imageRules":{"schemaVersion":1,"indexUrl":"https://github.com/honjow/koma-sources/releases/download/image-rules-v1/index.json"}}
+```text
+https://github.com/honjow/koma-sources/releases/download/image-rules-v1/index.json
 ```
 
-See the [subscription image rules protocol](https://github.com/honjow/Koma/blob/master/docs/subscription-image-rules.md) for the full contract.
+用户在订阅管理中明确选择图片规则；书源订阅不会自动添加它。
+
+## 新增或修改规则
+
+1. 将参考图放入 `templates/`，保留原始素材及来源说明。在 `definitions/` 新建一个 JSON 文件作为规则包，参照 [`edge-banners.json`](definitions/edge-banners.json)。每个包有独立 `id`、正整数 `version`、`meta`（`name`、`description`、HTTPS `website`）和 `rules`；每条规则有独立 `id`、`name`、`description`。
+2. 当前支持 `kind: edge_signature_v1`，用于识别页面顶部或底部的已知图案。`signatures` 的 `image` 相对于定义文件，读取图像尺寸并计算逐行签名；`top` 和 `bottom` 按顺序引用签名，`height` 可限制底部匹配高度。`crossSource` 表示允许跨源识别。可选 `scale` 包含 `minWidthExclusive`、`maxWidthExclusive`、`referenceWidth`；先缩放完整签名，再按目标宽度计算底部高度。`legacy` 可声明旧处理类型及模式，`sourceIds` 仅限定旧缓存声明的探测范围，不限制自动识别或已声明类型的匹配。
+3. 用 Pillow 运行生成器并检查输出：
+
+   ```bash
+   python3 image-rules/generate.py
+   ```
+
+   可使用 `--definitions`、`--catalog`、`--output` 指向其他目录或目录元数据。生成时校验引用、类型及尺寸；输出为 `index.json` 和以 SHA-256 命名的规则包。实际用含目标横幅、无横幅和缩放或重压缩的页面样本检查识别与裁切，再提交规则。更改已有包内容时递增该包的 `version`。目录名称、简介及主页在 `catalog.json` 中维护。
+4. 将定义、素材及来源说明提交到 master。图片规则独立工作流生成全部包，先发布不可变包，再更新固定 Release 中的索引；旧包保留，书源 latest 不受影响。
+
+签名从水平 20%–80% 范围取 16 列，每行分别对 RGB 求平均并向下取整。当前模板由 Koma 的 `SourceBaoziBannerTemplates.ets` 原样提取，来源为 Keiyoushi 固定提交 `949dea252eb8e867b7b40834a26e13088764ff55`，基于 stevenyomi/baozibanner。三张 JPEG 的 SHA-256 分别为 `876cb19330763cb8aaeb3b09a5d563b5ddd537715e4a2a7b273814024b2b00fe`、`8d4706b611ab8c3799782698be3fe4e759d66418522504620d041e890cfc60d7`、`d900935cae37df0fed07d74b5f51d36ac1e491c67a56f9c24ac2d46f0395cb79`。生成器使用 Pillow JPEG 解码，与 Harmony ImageKit 解码逐值一致性尚未确认。

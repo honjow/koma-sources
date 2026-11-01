@@ -1,0 +1,16 @@
+{
+  "id": "edge-banners",
+  "version": 3,
+  "meta": {"name": "页面边缘横幅", "description": "识别已知的顶部和底部横幅", "website": "https://github.com/honjow/koma-sources"},
+  "rules": [{
+    "id": "edge-banners", "name": "已知边缘横幅", "description": "识别同款顶部和底部横幅", "kind": "edge_signature_v1", "crossSource": true,
+    "signatures": [
+      {"id": "current", "image": "../templates/current.jpg"},
+      {"id": "old", "image": "../templates/old.jpg"},
+      {"id": "narrow", "image": "../templates/narrow.jpg", "scale": {"minWidthExclusive": 640, "maxWidthExclusive": 800, "referenceWidth": 640}}
+    ],
+    "top": [{"signature":"current"},{"signature":"old"},{"signature":"narrow"}],
+    "bottom": [{"signature":"old"},{"signature":"current"},{"signature":"narrow","height":160}],
+    "legacy": [{"kind":"baozi_banner","singleModes":["1"],"stackedModes":["2"],"sourceIds":["online.baozimh.koma"]}]
+  }]
+}
