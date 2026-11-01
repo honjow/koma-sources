@@ -9,3 +9,11 @@ The three JPEG templates are extracted byte-for-byte from Koma's `SourceBaoziBan
 Set `PACK_VERSION` in `generate.py` when changing the published pack. Run `python3 image-rules/generate.py` with Pillow to produce the content-addressed pack and index in `image-rules/dist`. The `image-rules` branch keeps previous resources; the fixed, non-latest `image-rules-v1` release publishes the same pack before replacing its index. Each row averages 16 samples in the 20%–80% horizontal interval using integer floor. The narrow bottom match scales all 186 source rows before taking the scaled 160-row height. The generator uses Pillow's JPEG decoder; exact pixel equivalence to Harmony ImageKit has not been established.
 
 Legacy `sourceIds` identifies producers whose old cached pages may need declaration discovery. It does not restrict automatic matching or matching a declared processing kind.
+
+Subscription publishers can declare the rules in their existing `repo.json`:
+
+```json
+{"imageRules":{"schemaVersion":1,"indexUrl":"https://github.com/honjow/koma-sources/releases/download/image-rules-v1/index.json"}}
+```
+
+See the [subscription image rules protocol](https://github.com/honjow/Koma/blob/master/docs/subscription-image-rules.md) for the full contract.
