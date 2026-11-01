@@ -39,7 +39,7 @@ static mut AUTH_TOKEN_LEN: usize = 0;
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.manhuaren.koma",
     name: "漫画人",
-    version: "0.1.6",
+    version: "0.1.7",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
