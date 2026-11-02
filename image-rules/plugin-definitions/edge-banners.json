@@ -1,9 +1,9 @@
 {
   "id": "edge-banners",
-  "version": 5,
+  "version": 6,
   "meta": {
-    "name": "包子漫画横幅",
-    "description": "识别新版、旧版和窄版顶部及底部横幅，支持连续叠加和转载图片",
+    "name": "去除包子漫画横幅",
+    "description": "自动识别并去除漫画图片顶部、底部的包子漫画广告横幅，支持多条叠加横幅，也适用于转载这些图片的其他书源。",
     "website": "https://github.com/honjow/koma-sources"
   },
   "processor": {

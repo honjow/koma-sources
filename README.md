@@ -41,7 +41,7 @@ https://github.com/honjow/koma-sources/releases/download/image-rules-v1/index.js
 https://github.com/honjow/koma-sources/releases/download/image-plugins-v1/index.json
 ~~~
 
-插件可安装、配置和卸载；包子漫画横幅插件可识别同款顶部及底部横幅。既有图片规则订阅地址仍可使用。
+插件可安装、配置和卸载；“去除包子漫画横幅”插件可去除同款顶部及底部横幅。既有图片规则订阅地址仍可使用。
 
 ## 常见问题
 
