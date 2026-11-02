@@ -31,7 +31,7 @@ https://github.com/honjow/koma-sources/releases/download/image-plugins-v1/index.
 
 添加订阅后，在图片处理插件管理中选择并安装插件；添加目录本身不会安装插件。插件可以配置和卸载，新处理算法通过外部 WASM 插件提供。“去除包子漫画横幅”插件可去除同款顶部及底部横幅。
 
-在“设置 → 阅读 → 横幅过滤（页面裁边分组）”中选择过滤方式，也可在单本漫画的阅读设置中单独选择，或使用全局设置。下载原文件和普通 CBZ 导出保留原图。详见 [Koma 横幅过滤说明](https://github.com/honjow/Koma#横幅过滤)。
+从“设置 → 阅读 → 图片处理插件”或阅读器的“阅读设置 → 图片处理插件”可进入同一管理页。下载原文件和普通 CBZ 导出保留原图。详见 [Koma 图片处理插件说明](https://github.com/honjow/Koma#图片处理插件)。
 
 ## 常见问题
 
