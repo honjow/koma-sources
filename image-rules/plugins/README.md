@@ -1,4 +1,4 @@
-# 图片处理插件 SDK（候选）
+# 图片处理插件作者指南
 
 插件用 `wasm32-unknown-unknown` 编译，导出线性 `memory`、`koma_image_processor_abi() -> i32`（返回 1）与 `koma_image_process() -> i32`。后者返回 0 保留原图、1 表示完整输出、负数表示失败。示例 Rust SDK 位于 `sdk/`；`banner/` 是横幅处理器，`invert/` 是独立反色示例，不加入默认目录。
 
@@ -11,7 +11,7 @@ RUSTFLAGS='-C link-arg=--max-memory=8388608' cargo build --manifest-path image-r
 python3 image-rules/generate_plugins.py --output /tmp/koma-image-plugin-candidate
 ```
 
-`plugin-definitions/*.json` 各描述一个插件，提供 id、version、meta、processor、parameters 与 application；`parametersFromRule` 可从现有签名定义生成参数。processor.wasm 相对定义文件，或用 `--processor id=path` 覆盖；`--definitions`、`--catalog` 和 `--output` 可指定其他位置。生成 schema 2 `image_plugins` 索引、内容寻址 JSON 包及 WASM。用户通过明确添加插件订阅获得处理器；旧 schema 1 资源不删除。默认目录提供“去除包子漫画横幅”插件；独立反色示例不在默认目录中。源码作者须在真实样本、空处理、取消及无关页面上验证输出；不要把构建成功当成设备验收。
+`plugin-definitions/*.json` 各描述一个插件，提供 id、version、meta、processor、parameters 与 application；`parametersFromRule` 可从现有签名定义生成参数。processor.wasm 相对定义文件，或用 `--processor id=path` 覆盖；`--definitions`、`--catalog` 和 `--output` 可指定其他位置。生成 schema 2 `image_plugins` 索引、内容寻址 JSON 包及 WASM。用户添加插件订阅后，再从目录选择安装插件；算法由外部 WASM 提供。旧 schema 1 资源作为兼容资料保留。默认目录提供“去除包子漫画横幅”插件；独立反色示例不在默认目录中。源码作者须在真实样本、空处理、取消及无关页面上验证输出；不要把构建成功当成设备验收。
 
 目录元数据由 `image-rules/plugin-catalog.json` 提供，目录名称为“Koma 图片处理插件”，与旧图片规则目录分离。插件定义可选 `output`，例如 `{"format":"image/jpeg","quality":90}`；格式支持 JPEG、PNG 和 WebP，声明 output 时 quality 为 0–100 整数。未声明时宿主用 PNG 保留透明度。多个处理器依次生效时，由宿主按最后一个有效处理器的输出格式打包结果。`application.sourceHints[].sourceIds` 可记录旧缓存探测来源，不限制新图片或转载图片的匹配。
 

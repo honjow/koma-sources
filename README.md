@@ -21,27 +21,17 @@ https://github.com/honjow/koma-sources/releases/latest/download/index.json
 
 同目录可选的 `repo.json` 使用 `{"meta":{"name":"订阅名","website":"https://项目页"}}` 提供订阅信息；两个字段均可省略，website 为 HTTP(S) 地址。它独立于数组格式的安装索引，旧客户端无需读取即可继续安装和更新。
 
-## 横幅过滤
-
-书源和图片规则地址在同一个订阅管理入口中分别添加，Koma 会按内容自动识别并分组。图片规则订阅地址：
-
-~~~text
-https://github.com/honjow/koma-sources/releases/download/image-rules-v1/index.json
-~~~
-
-在“设置 → 阅读 → 横幅过滤（页面裁边分组）”中选择过滤方式，默认跟随书源；也可在单本漫画的阅读设置中单独选择，或使用全局设置。“自动识别”可识别其他书源转载的同款顶部或底部横幅。首批规则针对页面边缘横幅，不能清除任意水印。下载原文件和普通 CBZ 导出保留原图。
-
-详见 [Koma 横幅过滤说明](https://github.com/honjow/Koma#横幅过滤)。
-
 ## 图片处理插件
 
-在书源管理的订阅地址页添加独立的图片处理插件地址，Koma 会自动识别并分组：
+书源和图片处理插件使用独立的订阅地址；在同一个“订阅地址”入口添加后，Koma 会自动识别并分组。图片处理插件目录地址：
 
 ~~~text
 https://github.com/honjow/koma-sources/releases/download/image-plugins-v1/index.json
 ~~~
 
-插件可安装、配置和卸载；“去除包子漫画横幅”插件可去除同款顶部及底部横幅。既有图片规则订阅地址仍可使用。
+添加订阅后，在图片处理插件管理中选择并安装插件；添加目录本身不会安装插件。插件可以配置和卸载，新处理算法通过外部 WASM 插件提供。“去除包子漫画横幅”插件可去除同款顶部及底部横幅。
+
+在“设置 → 阅读 → 横幅过滤（页面裁边分组）”中选择过滤方式，也可在单本漫画的阅读设置中单独选择，或使用全局设置。下载原文件和普通 CBZ 导出保留原图。详见 [Koma 横幅过滤说明](https://github.com/honjow/Koma#横幅过滤)。
 
 ## 常见问题
 
