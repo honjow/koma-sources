@@ -1,4 +1,4 @@
-# 图片处理插件作者指南
+# 图片插件作者指南
 
 插件用 `wasm32-unknown-unknown` 编译，导出线性 `memory`、`koma_image_processor_abi() -> i32`（返回 1）与 `koma_image_process() -> i32`。后者返回 0 保留原图、1 表示完整输出、负数表示失败。示例 Rust SDK 位于 `sdk/`；`banner/` 是横幅处理器，`invert/` 是独立反色示例，不加入默认目录。
 
