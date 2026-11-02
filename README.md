@@ -33,6 +33,16 @@ https://github.com/honjow/koma-sources/releases/download/image-rules-v1/index.js
 
 详见 [Koma 横幅过滤说明](https://github.com/honjow/Koma#横幅过滤)。
 
+## 图片处理插件
+
+在书源管理的订阅地址页添加独立的图片处理插件地址，Koma 会自动识别并分组：
+
+~~~text
+https://github.com/honjow/koma-sources/releases/download/image-plugins-v1/index.json
+~~~
+
+插件可安装、配置和卸载；包子漫画横幅插件可识别同款顶部及底部横幅。既有图片规则订阅地址仍可使用。
+
 ## 常见问题
 
 ### 订阅加载失败

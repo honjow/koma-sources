@@ -1,0 +1,33 @@
+{
+  "id": "edge-banners",
+  "version": 5,
+  "meta": {
+    "name": "包子漫画横幅",
+    "description": "识别新版、旧版和窄版顶部及底部横幅，支持连续叠加和转载图片",
+    "website": "https://github.com/honjow/koma-sources"
+  },
+  "processor": {
+    "abi": "koma-image-v1",
+    "wasm": "../plugins/target/wasm32-unknown-unknown/release/koma_image_banner.wasm"
+  },
+  "parametersFromRule": "../definitions/edge-banners.json",
+  "application": {
+    "automatic": true,
+    "sourceHints": [
+      {
+        "kind": "baozi_banner",
+        "modes": [
+          "1",
+          "2"
+        ],
+        "sourceIds": [
+          "online.baozimh.koma"
+        ]
+      }
+    ]
+  },
+  "output": {
+    "format": "image/jpeg",
+    "quality": 90
+  }
+}

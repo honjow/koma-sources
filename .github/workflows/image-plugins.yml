@@ -1,0 +1,59 @@
+name: Build and publish image plugins
+
+# Publication is intentionally manual until the Host has accepted schema 2.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: image-plugins-publication
+  cancel-in-progress: false
+
+jobs:
+  plugins:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Install image decoder
+        run: sudo apt-get update && sudo apt-get install -y python3-pil
+      - name: Build plugin processors
+        env:
+          RUSTFLAGS: -C link-arg=--max-memory=8388608
+        run: cargo build --manifest-path image-rules/plugins/Cargo.toml --target wasm32-unknown-unknown --release --locked
+      - name: Generate plugin resources
+        run: |
+          python3 image-rules/generate_plugins.py --output /tmp/image-plugin-dist
+          python3 image-rules/generate_plugins.py --definitions image-rules/example-definitions --catalog image-rules/example-catalog.json --output /tmp/image-plugin-example
+      - name: Publish immutable resources then index
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag=image-plugins-v1
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --draft --target "$GITHUB_SHA" --title "Image processing plugins" --notes "Content-addressed image processing plugins." --latest=false
+          fi
+          mkdir -p /tmp/image-plugins-existing
+          for file in /tmp/image-plugin-dist/*.wasm /tmp/image-plugin-dist/*.json /tmp/image-plugin-example/*.wasm /tmp/image-plugin-example/*.json; do
+            name="${file##*/}"
+            [[ "$name" == index.json ]] && continue
+            if gh release view "$tag" --json assets --jq '.assets[].name' | grep -Fxq "$name"; then
+              gh release download "$tag" --pattern "$name" --dir /tmp/image-plugins-existing
+              cmp "$file" "/tmp/image-plugins-existing/$name"
+            else
+              gh release upload "$tag" "$file"
+            fi
+          done
+          cp /tmp/image-plugin-example/index.json /tmp/example-index.json
+          gh release upload "$tag" /tmp/example-index.json --clobber
+          gh release upload "$tag" /tmp/image-plugin-dist/index.json --clobber
+          if [[ "$(gh release view "$tag" --json isDraft --jq '.isDraft')" == true ]]; then
+            gh release edit "$tag" --draft=false --latest=false
+          fi

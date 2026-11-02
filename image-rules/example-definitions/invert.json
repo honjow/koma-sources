@@ -1,0 +1,7 @@
+{
+  "id":"invert-example", "version":1,
+  "meta":{"name":"反色示例","description":"用于演示强度设置的像素反色处理器"},
+  "processor":{"abi":"koma-image-v1","wasm":"../plugins/target/wasm32-unknown-unknown/release/koma_image_invert_example.wasm"},
+  "parameters":{}, "application":{"automatic":true,"sourceHints":[]},
+  "settings":[{"id":"amount","label":"反色强度","kind":"range","defaultValue":100,"minValue":0,"maxValue":100,"step":1}]
+}
