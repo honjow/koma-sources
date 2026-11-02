@@ -15,6 +15,8 @@ python3 image-rules/generate_plugins.py --output /tmp/koma-image-plugin-candidat
 
 目录元数据由 `image-rules/plugin-catalog.json` 提供，目录名称为“Koma 图片处理插件”，与旧图片规则目录分离。插件定义可选 `output`，例如 `{"format":"image/jpeg","quality":90}`；格式支持 JPEG、PNG 和 WebP，声明 output 时 quality 为 0–100 整数。未声明时宿主用 PNG 保留透明度。多个处理器依次生效时，由宿主按最后一个有效处理器的输出格式打包结果。`application.sourceHints[].sourceIds` 可记录旧缓存探测来源，不限制新图片或转载图片的匹配。
 
+插件启用后按 `application` 声明决定适用范围：`automatic: true` 可独立处理正文图片，`automatic: false` 仅处理与 `sourceHints` 匹配的图片。`context.application` 由宿主根据适用路径提供 `auto` 或 `source`，并非用户选择的处理模式。
+
 插件定义可选 `settings` 数组，供宿主以共享表单呈现配置。每项使用 `id`、`label` 和 `kind`，`defaultValue` 可选；可选 `description`，数字范围必须提供有限的 `minValue`、`maxValue`、`step`（最大值大于最小值，step 大于 0）；select 和 multiselect 必须提供 `options`（每项含 id 和 label）。支持的 kind 为 `string`、`boolean`、`select`、`multiselect`、`range`；具体表单入口和保存行为由宿主提供。当前包子插件没有额外配置字段。
 
 发布工作流 `.github/workflows/image-plugins.yml` 手动启动，使用固定的非 latest `image-plugins-v1` Release；先上传内容寻址的 WASM 和包清单，再更新索引。旧 `image-rules-v1` 目录和资产独立保留。
