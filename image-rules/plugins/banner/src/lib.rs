@@ -14,9 +14,9 @@ fn scaled(s:&Sig,w:i32)->Sig {
         for c in 0..3 { let x=s.rgb[a*3+c] as f64; rgb.push((x+(s.rgb[b*3+c] as f64-x)*f).round() as u8); }
     } Sig{w,h,rgb}
 }
-fn matches(s:&Sig,x:i32,y:i32,iw:i32,ih:i32)->Result<bool,()> {
+fn matches(s:&Sig,x:i32,y:i32,iw:i32,ih:i32,error_per_row:i64)->Result<bool,()> {
     if x<0 || y<0 || x+s.w>iw || y+s.h>ih {return Ok(false);}
-    let mut row=vec![0;s.w as usize*4]; let start=(s.w as f64*0.2).floor() as i32; let end=(s.w as f64*0.8).floor() as i32; let step=((end-start) as f64/16.0).max(1.0); let threshold=s.h as i64*18; let mut diff=0_i64;
+    let mut row=vec![0;s.w as usize*4]; let start=(s.w as f64*0.2).floor() as i32; let end=(s.w as f64*0.8).floor() as i32; let step=((end-start) as f64/16.0).max(1.0); let threshold=s.h as i64*error_per_row; let mut diff=0_i64;
     for pass in 0..2 { for r in 0..s.h { if (r%4==0)!=(pass==0) {continue;} if host::cancelled(){return Err(());} host::region(x,y+r,s.w,1,&mut row)?;
         let mut sums=[0_u32;3]; for i in 0..16 { let col=(start+(i as f64*step).floor() as i32).min(s.w-1) as usize; for c in 0..3 {sums[c]+=row[col*4+c] as u32;} }
         for c in 0..3 {diff+=((sums[c]/16) as i64-s.rgb[r as usize*3+c] as i64).abs();} if diff > if pass==0 {threshold/2} else {threshold} {return Ok(false);}
@@ -41,7 +41,10 @@ fn short_narrow_top(original: &Sig, narrow: &Sig, y: i32, height: i32) -> Result
     let mut printed = narrow.clone();
     printed.h = ((gutter_start as f64 * narrow.h as f64) / original.h as f64).ceil() as i32;
     printed.rgb.truncate(printed.h as usize * 3);
-    if !matches(&printed, 0, y, narrow.w, height)? {
+    // Allow a small extra decoding/compression difference in the printed
+    // area only. The independent gutter and first-ink requirements still
+    // govern the crop, and the legacy full signatures keep their tolerance.
+    if !matches(&printed, 0, y, narrow.w, height, 19)? {
         return Ok(0);
     }
 
@@ -83,8 +86,8 @@ fn run()->Result<i32,()> {
     let (iw,ih)=unsafe{(host::width(),host::height())}; if iw<=0 || ih<=0 {return Err(());} let nw=if iw>640 && iw<800 {iw} else {640}; let narrow=if nw==640 {original.clone()} else {scaled(&original,nw)};
     let bh=((160.0_f32)*(nw as f32/640.0_f32)).round().max(1.0) as i32; let mut nb=narrow.clone();nb.h=bh.min(nb.h);nb.rgb.truncate(nb.h as usize*3);
     let tops=[&current,&old,&narrow];let bottoms=[&old,&current,&nb];let mut top=0;let mut bottom=0;
-    while top<ih {let mut used=0;for s in tops {if matches(s,(iw-s.w).div_euclid(2),top,iw,ih)? {used=s.h;break;}} if used==0 && narrow.w==iw {used=short_narrow_top(&original,&narrow,top,ih)?;} if used==0 {break;}top+=used;if single {break;}}
-    if !(single && top>0) {while top+bottom<ih {let mut used=0;for s in bottoms {let y=ih-s.h-bottom;if y>=top && matches(s,(iw-s.w).div_euclid(2),y,iw,ih)? {used=s.h;break;}} if used==0 {break;}bottom+=used;if single {break;}}}
+    while top<ih {let mut used=0;for s in tops {if matches(s,(iw-s.w).div_euclid(2),top,iw,ih,18)? {used=s.h;break;}} if used==0 && narrow.w==iw {used=short_narrow_top(&original,&narrow,top,ih)?;} if used==0 {break;}top+=used;if single {break;}}
+    if !(single && top>0) {while top+bottom<ih {let mut used=0;for s in bottoms {let y=ih-s.h-bottom;if y>=top && matches(s,(iw-s.w).div_euclid(2),y,iw,ih,18)? {used=s.h;break;}} if used==0 {break;}bottom+=used;if single {break;}}}
     if top==0 && bottom==0 {return Ok(0);} let oh=ih-top-bottom;if oh<=0 {return Ok(0);} host::create(iw,oh)?;
     let mut row=vec![0;(iw as usize).checked_mul(4).ok_or(())?];for y in 0..oh {if host::cancelled(){return Err(());}host::region(0,top+y,iw,1,&mut row)?;host::write(y,iw,1,&row)?;} Ok(1)
 }
