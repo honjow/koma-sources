@@ -13,6 +13,8 @@ python3 image-rules/generate_plugins.py --output /tmp/koma-image-plugin-candidat
 
 `plugin-definitions/*.json` 各描述一个插件，提供 id、version、meta、processor、parameters 与 application；`parametersFromRule` 可从现有签名定义生成参数。processor.wasm 相对定义文件，或用 `--processor id=path` 覆盖；`--definitions`、`--catalog` 和 `--output` 可指定其他位置。生成 schema 2 `image_plugins` 索引、内容寻址 JSON 包及 WASM。用户添加插件订阅后，再从目录选择安装插件；算法由外部 WASM 提供。旧 schema 1 资源作为兼容资料保留。默认目录提供“去除包子漫画横幅”插件；独立反色示例不在默认目录中。源码作者须在真实样本、空处理、取消及无关页面上验证输出；不要把构建成功当成设备验收。
 
+包子窄版顶部横幅优先使用完整签名。完整签名未命中时，处理器用现有签名的印刷区域确认横幅，再在模板高度内查找足够长的白色留白和紧随其后的明确正文起点。固定模板高度不作为这条路径的裁切位置。留白或正文边界不明确时保留原图。
+
 目录元数据由 `image-rules/plugin-catalog.json` 提供，目录名称为“Koma 图片处理插件”，与旧图片规则目录分离。插件定义可选 `output`，例如 `{"format":"image/jpeg","quality":90}`；格式支持 JPEG、PNG 和 WebP，声明 output 时 quality 为 0–100 整数。未声明时宿主用 PNG 保留透明度。多个处理器依次生效时，由宿主按最后一个有效处理器的输出格式打包结果。`application.sourceHints[].sourceIds` 可记录旧缓存探测来源，不限制新图片或转载图片的匹配。
 
 插件启用后按 `application` 声明决定适用范围：`automatic: true` 可独立处理正文图片，`automatic: false` 仅处理与 `sourceHints` 匹配的图片。`context.application` 由宿主根据适用路径提供 `auto` 或 `source`，并非用户选择的处理模式。

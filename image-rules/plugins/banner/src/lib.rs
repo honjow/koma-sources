@@ -22,6 +22,55 @@ fn matches(s:&Sig,x:i32,y:i32,iw:i32,ih:i32)->Result<bool,()> {
         for c in 0..3 {diff+=((sums[c]/16) as i64-s.rgb[r as usize*3+c] as i64).abs();} if diff > if pass==0 {threshold/2} else {threshold} {return Ok(false);}
     }} Ok(true)
 }
+// The narrow signature ends with a long white gutter followed by a template border.
+// Use its printed area to establish identity, then require a separate white gutter
+// and a clear first content row. If the boundary is ambiguous, leave the page intact.
+fn short_narrow_top(original: &Sig, narrow: &Sig, y: i32, height: i32) -> Result<i32, ()> {
+    if narrow.w == original.w || y + narrow.h >= height {
+        return Ok(0);
+    }
+
+    let Some(gutter_start) = original.rgb.chunks_exact(24)
+        .enumerate()
+        .skip(original.h as usize / 16)
+        .find(|(_, block)| block.iter().all(|&channel| channel >= 253))
+        .map(|(index, _)| index * 8)
+    else {
+        return Ok(0);
+    };
+    let mut printed = narrow.clone();
+    printed.h = ((gutter_start as f64 * narrow.h as f64) / original.h as f64).ceil() as i32;
+    printed.rgb.truncate(printed.h as usize * 3);
+    if !matches(&printed, 0, y, narrow.w, height)? {
+        return Ok(0);
+    }
+
+    let mut row = vec![0; narrow.w as usize * 4];
+    let mut white_rows = 0;
+    for offset in printed.h..narrow.h {
+        if host::cancelled() {
+            return Err(());
+        }
+        host::region(0, y + offset, narrow.w, 1, &mut row)?;
+        let ink = row.chunks_exact(4).filter(|pixel| {
+            pixel[3] == 255 && pixel[..3].iter().any(|&channel| channel < 224)
+        }).count();
+        let white = row.chunks_exact(4).all(|pixel| {
+            pixel[3] == 255 && pixel[..3].iter().all(|&channel| channel >= 248)
+        });
+        if white {
+            white_rows += 1;
+        } else if white_rows >= (narrow.w / 96) {
+            // Stop at the first nonwhite row. A weak transition could be JPEG
+            // noise or faint artwork, so it is never skipped to find stronger ink.
+            return Ok(if ink >= narrow.w as usize / 16 { offset } else { 0 });
+        } else if white_rows > 0 || ink > 0 {
+            return Ok(0);
+        }
+    }
+    Ok(0)
+}
+
 #[no_mangle] pub extern "C" fn koma_image_processor_abi()->i32 {1}
 #[no_mangle] pub extern "C" fn koma_image_process()->i32 {run().unwrap_or(-1)}
 fn run()->Result<i32,()> {
@@ -31,10 +80,10 @@ fn run()->Result<i32,()> {
     let params=v.get("parameters").ok_or(())?; let sigs=params.get("signatures").and_then(Value::as_array).ok_or(())?;
     let find=|id:&str|->Result<Sig,()> {parse_sig(sigs.iter().find(|x|x.get("id").and_then(Value::as_str)==Some(id)).ok_or(())?)};
     let current=find("current")?; let old=find("old")?; let original=find("narrow")?;
-    let (iw,ih)=unsafe{(host::width(),host::height())}; if iw<=0 || ih<=0 {return Err(());} let nw=if iw>640 && iw<800 {iw} else {640}; let narrow=if nw==640 {original} else {scaled(&original,nw)};
+    let (iw,ih)=unsafe{(host::width(),host::height())}; if iw<=0 || ih<=0 {return Err(());} let nw=if iw>640 && iw<800 {iw} else {640}; let narrow=if nw==640 {original.clone()} else {scaled(&original,nw)};
     let bh=((160.0_f32)*(nw as f32/640.0_f32)).round().max(1.0) as i32; let mut nb=narrow.clone();nb.h=bh.min(nb.h);nb.rgb.truncate(nb.h as usize*3);
     let tops=[&current,&old,&narrow];let bottoms=[&old,&current,&nb];let mut top=0;let mut bottom=0;
-    while top<ih {let mut used=0;for s in tops {if matches(s,(iw-s.w).div_euclid(2),top,iw,ih)? {used=s.h;break;}} if used==0 {break;}top+=used;if single {break;}}
+    while top<ih {let mut used=0;for s in tops {if matches(s,(iw-s.w).div_euclid(2),top,iw,ih)? {used=s.h;break;}} if used==0 && narrow.w==iw {used=short_narrow_top(&original,&narrow,top,ih)?;} if used==0 {break;}top+=used;if single {break;}}
     if !(single && top>0) {while top+bottom<ih {let mut used=0;for s in bottoms {let y=ih-s.h-bottom;if y>=top && matches(s,(iw-s.w).div_euclid(2),y,iw,ih)? {used=s.h;break;}} if used==0 {break;}bottom+=used;if single {break;}}}
     if top==0 && bottom==0 {return Ok(0);} let oh=ih-top-bottom;if oh<=0 {return Ok(0);} host::create(iw,oh)?;
     let mut row=vec![0;(iw as usize).checked_mul(4).ok_or(())?];for y in 0..oh {if host::cancelled(){return Err(());}host::region(0,top+y,iw,1,&mut row)?;host::write(y,iw,1,&row)?;} Ok(1)
