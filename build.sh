@@ -411,8 +411,11 @@ build_source() {
     pkg_url="sources/${name}/${pkg_filename}"
   fi
 
-  # A digest is optional in Koma's index contract. No hashes are generated in
-  # this distribution path; byte-length/ZIP/image/metadata validation remain.
+  # Both distribution paths serve these archive bytes. The full archive digest
+  # lets Koma retry another address of the same release without changing packages.
+  local pkg_sha256
+  pkg_sha256="$(shasum -a 256 < "$koma_file")" || return 1
+  pkg_sha256="${pkg_sha256%% *}"
   # Output index entry JSON to stdout (only line on stdout)
   jq -n \
     --arg id "$src_id" \
@@ -424,10 +427,11 @@ build_source() {
     --arg description "$src_desc" \
     --arg contentRating "$src_content_rating" \
     --arg pkg "$pkg_url" \
+    --arg sha256 "$pkg_sha256" \
     --arg icon "$icon_path" \
     --arg minAppVersion "$min_app_version" \
     --argjson sourceMetadata "$source_metadata" \
-    '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, pkg: $pkg, icon: $icon, minAppVersion: $minAppVersion} + $sourceMetadata'
+    '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, pkg: $pkg, sha256: $sha256, icon: $icon, minAppVersion: $minAppVersion} + $sourceMetadata'
 }
 
 validate_index_packages() {
