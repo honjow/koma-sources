@@ -798,6 +798,13 @@ fn chapter_array(s: &[u8]) -> Result<&[u8], &'static str> {
     }
     Err("incomplete chapter literal")
 }
+fn explicit_chapter_number(title: &[u8]) -> Option<usize> {
+    // The provider labels volumes separately. Only explicit chapter titles carry a chapter number.
+    let title = core::str::from_utf8(title).ok()?.trim().strip_prefix('第')?;
+    let (ordinal, _) = title.split_once(['话', '話'])?;
+    number(ordinal.trim().as_bytes())
+}
+
 fn chapters(r: &[u8]) -> Result<usize, &'static str> {
     let id = manga_id(r)?;
     let root = manga_doc(id, r)?;
@@ -857,11 +864,15 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
             if !write_usize(b, &mut n, count) {
                 return Err("payload overflow");
             };
-            bytes(
-                b,
-                &mut n,
-                b",\"chapterNumber\":null,\"updatedAt\":null,\"scanlator\":",
-            )?;
+            bytes(b, &mut n, b",\"chapterNumber\":")?;
+            if let Some(ordinal) = explicit_chapter_number(title) {
+                if !write_usize(b, &mut n, ordinal) {
+                    return Err("payload overflow");
+                }
+            } else {
+                bytes(b, &mut n, b"null")?;
+            }
+            bytes(b, &mut n, b",\"updatedAt\":null,\"scanlator\":")?;
             if note.is_empty() {
                 bytes(b, &mut n, b"null")?;
             } else {

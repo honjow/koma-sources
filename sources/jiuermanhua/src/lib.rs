@@ -54,7 +54,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.jiuermanhua.koma",
     name: "92漫画网",
-    version: "0.1.5",
+    version: "0.1.6",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -515,6 +515,17 @@ fn run_get_manga(req: &[u8]) -> u32 {
     write_success_payload("get_manga", c)
 }
 
+fn explicit_chapter_number(title: &[u8]) -> Option<usize> {
+    // The chapter-list label carries the real ordinal independently of the link order.
+    let title = core::str::from_utf8(title).ok()?.trim().strip_prefix('第')?;
+    let (number, _) = title.split_once(['话', '話', '回'])?;
+    let number = number.trim();
+    if number.is_empty() || !number.as_bytes().iter().all(u8::is_ascii_digit) {
+        return None;
+    }
+    number.parse().ok()
+}
+
 fn run_get_chapters(req: &[u8]) -> u32 {
     let manga_id = match extract_json_string(req, b"mangaId") {
         Some(v) => v,
@@ -591,7 +602,12 @@ fn run_get_chapters(req: &[u8]) -> u32 {
                     && append_json_escaped(payload, &mut c, manga_id)
                     && write_bytes(payload, &mut c, br#"","title":""#)
                     && append_json_escaped(payload, &mut c, ch_name)
-                    && write_bytes(payload, &mut c, br#"","chapterNumber":null,"volumeNumber":null,"language":"zh","publishedAt":null,"updatedAt":null,"pageCount":null}"#);
+                    && write_bytes(payload, &mut c, br#"","chapterNumber":"#)
+                    && match explicit_chapter_number(ch_name) {
+                        Some(number) => write_usize(payload, &mut c, number),
+                        None => write_bytes(payload, &mut c, b"null"),
+                    }
+                    && write_bytes(payload, &mut c, br#","volumeNumber":null,"language":"zh","publishedAt":null,"updatedAt":null,"pageCount":null}"#);
                 if !ok {
                     break;
                 }

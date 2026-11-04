@@ -10,7 +10,7 @@
 
 ## 解析与可用性
 
-目录完整解析实际owner中的strict JSON chapters数组，保title/原序/notes；number/date未知不猜。分页next仅接受当前选定语言下实际下一页号。原狭窄ASCII slug规则、HTTPS图片、非2xx与容量/截断守卫保持；未知HTML或缺图明确失败，不把部分解析冒完整目录。
+目录完整解析实际owner中的strict JSON chapters数组，保title/原序/notes；仅从原章名明确的「第N话／第N話」提取话数，卷号、裸数字、无编号番外和未知日期不猜。分页next仅接受当前选定语言下实际下一页号。原狭窄ASCII slug规则、HTTPS图片、非2xx与容量/截断守卫保持；未知HTML或缺图明确失败，不把部分解析冒完整目录。
 
 具名公开请求曾返回 HTTP 403，当前站点内容链可用性未确认；不对受拒请求反复重试。红 C 是保留原身份的重绘图，不是官网原图。
 

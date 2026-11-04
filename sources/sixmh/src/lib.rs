@@ -8,7 +8,7 @@ const BASE: &[u8] = b"https://www.liumanhua.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.sixmh.koma",
     name: "六漫画",
-    version: "0.1.6",
+    version: "0.1.7",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -852,6 +852,36 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
     bytes(b, &mut n, b"}]}}")?;
     Ok(n)
 }
+// Sixmh exposes the chapter ordinal in the anchor label, including machine translations.
+fn write_chapter_number(b: &mut [u8], n: &mut usize, title: &[u8]) -> Result<(), &'static str> {
+    let Some(title) = core::str::from_utf8(title).ok().and_then(|title| title.trim().strip_prefix('第')) else {
+        return bytes(b, n, b"null");
+    };
+    let Some((ordinal, suffix)) = title.split_once(['话', '話']) else {
+        return bytes(b, n, b"null");
+    };
+    if !matches!(suffix.trim(), "" | "机翻" | "機翻" | "（机翻）" | "（機翻）" | "(机翻)" | "(機翻)") {
+        return bytes(b, n, b"null");
+    }
+    let (integer, fraction) = ordinal.trim().split_once('.').map_or((ordinal.trim(), None),
+        |(integer, fraction)| (integer, Some(fraction)));
+    let Some(integer) = number(integer.as_bytes()) else {
+        return bytes(b, n, b"null");
+    };
+    if let Some(fraction) = fraction {
+        if fraction.is_empty() || !fraction.as_bytes().iter().all(u8::is_ascii_digit) {
+            return bytes(b, n, b"null");
+        }
+    }
+    if !write_usize(b, n, integer) {
+        return Err("payload overflow");
+    }
+    if let Some(fraction) = fraction {
+        bytes(b, n, b".")?;
+        bytes(b, n, fraction.as_bytes())?;
+    }
+    Ok(())
+}
 fn chapters(r: &[u8]) -> Result<usize, &'static str> {
     let id = identifier(r, b"mangaId")?;
     let root = fetch_doc(id)?;
@@ -898,11 +928,9 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
         if !write_usize(b, &mut n, i) {
             return Err("payload overflow");
         }
-        bytes(
-            b,
-            &mut n,
-            b",\"chapterNumber\":null,\"updatedAt\":null,\"scanlator\":null}",
-        )?;
+        bytes(b, &mut n, b",\"chapterNumber\":")?;
+        write_chapter_number(b, &mut n, title)?;
+        bytes(b, &mut n, b",\"updatedAt\":null,\"scanlator\":null}")?;
     }
     bytes(b, &mut n, b"]}")?;
     Ok(n)

@@ -12,7 +12,7 @@ const BASE: &[u8] = b"https://cmanhua.com";
 const INFO: SourceInfo = SourceInfo {
     id: "com.cmanhua.koma",
     name: "CManhua",
-    version: "0.1.5",
+    version: "0.1.6",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -522,6 +522,30 @@ fn chapter_id(h: &[u8]) -> Option<&[u8]> {
         None
     }
 }
+fn original_chapter_number(title: &[u8]) -> Option<usize> {
+    let title = core::str::from_utf8(decoded(title)?).ok()?;
+    // The outer "章节 N" is a site sequence; the original chapter label follows the series name.
+    let (sequence, content) = title.split_once(':')?;
+    let sequence = sequence.trim().strip_prefix("章节").or_else(|| sequence.trim().strip_prefix("章節"))?;
+    sequence.trim().parse::<usize>().ok()?;
+    let (_, label) = content.rsplit_once(" - ")?;
+    let label = label.trim();
+    let number = if let Some(explicit) = label.strip_prefix('第') {
+        explicit.split_once(['话', '話', '回'])?.0.trim()
+    } else {
+        let (number, subtitle) = label.split_once('.')?;
+        // "N.title" is an ordinal; a decimal or missing subtitle is ambiguous here.
+        if !subtitle.trim_start().chars().next().is_some_and(|ch| ch.is_alphabetic()) {
+            return None;
+        }
+        number
+    };
+    if number.is_empty() || !number.as_bytes().iter().all(u8::is_ascii_digit) {
+        return None;
+    }
+    number.parse().ok()
+}
+
 fn add_chapters(
     doc: &[u8],
     s: &[u8],
@@ -552,6 +576,11 @@ fn add_chapters(
             && write_bytes(b, n, s)
             && write_bytes(b, n, br#"","title":"#)
             && qhtml(b, n, title)
+            && write_bytes(b, n, br#", "chapterNumber":"#)
+            && match original_chapter_number(title) {
+                Some(number) => write_usize(b, n, number),
+                None => write_bytes(b, n, b"null"),
+            }
             && write_bytes(b, n, br#", "sequenceIndex":"#)
             && write_usize(b, n, *count)
             && write_bytes(b, n, br#", "language":"zh","locked":false}"#);

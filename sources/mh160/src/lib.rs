@@ -13,7 +13,7 @@ const MOBILE: &[u8] = b"https://m.mh160mh.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mh160.koma",
     name: "漫画160",
-    version: "0.1.7",
+    version: "0.1.8",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -813,6 +813,30 @@ fn detail(r: &[u8]) -> Result<usize, OperationError> {
     bytes(b, &mut n, b"}}")?;
     Ok(n)
 }
+fn write_chapter_number(b: &mut [u8], n: &mut usize, title: &[u8]) -> bool {
+    // The site appends arbitrary subtitle text after its explicit chapter marker.
+    let Some(title) = core::str::from_utf8(title).ok().and_then(|title| title.trim().strip_prefix('第')) else {
+        return write_bytes(b, n, b"null");
+    };
+    let Some((ordinal, _)) = title.split_once(['话', '話', '回']) else {
+        return write_bytes(b, n, b"null");
+    };
+    let ordinal = ordinal.trim();
+    let (integer, fraction) = ordinal.split_once('.').map_or((ordinal, None),
+        |(integer, fraction)| (integer, Some(fraction)));
+    let Some(integer) = number(integer.as_bytes()) else {
+        return write_bytes(b, n, b"null");
+    };
+    if let Some(fraction) = fraction {
+        if fraction.is_empty() || !fraction.as_bytes().iter().all(u8::is_ascii_digit) {
+            return write_bytes(b, n, b"null");
+        }
+        return write_usize(b, n, integer) && write_bytes(b, n, b".")
+            && write_bytes(b, n, fraction.as_bytes());
+    }
+    write_usize(b, n, integer)
+}
+
 fn chapters(r: &[u8]) -> Result<usize, OperationError> {
     let id = manga_id(r)?;
     let root = manga_doc(id)?;
@@ -855,11 +879,11 @@ fn chapters(r: &[u8]) -> Result<usize, OperationError> {
         if !write_usize(b, &mut n, i) {
             return Err("payload overflow".into());
         }
-        bytes(
-            b,
-            &mut n,
-            b",\"chapterNumber\":null,\"updatedAt\":null,\"scanlator\":null}",
-        )?;
+        bytes(b, &mut n, b",\"chapterNumber\":")?;
+        if !write_chapter_number(b, &mut n, name) {
+            return Err("payload overflow".into());
+        }
+        bytes(b, &mut n, b",\"updatedAt\":null,\"scanlator\":null}")?;
     }
     bytes(b, &mut n, b"]}")?;
     Ok(n)

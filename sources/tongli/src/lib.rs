@@ -38,7 +38,7 @@ static mut SEARCH_QUERY: [u8; 16384] = [0; 16384];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.tongli.koma",
     name: "東立",
-    version: "0.1.6",
+    version: "0.1.7",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -661,6 +661,18 @@ fn run_get_manga(req: &[u8]) -> u32 {
     write_success_payload("get_manga", c)
 }
 
+fn explicit_chapter_number(raw: &[u8]) -> Option<usize> {
+    // Vol also carries book volume labels. Only a title marked 話 represents chapter progress.
+    let mut decoded = [0; 128];
+    let title = koma_source_sdk::plain_text::decode_json_content(raw, &mut decoded).ok()?;
+    let ordinal = core::str::from_utf8(title).ok()?.trim().strip_prefix('第')?.strip_suffix(['话', '話'])?;
+    let ordinal = ordinal.trim();
+    if ordinal.is_empty() || !ordinal.as_bytes().iter().all(u8::is_ascii_digit) {
+        return None;
+    }
+    ordinal.parse().ok()
+}
+
 fn run_get_chapters(req: &[u8]) -> u32 {
     let manga_id = match extract_json_string(req, b"mangaId") {
         Some(v) => v,
@@ -720,10 +732,15 @@ fn run_get_chapters(req: &[u8]) -> u32 {
                 write_bytes(payload, &mut c, b"\xF0\x9F\x94\x92 ")
             }
             && append_json_unescaped_then_escaped(payload, &mut c, vol)
+            && write_bytes(payload, &mut c, br#"","chapterNumber":"#)
+            && match explicit_chapter_number(vol) {
+                Some(ordinal) => write_usize(payload, &mut c, ordinal),
+                None => write_bytes(payload, &mut c, b"null"),
+            }
             && write_bytes(
                 payload,
                 &mut c,
-                br#"","chapterNumber":null,"volumeNumber":null,"language":"zh","scanlator":""#,
+                br#","volumeNumber":null,"language":"zh","scanlator":""#,
             )
             && write_bytes(payload, &mut c, b"\xE6\x9D\xB1\xE7\xAB\x8B")
             && write_bytes(

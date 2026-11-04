@@ -47,7 +47,7 @@ static mut B64_BUF: [u8; B64_CAP] = [0; B64_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hanman18.koma",
     name: "HANMAN18",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -412,6 +412,17 @@ fn run_get_manga(req: &[u8]) -> u32 {
     write_success_payload("get_manga", c)
 }
 
+fn explicit_chapter_number(title: &[u8]) -> Option<usize> {
+    // Chapter links include notices and extras. Count only labels with an explicit ordinal.
+    let title = core::str::from_utf8(title).ok()?.trim().strip_prefix('第')?;
+    let (ordinal, _) = title.split_once(['话', '話'])?;
+    let ordinal = ordinal.trim();
+    if ordinal.is_empty() || !ordinal.as_bytes().iter().all(u8::is_ascii_digit) {
+        return None;
+    }
+    ordinal.parse().ok()
+}
+
 fn run_get_chapters(req: &[u8]) -> u32 {
     let manga_id = match extract_json_string(req, b"mangaId") {
         Some(v) => v,
@@ -481,7 +492,12 @@ fn run_get_chapters(req: &[u8]) -> u32 {
                 && append_json_escaped(payload, &mut c, path)
                 && write_bytes(payload, &mut c, br#"","title":""#)
                 && append_json_escaped(payload, &mut c, name)
-                && write_bytes(payload, &mut c, br#"","chapterNumber":null,"volumeNumber":null,"language":"zh","publishedAt":null,"updatedAt":null,"pageCount":null}"#);
+                && write_bytes(payload, &mut c, br#"","chapterNumber":"#)
+                && match explicit_chapter_number(name) {
+                    Some(ordinal) => write_usize(payload, &mut c, ordinal),
+                    None => write_bytes(payload, &mut c, b"null"),
+                }
+                && write_bytes(payload, &mut c, br#","volumeNumber":null,"language":"zh","publishedAt":null,"updatedAt":null,"pageCount":null}"#);
             if !ok { break; }
             written += 1;
         }
