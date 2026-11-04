@@ -9,8 +9,11 @@ use koma_source_sdk::json_utils::{
     append_json_escaped, append_json_unescaped_then_escaped,
     extract_json_string, find_subslice, json_object_member, write_bytes, write_url_encoded, write_usize,
 };
+use koma_source_sdk::plain_text::decode_json_content;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
-use koma_source_sdk::{build_get_request, decode_json_body_into, fetch_error_code, FetchError};
+use koma_source_sdk::{
+    build_get_request, decode_json_body_into, fetch_error_code, parse_status_code, FetchError,
+};
 
 #[link(wasm_import_module = "koma_host")]
 extern "C" {
@@ -39,6 +42,7 @@ fn html_select_all(descriptor: i32, selector: &[u8], out: &mut [u8]) -> i32 {
 static mut SELECT_ALL_BUF: [u8; 16000] = [0; 16000];
 
 const BASE_URL: &[u8] = b"http://www.92mh.com";
+const MOBILE_URL: &[u8] = b"https://h5.92mh.com";
 koma_source_sdk::koma_source_buffers! {
     payload: 1024 * 1024,
     http_out: 2 * 1024 * 1024,
@@ -54,7 +58,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.jiuermanhua.koma",
     name: "92漫画网",
-    version: "0.1.6",
+    version: "0.1.7",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -100,10 +104,68 @@ fn request_page(req: &[u8]) -> Option<usize> {
     if page == 0 { None } else { Some(page) }
 }
 
-fn fetch_body(url: &[u8]) -> Result<usize, FetchError> {
+fn fetch_response(url: &[u8]) -> Result<usize, FetchError> {
     let req_len = build_get_request(http_req_buf(), url, None, &[]).ok_or(FetchError::Network)?;
-    let resp_len = http_request(&http_req_buf()[..req_len], http_out()).map_err(|_| FetchError::Network)?;
+    http_request(&http_req_buf()[..req_len], http_out()).map_err(|_| FetchError::Network)
+}
+
+fn fetch_body(url: &[u8]) -> Result<usize, FetchError> {
+    let resp_len = fetch_response(url)?;
     decode_json_body_into(&http_out()[..resp_len], body_buf())
+}
+
+fn redirects_to_same_detail(response: &[u8], manga_id: &[u8]) -> bool {
+    let Some(id) = manga_id.strip_prefix(b"/manhua/").and_then(|path| path.strip_suffix(b"/")) else {
+        return false;
+    };
+    if id.is_empty() || !id.iter().all(u8::is_ascii_digit) {
+        return false;
+    }
+    let status = json_object_member(response, b"status")
+        .or_else(|| json_object_member(response, b"statusCode"));
+    if status.map(parse_status_code) != Some(403) {
+        return false;
+    }
+    let mut decoded = [0u8; 512];
+    let Some(raw) = extract_json_string(response, b"bodyText") else {
+        return false;
+    };
+    let Ok(body) = decode_json_content(raw, &mut decoded) else {
+        return false;
+    };
+    let marker = b"<script> window.location.href";
+    let Some(start) = find_subslice(body, marker) else {
+        return false;
+    };
+    let Some(value) = trim_ascii(&body[start + marker.len()..]).strip_prefix(b"=") else {
+        return false;
+    };
+    let Some(path) = trim_ascii(value).strip_prefix(b"\"") else {
+        return false;
+    };
+    path.iter().position(|&byte| byte == b'"').is_some_and(|end| &path[..end] == manga_id)
+}
+
+// The desktop site declares the official mobile detail page. Only its observed
+// self-redirect response can use that alternate frontend. Keep ordinary HTTP
+// failures, working desktop details, chapter IDs and reader requests unchanged.
+fn fetch_detail_body(url: &[u8], manga_id: &[u8]) -> Result<(usize, bool), FetchError> {
+    let resp_len = fetch_response(url)?;
+    let response = &http_out()[..resp_len];
+    match decode_json_body_into(response, body_buf()) {
+        Ok(len) => Ok((len, false)),
+        Err(FetchError::ClientError) if redirects_to_same_detail(response, manga_id) => {
+            let mut mobile_url = [0u8; 128];
+            let mut len = 0;
+            if !(write_bytes(&mut mobile_url, &mut len, MOBILE_URL)
+                && write_bytes(&mut mobile_url, &mut len, manga_id))
+            {
+                return Err(FetchError::ClientError);
+            }
+            Ok((fetch_body(&mobile_url[..len])?, true))
+        }
+        Err(error) => Err(error),
+    }
 }
 
 struct OwnedDescriptor(host::HtmlDescriptor);
@@ -407,8 +469,8 @@ fn run_get_manga(req: &[u8]) -> u32 {
     }
     let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_len) };
 
-    let html_len = match fetch_body(url) {
-        Ok(n) => n,
+    let (html_len, mobile) = match fetch_detail_body(url, manga_id) {
+        Ok(result) => result,
         Err(e) => {
             let (code, message) = fetch_error_code(e);
             return write_error("get_manga", code, message);
@@ -426,56 +488,71 @@ fn run_get_manga(req: &[u8]) -> u32 {
     let mut status_buf = [0u8; 256];
     let mut desc_buf = [0u8; 4096];
 
-    let title = select_text(document.0, b"div.comic_deCon > h1", &mut title_buf).unwrap_or(manga_id);
-    let cover = select_attr(document.0, b"div.comic_i_img > img", b"src", &mut cover_buf).unwrap_or(b"");
+    let (title, cover, author, status_raw, desc) = if mobile {
+        let Some(title) = select_text(document.0, b"#comicName", &mut title_buf).map(trim_ascii)
+            .filter(|title| !title.is_empty())
+        else {
+            return write_error("get_manga", "parse_error", "mobile detail title missing");
+        };
+        let cover = select_attr(document.0, b"#Cover img", b"src", &mut cover_buf).unwrap_or(b"");
+        let author = select_text(document.0, b".Introduct_Sub .sub_r > p.txtItme:first-child", &mut author_buf)
+            .map(trim_ascii).unwrap_or(b"");
+        let status = select_text(document.0, b".Introduct_Sub .sub_r", &mut status_buf).unwrap_or(b"");
+        let desc = select_text(document.0, b"#full-des", &mut desc_buf).unwrap_or(b"");
+        (title, cover, author, status, strip_prefix_ascii(desc, "介绍:".as_bytes()))
+    } else {
+        let title = select_text(document.0, b"div.comic_deCon > h1", &mut title_buf).unwrap_or(manga_id);
+        let cover = select_attr(document.0, b"div.comic_i_img > img", b"src", &mut cover_buf).unwrap_or(b"");
 
-    let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
-    let info_count = html_select_all(document.0.raw(), b".comic_deCon_liO > li", select_buf);
-    let mut author_len = 0usize;
-    let mut status_len = 0usize;
-    let info_total = if info_count > 0 { info_count as usize } else { 0 };
-    let info_total = if info_total > 8 { 8 } else { info_total };
-    for i in 0..info_total {
-        let offset = i * 4;
-        if offset + 4 > select_buf.len() {
-            break;
-        }
-        let desc_raw = i32::from_le_bytes([
-            select_buf[offset],
-            select_buf[offset + 1],
-            select_buf[offset + 2],
-            select_buf[offset + 3],
-        ]);
-        if desc_raw < 0 {
-            continue;
-        }
-        let li_desc: host::HtmlDescriptor = unsafe { core::mem::transmute(desc_raw) };
-        if i == 0 {
-            if let Some(t) = text_into(li_desc, &mut author_buf).map(trim_ascii) {
-                author_len = t.len();
+        let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
+        let info_count = html_select_all(document.0.raw(), b".comic_deCon_liO > li", select_buf);
+        let mut author_len = 0usize;
+        let mut status_len = 0usize;
+        let info_total = if info_count > 0 { info_count as usize } else { 0 };
+        let info_total = if info_total > 8 { 8 } else { info_total };
+        for i in 0..info_total {
+            let offset = i * 4;
+            if offset + 4 > select_buf.len() {
+                break;
             }
-        } else if i == 1 {
-            let mut found_status = false;
-            if let Ok(a_desc) = html_select(li_desc, b"a") {
-                let owned = OwnedDescriptor(a_desc);
-                if let Some(t) = text_into(owned.0, &mut status_buf).map(trim_ascii) {
-                    status_len = t.len();
-                    found_status = true;
+            let desc_raw = i32::from_le_bytes([
+                select_buf[offset],
+                select_buf[offset + 1],
+                select_buf[offset + 2],
+                select_buf[offset + 3],
+            ]);
+            if desc_raw < 0 {
+                continue;
+            }
+            let li_desc: host::HtmlDescriptor = unsafe { core::mem::transmute(desc_raw) };
+            if i == 0 {
+                if let Some(t) = text_into(li_desc, &mut author_buf).map(trim_ascii) {
+                    author_len = t.len();
+                }
+            } else if i == 1 {
+                let mut found_status = false;
+                if let Ok(a_desc) = html_select(li_desc, b"a") {
+                    let owned = OwnedDescriptor(a_desc);
+                    if let Some(t) = text_into(owned.0, &mut status_buf).map(trim_ascii) {
+                        status_len = t.len();
+                        found_status = true;
+                    }
+                }
+                if !found_status {
+                    if let Some(t) = text_into(li_desc, &mut status_buf).map(trim_ascii) {
+                        status_len = t.len();
+                    }
                 }
             }
-            if !found_status {
-                if let Some(t) = text_into(li_desc, &mut status_buf).map(trim_ascii) {
-                    status_len = t.len();
-                }
-            }
+            let _ = html_close(li_desc);
         }
-        let _ = html_close(li_desc);
-    }
 
-    let author_raw = trim_ascii(&author_buf[..author_len]);
-    let author = strip_prefix_ascii(author_raw, "作者：".as_bytes());
+        let author = strip_prefix_ascii(trim_ascii(&author_buf[..author_len]), "作者：".as_bytes());
+        let status = trim_ascii(&status_buf[..status_len]);
+        let desc = select_text(document.0, b"p.comic_deCon_d", &mut desc_buf).unwrap_or(b"");
+        (title, cover, author, status, desc)
+    };
 
-    let status_raw = trim_ascii(&status_buf[..status_len]);
     let status = if find_subslice(status_raw, "已完结".as_bytes()).is_some() {
         b"completed" as &[u8]
     } else if find_subslice(status_raw, "连载中".as_bytes()).is_some() {
@@ -483,8 +560,6 @@ fn run_get_manga(req: &[u8]) -> u32 {
     } else {
         b"unknown" as &[u8]
     };
-    let desc = select_text(document.0, b"p.comic_deCon_d", &mut desc_buf).unwrap_or(b"");
-
     let payload = payload_buf();
     let mut c = 0usize;
     let ok = write_bytes(payload, &mut c, br#"{"manga":{"id":""#)
@@ -539,8 +614,8 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     }
     let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_len) };
 
-    let html_len = match fetch_body(url) {
-        Ok(n) => n,
+    let (html_len, mobile) = match fetch_detail_body(url, manga_id) {
+        Ok(result) => result,
         Err(e) => {
             let (code, message) = fetch_error_code(e);
             return write_error("get_chapters", code, message);
@@ -553,9 +628,25 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     };
 
     let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
-    let count = html_select_all(document.0.raw(), b"#chapter-list-1 > li > a", select_buf);
-    let total = if count > 0 { count as usize } else { 0 };
-    let total = if total > 4000 { 4000 } else { total };
+    // Both frontends expose all named groups in document order. The stable
+    // chapter paths and existing order within each group do not depend on its label.
+    let selector: &[u8] = if mobile {
+        br#".chapter-body ul[id^="chapter-list-"] > li > a"#
+    } else {
+        br#".zj_list_con > ul[id^="chapter-list-"] > li > a"#
+    };
+    let count = html_select_all(document.0.raw(), selector, select_buf);
+    if count < 0 || count as usize > select_buf.len() / 4 {
+        return write_error("get_chapters", "parse_error", "chapter list selection failed");
+    }
+    if mobile {
+        let mut title = [0u8; 256];
+        let title = select_text(document.0, b"#comicName", &mut title).map(trim_ascii);
+        if title.is_none_or(|title| title.is_empty()) {
+            return write_error("get_chapters", "parse_error", "mobile detail title missing");
+        }
+    }
+    let total = count as usize;
 
     let payload = payload_buf();
     let mut c = 0usize;
@@ -582,7 +673,8 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         let mut name_buf = [0u8; 256];
         let mut href_buf = [0u8; 512];
 
-        let name = if let Ok(span_desc) = html_select(a_desc, b"span.list_con_zj") {
+        let title_selector: &[u8] = if mobile { b"span" } else { b"span.list_con_zj" };
+        let name = if let Ok(span_desc) = html_select(a_desc, title_selector) {
             let owned = OwnedDescriptor(span_desc);
             text_into(owned.0, &mut name_buf).map(trim_ascii)
         } else {
@@ -593,8 +685,11 @@ fn run_get_chapters(req: &[u8]) -> u32 {
 
         if let (Some(ch_name), Some(ch_href)) = (name, href) {
             if let Some(path) = path_from_href(ch_href) {
+                if mobile && !path.starts_with(manga_id) {
+                    continue;
+                }
                 if written > 0 && !write_bytes(payload, &mut c, b",") {
-                    break;
+                    return write_error("get_chapters", "internal_error", "payload overflow");
                 }
                 let ok = write_bytes(payload, &mut c, br#"{"id":""#)
                     && append_json_escaped(payload, &mut c, path)
@@ -609,7 +704,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
                     }
                     && write_bytes(payload, &mut c, br#","volumeNumber":null,"language":"zh","publishedAt":null,"updatedAt":null,"pageCount":null}"#);
                 if !ok {
-                    break;
+                    return write_error("get_chapters", "internal_error", "payload overflow");
                 }
                 written += 1;
             }
