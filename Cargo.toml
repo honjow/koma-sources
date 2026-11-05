@@ -90,6 +90,7 @@ members = [
   "sources/picacomic",
   "sources/copymanga",
   "sources/wnacg",
+  "sources/hentaiclub",
   "sources/mangapluscreators-en",
   "tools/koma-source-dev",
   "sources/mangadex-zh-hans",

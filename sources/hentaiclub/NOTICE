@@ -1,0 +1,6 @@
+绅士会所 Koma source
+Copyright 2026 Koma contributors
+
+Independent Rust implementation of public behavior in Keiyoushi extensions-source
+https://github.com/keiyoushi/extensions-source/tree/de743aed846da53e00c45ab26ee0e77f7bb4355b/src/zh/hentaiclub
+Original reference: Apache License 2.0, included in LICENSE.
