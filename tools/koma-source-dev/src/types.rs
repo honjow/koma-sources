@@ -9,12 +9,27 @@ pub struct HttpRequest {
     pub url: String,
     #[serde(default)]
     pub headers: std::collections::HashMap<String, String>,
-    #[serde(default)]
+    // Both historical spellings carry the UTF-8 body as-is. Match the App:
+    // prefer a string bodyBase64, then a string body; ignore non-string values.
+    #[serde(default, deserialize_with = "optional_body_string")]
     pub body_base64: Option<String>,
+    #[serde(default, deserialize_with = "optional_body_string")]
+    pub body: Option<String>,
     #[serde(default = "default_timeout")]
     pub timeout_ms: u64,
     #[serde(default = "default_response_kind")]
     pub response_kind: String,
+}
+
+impl HttpRequest {
+    pub fn effective_body(&self) -> Option<&str> {
+        self.body_base64.as_deref().or(self.body.as_deref())
+    }
+}
+
+fn optional_body_string<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Option<String>, D::Error> {
+    let value = serde_json::Value::deserialize(deserializer)?;
+    Ok(value.as_str().map(str::to_owned))
 }
 
 fn default_timeout() -> u64 {

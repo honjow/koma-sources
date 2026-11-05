@@ -3,6 +3,8 @@ use anyhow::{anyhow, Context, Result};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Mutex;
+use sha2::{Digest, Sha256};
+use std::sync::atomic::{AtomicU64, Ordering};
 use wasmtime::*;
 
 /// Per-source settings store (key → value). Shared across WASM invocations.
@@ -143,7 +145,7 @@ fn do_http_request(req: &HttpRequest) -> HttpResponse {
         ureq_req = ureq_req.set("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36");
     }
 
-    let result = if let Some(body) = &req.body_base64 {
+    let result = if let Some(body) = req.effective_body() {
         ureq_req.send_string(body)
     } else {
         ureq_req.call()
@@ -181,6 +183,123 @@ fn do_http_request(req: &HttpRequest) -> HttpResponse {
             }
         },
     }
+}
+
+// Opt-in diagnostic guard: persist only a digest of the complete request
+// identity. 400 is deliberately excluded because it can be a legal fallback.
+fn coverage_request_key(req: &HttpRequest) -> Result<String> {
+    let mut headers: Vec<(String, String)> = req.headers.iter()
+        .map(|(k, v)| (k.to_ascii_lowercase(), v.clone())).collect();
+    headers.sort();
+    // Duplicate case-insensitive names can produce order-dependent wire headers;
+    // refuse the ambiguous diagnostic request instead of hashing a guessed identity.
+    if headers.windows(2).any(|pair| pair[0].0 == pair[1].0) {
+        anyhow::bail!("ambiguous case-insensitive request headers");
+    }
+    let identity = serde_json::to_vec(&(req.method.to_ascii_uppercase(), &req.url, req.effective_body(), headers))?;
+    Ok(format!("{:x}", Sha256::digest(identity)))
+}
+fn coverage_guard_error(code: &str) -> HttpResponse {
+    HttpResponse { ok:false,status:None,headers:None,body_text:None,body_json:None,
+        final_url:None,network_performed:false,error:Some(HttpErrorEnvelope {
+            code:code.into(),message:"diagnostic coverage guard prevented network request".into(),
+            phase:"diagnostic".into(),retryable:false,
+        }) }
+}
+fn guarded_http_request<F>(req: &HttpRequest, dir: Option<&Path>, mut send: F) -> HttpResponse
+where F: FnMut(&HttpRequest) -> HttpResponse {
+    let Some(dir) = dir else { return send(req); };
+    if std::fs::create_dir_all(dir).is_err() { eprintln!("[dev-runner] coverage guard unavailable"); return coverage_guard_error("coverage_guard_unavailable"); }
+    let Ok(key) = coverage_request_key(req) else { eprintln!("[dev-runner] coverage guard unavailable"); return coverage_guard_error("coverage_guard_unavailable"); };
+    let marker = dir.join(key);
+    if marker.exists() {
+        eprintln!("[dev-runner] coverage request suppressed");
+        return coverage_guard_error("coverage_request_suppressed");
+    }
+    // Fail before networking if this scope cannot persist a future denial.
+    static PROBE: AtomicU64 = AtomicU64::new(0);
+    let probe = dir.join(format!(".probe-{}-{}", std::process::id(), PROBE.fetch_add(1, Ordering::Relaxed)));
+    if std::fs::OpenOptions::new().write(true).create_new(true).open(&probe).is_err()
+        || std::fs::remove_file(&probe).is_err() {
+        eprintln!("[dev-runner] coverage guard unavailable");
+        return coverage_guard_error("coverage_guard_unavailable");
+    }
+    let response = send(req);
+    if matches!(response.status, Some(401 | 403 | 429)) {
+        if std::fs::OpenOptions::new().write(true).create_new(true).open(marker).is_err() {
+            // AlreadyExists is safe when a concurrent identical request recorded it.
+            if !dir.join(coverage_request_key(req).unwrap_or_default()).exists() {
+                eprintln!("[dev-runner] coverage guard unavailable");
+            }
+        }
+    }
+    response
+}
+
+// Match the host's batch envelope while executing child calls serially for
+// reproducible, rate-conscious source coverage. Private state is never emulated.
+fn encode_http_envelope<F>(input: &[u8], mut send: F) -> Result<Vec<u8>>
+where F: FnMut(&HttpRequest, bool) -> HttpResponse {
+    let value: serde_json::Value = serde_json::from_slice(input)?;
+    if value.get("type").and_then(|v| v.as_str()) == Some("private_session") {
+        eprintln!("[dev-runner] unsupported host feature private_session");
+        return Ok(serde_json::to_vec(&serde_json::json!({"ok":false,"networkPerformed":false,"error":{"code":"host_feature_required","message":"private session unsupported","retryable":false}}))?);
+    }
+    if value.get("type").and_then(|v| v.as_str()) == Some("java_regex") {
+        eprintln!("[dev-runner] unsupported host feature java_regex");
+        return Ok(serde_json::to_vec(&serde_json::json!({"ok":false,"networkPerformed":false,"error":{"code":"host_feature_required","message":"java regex unsupported","retryable":false}}))?);
+    }
+    if let Some(group) = value.get("requests") {
+        let invalid = || serde_json::json!({"ok":false,"networkPerformed":false,"error":{"code":"invalid_request","message":"network request failed","retryable":false}});
+        let too_large = || serde_json::json!({"ok":false,"networkPerformed":false,"error":{"code":"request_too_large","message":"network request failed","retryable":false}});
+        let Some(requests) = group.as_array() else { return Ok(serde_json::to_vec(&invalid())?); };
+        if requests.is_empty() || requests.len() > 5 { return Ok(serde_json::to_vec(&invalid())?); }
+        let mut validated = Vec::with_capacity(requests.len());
+        for item in requests {
+            let Some(obj) = item.as_object() else { return Ok(serde_json::to_vec(&invalid())?); };
+            if obj.contains_key("requests") { return Ok(serde_json::to_vec(&invalid())?); }
+            let Some(url) = obj.get("url").and_then(|v|v.as_str()).map(str::trim) else { return Ok(serde_json::to_vec(&invalid())?); };
+            if !(url.starts_with("https://") || url.starts_with("http://")) { return Ok(serde_json::to_vec(&invalid())?); }
+            let Some(method) = obj.get("method").and_then(|v|v.as_str()).map(|v|v.trim().to_ascii_uppercase()) else { return Ok(serde_json::to_vec(&invalid())?); };
+            if !(3..=12).contains(&method.len()) || !method.bytes().all(|c|c.is_ascii_uppercase()) { return Ok(serde_json::to_vec(&invalid())?); }
+            let body = obj.get("bodyBase64").and_then(|v|v.as_str()).or_else(||obj.get("body").and_then(|v|v.as_str())).unwrap_or("");
+            if body.encode_utf16().count() > 1024*1024 { return Ok(serde_json::to_vec(&too_large())?); }
+            let mut normalized=item.clone();
+            normalized["version"]=serde_json::json!(1);
+            normalized["url"]=serde_json::json!(url);
+            normalized["method"]=serde_json::json!(method);
+            // The production host ignores malformed/oversized headers instead
+            // of rejecting an otherwise valid group. Normalize those inputs
+            // before handing the child to the existing development transport.
+            let mut headers = serde_json::Map::new();
+            if let Some(values) = obj.get("headers").and_then(|v|v.as_object()) {
+                for (name,value) in values {
+                    if let Some(raw)=value.as_str() {
+                        if !name.trim().is_empty() && name.encode_utf16().count()<=256 && raw.encode_utf16().count()<=8192 {
+                            headers.insert(name.clone(),serde_json::json!(raw));
+                        }
+                    }
+                }
+            }
+            normalized["headers"]=serde_json::Value::Object(headers);
+            let timeout = obj.get("timeoutMs").and_then(|v| v.as_f64().or_else(||v.as_str().and_then(|v|v.parse::<f64>().ok())))
+                .filter(|v|v.is_finite() && *v>0.0).map(|v|v.floor().clamp(1000.0,60000.0) as u64).unwrap_or(15000);
+            normalized["timeoutMs"]=serde_json::json!(timeout);
+            if obj.get("bodyBase64").and_then(|v|v.as_str()).is_none() {
+                if obj.get("body").and_then(|v|v.as_str()).is_some() { normalized["bodyBase64"]=serde_json::json!(body); }
+                else if let Some(object)=normalized.as_object_mut() { object.remove("bodyBase64"); }
+            }
+            if obj.get("responseKind").and_then(|v|v.as_str()).is_none() {
+                if let Some(object)=normalized.as_object_mut() { object.remove("responseKind"); }
+            }
+            let Ok(req) = serde_json::from_value::<HttpRequest>(normalized) else { return Ok(serde_json::to_vec(&invalid())?); };
+            validated.push(req);
+        }
+        let responses: Vec<HttpResponse> = validated.iter().map(|req|send(req,true)).collect();
+        return Ok(serde_json::to_vec(&serde_json::json!({"ok":true,"responses":responses}))?);
+    }
+    let req: HttpRequest = serde_json::from_value(value)?;
+    Ok(serde_json::to_vec(&send(&req,false))?)
 }
 
 fn build_success_response(req: &HttpRequest, resp: ureq::Response) -> HttpResponse {
@@ -420,20 +539,17 @@ fn register_host_imports(linker: &mut Linker<HostState>) -> Result<()> {
         if end > data.len() { return -2; }
         let req_bytes = data[start..end].to_vec();
 
-        let http_req: HttpRequest = match serde_json::from_slice(&req_bytes) {
-            Ok(r) => r,
-            Err(e) => {
-                eprintln!("[dev-runner] failed to parse HTTP request: {}", e);
-                return -2;
-            }
-        };
-
-        eprintln!("[dev-runner] HTTP {} {}", http_req.method, http_req.url);
-
-        let response = do_http_request(&http_req);
-        let response_json = match serde_json::to_vec(&response) {
+        let response_json = match encode_http_envelope(&req_bytes, |http_req, batch| {
+            // Preserve existing ordinary-request logs. Batch children only emit
+            // status, so opaque URLs and credentials are not newly logged.
+            let guard = std::env::var_os("KOMA_COVERAGE_DENIAL_DIR").filter(|v| !v.is_empty());
+            if !batch && guard.is_none() { eprintln!("[dev-runner] HTTP {} {}", http_req.method, http_req.url); }
+            let response = guarded_http_request(http_req, guard.as_deref().map(Path::new), do_http_request);
+            if let Some(status) = response.status { eprintln!("[dev-runner] HTTP status {}", status); }
+            response
+        }) {
             Ok(j) => j,
-            Err(_) => return -8,
+            Err(e) => { eprintln!("[dev-runner] failed to parse HTTP request: {}", e); return -2; }
         };
 
         if response_json.len() > out_cap as usize { return -3; }
@@ -571,5 +687,101 @@ mod html_descriptor_tests {
         assert!(host.text(child).is_none());
         assert!(host.text(second).is_none());
         assert!(!host.close(child));
+    }
+}
+
+#[cfg(test)]
+mod coverage_batch_tests {
+    use super::*;
+    fn result(status: u16) -> HttpResponse { HttpResponse { ok:true,status:Some(status),headers:None,body_text:Some(status.to_string()),body_json:None,final_url:None,network_performed:true,error:None } }
+    #[test]
+    fn serial_batch_preserves_order_and_partial_http_failure() {
+        let mut seen=Vec::new();
+        let input=br#"{"version":1,"requests":[{"method":"GET","url":"https://example.test/a"},{"method":"POST","url":"https://example.test/b"}]}"#;
+        let output=encode_http_envelope(input,|r,batch| { assert!(batch);seen.push(r.url.clone()); result(if seen.len()==1 {200}else{403}) }).unwrap();
+        let v:serde_json::Value=serde_json::from_slice(&output).unwrap();
+        assert_eq!(seen,["https://example.test/a","https://example.test/b"]);
+        assert_eq!(v["ok"],true);assert_eq!(v["responses"][0]["status"],200);assert_eq!(v["responses"][1]["status"],403);
+    }
+    #[test]
+    fn reject_invalid_entire_group_before_sending() {
+        for raw in [r#"{"requests":[]}"#,r#"{"requests":[{"method":"GET","url":"https://example.test"},{"requests":[]}]}"#,r#"{"requests":[{"method":"GET","url":"ftp://example.test"}]}"#] {
+            let mut calls=0;let output=encode_http_envelope(raw.as_bytes(),|_,_|{calls+=1;result(200)}).unwrap();
+            let v:serde_json::Value=serde_json::from_slice(&output).unwrap();assert_eq!(calls,0);assert_eq!(v["error"]["code"],"invalid_request");
+        }
+    }
+    #[test]
+    fn limits_and_transport_failure_remain_per_child() {
+        let too_many=serde_json::json!({"requests":vec![serde_json::json!({"method":"GET","url":"https://example.test"});6]});
+        let mut calls=0;let output=encode_http_envelope(too_many.to_string().as_bytes(),|_,_|{calls+=1;result(200)}).unwrap();
+        let v:serde_json::Value=serde_json::from_slice(&output).unwrap();assert_eq!(calls,0);assert_eq!(v["error"]["code"],"invalid_request");
+        let large=serde_json::json!({"requests":[{"method":"POST","url":"https://example.test","body":"x".repeat(1024*1024+1)}]});
+        let output=encode_http_envelope(large.to_string().as_bytes(),|_,_|{panic!("must validate before sending")}).unwrap();
+        let v:serde_json::Value=serde_json::from_slice(&output).unwrap();assert_eq!(v["error"]["code"],"request_too_large");
+        let input=br#"{"requests":[{"method":"GET","url":"https://example.test/a"},{"method":"GET","url":"https://example.test/b"}]}"#;
+        let mut n=0;let output=encode_http_envelope(input,|_,_|{n+=1;if n==1 { result(200) } else { HttpResponse {ok:false,status:None,headers:None,body_text:None,body_json:None,final_url:None,network_performed:true,error:Some(HttpErrorEnvelope {code:"network_error".into(),message:"failed".into(),phase:"transport".into(),retryable:true})} }}).unwrap();
+        let v:serde_json::Value=serde_json::from_slice(&output).unwrap();assert_eq!(v["ok"],true);assert_eq!(v["responses"][0]["status"],200);assert_eq!(v["responses"][1]["error"]["code"],"network_error");
+    }
+    #[test]
+    fn ordinary_body_aliases_match_app_and_guard_identity() {
+        let cases = [
+            (serde_json::json!({"body":"body only"}), Some("body only")),
+            (serde_json::json!({"bodyBase64":"primary only"}), Some("primary only")),
+            (serde_json::json!({"bodyBase64":"preferred","body":"ignored"}), Some("preferred")),
+            (serde_json::json!({"bodyBase64":42,"body":"fallback"}), Some("fallback")),
+            (serde_json::json!({"bodyBase64":null,"body":"fallback"}), Some("fallback")),
+            (serde_json::json!({"bodyBase64":false,"body":{}}), None),
+        ];
+        for (fields, expected) in cases {
+            let mut value = serde_json::json!({"version":1,"method":"POST","url":"https://example.test/body"});
+            value.as_object_mut().unwrap().extend(fields.as_object().unwrap().clone());
+            let request: HttpRequest = serde_json::from_value(value.clone()).unwrap();
+            assert_eq!(request.effective_body(), expected);
+            let reference: HttpRequest = serde_json::from_value(serde_json::json!({
+                "version":1,"method":"POST","url":"https://example.test/body","bodyBase64":expected,
+            })).unwrap();
+            assert_eq!(coverage_request_key(&request).unwrap(), coverage_request_key(&reference).unwrap());
+            let mut calls = 0;
+            encode_http_envelope(value.to_string().as_bytes(), |sent, batch| {
+                calls += 1;
+                assert!(!batch);
+                assert_eq!(sent.effective_body(), expected);
+                result(200)
+            }).unwrap();
+            assert_eq!(calls,1);
+        }
+    }
+    #[test]
+    fn opt_in_denial_guard_persists_exact_identity_without_credentials() {
+        let dir=std::env::temp_dir().join(format!("koma-coverage-guard-{}",std::process::id()));
+        let _=std::fs::remove_dir_all(&dir);
+        let make=|method:&str,body:&str,token:&str| -> HttpRequest {
+            serde_json::from_value(serde_json::json!({"version":1,"method":method,"url":"https://example.test/resource", "bodyBase64":body,"headers":{"Authorization":token}})).unwrap()
+        };
+        let first=make("GET","a","secret-a");let mut count=0;
+        let r=guarded_http_request(&first,Some(&dir),|_|{count+=1;result(403)});assert_eq!(r.status,Some(403));
+        let blocked=guarded_http_request(&first,Some(&dir),|_|{count+=1;result(200)});assert_eq!(count,1);assert!(!blocked.network_performed);assert_eq!(blocked.error.unwrap().code,"coverage_request_suppressed");
+        for different in [make("POST","a","secret-a"),make("GET","b","secret-a"),make("GET","a","secret-b")] {
+            let r=guarded_http_request(&different,Some(&dir),|_|{count+=1;result(200)});assert_eq!(r.status,Some(200));
+        }
+        assert_eq!(count,4);
+        let ambiguous:HttpRequest=serde_json::from_value(serde_json::json!({"version":1,"method":"GET","url":"https://example.test/resource","headers":{"Authorization":"one","authorization":"two"}})).unwrap();
+        assert_eq!(guarded_http_request(&ambiguous,Some(&dir),|_|panic!("ambiguous headers must not be sent")).error.unwrap().code,"coverage_guard_unavailable");
+        let bad400=make("GET","c","secret-a");for _ in 0..2 {guarded_http_request(&bad400,Some(&dir),|_|{count+=1;result(400)});}assert_eq!(count,6);
+        for (status, body) in [(401,"d"),(429,"e")] {
+            let denied=make("GET",body,"secret-a");
+            assert_eq!(guarded_http_request(&denied,Some(&dir),|_|result(status)).status,Some(status));
+            assert_eq!(guarded_http_request(&denied,Some(&dir),|_|panic!("denial must be cached")).error.unwrap().code,"coverage_request_suppressed");
+        }
+        for _ in 0..2 {guarded_http_request(&first,None,|_|{count+=1;result(403)});}assert_eq!(count,8);
+        let files:Vec<_>=std::fs::read_dir(&dir).unwrap().collect();assert_eq!(files.len(),3);
+        let entry=files[0].as_ref().unwrap();assert_eq!(entry.file_name().to_string_lossy().len(),64);assert_eq!(std::fs::read(entry.path()).unwrap(),b"");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
+    fn ordinary_request_keeps_existing_transport_shape() {
+        let mut calls=0;let input=br#"{"version":1,"method":"GET","url":"https://example.test/a"}"#;
+        let output=encode_http_envelope(input,|r,batch|{calls+=1;assert!(!batch);assert_eq!(r.url,"https://example.test/a");result(200)}).unwrap();
+        let v:serde_json::Value=serde_json::from_slice(&output).unwrap();assert_eq!(calls,1);assert_eq!(v["ok"],true);assert_eq!(v["status"],200);assert!(v.get("responses").is_none());
     }
 }
