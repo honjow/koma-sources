@@ -3,7 +3,7 @@ use koma_source_sdk::json_utils::*;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
- id:"com.immark.pixnet.zh-hant.koma", name:"我是馬克・圖文並靠《今周刊》", version:"0.1.1", api_version:"0.2", language:"zh-Hant", author:"Koma",
+ id:"com.immark.pixnet.zh-hant.koma", name:"我是馬克・圖文並靠《今周刊》", version:"0.1.2", api_version:"0.2", language:"zh-Hant", author:"Koma",
  description:"收錄我是馬克作者部落格「圖文並靠《今周刊》」的漫畫，依原欄目分頁瀏覽。每篇獨立閱讀，作品評級尚未確認。", content_rating:"unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
@@ -692,6 +692,27 @@ fn image_post(u: &[u8]) -> R<&[u8]> {
     }
     Ok(post)
 }
+// Album IDs identify media storage, not an article. Accept only the observed
+// author namespace/path shape; ownership comes from the verified article DOM
+// and image_request re-fetches that article to match the exact URL and ordinal.
+fn album_image(u: &[u8]) -> bool {
+    let Some(rest) = u.strip_prefix(b"https://pimg.1px.tw/blog/markleeblog/album/") else {
+        return false;
+    };
+    let Some(sep) = rest.iter().position(|b| *b == b'/') else {
+        return false;
+    };
+    let album = &rest[..sep];
+    let Some(file) = rest[sep + 1..].strip_suffix(b".jpg") else {
+        return false;
+    };
+    !album.is_empty()
+        && album.len() <= 18
+        && album[0] != b'0'
+        && album.iter().all(u8::is_ascii_digit)
+        && file.len() == 18
+        && digits(file)
+}
 // Old Pixnet URLs do not encode the post ID. Their owner is the verified
 // article DOM; image requests re-fetch that article before accepting a URL.
 fn legacy_stem(u: &[u8], thumbnail: bool) -> Option<&[u8]> {
@@ -822,7 +843,7 @@ fn selected_images(doc: host::HtmlDescriptor, post: &[u8], full: bool) -> R<()> 
             }
             let u = unsafe { &IMAGES[i][..len] };
             if post.len() == 18 {
-                if image_post(u).map_err(|_| "parse_error")? != post {
+                if !album_image(u) && image_post(u).map_err(|_| "parse_error")? != post {
                     return Err("identity_mismatch");
                 }
             } else if !legacy_image(u, !full) {
@@ -1309,6 +1330,15 @@ fn run_get_image_request(req: &[u8]) -> u32 {
         let u = arg_string(req, b"url")?.ok_or("invalid_request")?;
         let page_id = arg_string(req, b"pageId")?;
         let post = match page_id {
+            None if album_image(u) => {
+                // Album URLs carry no post ID. The App's explicit owner is
+                // required for covers; the fetched article must contain it.
+                if let Some(v) = arg_string(req, b"mangaId")? {
+                    id(v, MID)?
+                } else {
+                    id(arg_string(req, b"mangaUrl")?.ok_or("invalid_request")?, POSTS)?
+                }
+            }
             None => image_post(u)?,
             Some(page_id) if page_id.starts_with(MID) => id(page_id, MID)?,
             Some(page_id) => {
@@ -1324,7 +1354,7 @@ fn run_get_image_request(req: &[u8]) -> u32 {
                 post
             }
         };
-        if post.len() == 18 && image_post(u)? != post {
+        if post.len() == 18 && !album_image(u) && image_post(u)? != post {
             return Err("identity_mismatch");
         }
         owner(req, post)?;

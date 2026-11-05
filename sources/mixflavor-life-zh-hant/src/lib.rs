@@ -3,7 +3,7 @@ use koma_source_sdk::json_utils::*;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO:SourceInfo=SourceInfo{
- id:"com.mixflavor.life.zh-hant.koma",name:"綜合口味・生活小漫畫",version:"0.1.2",api_version:"0.2",language:"zh-Hant",author:"Koma",
+ id:"com.mixflavor.life.zh-hant.koma",name:"綜合口味・生活小漫畫",version:"0.1.3",api_version:"0.2",language:"zh-Hant",author:"Koma",
  description:"綜合口味作者網站的生活小漫畫，依原分類分頁瀏覽，不收錄同時標為開箱心得或食的文章。每篇獨立閱讀，作品評級尚未確認。",content_rating:"unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
@@ -390,6 +390,7 @@ const AUTHOR: &[u8] = b"https://blog.mixflavor.com/author/mixflavor";
 const AUTHOR_ID: &[u8] = b"https://blog.mixflavor.com/author/mixflavor#author";
 const MEDIA: &[u8] = b"https://i0.wp.com/img.mixflavor.com/";
 const UPLOAD: &[u8] = b"https://i0.wp.com/blog.mixflavor.com/wp-content/uploads/";
+const DIRECT_UPLOAD: &[u8] = b"https://blog.mixflavor.com/wp-content/uploads/";
 const MID: &[u8] = b"mixflavor:zh-hant:post:";
 const CID: &[u8] = b"mixflavorread:zh-hant:post:";
 const PID: &[u8] = b"mixflavorpage:zh-hant:post:";
@@ -741,67 +742,68 @@ fn scope(doc: host::HtmlDescriptor, selector: &[u8], all: &[u8]) -> R<bool> {
     }
     Ok(!excluded)
 }
-fn media_path<'a>(u: &'a [u8], allow_upload: bool) -> R<&'a [u8]> {
-    let rest = u
-        .strip_prefix(MEDIA)
-        .or_else(|| {
-            if allow_upload {
-                u.strip_prefix(UPLOAD)
-            } else {
-                None
-            }
-        })
-        .ok_or("invalid_request")?;
-    let at = rest
-        .iter()
-        .position(|b| *b == b'?')
-        .ok_or("invalid_request")?;
-    let path = &rest[..at];
-    let query = &rest[at + 1..];
+// WordPress may declare a sized filename in src/srcset. This key is only
+// for comparing declared candidates; never synthesize or rewrite a media URL.
+fn media_key(path: &[u8], allow_resize: bool) -> R<(&[u8], &[u8])> {
     if path.len() < 20
         || path.get(4) != Some(&b'/')
         || path.get(7) != Some(&b'/')
-        || !path[..4].iter().all(|b| b.is_ascii_digit())
-        || !path[5..7].iter().all(|b| b.is_ascii_digit())
+        || !path[..4].iter().all(u8::is_ascii_digit)
+        || !path[5..7].iter().all(u8::is_ascii_digit)
     {
         return Err("invalid_request");
     }
     let file = &path[8..];
-    let stem = file
-        .strip_suffix(b".png")
+    let stem = file.strip_suffix(b".png")
         .or_else(|| file.strip_suffix(b".jpg"))
         .or_else(|| file.strip_suffix(b".jpeg"))
         .ok_or("invalid_request")?;
-    let sep = stem
-        .iter()
-        .position(|b| *b == b'-')
-        .ok_or("invalid_request")?;
-    if sep != 10
-        || !stem[..sep].iter().all(|b| b.is_ascii_digit())
-        || stem.len() - sep - 1 < 16
-        || stem.len() - sep - 1 > 64
-        || !stem[sep + 1..].iter().all(|b| b.is_ascii_hexdigit())
-    {
+    let sep = stem.iter().position(|b| *b == b'-').ok_or("invalid_request")?;
+    if sep != 10 || !stem[..sep].iter().all(u8::is_ascii_digit) {
         return Err("invalid_request");
     }
-    let value = query.strip_suffix(b"&ssl=1").ok_or("invalid_request")?;
-    if let Some(v) = value.strip_prefix(b"w=") {
-        positive(v)?;
-    } else {
-        let v = value
-            .strip_prefix(b"fit=")
-            .or_else(|| value.strip_prefix(b"resize="))
-            .ok_or("invalid_request")?;
-        let at = find_subslice(v, b"%2C")
-            .or_else(|| find_subslice(v, b"%2c"))
-            .ok_or("invalid_request")?;
-        positive(&v[..at])?;
-        positive(&v[at + 3..])?;
+    let hash = &stem[sep + 1..];
+    let hash = if let Some(at) = hash.iter().position(|b| *b == b'-') {
+        if !allow_resize { return Err("invalid_request"); }
+        let size = &hash[at + 1..];
+        let x = size.iter().position(|b| *b == b'x').ok_or("invalid_request")?;
+        positive(&size[..x])?;
+        positive(&size[x + 1..])?;
+        &hash[..at]
+    } else { hash };
+    if hash.len() < 16 || hash.len() > 64 || !hash.iter().all(u8::is_ascii_hexdigit) {
+        return Err("invalid_request");
+    }
+    Ok((&path[..8 + sep + 1 + hash.len()], &file[stem.len()..]))
+}
+fn media_path(u: &[u8], allow_upload: bool) -> R<&[u8]> {
+    let (rest, direct) = if let Some(rest) = u.strip_prefix(MEDIA) {
+        (rest, false)
+    } else if allow_upload {
+        if let Some(rest) = u.strip_prefix(UPLOAD) { (rest, false) }
+        else { (u.strip_prefix(DIRECT_UPLOAD).ok_or("invalid_request")?, true) }
+    } else { return Err("invalid_request"); };
+    let at = rest.iter().position(|b| *b == b'?');
+    let (path, query) = match at {
+        None if direct => (rest, None),
+        Some(at) if !direct => (&rest[..at], Some(&rest[at + 1..])),
+        _ => return Err("invalid_request"),
+    };
+    media_key(path, allow_upload)?;
+    if let Some(query) = query {
+        let value = query.strip_suffix(b"&ssl=1").ok_or("invalid_request")?;
+        if let Some(v) = value.strip_prefix(b"w=") { positive(v)?; }
+        else {
+            let v = value.strip_prefix(b"fit=").or_else(|| value.strip_prefix(b"resize=")).ok_or("invalid_request")?;
+            let at = find_subslice(v, b"%2C").or_else(|| find_subslice(v, b"%2c")).ok_or("invalid_request")?;
+            positive(&v[..at])?;
+            positive(&v[at + 3..])?;
+        }
     }
     Ok(path)
 }
 fn selected_srcset(src: &[u8], srcset: &[u8], out: &mut [u8]) -> R<usize> {
-    let original = media_path(src, true).map_err(|_| "parse_error")?;
+    let original = media_key(media_path(src, true).map_err(|_| "parse_error")?, true)?;
     let mut largest = 0;
     let mut out_len = 0;
     let mut widths = [0usize; 16];
@@ -818,7 +820,7 @@ fn selected_srcset(src: &[u8], srcset: &[u8], out: &mut [u8]) -> R<usize> {
             positive(d.strip_suffix(b"w").ok_or("parse_error")?).map_err(|_| "parse_error")?;
         if total >= 16
             || widths[..total].contains(&width)
-            || media_path(u, false).map_err(|_| "parse_error")? != original
+            || media_key(media_path(u, true).map_err(|_| "parse_error")?, true)? != original
         {
             return Err("parse_error");
         }
@@ -848,12 +850,14 @@ fn body_images(doc: host::HtmlDescriptor) -> R<()> {
             return Err("parse_error");
         }
         let total = count(node, b"img")?;
-        let expected = count(node, b"p > img[src][srcset]")?;
+        // Keep all images in the verified article body, including original
+        // linked images and table updates. Unknown trees still fail by count.
+        let s = b"p > img[src][srcset], div > img[src][srcset], div > a[href] > img[src], p > a[href] > img[src], table > tbody > tr > td > a[href] > img[src]";
+        let expected = count(node, s)?;
         if total == 0 || total > MAX_IMAGES || total != expected {
             return Err("parse_error");
         }
         let mut raw = [0; MAX_IMAGES * 4];
-        let s = b"p > img[src][srcset]";
         let n = unsafe {
             select_all_raw(
                 node.raw(),
@@ -883,11 +887,20 @@ fn body_images(doc: host::HtmlDescriptor) -> R<()> {
                     return Err("capacity_exceeded");
                 }
                 let mut set = [0; 8192];
-                let k = host::html_attr(d, b"srcset", &mut set).map_err(|_| "html_error")?;
-                if k == 0 || k >= 8192 {
-                    return Err("capacity_exceeded");
-                }
-                let l = selected_srcset(&src[..n], &set[..k], unsafe { &mut IMAGES[i] })?;
+                let l = match host::html_attr(d, b"srcset", &mut set) {
+                    Ok(k) => {
+                        if k == 0 || k >= set.len() { return Err("capacity_exceeded"); }
+                        selected_srcset(&src[..n], &set[..k], unsafe { &mut IMAGES[i] })?
+                    }
+                    // HtmlHost reports an absent attribute as -1. Only true
+                    // absence uses the declared src; malformed srcset fails.
+                    Err(-1) => {
+                        media_path(&src[..n], true).map_err(|_| "parse_error")?;
+                        unsafe { IMAGES[i][..n].copy_from_slice(&src[..n]); }
+                        n
+                    }
+                    Err(_) => return Err("html_error"),
+                };
                 for j in 0..i {
                     if unsafe { &IMAGES[j][..IL[j]] } == unsafe { &IMAGES[i][..l] } {
                         return Err("parse_error");
@@ -1597,13 +1610,20 @@ fn run_get_image_request(req: &[u8]) -> u32 {
     fn inner(req: &[u8]) -> R<usize> {
         let v = arg_string(req, b"pageId")?.ok_or("invalid_request")?;
         let u = arg_string(req, b"url")?.ok_or("invalid_request")?;
-        media_path(u, false)?;
         if v.starts_with(MID) {
             if !parse_identity(v, MID)?.is_empty() {
                 return Err("invalid_request");
             }
-            owner(req)?; /* Trust the prior catalogue/detail pairing: zero HTTP, no independent post->cover proof. */
+            owner(req)?;
+            // Preserve the existing CDN cover plan's zero-HTTP contract. New
+            // upload forms require an independent exact first-image check.
+            if media_path(u, false).is_err() {
+                media_path(u, true)?;
+                article()?;
+                if u != unsafe { &COVER[..CL] } { return Err("invalid_request"); }
+            }
         } else {
+            media_path(u, true)?;
             let rest = parse_identity(v, PID)?;
             let ordinal = rest.strip_prefix(b":").ok_or("invalid_request")?;
             let at = if ordinal == b"0" {

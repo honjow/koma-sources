@@ -8,8 +8,8 @@
 - 18位post/image ID只作原字節字符串，不經f64或wasm32 usize。MID=`immark:zh-hant:post:<post>`，章ID=`immarkread:zh-hant:post:<post>`，頁ID=`immarkpage:zh-hant:post:<post>:<0-based ordinal>`。只有本地頁碼/ordinal使用整數。
 - 目錄限定`#article-area > #article-box > div.article[id]`，不依賴與li.title重複的單一ID選擇。逐項驗外article ID、data-article-link、h2原URL、個人漫畫分類與單一直接封面。詳情原div.article無id、li.title無data-article-link，按唯一主div.article和h2原URL校驗，不探不存在屬性。詳情footer同時有全站心情日記和個人漫畫分類，只以個人分類原域路徑鎖定精確分類。
 - 兩種頁面均驗canonical、og:url、meta author與原PIXNET name/blog_id/post_id/AdultWarning=false；目錄驗Person JSON-LD，詳情只驗原有BlogPosting的作者PERSON引用、URL/@id/mainEntityOfPage/headline/articleSection/isPartOf/inLanguage與原發表日期。詳情沒有目錄Person graph，不合成補入。共用成人提醒模板不等於啟用門檻，亦不推全站評級。靜態JSON有界讀取，不執行JS。
-- 詳情只取主`article-content-inner > p > img[src]`，須等於主內容內全部img數、同post原媒體路徑，拒外域/查詢/任意子目錄/重複圖、嵌入影片或圖片樹變化。不能拿JSON-LD只有第一圖的image陣列代替全文。首篇《職場太極法門》完整9張900×900原JPEG保DOM原序，保留首圖今周刊贊助及版權原字，不裁/轉/縮圖。原尾圖是「離線遁形術」。
-- 圖片計畫每次1 GET重新核該文章，無跨操作狀態快取；正文pageID/owner/ordinal/完整URI必須相符。封面僅接受未帶pageID或該作品MID且必須原首圖。可獨立傳App實際無mangaId的mangaUrl，須精確post原URL。原圖URI、metadata標準Firefox UA、文章Referer明確輸出；這一Host計畫不等於NetworkKit圖片層已驗。
+- 詳情只取主`article-content-inner > p > img[src]`，須等於主內容內全部img數。18位文章接受同post原媒體路徑，或作者namespace的`album/<數字相簿ID>/<18位圖片ID>.jpg`；相簿ID不代表文章歸屬，僅已驗證文章DOM中的精確URL與原順序可供閱讀。拒外域/查詢/任意子目錄/重複圖、嵌入影片或圖片樹變化。不能拿JSON-LD只有第一圖的image陣列代替全文。首篇《職場太極法門》完整9張900×900原JPEG保DOM原序，保留首圖今周刊贊助及版權原字，不裁/轉/縮圖。原尾圖是「離線遁形術」。
+- 圖片計畫每次1 GET重新核該文章，無跨操作狀態快取；正文pageID/owner/ordinal/完整URI必須相符。封面僅接受未帶pageID或該作品MID且必須原首圖。可獨立傳App實際無mangaId的mangaUrl，須精確post原URL。相簿圖片不含文章ID，缺pageID時須以明確mangaId或mangaUrl指定文章；同相簿的其它文章圖片也不得混用，仍須重取指定文章核首圖或頁面ordinal。原圖URI、metadata標準Firefox UA、文章Referer明確輸出；這一Host計畫不等於NetworkKit圖片層已驗。
 - 作者圖標現為 `icon.webp`：420×420、16708字節的原作者WebP，原字節保留，不轉碼、裁切、縮放、重繪或加底／遮罩／陰影。準確來源為 `https://pimg.1px.tw/blog/markleeblog/logo/862150728855850574.webp`。歷史真分類頁 `https://markleeblog.pixnet.net/blog/categories/2001687837` 的 `head script[type='application/ld+json']` 中，`Person`（`@id=https://markleeblog.pixnet.net#person`、`name=我是馬克 i'm mark`）明確以 `image.ImageObject.url` 聲明該URI；既有原HtmlHost SelectAll/Text輸出已再次核讀，不以交接摘要代替父樹。原件沿用現存恢復材料 `koma-immark-zh-hant-implementation-20261015-declared-original-brand-reference.body`，不是PIXNET平台圖示。當時僅接受可選PNG而未納入圖標；目前標準圖標合同及App匯入器已支持WebP，這一格式限制已取代，沒有修改App／SDK或放寬校驗。2026-10-20當前部落格父頁及該準確CDN原件的各次正常首次讀取均為403，未重試或繞過，不能聲稱今天的原站／圖片訪問已通過。當前安裝及小圖標顯示仍待Root實機驗收。
 
 成本：get_listings 0 HTTP，browse每頁1 GET，detail/chapters/pages/每次imageRequest各1 GET；非法URI/owner前置拒絕0 GET，語法正確但未在原正文的URI需1 GET後拒絕。正文圖實體由App圖片層另取。源限制HTML<1MiB、每頁≤24項、每篇≤64原圖、JSON巢狀≤64，無回退猜URI、無身份/憑據、無重試、無新live請求。
@@ -23,3 +23,9 @@
 搜索只在既有「圖文並靠《今周刊》」分類下以 q 查詢，數字游標由來源重建 q 與 page，因網站next連結省略q。保留18位文章ID；對官網搜索實見的10位舊文章沿相同ID前綴，並按作者、分類及文章DOM驗證。舊Pixnet縮圖與原圖不含文章ID，圖片請求必須由頁面或封面ID取得文章，重新讀取該文章並核對實際原圖；僅接受實見縮圖變體的同名原圖。官網末頁舊HTTP封面實測HTTPS跳轉至相同原圖，輸出該HTTPS地址。
 
 2026-10-28生產WASM以「職場」真站驗證第1、2、4末頁（游標2、3、無下一頁），「桌布」限定分類為空，雙引號查詢被正確編碼；10位文章2036573392詳情/頁表/封面、PNG變體2036323903封面與2032216039頁表/封面均成功；既有18位948887416340261065詳情及無pageId圖片請求成功；錯配他作品圖片被拒。真站/生產WASM不代替公開包或Native驗收。
+
+## 相簿圖片與後續分頁
+
+0.1.2依真分類第3頁及三篇原文章修復相簿圖片地址：872094424200161520、871559408462374687、868503563273020271各有9張`album/219094540`原圖，列表封面與該篇正文首圖相同。沒有改動既有列表直系img或詳情p>img樹、身份驗證、ID、頁序、分類scope及next游標；不能把原前兩頁24篇視為分類窮盡。相簿路徑只確認媒體語法，跨文章權限始終由重新驗證的同文章DOM精確成員決定；不得按相簿號合併作品或生成隱藏圖片。
+
+0.1.2验证范围：34篇真实详情、前4页48条列表及相簿同篇精确图片归属已核；10篇共34张实际原图完整解码。237普通导入后，从真实分类第3页进入《成年人的笑》并核1/9、9/9，原正常《活人對 AI 創作的全方位負評》亦核首尾；返回详情的原封面正常。真实source/manga/chapter ID与短标题读回不变。两部具名首尾不冒全部文章/全部页逐一实机；本次三个源原包、注册信息与阅读/搜索数据已逐字节恢复，原电源状态已恢复并释租。
