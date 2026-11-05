@@ -1,4 +1,4 @@
-# 幻塔官方中文漫画 0.1.1
+# 幻塔官方中文漫画 0.1.2
 
 来源为 `https://ht.wanmei.com/videostation/cartoon/index.html` 的独立漫画栏目。原站将漫画与视频、壁纸分开；本源只读取漫画，不涉及登录预约、验证码、视频、壁纸或同人动态。作者、正式评级和真实使用率没有足够依据，均保持 unknown；SourceInfo.author 的 Koma 指源开发者。
 
@@ -12,7 +12,7 @@
 
 ## 详情和图片归属
 
-详情仅取目录实际已声明路径，拒绝任意URL/查询串/跨域/越目录。目录标题、详情h2及head title必须一致；detail_time第二项必须是《幻塔》手游官网，第一项日期须对应真实路径。正文只接受唯一 `.box_main > .text_cont > a > img[src]`，其src须与唯一父a[href]逐字节一致，URI限定官方 `/resources/jpg/六位日期/数字.jpg`，保持原字节路径。其他弹窗/预约图被排除。
+详情仅取目录实际已声明路径，拒绝任意URL/查询串/跨域/越目录。列表短标题保持原样；详情h2可与短标题相同，或仅多出官网明确使用的 `赦免天使在身边#NN ` 系列前缀（两位非零序号），head title必须与该完整h2及官网后缀一致。不能接受任意标题后缀或其它系列前缀。`detail_time` 仍须恰好两个span，第二项必须是《幻塔》手游官网，第一项验证原 `20xx-xx-xx` 日期格式；发布日期独立于URL建档日期，官网 `20210714/232058.shtml` 实际显示 `2021-07-11`，不能用两者相等判断归属。正文仍只接受唯一 `.box_main > .text_cont > a > img[src]`，其src须与唯一父a[href]逐字节一致；URI仅限官方 `/resources/jpg/六位日期/数字.jpg` 或 `/resources/png/六位日期/数字.png`，目录与扩展名必须一致，保持原字节路径。其他弹窗/预约图被排除。
 
 封面取目录img[src]，与正文URI分别绑定。get_image_request先重新核目录；封面可接受缺pageId或正确作品MID，正文只接受该作品的`:0`页ID；独立mangaUrl/mangaId若提供必须与该作品详情一致。错MID、正文ID作封面、封面作正文、其他作品图、其他页号、query、其他host/protocol/目录均拒绝，不把调用者URI作为HTTP取证入口。返回正文原URI和对应详情Referer；图像实体由App正常图片路径获取，包不包含漫画正文。
 
@@ -22,7 +22,7 @@ SDK普通metadata请求使用其原User-Agent与官网BASE Referer，不修改SD
 
 图标更新（0.1.1）：原漫画栏目链接官网 https://ht.wanmei.com/ ，官网声明 https://static.games.wanmei.com/public/commonData/gamesData/gameDownload/ht-gameDownload.js ，其iOS地址为 https://apps.apple.com/cn/app/id1522617722 。该官方应用页srcset明确声明 https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/9c/e4/51/9ce4514d-aaa0-5f5f-2cbd-121018e2f786/Placeholder.mill/400x400Icon.ApSiOS01-75.webp 。采用完整400×400 WebP原件；原角色、完美标识及透明圆角外形保持，未裁切、补角、放大或新增遮罩/底板/阴影，App列表容器保持原样。该图是官方应用身份，不冒充漫画栏目独立徽标；设备呈现另验。
 
-原件目录 `/private/tmp/koma-huanta-zh-public-contract-20261015` 保留6份一次匿名GET的完整body/headers/receipt与原字节父切片：两页目录、首详情、官网CSS、完整首JPEG、原logo。目录16条身份/标题/封面由生产WASM与原件逐项比较；已核首详情《试用体验》及1696×5173完整四格，其余15详情/正文实体未读取，不能称16篇正文已接受。
+原件目录 `/private/tmp/koma-huanta-zh-public-contract-20261015` 保留6份一次匿名GET的完整body/headers/receipt与原字节父切片：两页目录、首详情、官网CSS、完整首JPEG、原logo。目录16条身份/标题/封面由生产WASM与原件逐项比较；原具名验证当时仅核首详情《试用体验》及1696×5173完整四格；本轮已补齐16份官方详情原体，生产WASM候选的详情、目录、页表和图片请求全部成功，原6份正常作品的四类完整响应保持一致，两页列表不变；13个受控错误页/请求继续拒绝。16幅官方正文图均HTTP200并完整解码，按原URI返回（PNG路径实际响应为JPEG）。237已从普通目录核对全部16部卡片，并亲审《滑板少女》《破坏狂》《自我介绍》三类原失败及原正常《试用体验》的目录和完整1/1正文；稳定作品、章节ID与短标题不变。原0.1.1《滑板少女》普通详情失败先行复现；本次结束已逐字节恢复原源包、注册及阅读/搜索数据，电源恢复原状态并释租。其余12部的正文实体核验是本地下载解码，不冒逐一实机阅读。
 
 历史0.1.0原候选 `icon.png` 是官网 `inside210630.css` 的 `.top_logo` 明确声明 `https://ht.wanmei.com/images/web2010/logo.png` 原PNG，198×131 RGBA，32671字节，SHA256 `1aa99e6438f774c9ae2f84eb97b9f198a207d1a68b9faf9f6b8239de2a2e6073`。未裁切、缩放、转码、加透明底、底板、遮罩或阴影。原白字在浅底低对比，小图标槽显示尚未Native验收。
 
