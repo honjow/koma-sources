@@ -2484,4 +2484,40 @@
 <a href=#2484 id=2484 data-nosnippet>2484</a>        <span class="kw">match </span>len { <span class="prelude-val">Ok</span>(len) <span class="kw">if </span>closed &amp;&amp; len &lt; text.len() =&gt; append_json_escaped(out,cursor,<span class="kw-2">&amp;</span>text[..len]), <span class="kw">_ </span>=&gt; <span class="bool-val">false </span>}
 <a href=#2485 id=2485 data-nosnippet>2485</a>    }
 <a href=#2486 id=2486 data-nosnippet>2486</a>}
+<a href=#2487 id=2487 data-nosnippet>2487</a>
+<a href=#2488 id=2488 data-nosnippet>2488</a><span class="doccomment">/// Optional authentication ABI. Existing source exports and their request handlers stay unchanged.
+<a href=#2489 id=2489 data-nosnippet>2489</a>/// Credentials are read only via the Host-granted `private_session/credential_input` RPC;
+<a href=#2490 id=2490 data-nosnippet>2490</a>/// these operation requests never carry passwords in args or ordinary settings.
+<a href=#2491 id=2491 data-nosnippet>2491</a></span><span class="attr">#[macro_export]
+<a href=#2492 id=2492 data-nosnippet>2492</a></span><span class="macro">macro_rules!</span> koma_source_authentication_exports {
+<a href=#2493 id=2493 data-nosnippet>2493</a>    (<span class="macro-nonterminal">$source_name</span>:literal) =&gt; {
+<a href=#2494 id=2494 data-nosnippet>2494</a>        <span class="attr">#[no_mangle]
+<a href=#2495 id=2495 data-nosnippet>2495</a>        </span><span class="kw">pub extern </span><span class="string">"C" </span><span class="kw">fn </span>koma_source_get_authentication(req_ptr: u32, req_len: u32) -&gt; u32 {
+<a href=#2496 id=2496 data-nosnippet>2496</a>            <span class="kw">let </span>req = <span class="kw">match </span>read_request(req_ptr, req_len) {
+<a href=#2497 id=2497 data-nosnippet>2497</a>                <span class="prelude-val">Some</span>(r) =&gt; r,
+<a href=#2498 id=2498 data-nosnippet>2498</a>                <span class="prelude-val">None </span>=&gt; <span class="kw">return </span>write_error(<span class="string">"get_authentication"</span>, <span class="string">"invalid_request"</span>, <span class="string">"empty request"</span>),
+<a href=#2499 id=2499 data-nosnippet>2499</a>            };
+<a href=#2500 id=2500 data-nosnippet>2500</a>            <span class="macro-nonterminal">$crate::host::log_info</span>(<span class="macro">concat!</span>(<span class="macro-nonterminal">$source_name</span>, <span class="string">" get_authentication"</span>).as_bytes());
+<a href=#2501 id=2501 data-nosnippet>2501</a>            run_get_authentication(req)
+<a href=#2502 id=2502 data-nosnippet>2502</a>        }
+<a href=#2503 id=2503 data-nosnippet>2503</a>        <span class="attr">#[no_mangle]
+<a href=#2504 id=2504 data-nosnippet>2504</a>        </span><span class="kw">pub extern </span><span class="string">"C" </span><span class="kw">fn </span>koma_source_authenticate(req_ptr: u32, req_len: u32) -&gt; u32 {
+<a href=#2505 id=2505 data-nosnippet>2505</a>            <span class="kw">let </span>req = <span class="kw">match </span>read_request(req_ptr, req_len) {
+<a href=#2506 id=2506 data-nosnippet>2506</a>                <span class="prelude-val">Some</span>(r) =&gt; r,
+<a href=#2507 id=2507 data-nosnippet>2507</a>                <span class="prelude-val">None </span>=&gt; <span class="kw">return </span>write_error(<span class="string">"authenticate"</span>, <span class="string">"invalid_request"</span>, <span class="string">"empty request"</span>),
+<a href=#2508 id=2508 data-nosnippet>2508</a>            };
+<a href=#2509 id=2509 data-nosnippet>2509</a>            <span class="macro-nonterminal">$crate::host::log_info</span>(<span class="macro">concat!</span>(<span class="macro-nonterminal">$source_name</span>, <span class="string">" authenticate"</span>).as_bytes());
+<a href=#2510 id=2510 data-nosnippet>2510</a>            run_authenticate(req)
+<a href=#2511 id=2511 data-nosnippet>2511</a>        }
+<a href=#2512 id=2512 data-nosnippet>2512</a>        <span class="attr">#[no_mangle]
+<a href=#2513 id=2513 data-nosnippet>2513</a>        </span><span class="kw">pub extern </span><span class="string">"C" </span><span class="kw">fn </span>koma_source_logout(req_ptr: u32, req_len: u32) -&gt; u32 {
+<a href=#2514 id=2514 data-nosnippet>2514</a>            <span class="kw">let </span>req = <span class="kw">match </span>read_request(req_ptr, req_len) {
+<a href=#2515 id=2515 data-nosnippet>2515</a>                <span class="prelude-val">Some</span>(r) =&gt; r,
+<a href=#2516 id=2516 data-nosnippet>2516</a>                <span class="prelude-val">None </span>=&gt; <span class="kw">return </span>write_error(<span class="string">"logout"</span>, <span class="string">"invalid_request"</span>, <span class="string">"empty request"</span>),
+<a href=#2517 id=2517 data-nosnippet>2517</a>            };
+<a href=#2518 id=2518 data-nosnippet>2518</a>            <span class="macro-nonterminal">$crate::host::log_info</span>(<span class="macro">concat!</span>(<span class="macro-nonterminal">$source_name</span>, <span class="string">" logout"</span>).as_bytes());
+<a href=#2519 id=2519 data-nosnippet>2519</a>            run_logout(req)
+<a href=#2520 id=2520 data-nosnippet>2520</a>        }
+<a href=#2521 id=2521 data-nosnippet>2521</a>    };
+<a href=#2522 id=2522 data-nosnippet>2522</a>}
 </code></pre></div></section></main></body></html>
