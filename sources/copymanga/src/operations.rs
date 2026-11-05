@@ -408,9 +408,39 @@ fn pages(cx: &Context, v: &Value) -> R<Value> {
     Ok(json!({"pages":out}))
 }
 fn image_request(cx: &Context, v: &Value) -> R<Value> {
-    let raw = v["args"]["pageId"]
+    let args = &v["args"];
+    let image_id = args["pageId"]
         .as_str()
-        .and_then(|s| s.strip_prefix("copymanga-page:"))
+        .ok_or_else(|| E::from("invalid_request"))?;
+    if let Some(value) = image_id.strip_prefix("copymanga:") {
+        let slug = path_id(value)?;
+        if args.get("chapterId").is_some()
+            || args.get("mangaId").is_some_and(|m| m.as_str() != Some(image_id))
+        {
+            return Err("invalid_request".into());
+        }
+        verify_image_manga_url(args, &slug)?;
+    } else {
+        verify_page_image(args, image_id)?;
+    }
+    let raw = args["url"]
+        .as_str()
+        .ok_or_else(|| E::from("invalid_request"))?;
+    let u = Url::parse(raw).map_err(|_| E::from("invalid_request"))?;
+    if !matches!(u.scheme(), "http" | "https") || !u.username().is_empty() || u.password().is_some()
+    {
+        return Err("invalid_request".into());
+    }
+    // Upstream image traffic uses the ordinary client and source headers; API-only
+    // cookies/pool/protocol semantics must not be imposed on an unrelated CDN.
+    Ok(
+        json!({"url":raw,"headers":{"User-Agent":cx.ua,"Referer":format!("{}/",cx.web),"Accept":"application/json","Version":"2025.11.21","Webp":"1","platform":"1"}}),
+    )
+}
+
+fn verify_page_image(args: &Value, image_id: &str) -> R<()> {
+    let raw = image_id
+        .strip_prefix("copymanga-page:")
         .ok_or_else(|| E::from("invalid_request"))?;
     let p = raw.split(':').collect::<Vec<_>>();
     if p.len() != 3 {
@@ -424,34 +454,26 @@ fn image_request(cx: &Context, v: &Value) -> R<Value> {
     if n.to_string() != p[2] {
         return Err("invalid_request".into());
     }
-    if let Some(m) = v["args"].get("mangaId") {
+    if let Some(m) = args.get("mangaId") {
         if m.as_str() != Some(&format!("copymanga:{}", slug)) {
             return Err("invalid_request".into());
         }
     }
-    if let Some(c) = v["args"].get("chapterId") {
+    if let Some(c) = args.get("chapterId") {
         if c.as_str() != Some(&format!("copymanga-read:{}:{}", slug, cid)) {
             return Err("invalid_request".into());
         }
     }
-    if let Some(m) = v["args"].get("mangaUrl") {
+    verify_image_manga_url(args, &slug)
+}
+
+fn verify_image_manga_url(args: &Value, slug: &str) -> R<()> {
+    if let Some(m) = args.get("mangaUrl") {
         if by_url(m.as_str().ok_or_else(|| E::from("invalid_request"))?)? != slug {
             return Err("invalid_request".into());
         }
     }
-    let raw = v["args"]["url"]
-        .as_str()
-        .ok_or_else(|| E::from("invalid_request"))?;
-    let u = Url::parse(raw).map_err(|_| E::from("invalid_request"))?;
-    if !matches!(u.scheme(), "http" | "https") || !u.username().is_empty() || u.password().is_some()
-    {
-        return Err("invalid_request".into());
-    }
-    // Upstream image traffic uses the ordinary client and source headers; API-only
-    // cookies/pool/protocol semantics must not be imposed on an unrelated CDN.
-    Ok(
-        json!({"url":raw,"headers":{"User-Agent":cx.ua,"Referer":format!("{}/",cx.web),"Accept":"application/json","Version":"2025.11.21","Webp":"1","platform":"1"}}),
-    )
+    Ok(())
 }
 fn options() -> R<Value> {
     serde_json::from_str(include_str!("options.json")).map_err(|_| "internal_error".into())
