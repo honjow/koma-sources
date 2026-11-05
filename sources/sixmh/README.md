@@ -67,3 +67,9 @@ The ordinary 更新时间 list exposed the exact `/620554` work. `get_manga` and
 Raw evidence in Koma's existing `category-membership` device237 partition: `sixmh014-{import-icons237-001-gate,manifest-before-fix237-001,corrected-import237-003-restored,manifest-corrected237-001}`, `sixmh014-exact620554237-001-{gate,restored}`, `sixmh014-webview620554237-001-gate/webview620554.png`, and `sixmh014-return-restored237-001-{gate,restored}`. This accepts only the named corrected-package webpage/return and icon paths, without site-wide or new reading claims.
 
 Search 0.1.5: anonymous production WASM returned two results for 一人之下, page 1 and page 2 of 漫画 with advancing cursors, the last page without a cursor, and an explicit empty result for zzqxv987654321. A special-character query returned the website JSON “搜索繁忙” and was surfaced as an error; Native acceptance remains separate.
+
+## 0.1.8: long chapter catalogues
+
+The 2,048-descriptor array shared with other HTML lists rejected the entire chapter catalogue for three live search results titled 全职法师. Chapter selection now has a separate 8,192-descriptor capacity. The source still returns every chapter in the site's order with its original ID and never silently truncates; the existing runtime response size limit still applies. Search, detail, page requests, and the explicit unavailable result are unchanged.
+
+The four live catalogues contained 3,277, 1,025, 2,206, and 2,197 entries. Local WASM and native HTML replay matched each entry and kept the old result for the 1,025-entry catalogue. Pura X 237, running Koma 1.1.1, displayed all four counts after ordinary package import and source search. The first two pages of 01 世界大变 in the 3,277-entry catalogue rendered and the reader returned to the detail page.

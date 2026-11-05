@@ -8,7 +8,7 @@ const BASE: &[u8] = b"https://www.liumanhua.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.sixmh.koma",
     name: "六漫画",
-    version: "0.1.7",
+    version: "0.1.8",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -79,14 +79,20 @@ impl Node {
         Ok(trim_ascii(&out[..n]))
     }
 }
-struct Nodes {
-    ids: [i32; 2048],
+type Nodes = HtmlNodes<2048>;
+
+// Both live editions of 全职法师 exceed 2048 entries (3277 and 2197).
+// Keep their original IDs and site order; if capacity is exceeded, fail rather than truncate.
+type ChapterNodes = HtmlNodes<8192>;
+
+struct HtmlNodes<const CAPACITY: usize> {
+    ids: [i32; CAPACITY],
     n: usize,
 }
-impl Nodes {
+impl<const CAPACITY: usize> HtmlNodes<CAPACITY> {
     fn get(root: &Node, s: &[u8]) -> Result<Self, &'static str> {
         let mut v = Self {
-            ids: [0; 2048],
+            ids: [0; CAPACITY],
             n: 0,
         };
         let n = unsafe {
@@ -111,7 +117,7 @@ impl Nodes {
         Node(host::HtmlDescriptor::from_raw(self.ids[i]))
     }
 }
-impl Drop for Nodes {
+impl<const CAPACITY: usize> Drop for HtmlNodes<CAPACITY> {
     fn drop(&mut self) {
         for &id in &self.ids[..self.n] {
             let _ = host::html_close(host::HtmlDescriptor::from_raw(id));
@@ -119,7 +125,7 @@ impl Drop for Nodes {
     }
 }
 // A borrowed selected node must not be closed twice: at() transfers no ownership.
-fn selected(nodes: &Nodes, i: usize) -> core::mem::ManuallyDrop<Node> {
+fn selected<const CAPACITY: usize>(nodes: &HtmlNodes<CAPACITY>, i: usize) -> core::mem::ManuallyDrop<Node> {
     core::mem::ManuallyDrop::new(nodes.at(i))
 }
 fn bytes(b: &mut [u8], n: &mut usize, s: &[u8]) -> Result<(), &'static str> {
@@ -885,7 +891,7 @@ fn write_chapter_number(b: &mut [u8], n: &mut usize, title: &[u8]) -> Result<(),
 fn chapters(r: &[u8]) -> Result<usize, &'static str> {
     let id = identifier(r, b"mangaId")?;
     let root = fetch_doc(id)?;
-    let nodes = Nodes::get(&root, b"ul#mh-chapter-list-ol-0 li.chapter__item")?;
+    let nodes = ChapterNodes::get(&root, b"ul#mh-chapter-list-ol-0 li.chapter__item")?;
     if nodes.n == 0 {
         if let Ok(card) = root.select(b"div.cy_info") {
             if let Ok(infos) = Nodes::get(&card, b"div.cy_xinxi") {
