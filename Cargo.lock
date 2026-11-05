@@ -1224,6 +1224,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_copymanga_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "percent-encoding",
+ "regex",
+ "serde",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "koma_cosplaytele_source"
 version = "0.1.0"
 dependencies = [

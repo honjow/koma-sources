@@ -1,0 +1,410 @@
+{
+  "REGION_OPTIONS": [
+    {
+      "label": "全部",
+      "value": ""
+    },
+    {
+      "label": "日漫",
+      "value": "0"
+    },
+    {
+      "label": "韓漫",
+      "value": "1"
+    },
+    {
+      "label": "美漫",
+      "value": "2"
+    }
+  ],
+  "STATUS_OPTIONS": [
+    {
+      "label": "全部",
+      "value": ""
+    },
+    {
+      "label": "連載中",
+      "value": "0"
+    },
+    {
+      "label": "已完結",
+      "value": "1"
+    },
+    {
+      "label": "短篇",
+      "value": "2"
+    }
+  ],
+  "RANKING_PERIODS": [
+    {
+      "label": "不使用",
+      "value": ""
+    },
+    {
+      "label": "日榜（上升最快）",
+      "value": "day"
+    },
+    {
+      "label": "周榜（最近 7 天）",
+      "value": "week"
+    },
+    {
+      "label": "月榜（最近 30 天）",
+      "value": "month"
+    },
+    {
+      "label": "總榜單",
+      "value": "total"
+    }
+  ],
+  "RANKING_CHANNELS": [
+    {
+      "label": "漫畫排行榜（男頻）",
+      "value": "male"
+    },
+    {
+      "label": "漫畫排行榜（女頻）",
+      "value": "female"
+    }
+  ],
+  "LATEST_MODE_OPTIONS": [
+    {
+      "label": "一般最新",
+      "value": ""
+    },
+    {
+      "label": "日榜（上升最快）",
+      "value": "day"
+    },
+    {
+      "label": "週榜（最近 7 天）",
+      "value": "week"
+    },
+    {
+      "label": "月榜（最近 30 天）",
+      "value": "month"
+    },
+    {
+      "label": "總榜",
+      "value": "total"
+    }
+  ],
+  "LATEST_THEME_OPTIONS": [
+    {
+      "label": "全部",
+      "value": ""
+    },
+    {
+      "label": "愛情",
+      "value": "aiqing"
+    },
+    {
+      "label": "歡樂向",
+      "value": "huanlexiang"
+    },
+    {
+      "label": "冒險",
+      "value": "maoxian"
+    },
+    {
+      "label": "奇幻",
+      "value": "qihuan"
+    },
+    {
+      "label": "百合",
+      "value": "baihe"
+    },
+    {
+      "label": "校园",
+      "value": "xiaoyuan"
+    },
+    {
+      "label": "科幻",
+      "value": "kehuan"
+    },
+    {
+      "label": "東方",
+      "value": "dongfang"
+    },
+    {
+      "label": "耽美",
+      "value": "danmei"
+    },
+    {
+      "label": "生活",
+      "value": "shenghuo"
+    },
+    {
+      "label": "格鬥",
+      "value": "gedou"
+    },
+    {
+      "label": "轻小说",
+      "value": "qingxiaoshuo"
+    },
+    {
+      "label": "其他",
+      "value": "qita"
+    },
+    {
+      "label": "悬疑",
+      "value": "xuanyi"
+    },
+    {
+      "label": "TL",
+      "value": "teenslove"
+    },
+    {
+      "label": "萌系",
+      "value": "mengxi"
+    },
+    {
+      "label": "神鬼",
+      "value": "shengui"
+    },
+    {
+      "label": "职场",
+      "value": "zhichang"
+    },
+    {
+      "label": "治愈",
+      "value": "zhiyu"
+    },
+    {
+      "label": "节操",
+      "value": "jiecao"
+    },
+    {
+      "label": "四格",
+      "value": "sige"
+    },
+    {
+      "label": "長條",
+      "value": "changtiao"
+    },
+    {
+      "label": "舰娘",
+      "value": "jianniang"
+    },
+    {
+      "label": "搞笑",
+      "value": "gaoxiao"
+    },
+    {
+      "label": "竞技",
+      "value": "jingji"
+    },
+    {
+      "label": "伪娘",
+      "value": "weiniang"
+    },
+    {
+      "label": "魔幻",
+      "value": "mohuan"
+    },
+    {
+      "label": "热血",
+      "value": "rexue"
+    },
+    {
+      "label": "性转换",
+      "value": "xingzhuanhuan"
+    },
+    {
+      "label": "美食",
+      "value": "meishi"
+    },
+    {
+      "label": "励志",
+      "value": "lizhi"
+    },
+    {
+      "label": "彩色",
+      "value": "COLOR"
+    },
+    {
+      "label": "後宮",
+      "value": "hougong"
+    },
+    {
+      "label": "侦探",
+      "value": "zhentan"
+    },
+    {
+      "label": "惊悚",
+      "value": "jingsong"
+    },
+    {
+      "label": "AA",
+      "value": "aa"
+    },
+    {
+      "label": "音乐舞蹈",
+      "value": "yinyuewudao"
+    },
+    {
+      "label": "异世界",
+      "value": "yishijie"
+    },
+    {
+      "label": "战争",
+      "value": "zhanzheng"
+    },
+    {
+      "label": "历史",
+      "value": "lishi"
+    },
+    {
+      "label": "机战",
+      "value": "jizhan"
+    },
+    {
+      "label": "都市",
+      "value": "dushi"
+    },
+    {
+      "label": "穿越",
+      "value": "chuanyue"
+    },
+    {
+      "label": "C102",
+      "value": "comiket102"
+    },
+    {
+      "label": "重生",
+      "value": "chongsheng"
+    },
+    {
+      "label": "恐怖",
+      "value": "kongbu"
+    },
+    {
+      "label": "C103",
+      "value": "comiket103"
+    },
+    {
+      "label": "生存",
+      "value": "shengcun"
+    },
+    {
+      "label": "C100",
+      "value": "comiket100"
+    },
+    {
+      "label": "C104",
+      "value": "comiket104"
+    },
+    {
+      "label": "C101",
+      "value": "comiket101"
+    },
+    {
+      "label": "C99",
+      "value": "comiket99"
+    },
+    {
+      "label": "C97",
+      "value": "comiket97"
+    },
+    {
+      "label": "武侠",
+      "value": "wuxia"
+    },
+    {
+      "label": "宅系",
+      "value": "zhaixi"
+    },
+    {
+      "label": "C96",
+      "value": "comiket96"
+    },
+    {
+      "label": "C105",
+      "value": "comiket105"
+    },
+    {
+      "label": "C98",
+      "value": "C98"
+    },
+    {
+      "label": "C95",
+      "value": "comiket95"
+    },
+    {
+      "label": "转生",
+      "value": "zhuansheng"
+    },
+    {
+      "label": "FATE",
+      "value": "fate"
+    },
+    {
+      "label": "無修正",
+      "value": "Uncensored"
+    },
+    {
+      "label": "仙侠",
+      "value": "xianxia"
+    },
+    {
+      "label": "LoveLive",
+      "value": "loveLive"
+    },
+    {
+      "label": "雜誌附贈寫真集",
+      "value": "zazhifuzengxiezhenji"
+    },
+    {
+      "label": "玄幻",
+      "value": "xuanhuan"
+    },
+    {
+      "label": "異能",
+      "value": "yineng"
+    },
+    {
+      "label": "遊戲",
+      "value": "youxi"
+    },
+    {
+      "label": "真人",
+      "value": "zhenren"
+    }
+  ],
+  "LATEST_SORT_UI": [
+    {
+      "label": "更新時間 ↓",
+      "value": "datetime_updated_descending"
+    },
+    {
+      "label": "更新時間 ↑",
+      "value": "datetime_updated_ascending"
+    },
+    {
+      "label": "熱門 ↓",
+      "value": "popular_descending"
+    },
+    {
+      "label": "熱門 ↑",
+      "value": "popular_ascending"
+    }
+  ],
+  "FILTER_SORT": [
+    {
+      "label": "更新時間 ↓",
+      "value": "-datetime_updated"
+    },
+    {
+      "label": "更新時間 ↑",
+      "value": "datetime_updated"
+    },
+    {
+      "label": "熱門 ↓",
+      "value": "-popular"
+    },
+    {
+      "label": "熱門 ↑",
+      "value": "popular"
+    }
+  ]
+}

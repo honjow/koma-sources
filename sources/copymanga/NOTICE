@@ -1,0 +1,9 @@
+拷贝漫画 Koma source
+Copyright 2026 Koma contributors
+
+Independent protocol implementation based on coffee522/extensions-copymanga
+Apache-2.0 commit 655896cce1dd8a235c10d4c9d4b370d7f265c651.
+Simplified conversion resources: com.luhuiguo:chinese-utils:1.0,
+Copyright Lu, Huiguo, Apache License 2.0, official Maven POM license declaration.
+Original simp.txt and simplified.txt are preserved unmodified.
+Full Apache-2.0 license is included in LICENSE.

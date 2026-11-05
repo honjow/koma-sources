@@ -120,6 +120,7 @@ lol-zh|lol-zh|false|0.1.1
 honorofkings-zh|honorofkings-zh|false|0.1.1
 pgr-zh|pgr-zh|false|0.1.1
 picacomic|picacomic|true|1.2.0
+copymanga|copymanga|true|1.2.0
 mangapluscreators-en|mangapluscreators-en|false|0.1.1
 '
 
@@ -284,6 +285,12 @@ build_source() {
   fi
   if [[ ! -f "$wasm_file" ]]; then
     log "ERROR: no wasm output found for $name (expected $wasm_file)"
+    return 1
+  fi
+
+  # The App's external-source runtime rejects modules larger than 1 MiB.
+  if [[ "$name" == "copymanga" && "$(wc -c < "$wasm_file")" -gt 1048576 ]]; then
+    log "ERROR: $name WASM exceeds the 1 MiB source runtime limit"
     return 1
   fi
 
@@ -532,11 +539,14 @@ log "▸ Building all selected WASM sources..."
 # Only CManhua retains its original source-specific 256 KiB stack budget.
 ordinary_crates=()
 large_stack_crates=()
+copy_crate=""
 for name in $(compiled_source_names); do
   dir="$(source_crate_dir "$name")"
   crate=$(grep '^name' "$SOURCES_DIR/$dir/Cargo.toml" | head -1 | sed 's/.*= *"\(.*\)"/\1/')
   if [[ "$name" == "cmanhua" ]]; then
     large_stack_crates+=("$crate")
+  elif [[ "$name" == "copymanga" ]]; then
+    copy_crate="$crate"
   else
     ordinary_crates+=(-p "$crate")
   fi
@@ -551,6 +561,14 @@ if [[ "${#large_stack_crates[@]}" -gt 0 ]]; then
   cargo rustc --locked --release --target wasm32-unknown-unknown -p "$crate" -- \
     -C link-arg=-z -C link-arg=stack-size=262144 >&2
   done
+fi
+
+
+if [[ -n "$copy_crate" ]]; then
+  # Preserve the source's original size-optimized profile within the workspace.
+  CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS="${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS:+$CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS }-C target-feature=-reference-types -C link-arg=--strip-all" \
+  CARGO_PROFILE_RELEASE_PANIC=abort CARGO_PROFILE_RELEASE_LTO=true CARGO_PROFILE_RELEASE_OPT_LEVEL=z \
+  cargo build --locked --release --target wasm32-unknown-unknown -p "$copy_crate" >&2
 fi
 
 fi
