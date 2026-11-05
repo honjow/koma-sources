@@ -5,7 +5,7 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.huanta.zh.koma",
     name: "幻塔官方中文漫画",
-    version: "0.1.1",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -405,7 +405,7 @@ fn attr(doc: host::HtmlDescriptor, sel: &[u8], key: &[u8], dst: &mut [u8]) -> R<
 const BASE: &[u8] = b"https://ht.wanmei.com/";
 const LIST: &[u8] = b"https://ht.wanmei.com/videostation/cartoon/index.html";
 const DIR: &[u8] = b"/videostation/cartoon/";
-const MEDIA: &[u8] = b"https://ht.wanmei.com/resources/jpg/";
+const MEDIA: &[u8] = b"https://ht.wanmei.com/resources/";
 const MAX: usize = 128;
 static mut PATHS: [[u8; 96]; MAX] = [[0; 96]; MAX];
 static mut PL: [usize; MAX] = [0; MAX];
@@ -454,9 +454,11 @@ fn path(v: &[u8]) -> R<()> {
     Ok(())
 }
 fn media(v: &[u8]) -> R<()> {
-    let v = v
-        .strip_prefix(MEDIA)
-        .and_then(|x| x.strip_suffix(b".jpg"))
+    let v = v.strip_prefix(MEDIA).ok_or("wrong_owner")?;
+    // Real comic pages use both formats. The official folder and suffix must
+    // agree; the exact same-work anchor/img membership is checked separately.
+    let v = v.strip_prefix(b"jpg/").and_then(|x| x.strip_suffix(b".jpg"))
+        .or_else(|| v.strip_prefix(b"png/").and_then(|x| x.strip_suffix(b".png")))
         .ok_or("wrong_owner")?;
     if v.len() < 8
         || v[6] != b'/'
@@ -682,6 +684,14 @@ fn find(v: &[u8]) -> R<usize> {
     }
     Err("not_found")
 }
+fn detail_title_matches(title: &[u8], listing_title: &[u8]) -> bool {
+    if title == listing_title { return true; }
+    // The official listing omits this series decoration on eight real pages.
+    // Accept only that precise decoration, never an arbitrary title suffix.
+    let Some(rest) = title.strip_prefix("赦免天使在身边#".as_bytes()) else { return false; };
+    rest.len() > 3 && rest[..2].iter().all(|b| b.is_ascii_digit())
+        && rest[..2] != *b"00" && rest[2] == b' ' && &rest[3..] == listing_title
+}
 fn current_image(i: usize) -> R<()> {
     let mut u = [0; 256];
     let mut c = 0;
@@ -691,13 +701,17 @@ fn current_image(i: usize) -> R<()> {
     let r = (|| {
         let mut b = [0; 2048];
         let l = text(doc, b".box_main > h2.detail_t", &mut b)?;
-        if trim_ascii(&b[..l]) != unsafe { &TITLES[i][..TL[i]] } {
+        let heading = trim_ascii(&b[..l]);
+        if !detail_title_matches(heading, unsafe { &TITLES[i][..TL[i]] }) {
             return Err("wrong_owner");
         }
+        let mut full_heading = [0; 2048];
+        let heading_len = heading.len();
+        full_heading[..heading_len].copy_from_slice(heading);
         let l = text(doc, b"title", &mut b)?;
         let mut expected = [0; 512];
         let mut e = 0;
-        w(&mut expected, &mut e, unsafe { &TITLES[i][..TL[i]] })?;
+        w(&mut expected, &mut e, &full_heading[..heading_len])?;
         w(
             &mut expected,
             &mut e,
@@ -715,13 +729,16 @@ fn current_image(i: usize) -> R<()> {
         }
         let l = text(doc, b".box_main > .detail_time > span:nth-child(1)", &mut b)?;
         let date = trim_ascii(&b[..l]);
-        let pp = unsafe { &PATHS[i][DIR.len()..DIR.len() + 8] };
+        // URL creation date is not the publication date: 20210714/232058
+        // explicitly displays 2021-07-11. Validate the date format, while work
+        // identity remains bound to the declared route, heading/head and body.
         if date.len() != 10
+            || !date.starts_with(b"20")
             || date[4] != b'-'
             || date[7] != b'-'
-            || date[..4] != pp[..4]
-            || date[5..7] != pp[4..6]
-            || date[8..] != pp[6..]
+            || !date[..4].iter().all(|b| b.is_ascii_digit())
+            || !date[5..7].iter().all(|b| b.is_ascii_digit())
+            || !date[8..].iter().all(|b| b.is_ascii_digit())
         {
             return Err("wrong_owner");
         }
