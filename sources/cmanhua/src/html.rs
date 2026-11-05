@@ -201,28 +201,55 @@ pub fn decoded(s: &[u8], out: &mut [u8]) -> Option<usize> {
             p += 1;
             continue;
         }
-        let end = p + find(&s[p..], b";")?;
-        if end - p > 12 {
-            return None;
-        }
-        let key = &s[p + 1..end];
-        let v = match key {
-            b"amp" => Some('&'),
-            b"lt" => Some('<'),
-            b"gt" => Some('>'),
-            b"quot" => Some('"'),
-            b"apos" | b"#39" => Some('\''),
-            b"nbsp" => Some(' '),
-            _ => {
-                let k = key.strip_prefix(b"#")?;
-                let (k, radix) = if k.starts_with(b"x") || k.starts_with(b"X") {
-                    (&k[1..], 16)
-                } else {
-                    (k, 10)
-                };
-                char::from_u32(u32::from_str_radix(core::str::from_utf8(k).ok()?, radix).ok()?)
+        // Titles can contain literal ampersands, and HTML numeric references
+        // do not need a trailing semicolon (WHATWG decimal/hex reference states).
+        // Keep unknown named entities and invalid scalars as explicit failures.
+        let (v, end) = if s.get(p + 1) == Some(&b'#') {
+            let mut end = p + 2;
+            let radix = if matches!(s.get(end), Some(b'x' | b'X')) {
+                end += 1;
+                16
+            } else {
+                10
+            };
+            let start = end;
+            while end < s.len() && if radix == 16 { s[end].is_ascii_hexdigit() } else { s[end].is_ascii_digit() } {
+                end += 1;
             }
-        }?;
+            if end == start {
+                return None;
+            }
+            let value = u32::from_str_radix(core::str::from_utf8(&s[start..end]).ok()?, radix).ok()?;
+            let value = char::from_u32(value)?;
+            if s.get(end) == Some(&b';') {
+                end += 1;
+            }
+            (value, end)
+        } else {
+            let mut end = p + 1;
+            while end < s.len() && s[end].is_ascii_alphanumeric() {
+                end += 1;
+            }
+            if s.get(end) != Some(&b';') {
+                if n == out.len() {
+                    return None;
+                }
+                out[n] = b'&';
+                n += 1;
+                p += 1;
+                continue;
+            }
+            let value = match &s[p + 1..end] {
+                b"amp" => '&',
+                b"lt" => '<',
+                b"gt" => '>',
+                b"quot" => '"',
+                b"apos" => '\'',
+                b"nbsp" => ' ',
+                _ => return None,
+            };
+            (value, end + 1)
+        };
         let mut buf = [0; 4];
         let b = v.encode_utf8(&mut buf).as_bytes();
         if n + b.len() > out.len() {
@@ -230,7 +257,7 @@ pub fn decoded(s: &[u8], out: &mut [u8]) -> Option<usize> {
         }
         out[n..n + b.len()].copy_from_slice(b);
         n += b.len();
-        p = end + 1;
+        p = end;
     }
     Some(n)
 }
@@ -246,6 +273,16 @@ mod tests {
         let mut out = [0; 100];
         let n = decoded(ts[0].attr(b"href").unwrap(), &mut out).unwrap();
         assert_eq!(&out[..n], b"javascript:__doPostBack('x','')");
+    }
+    #[test]
+    fn literal_ampersands_and_numeric_references() {
+        let input = "秦&唐 / AT&T &#40a&#41 &#x28文&#X29; &amp;";
+        let mut out = [0; 128];
+        let n = decoded(input.as_bytes(), &mut out).unwrap();
+        assert_eq!(core::str::from_utf8(&out[..n]).unwrap(), "秦&唐 / AT&T (a) (文) &");
+        assert!(decoded(b"&#x;", &mut out).is_none());
+        assert!(decoded(b"&#1114112", &mut out).is_none());
+        assert!(decoded("秦&唐".as_bytes(), &mut [0; 4]).is_none());
     }
     #[test]
     fn reject_unknown_entities() {

@@ -12,7 +12,7 @@ const WEB: &[u8] = b"https://3hentai.net";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hentai3.zh.koma",
     name: "3Hentai",
-    version: "0.1.5",
+    version: "0.1.6",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -1039,6 +1039,8 @@ fn pages(r: &[u8]) -> R<usize> {
     };
     let urls = unsafe { &mut *core::ptr::addr_of_mut!(PAGES) };
     let lens = unsafe { &mut *core::ptr::addr_of_mut!(PAGE_LEN) };
+    let mut album = [0u8; 20];
+    let mut album_len = 0usize;
     for i in 0..total {
         let mut b = [0u8; 2048];
         let u = sa(imgs.at(i), b"img[data-src]", b"data-src", &mut b)?;
@@ -1055,9 +1057,22 @@ fn pages(r: &[u8]) -> R<usize> {
             return Err("page reader href owner/sequence");
         };
         let (owner, file) = asset(u)?;
-        if owner != id {
-            return Err("page work owner");
-        };
+        if i == 0 {
+            // The site can assign an asset album ID distinct from the work ID.
+            // Its detail cover must bind that album, and every page below must
+            // match it; the canonical work and each reader URL remain checked.
+            if owner != id {
+                let mut cover_buf = [0u8; 2048];
+                let (cover_owner, cover_file) = asset(cover(d.0, &mut cover_buf)?)?;
+                if cover_owner != owner || cover_file != b"cover.jpg" {
+                    return Err("page album binding");
+                }
+            }
+            album[..owner.len()].copy_from_slice(owner);
+            album_len = owner.len();
+        } else if owner != &album[..album_len] {
+            return Err("page album mismatch");
+        }
         let v = file
             .strip_suffix(b"t.jpg")
             .ok_or("unobserved page format")?;
@@ -1084,6 +1099,12 @@ fn pages(r: &[u8]) -> R<usize> {
         bytes(o, &mut n, id)?;
         bytes(o, &mut n, b":")?;
         wn(o, &mut n, i)?;
+        // Preserve existing page IDs for matching work/album IDs. Only the
+        // previously rejected alias case needs an explicit album identity.
+        if &album[..album_len] != id {
+            bytes(o, &mut n, b":")?;
+            bytes(o, &mut n, &album[..album_len])?;
+        }
         bytes(o, &mut n, b"\",\"index\":")?;
         wn(o, &mut n, i)?;
         bytes(o, &mut n, b",\"image\":{\"kind\":\"url\",\"url\":")?;
@@ -1105,12 +1126,24 @@ fn image_request(r: &[u8]) -> R<usize> {
     if let Some(p) = pid.strip_prefix(b"h3page:zh:") {
         let k = p.iter().position(|c| *c == b':').ok_or("page identity")?;
         id = ident(&p[..k])?;
-        let index = number(&p[k + 1..]).ok_or("page index")?;
+        let rest = &p[k + 1..];
+        let split = rest.iter().position(|c| *c == b':');
+        let (index_raw, album) = match split {
+            Some(pos) => {
+                let album = ident(&rest[pos + 1..])?;
+                if album == id {
+                    return Err("redundant album identity");
+                }
+                (&rest[..pos], album)
+            }
+            None => (rest, id),
+        };
+        let index = number(index_raw).ok_or("page index")?;
         if index >= 1000 {
             return Err("page index capacity");
         };
         let (owner, file) = asset(uri)?;
-        if owner != id {
+        if owner != album {
             return Err("image work owner");
         };
         let num = file.strip_suffix(b".jpg").ok_or("image page format")?;
