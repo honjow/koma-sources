@@ -17,3 +17,5 @@ The source keeps its existing response limits and explicit errors. It does not a
 The independent Rust implementation and provider-asset attribution are documented in NOTICE.md and ASSET_SOURCES.md. The settings behavior additionally follows Keiyoushi `extensions-source` tree `949dea252eb8e867b7b40834a26e13088764ff55`, `src/all/webtoons/.../Webtoons.kt`, with only the host capability and existing directory-order adaptations above.
 
 搜索先解码请求中的 JSON 转义，再按既有站点请求规则编码用户输入；默认、空查询与分页规则保持原行为。
+
+章节标题中的 Unicode 转义遵循 [SDK 公共文本解码合同](../../sdk/README.md)，合法表情不使整份章节响应失效。

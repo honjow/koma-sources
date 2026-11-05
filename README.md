@@ -76,6 +76,10 @@ cargo build --locked --release -p koma-source-dev
   target/wasm32-unknown-unknown/release/koma_mysource_source.wasm
 ~~~
 
+本地运行器支持普通 HTTP 和最多 5 项的串行批量 HTTP；请求组先整体校验，逐项保留 HTTP 结果及顺序。`bodyBase64` 与 `body` 都按 UTF-8 原文发送，字符串 `bodyBase64` 优先，其次为字符串 `body`，不进行 Base64 解码。私有会话与 Java 正则未在此运行器实现，返回 `host_feature_required`，不能据此判书源故障。
+
+足量覆盖可设置 `KOMA_COVERAGE_DENIAL_DIR`，由调用方按源 ID 与包 SHA-256 分配独立目录。该选项只保存完整请求身份的 SHA-256 空标记，收到 401、403、429 后抑制同一请求；400 和传输失败不写拒绝标记。目录不可写或头部身份有歧义时停止联网。调用方须在守卫不可用时停止该轮，并将抑制、能力缺失与真正站点样本分开；默认不启用，不改变普通请求行为。
+
 新生产源必须同时登记到 build.sh 的 SOURCE_ENTRIES 和 Cargo workspace，并提供恰好一个符合格式、大小和解码要求的本地图标。.koma 包包含 manifest.json、source.wasm 和一个图标文件。
 
 完整写源说明见 [docs/WRITING_A_SOURCE.md](docs/WRITING_A_SOURCE.md)，贡献流程和源码规则见 [CONTRIBUTING.md](CONTRIBUTING.md)，最小示例见 [sources/example-demo](sources/example-demo)。也可以在独立仓库中生成同样结构的索引，供用户自行添加。
