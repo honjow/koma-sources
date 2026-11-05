@@ -27,7 +27,7 @@ static mut SEARCH_QUERY: [u8; 8192] = [0; 8192];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.noyacg.koma",
     name: "NoyAcg",
-    version: "0.1.9",
+    version: "0.1.10",
     api_version: "0.2",
     language: "zh",
     author: "Koma",

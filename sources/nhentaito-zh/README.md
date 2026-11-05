@@ -27,3 +27,7 @@
 固定参考的 Exclude Tags 文本及 Sort By（relevance、newest、most-favorited、most-liked）通过既有源筛选控件提供；宿主在搜索及浏览均显示筛选，因此两条操作均消费显式选择。排序无统一 schema 默认：未选择时搜索保持原不带 sort 的 URL，热门保持 `most-favorited`；未填写排除词不新增参数。关键词、排除词经 JSON 解码及 URL 编码，按用户输入保留逗号和空格。筛选后的下一页按官网实际链接核查询、排序、排除词、语言与页码；热门筛选使用数字游标，原未筛选热门完整URL游标仍兼容。纯数字搜索仍优先原详情和中文归属校验。
 
 真实站点与桌面生产WASM核 `love + newest`、`love + exclude=yaoi` 及逗号空格组合；筛选热门 newest+exclude 的前两页各24项并真实推进。原 C++ Host 使用保存的真实 love 页面，默认搜索与公开0.1.4 URL/data相等；未筛选热门与旧完整URL游标比较使用明确标记的受控分页HTML，不冒原站实时证据。错误sort或错误类型于网络前拒绝，篡改下一页参数拒绝。固定参考另有登录收藏及随机画廊，当前未实现：收藏需账户，随机不保证中文归属；不据两项已实现筛选宣称参考全部功能完成。Native 控件和实际使用仍待验证。
+
+## 0.1.6 real WebP thumbnails and explicit CDN host
+
+The Pages count reads only the unique page-count field, without consuming unrelated long tag text. WebP and PNG thumbnails are accepted only when the validated same-work reader declares the corresponding original format and matching media identity, count, order and dimensions. The observed supercdn.site and cdn.supercdn.site hosts must agree across cover, thumbnails, reader declaration and original URL; no other host is accepted. Existing supercdn page IDs are unchanged; the explicit cdn marker in new page IDs is checked again by image_request with the full work route.

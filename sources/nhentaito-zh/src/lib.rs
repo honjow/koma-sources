@@ -9,7 +9,7 @@ const WEB: &[u8] = b"https://nhentai.to";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.nhentaito.zh.koma",
     name: "NHentai.to",
-    version: "0.1.5",
+    version: "0.1.6",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -605,6 +605,11 @@ fn count(d: HtmlDescriptor) -> R<usize> {
     let fields = All::new(d, b"#info-block .field-name")?;
     let mut found = None;
     for i in 0..fields.len {
+        // Only the Pages field owns this direct # anchor; do not read an
+        // unrelated potentially huge Tags field merely to discover its label.
+        let candidates = All::new(fields.at(i), b".tags > a[href='#'] > .name")?;
+        if candidates.len == 0 { continue; }
+        if candidates.len != 1 { return Err("page count ambiguity"); }
         let mut b = [0; 8192];
         let s = txt(fields.at(i), &mut b)?;
         if let Some(p) = s.strip_prefix(b"Pages: ") {
@@ -1076,7 +1081,7 @@ struct PageData {
     width: usize,
     height: usize,
 }
-fn reader_array(id: &[u8], expected_media: &[u8], total: usize) -> R<[PageData; 1000]> {
+fn reader_array(id: &[u8], expected_media: &[u8], expected_host: &[u8], total: usize) -> R<[PageData; 1000]> {
     let html = &body_buf()[..unsafe { BODY_LEN }];
     let marker = b"var reader = new N.reader({";
     let start = find_subslice(html, marker).ok_or("reader declaration missing")? + marker.len();
@@ -1087,11 +1092,16 @@ fn reader_array(id: &[u8], expected_media: &[u8], total: usize) -> R<[PageData; 
     if !tail.starts_with(b"\n") && tail.is_empty() {
         return Err("reader boundary");
     };
-    let media_url = b"media_url: 'https://supercdn.site/'";
-    if find_subslice(tail, media_url).is_none() {
-        return Err("reader media host");
-    };
-    let gs = find_subslice(tail, b"gallery:").ok_or("reader gallery missing")? + b"gallery:".len();
+    let mut host_marker = [0u8; 128];
+    let media_url = make(&[b"media_url: 'https://", expected_host, b"/'"], &mut host_marker)?;
+    let gallery_at = find_subslice(tail, b"gallery:").ok_or("reader gallery missing")?;
+    let header = &tail[..gallery_at];
+    let host_at = find_subslice(header, media_url).ok_or("reader media host")?;
+    if find_subslice(header, b"media_url:") != Some(host_at)
+        || find_subslice(&header[host_at + media_url.len()..], b"media_url:").is_some() {
+        return Err("reader media host ambiguity");
+    }
+    let gs = gallery_at + b"gallery:".len();
     let p = ws(tail, gs);
     let end = json_value_end(tail, p, 0).ok_or("reader gallery JSON")?;
     let g = &tail[p..end];
@@ -1169,9 +1179,12 @@ fn reader_array(id: &[u8], expected_media: &[u8], total: usize) -> R<[PageData; 
     };
     Ok(out)
 }
-fn page_url<'a>(media: &[u8], i: usize, k: u8, b: &'a mut [u8]) -> R<&'a [u8]> {
+fn page_url<'a>(media: &[u8], host: &[u8], i: usize, k: u8, b: &'a mut [u8]) -> R<&'a [u8]> {
     let mut n = 0;
-    bytes(b, &mut n, b"https://supercdn.site/galleries/")?;
+    if !matches!(host, b"supercdn.site" | b"cdn.supercdn.site") { return Err("asset host"); }
+    bytes(b, &mut n, b"https://")?;
+    bytes(b, &mut n, host)?;
+    bytes(b, &mut n, b"/galleries/")?;
     bytes(b, &mut n, media)?;
     bytes(b, &mut n, b"/")?;
     wn(b, &mut n, i + 1)?;
@@ -1189,6 +1202,10 @@ fn pages(r: &[u8]) -> R<usize> {
     let mut media = [0; 20];
     let ml = ac.media.len();
     media[..ml].copy_from_slice(ac.media);
+    let mut media_host = [0u8; 32];
+    let host_len = ac.host.len();
+    media_host[..host_len].copy_from_slice(ac.host);
+    let media_host = &media_host[..host_len];
     let ts = All::new(d.0, b"#thumbnail-container .thumb-container")?;
     if ts.len != total {
         return Err("detail full thumbnail count");
@@ -1196,6 +1213,7 @@ fn pages(r: &[u8]) -> R<usize> {
     let mut first = [0; 1024];
     let mut widths = [0usize; 1000];
     let mut heights = [0usize; 1000];
+    let mut thumb_format = [0u8; 1000];
     for i in 0..total {
         let mut hb = [0; 1024];
         let mut full = [0; 1024];
@@ -1229,10 +1247,20 @@ fn pages(r: &[u8]) -> R<usize> {
         let mut f = [0; 32];
         let mut z = 0;
         wn(&mut f, &mut z, i + 1)?;
-        bytes(&mut f, &mut z, b"t.jpg")?;
-        if a.media != &media[..ml] || a.host != b"supercdn.site" || a.file != &f[..z] {
+        bytes(&mut f, &mut z, b"t.")?;
+        let prefix = z;
+        bytes(&mut f, &mut z, b"jpg")?;
+        let jpg = a.file == &f[..z];
+        z = prefix;
+        bytes(&mut f, &mut z, b"webp")?;
+        let webp = a.file == &f[..z];
+        z = prefix;
+        bytes(&mut f, &mut z, b"png")?;
+        let png = a.file == &f[..z];
+        if a.media != &media[..ml] || a.host != media_host || (!jpg && !webp && !png) {
             return Err("thumbnail media/sequence template");
         }
+        thumb_format[i] = if webp { b'w' } else if png { b'p' } else { 0 };
     }
     drop(ts);
     drop(d);
@@ -1271,7 +1299,10 @@ fn pages(r: &[u8]) -> R<usize> {
             return Err("reader page display");
         }
     }
-    let ps = reader_array(id, &media[..ml], total)?;
+    let ps = reader_array(id, &media[..ml], media_host, total)?;
+    if (0..total).any(|i| thumb_format[i] != 0 && ps[i].kind != thumb_format[i]) {
+        return Err("thumbnail/original format mismatch");
+    }
     if (0..total).any(|i| ps[i].width != widths[i] || ps[i].height != heights[i]) {
         return Err("reader thumbnail dimensions");
     };
@@ -1282,7 +1313,7 @@ fn pages(r: &[u8]) -> R<usize> {
     let mut ib = [0; 2048];
     let im = attr(active.at(0), b"src", &mut ib)?;
     let mut expected = [0; 1024];
-    if im != page_url(&media[..ml], 0, ps[0].kind, &mut expected)? {
+    if im != page_url(&media[..ml], media_host, 0, ps[0].kind, &mut expected)? {
         return Err("first original owner");
     };
     let o = payload_buf();
@@ -1303,11 +1334,12 @@ fn pages(r: &[u8]) -> R<usize> {
         wn(o, &mut n, i)?;
         bytes(o, &mut n, b":")?;
         bytes(o, &mut n, &[ps[i].kind])?;
+        if media_host == b"cdn.supercdn.site" { bytes(o, &mut n, b":cdn")?; }
         bytes(o, &mut n, b"\",\"index\":")?;
         wn(o, &mut n, i)?;
         bytes(o, &mut n, b",\"image\":{\"kind\":\"url\",\"url\":")?;
         let mut b = [0; 1024];
-        q(o, &mut n, page_url(&media[..ml], i, ps[i].kind, &mut b)?)?;
+        q(o, &mut n, page_url(&media[..ml], media_host, i, ps[i].kind, &mut b)?)?;
         bytes(o, &mut n, b"}}")?
     }
     bytes(o, &mut n, b"]}")?;
@@ -1333,11 +1365,14 @@ fn image_request(r: &[u8]) -> R<usize> {
             return Err("page index capacity");
         };
         let kind = f.next().ok_or("page format")?;
-        if kind.len() != 1 || f.next().is_some() {
-            return Err("page identity");
+        let host = match f.next() {
+            None => b"supercdn.site".as_slice(),
+            Some(b"cdn") => b"cdn.supercdn.site".as_slice(),
+            _ => return Err("page identity"),
         };
+        if kind.len() != 1 || f.next().is_some() { return Err("page identity"); }
         let mut expected = [0; 1024];
-        if uri != page_url(media, index, kind[0], &mut expected)? {
+        if uri != page_url(media, host, index, kind[0], &mut expected)? {
             return Err("image media/sequence");
         }
     } else {
@@ -1438,7 +1473,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
-    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.nhentaito.zh.koma\",\"name\":\"NHentai.to\",\"version\":\"0.1.5\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"NHentai.to 中文漫画目录源。\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"NHentai.to（中文）\",\"zh-Hant\":\"NHentai.to（中文）\",\"en\":\"NHentai.to (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":true,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
+    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.nhentaito.zh.koma\",\"name\":\"NHentai.to\",\"version\":\"0.1.6\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"NHentai.to 中文漫画目录源。\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"NHentai.to（中文）\",\"zh-Hant\":\"NHentai.to（中文）\",\"en\":\"NHentai.to (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":true,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
 }
 macro_rules! export_op {
     ($f:ident,$op:literal,$run:ident) => {

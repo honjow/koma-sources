@@ -6,7 +6,7 @@ use koma_source_sdk::{
     json_utils::*,
     source::{SourceCapabilities, SourceInfo},
 };
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.pixiv.zh.koma",name:"pixiv",version:"0.1.13",api_version:"0.2",language:"zh",author:"Koma",description:"支持搜索漫画作品和系列。",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.pixiv.zh.koma",name:"pixiv",version:"0.1.14",api_version:"0.2",language:"zh",author:"Koma",description:"支持搜索漫画作品和系列。",content_rating:"nsfw"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -644,7 +644,7 @@ fn art_detail(x: u64) -> Result<&'static [u8], E> {
     };
     Ok(v)
 }
-// Complete catalogue is validated before emitting any successful series card/chapter list.
+// The complete public catalogue is validated before emitting a successful series card/chapter list.
 fn collect(s: u64, reading_order: bool) -> Result<(usize, usize, usize), E> {
     let d = fetch(make_url(b"/touch/ajax/illust/series/", s, b"?lang=zh")?)?;
     let d = required(d, b"series")?;
@@ -653,10 +653,15 @@ fn collect(s: u64, reading_order: bool) -> Result<(usize, usize, usize), E> {
     };
     let owner = field_id(d, b"userId")?;
     let total = field_num(d, b"total")?;
+    // The top-level display count describes this public catalogue; total/workCount
+    // may include unavailable orders. Completeness needs this count and an empty
+    // content page, never max(content_order) or an inferred hidden-work identity.
+    let visible_total = field_num(d, b"display_series_content_count")?;
     if total == 0
         || total > COUNT
+        || visible_total == 0
+        || visible_total > total
         || field_num(d, b"workCount")? != total
-        || field_num(d, b"display_series_content_count")? != total
         || d.len() > 32768
     {
         return Err("series count capacity mismatch");
@@ -673,13 +678,15 @@ fn collect(s: u64, reading_order: bool) -> Result<(usize, usize, usize), E> {
         let b = scratch_b();
         let mut n = 0;
         bytes(b, &mut n, b"?lang=zh&last_order=")?;
+        // This endpoint pages by cumulative entry offset, not content_order;
+        // real reading orders can have gaps and must never become a cursor.
         wn(b, &mut n, count)?;
         let suf = unsafe { core::slice::from_raw_parts(b.as_ptr(), n) };
         let data = fetch(make_url(b"/touch/ajax/illust/series_content/", s, suf)?)?;
         let mut a = Array::new(required(data, b"series_contents")?)?;
         let before = count;
         while let Some(v) = a.next()? {
-            if count >= total || count >= COUNT {
+            if count >= visible_total || count >= COUNT {
                 return Err("series count exceeded");
             };
             guard(v)?;
@@ -695,9 +702,12 @@ fn collect(s: u64, reading_order: bool) -> Result<(usize, usize, usize), E> {
             {
                 return Err("series ownership mismatch");
             };
+            // Real public responses also embed the full total here. Validate
+            // either observed count scope without using it to end pagination.
+            let embedded_visible = field_num(vs, b"display_series_content_count")?;
             if field_num(vs, b"total")? != total
                 || field_num(vs, b"workCount")? != total
-                || field_num(vs, b"display_series_content_count")? != total
+                || (embedded_visible != total && embedded_visible != visible_total)
             {
                 return Err("series count drift");
             };
@@ -755,12 +765,12 @@ fn collect(s: u64, reading_order: bool) -> Result<(usize, usize, usize), E> {
             count += 1;
         }
         if before == count {
-            if count != total {
+            if count != visible_total {
                 return Err("incomplete series catalogue");
             };
             break;
         }
-        if count > total {
+        if count > visible_total {
             return Err("series count exceeded");
         }
     }

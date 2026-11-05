@@ -58,7 +58,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.jiuermanhua.koma",
     name: "92漫画网",
-    version: "0.1.7",
+    version: "0.1.8",
     api_version: "0.2",
     language: "zh",
     author: "Koma",

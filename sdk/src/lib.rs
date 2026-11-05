@@ -1453,7 +1453,18 @@ pub mod json_utils {
                     b'u' if i + 5 < src.len() => {
                         let hex = &src[i + 2..i + 6];
                         let cp = hex_to_u16(hex);
-                        if cp > 0 {
+                        if (0xd800..=0xdfff).contains(&cp) {
+                            // JSON represents non-BMP scalars as one high/low pair.
+                            // Reuse the strict decoder rather than emitting invalid
+                            // UTF-8 bytes for either isolated surrogate.
+                            let Some(pair) = src.get(i..i + 12) else { return false; };
+                            let mut utf8 = [0u8; 4];
+                            let Ok(decoded) = crate::plain_text::decode_json_content(pair, &mut utf8) else { return false; };
+                            for &b in decoded {
+                                if !append_json_escaped_byte(dst, cursor, b) { return false; }
+                            }
+                            i += 12;
+                        } else if cp > 0 {
                             let mut utf8 = [0u8; 4];
                             let len = encode_utf8(cp as u32, &mut utf8);
                             let mut j = 0;
@@ -2265,6 +2276,21 @@ macro_rules! koma_source_exports {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn escaped_surrogate_pairs_are_utf8_and_unpaired_units_fail() {
+        use crate::json_utils::append_json_unescaped_then_escaped as append;
+        let mut out = [0u8; 64];
+        let mut n = 0;
+        assert!(append(&mut out, &mut n, br#"Stay safe \uD83D\uDE37 and \"ok\""#));
+        assert_eq!(&out[..n], r#"Stay safe 😷 and \"ok\""#.as_bytes());
+        for bad in [br#"\uD83D"#.as_slice(), br#"\uDE37"#, br#"\uD83D\u0041"#, br#"\uD83D\uZZZZ"#] {
+            let mut n = 0;
+            assert!(!append(&mut out, &mut n, bad));
+        }
+        let mut tiny = [0u8; 3];
+        let mut n = 0;
+        assert!(!append(&mut tiny, &mut n, br#"\uD83D\uDE37"#));
+    }
     #[test]
     fn title_iterators_stay_inside_the_isolated_owner() {
         use crate::json_utils::{JsonArrayIter, JsonObjectStringIter, json_object_member};

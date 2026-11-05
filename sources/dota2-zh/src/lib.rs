@@ -5,7 +5,7 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.perfectworld.dota2.zh.koma",
     name: "DOTA2官方漫画",
-    version: "0.1.1",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
