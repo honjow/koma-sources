@@ -32,6 +32,7 @@ RELEASE_PACKAGE_DIR="$OUTPUT_DIR/release-packages"
 # Source registry: source name | crate directory | nsfw | minimum Koma version.
 # Keep this Bash 3 compatible for macOS /bin/bash.
 SOURCE_ENTRIES='
+cosplaytele|cosplaytele|true|0.1.4
 hentaifox-zh|hentaifox-zh|true|0.1.1
 3hentai-zh|3hentai-zh|true|0.1.1
 nnhanman-zh|nnhanman-zh|true|0.1.1

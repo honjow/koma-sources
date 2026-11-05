@@ -141,6 +141,23 @@ After `koma_source_helpers!`, these functions are available:
 
 After `koma_source_exports!("name")`, all `koma_source_*` WASM exports are generated.
 
+### Strict request and transport boundaries
+
+For new ports, the opt-in SDK source_protocol module validates complete request
+syntax and direct selected fields before HTTP. Its direct/raw_string/text helpers
+distinguish absent from non-string or duplicate identities (including escaped key
+aliases); legacy json_utils extraction helpers do not provide that guarantee.
+text reuses plain_text::decode_json_content: decode a JSON search string before
+URL encoding it, rather than encoding its literal escape bytes. feature reads
+only the actual hostFeatures array. Existing sources are not silently switched.
+
+source_protocol::body preserves HTTP refusal/rate status first, then checks the
+Host's top-level ok completion, and reuses decode_json_body_into. A 200 response
+whose body transfer failed (ok:false, response_body/network_error) remains a
+network error, not a site parse error. Site HTML parsing happens only after a
+complete body. This centralizes the direct/duplicate/type checks already used
+by strict catalogue sources without changing the legacy SDK helper behavior.
+
 ## JSON Request Formats
 
 The host sends JSON requests to your source:
