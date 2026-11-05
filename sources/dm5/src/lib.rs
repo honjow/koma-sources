@@ -24,7 +24,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.dm5.koma",
     name: "DM5",
-    version: "0.1.25",
+    version: "0.1.26",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -510,6 +510,81 @@ fn chapter_anchor_number(list: &[u8], start: usize) -> usize {
         .unwrap_or(0)
 }
 
+// The catalogue contains nested cover/info divs. The first closing div is
+// not the end of chapterlistload; retain the exact original inner markup and
+// fail closed if its matching container cannot be found.
+fn chapter_container_end(html: &[u8], start: usize) -> Option<usize> {
+    let mut pos = start;
+    let mut depth = 0usize;
+    while pos < html.len() {
+        let at = pos + find_subslice(&html[pos..], b"<")?;
+        if html[at..].starts_with(b"<!--") {
+            let close = find_subslice(&html[at + 4..], b"-->")?;
+            pos = at + 4 + close + 3;
+            continue;
+        }
+        let mut name_start = at + 1;
+        let closing = html.get(name_start) == Some(&b'/');
+        if closing { name_start += 1; }
+        let mut name_end = name_start;
+        while html.get(name_end).map(|b| b.is_ascii_alphanumeric() || *b == b'-').unwrap_or(false) {
+            name_end += 1;
+        }
+        if name_end == name_start { return None; }
+        let name = &html[name_start..name_end];
+        let next = *html.get(name_end)?;
+        if !next.is_ascii_whitespace() && next != b'>' && next != b'/' { return None; }
+        // No executable/raw-text nodes are part of the observed catalogue;
+        // refusing them avoids interpreting their contents as markup.
+        if name.eq_ignore_ascii_case(b"script") || name.eq_ignore_ascii_case(b"style") { return None; }
+        let mut end = name_end;
+        let mut quote = 0u8;
+        while end < html.len() {
+            let c = html[end];
+            if quote != 0 { if c == quote { quote = 0; } }
+            else if c == b'\"' || c == b'\'' { quote = c; }
+            else if c == b'>' { break; }
+            end += 1;
+        }
+        if end == html.len() || quote != 0 { return None; }
+        if name.eq_ignore_ascii_case(b"div") {
+            if closing {
+                depth = depth.checked_sub(1)?;
+                if depth == 0 { return Some(at); }
+            } else {
+                if html[end.saturating_sub(1)] == b'/' { return None; }
+                depth = depth.checked_add(1)?;
+            }
+        }
+        pos = end + 1;
+    }
+    None
+}
+
+// Only the current detail page's dedicated warning and explicit name count.
+// Unknown layout, recommendations, or a warning for another work must not be
+// mistaken for the site's explicit "no longer provided" state.
+fn chapter_explicitly_unavailable(html: &[u8], id: &[u8]) -> bool {
+    let route = match extract_js_string(html, b"DM5_COMIC_URL=\"") { Some(v) => v, None => return false };
+    if route.strip_prefix(b"/").and_then(|v| v.strip_suffix(b"/")) != Some(id) { return false; }
+    let title = match extract_js_string(html, b"DM5_COMIC_MNAME=\"") { Some(v) if !v.is_empty() => v, _ => return false };
+    let doc = match host::html_parse(html) { Ok(v) => DirectoryDocument(v), Err(_) => return false };
+    let select = |parent, selector: &[u8]| host::html_select(parent, selector).ok().map(DirectoryDocument);
+    let p = match select(doc.0, b"div.left-bar > div.warning-bar > p") { Some(v) => v, None => return false };
+    let b = match select(p.0, b"b") { Some(v) => v, None => return false };
+    let mut name_buf = [0u8; 1024];
+    let name_len = match host::html_text(b.0, &mut name_buf) { Ok(n) if n < name_buf.len() => n, _ => return false };
+    let name = &name_buf[..name_len];
+    if name.strip_suffix("漫画".as_bytes()) != Some(title) { return false; }
+    let mut text_buf = [0u8; 2048];
+    let text_len = match host::html_text(p.0, &mut text_buf) { Ok(n) if n < text_buf.len() => n, _ => return false };
+    let text = trim_ascii(&text_buf[..text_len]);
+    text.strip_prefix("动漫屋已不再提供".as_bytes())
+        .and_then(|v| v.strip_prefix(name))
+        .map(|v| v.starts_with("的在线阅读。".as_bytes()))
+        .unwrap_or(false)
+}
+
 fn run_get_chapters(req: &[u8]) -> u32 {
     let manga_id = match extract_json_string(req, b"mangaId") {
         Some(v) => v,
@@ -532,13 +607,19 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         }
     };
     let html = unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), html_len) };
-    let list_start = match find_subslice(html, b"id=\"chapterlistload\"") {
+    let list_marker = match find_subslice(html, b"id=\"chapterlistload\"") {
         Some(v) => v,
+        None if chapter_explicitly_unavailable(html, id) => return write_error("get_chapters", "not_found", "site no longer provides this work"),
         None => return write_error("get_chapters", "parse_error", "chapter list not found"),
     };
-    let list_end = find_subslice(&html[list_start..], b"</div>")
-        .map(|v| list_start + v)
-        .unwrap_or(html.len());
+    let list_start = match find_back(html, list_marker, b'<') {
+        Some(v) if html[v..].starts_with(b"<div") => v,
+        _ => return write_error("get_chapters", "parse_error", "invalid chapter list container"),
+    };
+    let list_end = match chapter_container_end(html, list_start) {
+        Some(v) if v > list_marker => v,
+        _ => return write_error("get_chapters", "parse_error", "unterminated chapter list"),
+    };
     let list = &html[list_start..list_end];
     let payload = payload_buf();
     let mut c = 0usize;
@@ -565,6 +646,9 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             None => return write_error("get_chapters", "parse_error", "unterminated chapter anchor"),
         };
     }
+    if count == 0 {
+        return write_error("get_chapters", "parse_error", "chapter list empty or unrecognized");
+    }
     if sort {
         anchors[..count].sort_unstable_by(|a, b| {
             chapter_anchor_number(list, *b).cmp(&chapter_anchor_number(list, *a))
@@ -590,8 +674,26 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             Some(v) => v,
             None => continue,
         };
-        // Retain the established identity/metadata algorithm separately from display.
-        let title_html=&block[tag_end..block.len().saturating_sub(4)];
+        // New card-style chapters wrap the title in p.title alongside an image
+        // and date. Restrict the same identity/metadata algorithm to that title;
+        // otherwise leading layout whitespace truncates the old 256-byte input.
+        // Plain anchors retain their original byte-for-byte path.
+        let content = &block[tag_end..block.len().saturating_sub(4)];
+        let title_html = if contains_bytes(content, b"<div") {
+            let start = match find_subslice(content, b"<p class=\"title") {
+                Some(v) => v,
+                None => return write_error("get_chapters", "parse_error", "card chapter title missing"),
+            };
+            let begin = match find_subslice(&content[start..], b">") {
+                Some(v) => start + v + 1,
+                None => return write_error("get_chapters", "parse_error", "card chapter title missing"),
+            };
+            let end = match find_subslice(&content[begin..], b"</p>") {
+                Some(v) => begin + v,
+                None => return write_error("get_chapters", "parse_error", "card chapter title missing"),
+            };
+            &content[begin..end]
+        } else { content };
         let display_title=DisplayChapterTitle::new(title_html);
         let mut title_buf = [0u8; 256];
         let identity_title = strip_tags_to(

@@ -8,7 +8,7 @@ const BASE: &[u8] = b"https://www.liumanhua.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.sixmh.koma",
     name: "六漫画",
-    version: "0.1.8",
+    version: "0.1.9",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -447,6 +447,7 @@ fn diagnostic_error(op: &str, code: &str) {
         "cancelled" => b"cancelled".as_slice(),
         "network_error" => b"network_error",
         "not_found" => b"not_found",
+        "no_chapters" => b"no_chapters",
         "rate_limited" => b"rate_limited",
         "permission_denied" => b"permission_denied",
         "authentication_required" => b"authentication_required",
@@ -537,6 +538,7 @@ fn error(op: &str, e: &str) -> u32 {
         "authentication required" => "authentication_required",
         "captcha unsupported" => "permission_denied",
         "public comic unavailable" => "not_found",
+        "public chapter list pending" => "no_chapters",
         _ => "source_error",
     };
     diagnostic_error(op, code);
@@ -551,6 +553,7 @@ fn error(op: &str, e: &str) -> u32 {
             "HTML attribute may be truncated" => b"href_capacity",
             "invalid canonical path" => b"chapter_path_invalid",
             "public comic unavailable" => b"public_comic_unavailable",
+            "public chapter list pending" => b"public_chapter_list_pending",
             "HTML text overflow" => b"title_read_failed",
             "HTML text may be truncated" => b"title_capacity",
             "chapter title missing" => b"chapter_title_missing",
@@ -901,6 +904,24 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
                         if let Ok(value) = status.text(&mut text) {
                             if find_subslice(value, "已下架".as_bytes()).is_some() {
                                 return Err("public comic unavailable");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // The site can publish a detail page before any chapter exists. Only its
+        // explicit pending marker plus a present, element-free list is conclusive;
+        // unknown children or missing selectors remain a parsing failure.
+        if let Ok(list) = root.select(b"ul#mh-chapter-list-ol-0") {
+            if let Ok(children) = Nodes::get(&list, b"*") {
+                if children.n == 0 {
+                    if let Ok(latest) = root.select(b"div.cy_zhangjie_top > p:first-of-type > a") {
+                        let mut text = [0; 128];
+                        let mut href = [0; 128];
+                        if let (Ok(value), Ok(link)) = (latest.text(&mut text), latest.attr(b"href", &mut href)) {
+                            if value == "待浏览".as_bytes() && link.is_empty() {
+                                return Err("public chapter list pending");
                             }
                         }
                     }

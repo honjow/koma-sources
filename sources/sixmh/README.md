@@ -73,3 +73,7 @@ Search 0.1.5: anonymous production WASM returned two results for 一人之下, p
 The 2,048-descriptor array shared with other HTML lists rejected the entire chapter catalogue for three live search results titled 全职法师. Chapter selection now has a separate 8,192-descriptor capacity. The source still returns every chapter in the site's order with its original ID and never silently truncates; the existing runtime response size limit still applies. Search, detail, page requests, and the explicit unavailable result are unchanged.
 
 The four live catalogues contained 3,277, 1,025, 2,206, and 2,197 entries. Local WASM and native HTML replay matched each entry and kept the old result for the 1,025-entry catalogue. Pura X 237, running Koma 1.1.1, displayed all four counts after ordinary package import and source search. The first two pages of 01 世界大变 in the 3,277-entry catalogue rendered and the reader returned to the detail page.
+
+## 0.1.9: explicit pending chapter list
+
+When the existing chapter list is empty, the site's present list element has no child elements, and the latest-chapter link has empty href and exactly “待浏览”, report `no_chapters`. Explicit “已下架” retains `not_found`; a missing list, unrecognized children, missing link, or any other marker remains `source_error`. This prevents an unknown layout from masquerading as a confirmed empty catalogue. Existing valid catalogue order and capacity remain unchanged.

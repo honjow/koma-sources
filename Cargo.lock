@@ -1231,7 +1231,7 @@ dependencies = [
 
 [[package]]
 name = "koma_dm5_source"
-version = "0.1.25"
+version = "0.1.26"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1498,7 +1498,7 @@ dependencies = [
 
 [[package]]
 name = "koma_sixmh_source"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "aes",
  "cbc",
@@ -3545,7 +3545,7 @@ dependencies = [
 
 [[package]]
 name = "koma_cmanhua_source"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -3674,7 +3674,7 @@ dependencies = [
 
 [[package]]
 name = "koma_hentai3_zh_source"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
