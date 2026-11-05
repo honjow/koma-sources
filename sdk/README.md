@@ -15,3 +15,5 @@
 `plain_text::append_entity_decoded_json_content` accepts the unquoted serialized content of a JSON string and appends valid JSON string content to a bounded caller buffer. It validates Unicode escape pairs, uses the existing HTML5 entity table once, and escapes literal angle brackets before parsing so they remain text. It introduces no host import beyond the established HTML ABI and does not normalize any existing source field automatically. Sources opt in only at the explicit text consumer; invalid input or capacity overflow returns failure.
 
 `plain_text::decode_json_content` decodes unquoted JSON string content into a bounded caller buffer, validating UTF-8 and Unicode pairs without HTML parsing or normalization. Callers choose their own whitespace and URL handling.
+
+`json_utils::append_json_unescaped_then_escaped` 将合法的 UTF-16 高低代理对合成为一个 UTF-8 字符后继续既有 JSON 转义；孤立、非法代理或输出容量不足返回失败。原有普通文本、BMP 字符和其余处理路径保持。依赖此函数的可安装书源通过各自补丁版本分发该修复；采用公共解码修复不代表各站全部内容或设备路径已验收。

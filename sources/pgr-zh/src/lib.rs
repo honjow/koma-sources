@@ -5,7 +5,7 @@ use koma_source_sdk::{decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.kurogame.pgr.zh.koma",
     name: "战双帕弥什官方漫画",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh",
     author: "Koma",

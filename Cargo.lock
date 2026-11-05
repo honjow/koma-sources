@@ -1189,7 +1189,7 @@ dependencies = [
 
 [[package]]
 name = "koma_bns_zh_hant_source"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1224,14 +1224,14 @@ dependencies = [
 
 [[package]]
 name = "koma_bluearchive_zh_source"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_dm5_source"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1245,7 +1245,7 @@ dependencies = [
 
 [[package]]
 name = "koma_dota2_zh_source"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1259,14 +1259,14 @@ dependencies = [
 
 [[package]]
 name = "koma_fgo_zh_source"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_genshin_zh_source"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1315,7 +1315,7 @@ dependencies = [
 
 [[package]]
 name = "koma_honorofkings_zh_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1329,14 +1329,14 @@ dependencies = [
 
 [[package]]
 name = "koma_jiuermanhua_source"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_komiic_source"
-version = "0.1.11"
+version = "0.1.12"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1350,14 +1350,14 @@ dependencies = [
 
 [[package]]
 name = "koma_lol_zh_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_magireco_zh_source"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1400,7 +1400,7 @@ dependencies = [
 
 [[package]]
 name = "koma_manhuadui_source"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1414,7 +1414,7 @@ dependencies = [
 
 [[package]]
 name = "koma_manhuaren_source"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1456,21 +1456,21 @@ dependencies = [
 
 [[package]]
 name = "koma_noyacg_source"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_pgr_zh_source"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_pixiv_zh_source"
-version = "0.1.13"
+version = "0.1.14"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1507,7 +1507,7 @@ dependencies = [
 
 [[package]]
 name = "koma_onmyoji_zh_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1574,14 +1574,14 @@ dependencies = [
 
 [[package]]
 name = "koma_tongli_source"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_webtoons_source"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1595,7 +1595,7 @@ dependencies = [
 
 [[package]]
 name = "koma_weicomic_ronshaonien_source"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1619,14 +1619,14 @@ dependencies = [
 
 [[package]]
 name = "koma_zaimanhua_source"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_zazhimi_source"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -3559,14 +3559,14 @@ dependencies = [
 
 [[package]]
 name = "koma_namepara_zh_hant_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_oldmasterq_zh_hant_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -3615,7 +3615,7 @@ dependencies = [
 
 [[package]]
 name = "koma_nhentaito_zh_source"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "koma_source_sdk",
 ]

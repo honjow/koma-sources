@@ -38,7 +38,7 @@ static mut SEARCH_QUERY: [u8; 16384] = [0; 16384];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.tongli.koma",
     name: "東立",
-    version: "0.1.7",
+    version: "0.1.8",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
