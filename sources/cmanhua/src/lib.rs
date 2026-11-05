@@ -12,7 +12,7 @@ const BASE: &[u8] = b"https://cmanhua.com";
 const INFO: SourceInfo = SourceInfo {
     id: "com.cmanhua.koma",
     name: "CManhua",
-    version: "0.1.7",
+    version: "0.1.8",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -591,6 +591,26 @@ fn add_chapters(
     }
     Ok(())
 }
+// A real empty catalogue is distinct from an unknown/missing structure. Only
+// the site's explicit zero count and one entirely empty chapter list confirm it.
+fn explicit_empty_catalogue(doc: &[u8]) -> bool {
+    let mut counts = 0;
+    let mut lists = 0;
+    let mut zero = false;
+    let mut empty = false;
+    for tag in Tags::new(doc) {
+        if tag.name == b"span" && tag.attr(b"id") == Some(b"MainContent_lblChaptersCount".as_slice()) {
+            counts += 1;
+            zero = tag.inner().map(trim_ascii) == Some(b"0".as_slice());
+        }
+        if tag.name == b"ul" && tag.class(b"cd-chapter-list") {
+            lists += 1;
+            empty = tag.inner().map(trim_ascii).is_some_and(|value| value.is_empty());
+        }
+    }
+    counts == 1 && lists == 1 && zero && empty
+}
+
 fn run_get_chapters(req: &[u8]) -> u32 {
     let s = match slug(req) {
         Some(s) => s,
@@ -677,6 +697,9 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         }
     }
     if count == 0 {
+        if ranges == 0 && explicit_empty_catalogue(orig) {
+            return write_error("get_chapters", "no_chapters", "no public chapters available");
+        }
         return error("get_chapters", "missing public catalogue");
     }
     page_end("get_chapters", &mut n, None)
