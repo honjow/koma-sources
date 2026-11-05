@@ -52,6 +52,17 @@ bytes using the same extension.
 最终候选包中打开实际图标亲审，核对列表中的真实显示；未完成或有缺陷
 就保留未验收状态，不能把执行代理的结论直接当成交付。
 
+## 移植前的源码对照
+
+1. 固定上游扩展版本。从入口追到实际请求和结果，列出分类、筛选、搜索、
+   分页、目录、阅读、登录和设置，以及默认值、适用条件和停止条件。
+2. 在该源 README 按行为记下上游实现、Koma 调用位置与源内消费位置。
+   逐项核对请求形状、分支、默认值和结果语义。比如分页要对照宿主传入的
+   `args.page.cursor` 与源的实际读取处。通用栏目和提示使用界面语言；
+   没有独立首页的参考不能把热门首屏包装成首页。
+3. 实现后沿同一调用链复核。删改或适配写明代码位置及依据；漏项标为
+   未完成。交付验证沿用项目现行规则。
+
 ## Architecture
 
 ```
@@ -172,21 +183,23 @@ by strict catalogue sources without changing the legacy SDK helper behavior.
 
 ## JSON Request Formats
 
-The host sends JSON requests to your source:
+The App sends an envelope with an `args` object. The examples below show its contents.
+For a pageable listing the first cursor is `null`; subsequent calls use the
+returned cursor or, for numbered pages, a decimal string such as `"2"`.
 
 | Operation | Request JSON |
 |-----------|-------------|
-| search | `{"query":"one piece","page":1,"limit":25}` |
+| search | `{"query":"one piece","page":{"cursor":null,"limit":20},"filters":{}}` |
 | get_manga | `{"mangaId":"manga:slug"}` |
 | get_chapters | `{"mangaId":"manga:slug"}` |
 | get_pages | `{"chapterId":"chapter:slug:001"}` |
-| get_image_request | `{"url":"https://..."}` |
+| get_image_request | `{"pageId":"manga:slug","url":"https://..."}` |
 | get_listings | `{}` |
-| get_manga_list | `{"listingId":"popular","page":1,"limit":25}` |
+| get_manga_list | `{"listingId":"popular","page":{"cursor":null,"limit":20},"filters":{}}` |
 | get_home | `{}` |
 | get_filters | `{}` |
 
-Parse with `extract_json_string(req, b"mangaId")`.
+Read identities from the actual `args` object. For image requests the App sends the work ID as `pageId` for a cover and the stable page ID for a reader page. A public cover whose URL and headers are already known can use `cover.headers` as described in the host ABI.
 
 ## JSON Response Formats
 

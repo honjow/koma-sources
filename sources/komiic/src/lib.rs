@@ -3,6 +3,7 @@
 extern crate koma_source_sdk;
 #[path = "../strict_json.rs"]
 mod strict_json;
+mod browse;
 
 use koma_source_sdk::host::{http_request, log_info};
 use koma_source_sdk::json_utils::{
@@ -43,7 +44,7 @@ static mut SEARCH_QUERY: [u8; GQL_BODY_CAP] = [0; GQL_BODY_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.komiic.koma",
     name: "Komiic",
-    version: "0.1.12",
+    version: "0.1.13",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -59,7 +60,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     listings: true,
     manga_list: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: true,
     image_request: true,
     credentials: false,
@@ -67,7 +68,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
 
 const QUERY_POPULAR: &[u8] = b"query hotComics($pagination: Pagination!) { comics: hotComics(pagination: $pagination) { id title description status imageUrl authors { id name } categories { id name } } }";
 const QUERY_SEARCH: &[u8] = b"query searchComicQuery($keyword: String!, $pagination: Pagination!) { comics: searchComics(keyword: $keyword, pagination: $pagination) { id title description status imageUrl authors { id name } categories { id name } } }";
-const QUERY_DETAIL: &[u8] = b"query chapterByComicId($comicId: ID!) { comicById(comicId: $comicId) { id title description status imageUrl authors { id name } categories { id name } } chaptersByComicId(comicId: $comicId) { id serial type size dateCreated } }";
+const QUERY_DETAIL: &[u8] = b"query chapterByComicId($comicId: ID!) { comicById(comicId: $comicId) { id title description status imageUrl authors { id name } categories { id name } warnings } chaptersByComicId(comicId: $comicId) { id serial type size dateCreated } }";
 const QUERY_IMAGE_TICKET: &[u8] = b"query getImageTicket($kid: String!) { getImageTicket(kid: $kid) { url ticket kid } }";
 const QUERY_PAGES: &[u8] = b"query imagesByChapterId($chapterId: ID!) { imagesByChapterId(chapterId: $chapterId) { kid } }";
 
@@ -82,25 +83,6 @@ fn json_buf() -> &'static mut [u8] {
 
 fn gql_body_buf() -> &'static mut [u8] {
     unsafe { &mut *core::ptr::addr_of_mut!(GQL_BODY_BUF) }
-}
-
-fn parse_usize(bytes: &[u8]) -> usize {
-    let mut n = 0usize;
-    let mut i = 0usize;
-    while i < bytes.len() {
-        let b = bytes[i];
-        if b < b'0' || b > b'9' {
-            break;
-        }
-        n = n.saturating_mul(10).saturating_add((b - b'0') as usize);
-        i += 1;
-    }
-    n
-}
-
-fn request_page(req: &[u8]) -> usize {
-    let n = extract_json_number(req, b"page").map(parse_usize).unwrap_or(1);
-    if n == 0 { 1 } else { n }
 }
 
 fn strip_prefix<'a>(value: &'a [u8], prefix: &[u8]) -> Option<&'a [u8]> {
@@ -240,20 +222,6 @@ fn build_search_body(query: &[u8], page: usize) -> Option<usize> {
     Some(c)
 }
 
-fn build_popular_body(page: usize) -> Option<usize> {
-    let offset = page.saturating_sub(1).saturating_mul(PAGE_SIZE);
-    let dst = gql_body_buf();
-    let mut c = 0usize;
-    write_bytes(dst, &mut c, br#"{"query":""#).then_some(())?;
-    append_json_escaped(dst, &mut c, QUERY_POPULAR).then_some(())?;
-    write_bytes(dst, &mut c, br#"","variables":{"pagination":{"offset":"#).then_some(())?;
-    write_usize(dst, &mut c, offset).then_some(())?;
-    write_bytes(dst, &mut c, br#","orderBy":"MONTH_VIEWS","status":"","asc":false,"limit":"#).then_some(())?;
-    write_usize(dst, &mut c, PAGE_SIZE).then_some(())?;
-    write_bytes(dst, &mut c, br#","sexyLevel":null},"categoryId":[]}}"#).then_some(())?;
-    Some(c)
-}
-
 fn build_detail_body(id: &[u8]) -> Option<usize> {
     let dst = gql_body_buf();
     let mut c = 0usize;
@@ -350,7 +318,58 @@ fn write_names_from_array(payload: &mut [u8], c: &mut usize, obj: &[u8], key: &[
     true
 }
 
-fn write_manga_card(payload: &mut [u8], c: &mut usize, obj: &[u8]) -> bool {
+// Only the provider's observed public cover shape can skip the ticket resolver.
+// Unknown URLs, image-ticket endpoints and malformed identities keep the old path.
+fn public_cover(url: &[u8]) -> bool {
+    let Some(rest) = url.strip_prefix(b"https://public.komiic.com/comics/") else { return false };
+    let Some(split) = rest.iter().position(|b| *b == b'/') else { return false };
+    let (owner, tail) = rest.split_at(split);
+    owner.len() == 32 && owner.iter().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(b))
+        && matches!(tail, b"/cover.jpg" | b"/cover.webp")
+}
+fn valid_warning_array(obj: &[u8]) -> bool {
+    let Some(raw)=json_object_member(obj,b"warnings") else {return false};
+    if !strict_json::valid(raw) || raw.first()!=Some(&b'[') || raw.last()!=Some(&b']') {return false}
+    let mut i=1usize;
+    while i+1<raw.len() {
+        while i+1<raw.len() && raw[i].is_ascii_whitespace() {i+=1}
+        if raw[i]==b']' {break}
+        if raw[i]!=b'"' {return false}
+        i+=1;
+        while i<raw.len() && raw[i]!=b'"' {if raw[i]==b'\\' {i+=1}i+=1}
+        if i>=raw.len() {return false}i+=1;
+        while i+1<raw.len() && raw[i].is_ascii_whitespace() {i+=1}
+        if raw[i]==b',' {i+=1} else if raw[i]!=b']' {return false}
+    }
+    true
+}
+// Reference metadata presents provider categories followed by its warning
+// strings. A missing or malformed requested warnings array is not an empty one.
+fn write_detail_tags(payload: &mut [u8], c: &mut usize, obj: &[u8]) -> bool {
+    let begin = *c;
+    if !write_names_from_array(payload, c, obj, b"categories") { return false; }
+    let Some(raw) = json_object_member(obj, b"warnings") else { return false };
+    if !strict_json::valid(raw) || raw.first()!=Some(&b'[') || raw.last()!=Some(&b']') { return false; }
+    let mut i=1usize;
+    while i+1<raw.len() {
+        while i+1<raw.len() && raw[i].is_ascii_whitespace() {i+=1}
+        if raw[i]==b']' {break}
+        if raw[i]!=b'"' {return false}
+        i+=1; let start=i;
+        while i<raw.len() && raw[i]!=b'"' {
+            if raw[i]==b'\\' {i+=1}
+            i+=1;
+        }
+        if i>=raw.len() {return false}
+        let value=&raw[start..i];
+        if *c>begin && !write_bytes(payload,c,b",") {return false}
+        if !(write_bytes(payload,c,b"\"") && append_json_unescaped_then_escaped(payload,c,value) && write_bytes(payload,c,b"\"")) {return false}
+        i+=1;while i+1<raw.len() && raw[i].is_ascii_whitespace(){i+=1}
+        if raw[i]==b',' {i+=1} else if raw[i]!=b']' {return false}
+    }
+    true
+}
+fn write_manga_card(payload: &mut [u8], c: &mut usize, obj: &[u8], req: &[u8]) -> bool {
     let id = match extract_json_string(obj, b"id") {
         Some(v) => v,
         None => return true,
@@ -365,7 +384,13 @@ fn write_manga_card(payload: &mut [u8], c: &mut usize, obj: &[u8]) -> bool {
         && append_json_unescaped_then_escaped(payload, c, title)
         && write_bytes(payload, c, br#"","cover":{"kind":"url","url":""#)
         && append_json_unescaped_then_escaped(payload, c, cover)
-        && write_bytes(payload, c, br#""},"authors":["#)
+        && write_bytes(payload, c, b"\"")
+        && if public_cover(cover) {
+            write_bytes(payload, c, br#", "headers":{"accept":"image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8","referer":""#)
+                && write_bytes(payload, c, selected_base(req))
+                && write_bytes(payload, c, br#"/"}"#)
+        } else { true }
+        && write_bytes(payload, c, br#"},"authors":["#)
         && write_names_from_array(payload, c, obj, b"authors")
         && write_bytes(payload, c, br#"],"status":""#)
         && write_bytes(payload, c, status)
@@ -382,11 +407,11 @@ fn normalize_status(status: &[u8]) -> &'static [u8] {
     }
 }
 
-fn write_manga_list(operation: &str, api_json: &[u8]) -> u32 {
-    write_manga_list_page(operation, api_json, PAGE_SIZE, None)
+fn write_manga_list(operation: &str, api_json: &[u8], page: usize, req: &[u8]) -> u32 {
+    write_manga_list_page(operation, api_json, PAGE_SIZE, Some(page), false, req)
 }
 
-fn write_manga_list_page(operation: &str, api_json: &[u8], page_size: usize, search_page: Option<usize>) -> u32 {
+fn write_manga_list_page(operation: &str, api_json: &[u8], page_size: usize, search_page: Option<usize>, lookahead: bool, req: &[u8]) -> u32 {
     let payload = payload_buf();
     let mut c = 0usize;
     if !write_bytes(payload, &mut c, br#"{"items":["#) {
@@ -406,12 +431,12 @@ fn write_manga_list_page(operation: &str, api_json: &[u8], page_size: usize, sea
         if written > 0 && !write_bytes(payload, &mut c, b",") {
             return write_error(operation, "internal_error", "overflow");
         }
-        if !write_manga_card(payload, &mut c, obj) {
+        if !write_manga_card(payload, &mut c, obj, req) {
             return write_error(operation, "internal_error", "overflow");
         }
         written += 1;
     }
-    let has_more = if search_page.is_some() { extra_result } else { written == PAGE_SIZE };
+    let has_more = if lookahead { extra_result } else { written == page_size };
     if !(write_bytes(payload, &mut c, br#"],"page":{"nextCursor":"#)
         && if has_more && search_page.is_some() {
             write_bytes(payload, &mut c, b"\"")
@@ -453,14 +478,14 @@ fn run_search(req: &[u8]) -> u32 {
             return write_error("search", c, m);
         }
     };
-    write_manga_list_page("search", api_json, 20, Some(page))
+    write_manga_list_page("search", api_json, 20, Some(page), true, req)
 }
 
 fn run_popular_list(operation: &str, req: &[u8]) -> u32 {
-    let page = request_page(req);
-    let body_len = match build_popular_body(page) {
-        Some(v) => v,
-        None => return write_error(operation, "internal_error", "body overflow"),
+    let page = koma_source_sdk::json_utils::request_page_number(req);
+    let body_len = match browse::build_list(req, page) {
+        Ok(v) => v,
+        Err(()) => return write_error(operation, "invalid_request", "invalid listing or filters"),
     };
     let body = &gql_body_buf()[..body_len];
     let api_json = match post_graphql(req, body) {
@@ -470,7 +495,7 @@ fn run_popular_list(operation: &str, req: &[u8]) -> u32 {
             return write_error(operation, c, m);
         }
     };
-    write_manga_list(operation, api_json)
+    write_manga_list(operation, api_json, page, req)
 }
 
 fn run_get_manga_list(req: &[u8]) -> u32 {
@@ -480,7 +505,7 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
 fn run_get_listings(_req: &[u8]) -> u32 {
     let payload = payload_buf();
     let mut c = 0usize;
-    if !write_bytes(payload, &mut c, br#"{"listings":[{"id":"popular","name":"Popular"}]}"#) {
+    if !write_bytes(payload, &mut c, r#"{"listings":[{"id":"popular","name":"熱門","kind":"popular","supportsPaging":true},{"id":"latest","name":"最近更新","kind":"latest","supportsPaging":true}]}"#.as_bytes()) {
         return write_error("get_listings", "internal_error", "overflow");
     }
     write_success_payload("get_listings", c)
@@ -516,6 +541,9 @@ fn run_get_manga(req: &[u8]) -> u32 {
         Some(v) => v,
         None => return write_error("get_manga", "parse_error", "missing comicById"),
     };
+    if !valid_warning_array(obj) {
+        return write_error("get_manga", "parse_error", "invalid warning metadata");
+    }
     let title = extract_json_string(obj, b"title").unwrap_or(b"Unknown");
     let desc = extract_json_string(obj, b"description").unwrap_or(b"");
     let cover = extract_json_string(obj, b"imageUrl").unwrap_or(b"");
@@ -535,7 +563,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
         && write_bytes(payload, &mut c, br#"],"artists":[],"status":""#)
         && write_bytes(payload, &mut c, status)
         && write_bytes(payload, &mut c, br#"","contentRating":"nsfw","language":"zh","tags":["#)
-        && write_names_from_array(payload, &mut c, obj, b"categories")
+        && write_detail_tags(payload, &mut c, obj)
         && write_bytes(payload, &mut c, br#"],"links":[{"kind":"source","url":""#)
         && write_bytes(payload, &mut c, selected_base(req))
         && write_bytes(payload, &mut c, b"/comic/")
@@ -875,6 +903,15 @@ pub extern "C" fn koma_source_get_manga_list(req_ptr: u32, req_len: u32) -> u32 
     };
     log_info(b"komiic get_manga_list");
     run_get_manga_list(req)
+}
+
+#[no_mangle]
+pub extern "C" fn koma_source_get_filters(req_ptr: u32, req_len: u32) -> u32 {
+    let req = match read_request(req_ptr, req_len) {
+        Some(v) => v,
+        None => return write_error("get_filters", "invalid_request", "empty"),
+    };
+    browse::run_filters(req)
 }
 
 #[no_mangle]
