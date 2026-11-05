@@ -2,13 +2,15 @@
 
 作者原部落格「[專欄]四格漫畫」：https://fjumonkey.pixnet.net/blog/categories/1708975 。僅這個個人漫畫分類，按實際next逐頁瀏覽，不掃6頁、不把頁數乘每頁數當總量。每post獨立作品、一個完整閱讀單元，原標題不改；chapterNumber/volumeNumber=null，readingGroup=該作品MID，continuationEligible=false。Holly Plus標題中的59等數字不作全源章序。作者自署「輔大猴部落格」，正式作品評級/連載狀態/usage unknown。
 
-source ID `com.fjumonkey.pixnet.zh-hant.koma`，0.1.2，ABI0.2，zh-Hant。能力為search/listings/mangaList/detail/chapters/pages/imageRequest；不提供home/filter/settings/credentials。short postID保原字符串，最多24位正數字，不經f64/usize；MID=`fjumonkey:zh-hant:post:<post>`、CID=`fjumonkeyread:zh-hant:post:<post>`、PID=`fjumonkeypage:zh-hant:post:<post>:<0-based ordinal>`，只有本地ordinal/頁計數轉整數。
+source ID `com.fjumonkey.pixnet.zh-hant.koma`，0.1.3，ABI0.2，zh-Hant。能力為search/listings/mangaList/detail/chapters/pages/imageRequest；不提供home/filter/settings/credentials。short postID保原字符串，最多24位正數字，不經f64/usize；MID=`fjumonkey:zh-hant:post:<post>`、CID=`fjumonkeyread:zh-hant:post:<post>`、PID=`fjumonkeypage:zh-hant:post:<post>:<0-based ordinal>`，只有本地ordinal/頁計數轉整數。
 
 目錄限定主`#article-area > #article-box > div.article[id]`，逐項原ID/data-article-link/h2 URL/標題/個人分類/直接img封面一致，按post去重。兩頁各12原身份已核，合併24；24作品只有14個不同cover URI，原49/48及47至39共11篇共享同一封面，合法保留所有作品。原next完整URI作cursor，驗可見當前頁、back/next連續；canonical/og只鎖原分類基礎URL（page2原站不含query）。末6僅原導航，後4頁/終態未核，不能假終態。
 
+正文圖片可保留原頁明確提供的 `?v=` 加十位數字版本參數；完整URL仍由同一文章正文位置精確校驗，不接受任意查詢或跨作品圖片，目錄封面格式不變。
+
 詳情主div.article無id、li.title無data-link，不探不存在屬性；核唯一主article、h2原URL/標題、canonical/og、meta author、PIXNET name/blog_id/post_id/AdultWarning=false。目錄原Person graph與詳情原BlogPosting分開驗；詳情核其author引用、url/@id/mainEntityOfPage/headline/articleSection/isPartOf/inLanguage及原datePublished，無合成graph。comscore/part與歸屬無關不鎖。共用成人模板不代表已啟用門檻，亦不推全站評級。
 
-本次原詳情的`article-content-inner > img[src]`為直接img，沒有p包裝。圖片只收主正文全部img且原URI為作者HTTPS媒體合法形式，拒外域/額外query/子目錄/重複圖/嵌入播放器或未知圖片樹。首《夏日玩水須知》原5JPEG完整保序：400×308標題P1、四幅600×380正文；不刪題字、邊框、版權，不裁四格、不轉碼/縮放。正文附文「⊕ 夏日玩水須知」「更多輔大猴四格漫畫...」、原Tag及原舊href都放詳情description的原文附記/原文連結；只保存文字，舊wretch連結不跟隨，不作現今目錄。原HTML父樹另保；不聲稱Reader圖片頁已排印原HTML文字。JSON-LD image1不是全篇。
+本次原詳情的`article-content-inner > img[src]`為直接img，沒有p包裝。圖片只收主正文全部img且原URI為作者HTTPS媒體合法形式，拒外域/未聲明的query/子目錄/重複圖/嵌入播放器或未知圖片樹。首《夏日玩水須知》原5JPEG完整保序：400×308標題P1、四幅600×380正文；不刪題字、邊框、版權，不裁四格、不轉碼/縮放。正文附文「⊕ 夏日玩水須知」「更多輔大猴四格漫畫...」、原Tag及原舊href都放詳情description的原文附記/原文連結；只保存文字，舊wretch連結不跟隨，不作現今目錄。原HTML父樹另保；不聲稱Reader圖片頁已排印原HTML文字。JSON-LD image1不是全篇。
 
 **圖片兩個角色刻意不同：**
 
@@ -35,3 +37,5 @@ source ID `com.fjumonkey.pixnet.zh-hant.koma`，0.1.2，ABI0.2，zh-Hant。能�
 ## 分類搜索
 
 搜索限定原「[專欄]四格漫畫」分類，以q及獨立數字游標重建查詢；站方next連結省略q，不能直接作下一次搜索。保原作者、分類、作品ID與標題。2026-10-28生產WASM真站「四格」首頁、次頁及第6末頁成功，隨機無匹配為空，JSON雙引號正確編碼；首項38769301與原目錄ID/標題一致，詳情和頁表成功。公開包及Native另驗。
+
+0.1.3验证范围：30篇真实详情中24篇原正常的详情/目录/页表完整响应不变，6篇版本参数失败恢复；10篇不同作品实际正文图已核（标题卡另留并补中部正文，不充作品数）。237普通导入后，《雪中送炭》1/2原题字与2/2漫画正文、《夏日玩水須知》1/5原题字与5/5漫画均已亲审，稳定ID和标题读回不变。只记录两部具名首尾Native范围，不冒30部逐一实机；原三个源包、注册及阅读/搜索数据已逐字节恢复，电源与租约已恢复。
