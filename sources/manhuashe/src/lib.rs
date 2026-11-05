@@ -15,7 +15,7 @@ fn selected_base(r: &[u8]) -> &'static [u8] {
         _ => BASE,
     }
 }
-const SOURCE_INFO: SourceInfo = SourceInfo { id:"com.manhuashe.koma", name:"漫画社 (Manhuashe)", version:"0.1.10", api_version:"0.2",language:"zh",author:"Koma",description:"",content_rating:"nsfw" };
+const SOURCE_INFO: SourceInfo = SourceInfo { id:"com.manhuashe.koma", name:"漫画社 (Manhuashe)", version:"0.1.11", api_version:"0.2",language:"zh",author:"Koma",description:"",content_rating:"nsfw" };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -80,14 +80,14 @@ impl Node {
         Ok(trim_ascii(&out[..n]))
     }
 }
-struct Nodes {
-    ids: [i32; 2048],
+struct NodeSet<const CAP: usize> {
+    ids: [i32; CAP],
     n: usize,
 }
-impl Nodes {
+impl<const CAP: usize> NodeSet<CAP> {
     fn get(root: &Node, s: &[u8]) -> Result<Self, &'static str> {
         let mut v = Self {
-            ids: [0; 2048],
+            ids: [0; CAP],
             n: 0,
         };
         let n = unsafe {
@@ -112,15 +112,18 @@ impl Nodes {
         Node(host::HtmlDescriptor::from_raw(self.ids[i]))
     }
 }
-impl Drop for Nodes {
+impl<const CAP: usize> Drop for NodeSet<CAP> {
     fn drop(&mut self) {
         for &id in &self.ids[..self.n] {
             let _ = host::html_close(host::HtmlDescriptor::from_raw(id));
         }
     }
 }
+type Nodes = NodeSet<2048>;
+// Only chapter lists use the larger capacity; other selectors retain their existing bound.
+type ChapterNodes = NodeSet<8192>;
 // A borrowed selected node must not be closed twice: at() transfers no ownership.
-fn selected(nodes: &Nodes, i: usize) -> core::mem::ManuallyDrop<Node> {
+fn selected<const CAP: usize>(nodes: &NodeSet<CAP>, i: usize) -> core::mem::ManuallyDrop<Node> {
     core::mem::ManuallyDrop::new(nodes.at(i))
 }
 fn bytes(b: &mut [u8], n: &mut usize, s: &[u8]) -> Result<(), &'static str> {
@@ -839,7 +842,7 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
     bytes(b, &mut n, b",\"cover\":{\"kind\":\"url\",\"url\":")?;
     q(b, &mut n, cover)?;
     bytes(b, &mut n, b"},\"contentRating\":\"unknown\",\"authors\":[")?;
-    let stats = Nodes::get(&root, b"div.comic-stats > div.stat-item")?;
+    let stats = Nodes::get(&parent, b"div.comic-stats > div.stat-item")?;
     let mut author_found = false;
     for i in 0..stats.n {
         let item = selected(&stats, i);
@@ -849,10 +852,11 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
                 return Err("ambiguous author labels");
             }
             let author = trim_ascii(&s[p + "作者：".len()..]);
-            if author.is_empty() {
-                return Err("empty author");
+            // An explicitly present but empty author field is site-provided unknown metadata.
+            // A missing or ambiguous label remains a structural error.
+            if !author.is_empty() {
+                q(b, &mut n, author)?;
             }
-            q(b, &mut n, author)?;
             author_found = true;
         }
     }
@@ -899,18 +903,27 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
     bytes(b, &mut n, br#""}]}}"#)?;
     Ok(n)
 }
-fn chapters(r: &[u8]) -> Result<usize, &'static str> {
-    let mp = manga_id(r)?;
-    let root = fetch(selected_base(r), mp)?;
-    let _owner = root.select(b"#chapter-list")?;
-    let nodes = Nodes::get(&root, b"#chapter-list > div.chapter-item > a")?;
-    if nodes.n == 0 {
-        return Err("chapter structure missing");
-    }
+// Cursors bind an exact work and canonical response-budget boundary; malformed,
+// cross-work and out-of-range offsets cannot silently alter the catalog.
+fn chapter_offset(r: &[u8], work: &[u8]) -> Result<Option<usize>, &'static str> {
+    let page = match json_object_member(args(r), b"page") { None | Some(b"null") => return Ok(None), Some(v) => v };
+    if page.first() != Some(&b'{') { return Err("invalid page cursor"); }
+    let value = match json_object_member(page, b"cursor") { None | Some(b"null") => return Ok(None), Some(v) => v };
+    if value.len() < 2 || value[0] != b'"' || value[value.len()-1] != b'"' { return Err("invalid page cursor"); }
+    let value = &value[1..value.len()-1];
+    let prefix = value.strip_prefix(b"ms:").ok_or("invalid page cursor")?;
+    let prefix = prefix.strip_prefix(work).ok_or("invalid page cursor")?;
+    let digits = prefix.strip_prefix(b":").ok_or("invalid page cursor")?;
+    if digits.is_empty() || digits[0] == b'0' { return Err("invalid page cursor"); }
+    let offset = number(digits).filter(|v| *v > 0).ok_or("invalid page cursor")?;
+    Ok(Some(offset))
+}
+fn chapter_response(nodes: &ChapterNodes, mp: &[u8], work: &[u8], start: usize, end: usize, paginated: bool) -> Result<usize, &'static str> {
     let b = payload_buf();
     let mut n = 0;
     bytes(b, &mut n, b"{\"chapters\":[")?;
-    for (index, i) in (0..nodes.n).rev().enumerate() {
+    for index in start..end {
+        let i = nodes.n - 1 - index;
         let a = selected(&nodes, i);
         let mut href = [0; 1024];
         let cp = chapter_path(a.attr(b"href", &mut href)?)?;
@@ -933,7 +946,7 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
         if title.is_empty() {
             return Err("empty chapter title");
         }
-        if index > 0 {
+        if index > start {
             bytes(b, &mut n, b",")?;
         }
         bytes(b, &mut n, b"{\"id\":\"chapter:")?;
@@ -962,12 +975,56 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
         }
         bytes(b,&mut n,b",\"volumeNumber\":null,\"language\":\"zh\",\"publishedAt\":null,\"updatedAt\":null,\"pageCount\":null,\"scanlator\":null}")?;
     }
-    bytes(
-        b,
-        &mut n,
-        b"],\"page\":{\"nextCursor\":null,\"hasMore\":false}}",
-    )?;
+    if paginated && end < nodes.n {
+        bytes(b, &mut n, b"],\"page\":{\"nextCursor\":\"ms:")?;
+        bytes(b, &mut n, work)?;
+        bytes(b, &mut n, b":")?;
+        if !write_usize(b, &mut n, end) { return Err("payload overflow"); }
+        bytes(b, &mut n, b"\",\"hasMore\":true}}")?;
+    } else {
+        bytes(b, &mut n, b"],\"page\":{\"nextCursor\":null,\"hasMore\":false}}")?;
+    }
     Ok(n)
+}
+fn chapters(r: &[u8]) -> Result<usize, &'static str> {
+    let mp = manga_id(r)?;
+    let work = mp.strip_prefix(b"/comic_").and_then(|v| v.strip_suffix(b".html")).ok_or("invalid request")?;
+    let requested = chapter_offset(r, work)?;
+    let root = fetch(selected_base(r), mp)?;
+    let _owner = root.select(b"#chapter-list")?;
+    let nodes = ChapterNodes::get(&root, b"#chapter-list > div.chapter-item > a")?;
+    if nodes.n == 0 { return Err("chapter structure missing"); }
+    // Preserve the exact legacy one-response contract whenever it fits. A full
+    // render is also a safety probe before accepting a continuation cursor.
+    match chapter_response(&nodes, mp, work, 0, nodes.n, false) {
+        Ok(len) => if requested.is_none() { return Ok(len) } else { return Err("invalid page cursor") },
+        Err("payload overflow") => {},
+        Err(e) => return Err(e),
+    }
+    let start = requested.unwrap_or(0);
+    if start >= nodes.n { return Err("invalid page cursor"); }
+    // Reconstruct boundaries from the same validated document: arbitrary or
+    // cross-work offsets cannot skip entries, including when long titles make
+    // an individual 1000-item block exceed the response budget.
+    let mut boundary = 0;
+    while boundary < start {
+        let end = chapter_block_end(&nodes, mp, work, boundary)?;
+        if end > start { return Err("invalid page cursor"); }
+        boundary = end;
+    }
+    if boundary != start { return Err("invalid page cursor"); }
+    let end = chapter_block_end(&nodes, mp, work, start)?;
+    chapter_response(&nodes, mp, work, start, end, true)
+}
+fn chapter_block_end(nodes: &ChapterNodes, mp: &[u8], work: &[u8], start: usize) -> Result<usize, &'static str> {
+    let mut count = core::cmp::min(1000, nodes.n - start);
+    loop {
+        match chapter_response(nodes, mp, work, start, start + count, true) {
+            Ok(_) => return Ok(start + count),
+            Err("payload overflow") if count > 1 => count /= 2,
+            Err(e) => return Err(e),
+        }
+    }
 }
 fn pages(r: &[u8]) -> Result<usize, &'static str> {
     let cp = chapter_id(r)?;

@@ -68,3 +68,7 @@ The retained successful 800-title catalogue plus this same exact work’s single
 固定参考 949dea252eb8e867b7b40834a26e13088764ff55 的镜像选择首项为 `https://www.311s.com`，另可选 `https://www.m206.com`。`preferredMirror` 默认原地址，未设置或未知值沿旧请求；仅用户显式选择备用地址时，列表、搜索、详情、章节、正文及图片请求 Referer/Origin 使用该地址。不自动试探或切换镜像；旧路径形式的漫画和章节 ID 保持。两站是否对每个作品均同一身份不能推定。
 
 备用站实际返回的搜索第一页无 `/1` 链接；仅将精确匹配查询路径且无页号的链接识别为第一页，其他分页仍校验精确查询和页序。现有用户身份、图标和默认域不变。仅真实站点/WASM与具名旧作品测试，普通 Native 设置持久和设备阅读仍需独立验证。
+
+## 0.1.11 chapter capacity and missing author
+
+The chapter list alone accepts up to 8192 selected nodes; all other selectors retain their existing capacity and excess remains an error. The site can explicitly show an empty author in the current work’s metadata; this is represented as an empty authors array, while a missing or duplicated author label remains an error. Catalogues that exceed the existing response buffer use work-bound cursors in pages of up to 1000 entries, reduced further when needed to fit the response budget; shorter catalogues keep their original single response. Chapter identity, global index and reverse order are unchanged.
