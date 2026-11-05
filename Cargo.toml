@@ -87,6 +87,7 @@ members = [
   "sources/lol-zh",
   "sources/honorofkings-zh",
   "sources/pgr-zh",
+  "sources/picacomic",
   "sources/mangapluscreators-en",
   "tools/koma-source-dev",
   "sources/mangadex-zh-hans",

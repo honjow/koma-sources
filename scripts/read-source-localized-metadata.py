@@ -47,10 +47,44 @@ def navigation_homepage(value):
     return value
 
 
-def extract(metadata):
+def authentication_descriptor(value, web_origins):
+    if not isinstance(value, dict) or set(value) - {"kind", "loginUrl", "usernameLabel", "passwordLabel", "credentialStorage", "userAgent"}:
+        raise ValueError("invalid authentication descriptor")
+    kind = value.get("kind")
+    login_url = value.get("loginUrl")
+    if kind not in ("web", "credentials") or not isinstance(login_url, str) or utf16_length(login_url) > 4096:
+        raise ValueError("invalid authentication descriptor")
+    navigation_homepage(login_url)
+    parsed = urlsplit(login_url)
+    if parsed.scheme != "https":
+        raise ValueError("authentication requires HTTPS")
+    host = parsed.hostname.encode("idna").decode("ascii").lower()
+    if ":" in host:
+        host = "[" + host + "]"
+    origin = "https://" + host + ((":" + str(parsed.port)) if parsed.port not in (None, 443) else "")
+    if kind == "web" and origin not in web_origins:
+        raise ValueError("web authentication requires its declared exact web-session origin")
+    if kind == "credentials" and value.get("credentialStorage") not in ("private", "memory"):
+        raise ValueError("credentials must declare private or memory credentialStorage")
+    if kind == "web" and "credentialStorage" in value:
+        raise ValueError("web authentication cannot declare native credential storage")
+    if "userAgent" in value:
+        ua = value["userAgent"]
+        if kind != "web" or not isinstance(ua, str) or not ua.strip(TRIM) or utf16_length(ua) > 1024 or any(ord(c) < 32 or ord(c) == 127 for c in ua):
+            raise ValueError("invalid authentication user agent")
+    for field in ("usernameLabel", "passwordLabel"):
+        if field in value and (not isinstance(value[field], str) or not value[field].strip(TRIM)
+                               or utf16_length(value[field]) > 128 or not valid_unicode(value[field])):
+            raise ValueError("invalid authentication field label")
+    return dict(value)
+
+
+def extract(metadata, web_origins=None):
     if not isinstance(metadata, dict):
         return {}
     result = {}
+    if "authentication" in metadata:
+        result["authentication"] = authentication_descriptor(metadata["authentication"], web_origins if web_origins is not None else metadata.get("webSessionOrigins", []))
     # Chronology belongs to the unchanged source output, not the App's display
     # sort. Missing means unverified; never infer it from names or chapter IDs.
     if "chapterOrder" in metadata:
@@ -80,7 +114,9 @@ def extract(metadata):
 def main():
     path = Path(sys.argv[1])
     metadata = json.loads(path.read_text()) if path.exists() else {}
-    projected = extract(metadata)
+    origin_file = path.parent / "web-session-origins.json"
+    web_origins = json.loads(origin_file.read_text()) if origin_file.exists() else metadata.get("webSessionOrigins", [])
+    projected = extract(metadata, web_origins)
     # Production sources must not publish a dead ordinary WebView action.
     # This is navigation metadata only; it grants no HTTP/session permission.
     if "--require-homepage" in sys.argv[2:] and "homepage" not in projected:

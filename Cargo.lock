@@ -1647,6 +1647,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_picacomic_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "percent-encoding",
+ "serde_json",
+ "sha2",
+ "url",
+]
+
+[[package]]
 name = "koma_zerobyw_source"
 version = "0.1.9"
 dependencies = [

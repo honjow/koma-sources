@@ -119,6 +119,7 @@ webtoons|webtoons|false|0.1.0
 lol-zh|lol-zh|false|0.1.1
 honorofkings-zh|honorofkings-zh|false|0.1.1
 pgr-zh|pgr-zh|false|0.1.1
+picacomic|picacomic|true|1.2.0
 mangapluscreators-en|mangapluscreators-en|false|0.1.1
 '
 
