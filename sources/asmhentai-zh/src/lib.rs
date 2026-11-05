@@ -10,7 +10,7 @@ type E = &'static str;
 type R<T> = Result<T, E>;
 const MAX: usize = 1048576;
 const WEB: &[u8] = b"https://asmhentai.com";
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.asmhentai.zh.koma",name:"AsmHentai",version:"0.1.4",api_version:"0.2",language:"zh",author:"Koma",description:"AsmHentai provider Chinese catalogue; per-work rating and usage unknown. Anonymous published metadata only.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.asmhentai.zh.koma",name:"AsmHentai",version:"0.1.5",api_version:"0.2",language:"zh",author:"Koma",description:"AsmHentai provider Chinese catalogue; per-work rating and usage unknown. Anonymous published metadata only.",content_rating:"nsfw"};
 #[allow(dead_code)]
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
@@ -793,7 +793,7 @@ fn list(r: &[u8], search: bool) -> R<usize> {
             .ok_or("page url")?;
         e = pos + 1;
         wn(&mut expected, &mut e, np)?;
-        if actual != &expected[..e] && !((search || tag_count>1) && tag_count>0 && filtered_search_next(actual,&names[..names_len],query,np)) {
+        if actual != &expected[..e] && !((search || tag_count>1) && filtered_search_next(actual,&names[..names_len],query,np)) {
             return Err("next URL mismatch");
         };
         let mut c = [0; 8192];
