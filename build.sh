@@ -121,6 +121,7 @@ honorofkings-zh|honorofkings-zh|false|0.1.1
 pgr-zh|pgr-zh|false|0.1.1
 picacomic|picacomic|true|1.2.0
 copymanga|copymanga|true|1.2.0
+wnacg|wnacg|true|1.2.0
 mangapluscreators-en|mangapluscreators-en|false|0.1.1
 '
 
@@ -289,7 +290,7 @@ build_source() {
   fi
 
   # The App's external-source runtime rejects modules larger than 1 MiB.
-  if [[ "$name" == "copymanga" && "$(wc -c < "$wasm_file")" -gt 1048576 ]]; then
+  if [[ ( "$name" == "copymanga" || "$name" == "wnacg" ) && "$(wc -c < "$wasm_file")" -gt 1048576 ]]; then
     log "ERROR: $name WASM exceeds the 1 MiB source runtime limit"
     return 1
   fi
@@ -540,6 +541,7 @@ log "▸ Building all selected WASM sources..."
 ordinary_crates=()
 large_stack_crates=()
 copy_crate=""
+wnacg_crate=""
 for name in $(compiled_source_names); do
   dir="$(source_crate_dir "$name")"
   crate=$(grep '^name' "$SOURCES_DIR/$dir/Cargo.toml" | head -1 | sed 's/.*= *"\(.*\)"/\1/')
@@ -547,6 +549,8 @@ for name in $(compiled_source_names); do
     large_stack_crates+=("$crate")
   elif [[ "$name" == "copymanga" ]]; then
     copy_crate="$crate"
+  elif [[ "$name" == "wnacg" ]]; then
+    wnacg_crate="$crate"
   else
     ordinary_crates+=(-p "$crate")
   fi
@@ -569,6 +573,13 @@ if [[ -n "$copy_crate" ]]; then
   CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS="${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS:+$CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS }-C target-feature=-reference-types -C link-arg=--strip-all" \
   CARGO_PROFILE_RELEASE_PANIC=abort CARGO_PROFILE_RELEASE_LTO=true CARGO_PROFILE_RELEASE_OPT_LEVEL=z \
   cargo build --locked --release --target wasm32-unknown-unknown -p "$copy_crate" >&2
+fi
+
+if [[ -n "$wnacg_crate" ]]; then
+  # Retain WNACG's original size-optimized release profile under the workspace.
+  CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS="${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS:+$CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS }-C target-feature=-reference-types -C link-arg=--strip-all" \
+  CARGO_PROFILE_RELEASE_PANIC=abort CARGO_PROFILE_RELEASE_LTO=true CARGO_PROFILE_RELEASE_OPT_LEVEL=z \
+  cargo build --locked --release --target wasm32-unknown-unknown -p "$wnacg_crate" >&2
 fi
 
 fi
