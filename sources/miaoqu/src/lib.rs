@@ -9,8 +9,8 @@ use koma_source_sdk::{
 const BASE: &[u8] = b"https://www.miaoqumh.org";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.miaoqu.koma",
-    name: "妙趣漫画",
-    version: "0.1.3",
+    name: "喵趣漫画",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -401,7 +401,7 @@ fn diagnostic(stage: &[u8], code: &[u8]) {
 fn code(e: &str) -> &'static str {
     match e {
         "permission denied" => "permission_denied",
-        "not found" => "not_found",
+        "not found" | "源站提示该漫画不存在或章节已被删除" => "not_found",
         "rate limited" => "rate_limit",
         "network failure" => "network_error",
         "timeout" => "timeout",
@@ -799,10 +799,27 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
     }
     Ok(n)
 }
+// MCCMSWeb rejects the final /err/comic route before parsing. The host ABI
+// does not expose that redirect URL, so recognize only its complete observed
+// public error body. A missing selector or an empty catalogue alone is still
+// the original parse error; no alternate slug or chapters are invented.
+fn reject_removed_work() -> Result<(), &'static str> {
+    let body = unsafe { &body_buf()[..BODY_LEN] };
+    const REMOVED: &[u8] = concat!(
+        "很遗憾，该漫画不存在或章节已被删除。我们将自动跳转到漫画检索页，在那里您可以发现更多精彩内容。\r\n",
+        "<script type=\"text/javascript\">\r\n",
+        "setTimeout(function() {\r\n\twindow.location.href = '/category';\r\n}, 2000);\r\n</script>"
+    ).as_bytes();
+    if trim_ascii(body) == REMOVED {
+        return Err("源站提示该漫画不存在或章节已被删除");
+    }
+    Ok(())
+}
 fn detail(r: &[u8]) -> Result<usize, &'static str> {
     let (id, s) = manga_identity(r)?;
     let mut path = [0; 1024];
     let root = fetch(MOBILE, detail_path(s, &mut path)?)?;
+    reject_removed_work()?;
     let owner = root.select(b".infobox")?;
     let mut text = [0; 32768];
     let title = owner.select(b".title")?.text(&mut text)?;
@@ -912,6 +929,7 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
     let (id, s) = manga_identity(r)?;
     let mut path = [0; 1024];
     let root = fetch(MOBILE, detail_path(s, &mut path)?)?;
+    reject_removed_work()?;
     let nodes = Nodes::get(&root, b"ul.list > li > :first-child")?;
     if nodes.n == 0 {
         return Err("chapter structure missing");
