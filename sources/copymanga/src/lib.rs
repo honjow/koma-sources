@@ -26,7 +26,7 @@ static ALLOCATOR: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.copymanga.koma",
     name: "拷贝漫画",
-    version: "0.1.1",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -158,12 +158,13 @@ impl core::ops::Deref for ApiData {
 struct Context {
     api: &'static str,
     api_transport: bool,
+    public_cover_headers: bool,
     web: &'static str,
     ua: String,
     simplifier: Option<simplify::Simplifier>,
 }
 impl Context {
-    fn new(v: &Value, metadata: bool, api_transport: bool) -> R<Self> {
+    fn new(v: &Value, metadata: bool, api_transport: bool, public_cover_headers: bool) -> R<Self> {
         let values = if metadata {
             v["args"]
                 .get("settingValues")
@@ -187,6 +188,7 @@ impl Context {
         Ok(Self {
             api,
             api_transport,
+            public_cover_headers,
             web,
             ua: ua.to_string(),
             simplifier: if simplified {
@@ -195,6 +197,9 @@ impl Context {
                 None
             },
         })
+    }
+    fn image_headers(&self) -> Value {
+        json!({"User-Agent":self.ua,"Referer":format!("{}/",self.web),"Accept":"application/json","Version":"2025.11.21","Webp":"1","platform":"1"})
     }
     fn display(&self, s: &str) -> String {
         self.simplifier
@@ -348,7 +353,11 @@ fn comic(cx: &Context, v: &Value) -> R<Value> {
     } else {
         "unknown"
     };
-    let mut manga = json!({"id":format!("copymanga:{}",path),"title":cx.display(field(v,"name")?),"authors":authors,"artists":authors,"cover":{"kind":"url","url":field(v,"cover")?},"contentRating":"unknown","status":status,"links":[{"kind":"source","url":format!("{}/comic/{}",cx.web,path)}]});
+    let cover_uri = field(v, "cover")?;
+    let mut manga = json!({"id":format!("copymanga:{}",path),"title":cx.display(field(v,"name")?),"authors":authors,"artists":authors,"cover":{"kind":"url","url":cover_uri},"contentRating":"unknown","status":status,"links":[{"kind":"source","url":format!("{}/comic/{}",cx.web,path)}]});
+    if cx.public_cover_headers && image_uri_allowed(cover_uri) {
+        manga["cover"]["headers"] = cx.image_headers();
+    }
     if let Some(s) = v["brief"].as_str() {
         manga["description"] = json!(cx.display(s))
     }
@@ -363,6 +372,11 @@ fn comic(cx: &Context, v: &Value) -> R<Value> {
     }
     manga["tags"] = json!(tags);
     Ok(manga)
+}
+fn image_uri_allowed(raw: &str) -> bool {
+    Url::parse(raw).is_ok_and(|url| {
+        matches!(url.scheme(), "http" | "https") && url.username().is_empty() && url.password().is_none()
+    })
 }
 fn date(s: &str) -> Option<i64> {
     let s = s.get(..10)?;

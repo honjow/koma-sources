@@ -426,16 +426,12 @@ fn image_request(cx: &Context, v: &Value) -> R<Value> {
     let raw = args["url"]
         .as_str()
         .ok_or_else(|| E::from("invalid_request"))?;
-    let u = Url::parse(raw).map_err(|_| E::from("invalid_request"))?;
-    if !matches!(u.scheme(), "http" | "https") || !u.username().is_empty() || u.password().is_some()
-    {
+    if !image_uri_allowed(raw) {
         return Err("invalid_request".into());
     }
     // Upstream image traffic uses the ordinary client and source headers; API-only
     // cookies/pool/protocol semantics must not be imposed on an unrelated CDN.
-    Ok(
-        json!({"url":raw,"headers":{"User-Agent":cx.ua,"Referer":format!("{}/",cx.web),"Accept":"application/json","Version":"2025.11.21","Webp":"1","platform":"1"}}),
-    )
+    Ok(json!({"url":raw,"headers":cx.image_headers()}))
 }
 
 fn verify_page_image(args: &Value, image_id: &str) -> R<()> {
@@ -578,6 +574,7 @@ pub fn dispatch(op: &str, r: &[u8], v: &Value) -> R<Value> {
         v,
         op == "get_settings" && protocol::feature(r, b"source_settings_context_v1"),
         protocol::feature(r, b"source_http_copymanga_api_v1"),
+        protocol::feature(r, b"source_public_cover_client_headers_v1"),
     )?;
     match op {
         "get_listings" => Ok(

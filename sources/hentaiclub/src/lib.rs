@@ -22,7 +22,7 @@ const UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/2010
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hentaiclub.koma",
     name: "绅士会所",
-    version: "0.1.0",
+    version: "0.1.1",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -122,6 +122,17 @@ fn absolute(raw: &str, document: &str) -> R<Url> {
         return Err("parse_error");
     }
     Ok(u)
+}
+fn image_headers() -> Value {
+    json!({"User-Agent":UA,"Referer":format!("{}/",BASE)})
+}
+fn cover(raw: &str, document: &str, public: bool) -> R<Value> {
+    let image = absolute(raw, document)?;
+    let mut cover = json!({"kind":"url","url":image.as_str()});
+    if public && image.username().is_empty() && image.password().is_none() {
+        cover["headers"] = image_headers();
+    }
+    Ok(cover)
 }
 fn local(raw: &str) -> R<String> {
     let u = absolute(raw, &format!("{}/", BASE)).map_err(|_| "invalid_request")?;
@@ -240,6 +251,7 @@ fn list(r: &[u8], input: &Value, search: bool) -> R<Value> {
         }
     }
     let mut items = Vec::new();
+    let public_covers = protocol::feature(r, b"source_public_cover_user_agent_v1");
     for node in &nodes {
         let a = node.required("a.item-link")?;
         let path = local(&a.attr("href")?.ok_or("parse_error")?).map_err(|_| "parse_error")?;
@@ -254,7 +266,7 @@ fn list(r: &[u8], input: &Value, search: bool) -> R<Value> {
                 .filter(|s| !s.is_empty())
                 .or(img.attr("src")?);
             if let Some(raw) = raw {
-                card["cover"] = json!({"kind":"url","url":absolute(&raw,u.as_str())?.as_str()})
+                card["cover"] = cover(&raw, u.as_str(), public_covers)?
             }
         }
         items.push(card)
@@ -294,7 +306,7 @@ fn detail(r: &[u8], input: &Value) -> R<Value> {
     if let Some(first) = content.one("div.post-item[data-src]") {
         let raw = first.attr("data-src")?.ok_or("parse_error")?;
         if !raw.is_empty() {
-            manga["cover"] = json!({"kind":"url","url":absolute(&raw,&u)?.as_str()})
+            manga["cover"] = cover(&raw, &u, protocol::feature(r, b"source_public_cover_user_agent_v1"))?
         }
     }
     let tags = content
@@ -398,7 +410,7 @@ fn image_request(input: &Value) -> R<Value> {
     {
         return Err("invalid_request");
     }
-    Ok(json!({"url":image.as_str(),"headers":{"User-Agent":UA,"Referer":format!("{}/",BASE)}}))
+    Ok(json!({"url":image.as_str(),"headers":image_headers()}))
 }
 fn dispatch(op: &str, r: &[u8]) -> R<Value> {
     protocol::request(r)?;
