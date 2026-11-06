@@ -91,6 +91,8 @@ members = [
   "sources/copymanga",
   "sources/wnacg",
   "sources/hentaiclub",
+  "sources/bilimanga",
+  "sources/jinmantiantang",
   "sources/utifa",
   "sources/mangapluscreators-en",
   "tools/koma-source-dev",

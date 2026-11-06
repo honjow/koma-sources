@@ -1,8 +1,8 @@
-# Komiic 0.1.14
+# Komiic 0.1.15
 
 源 ID `com.komiic.koma`，语言及 NSFW 标记保持；crate、runtime 与 package 版本对齐。普通网站为 `https://komiic.com/`，不把 API 地址冒作网页入口，也不由网页元数据授予验证或登录权限。源图标使用官网 PWA 标志及其原蓝色背景，素材依据见 [ASSET_SOURCES.md](ASSET_SOURCES.md)。
 
-搜索、详情、完整目录和热门分页使用既有 GraphQL 链；热门列表不作为独立首页重复展示。图像保原 page:index 身份、原 image URI 的 kid、returned-kid 相等校验、官方 img.komiic.com 边界以及原封面 Accept/Referer；不引入账户或自动镜像切换。
+搜索、详情、完整目录和热门分页使用既有 GraphQL 链；热门列表不作为独立首页重复展示。图像保留 page:index 身份、原 image URI 的 kid、返回 kid 的相等校验及原封面 Accept/Referer。所选镜像决定正文 CDN，不自动换站。
 
 ## 设置合同
 
@@ -14,7 +14,7 @@
 
 固定参考 949dea252eb8e867b7b40834a26e13088764ff55 的同一源以 mirrors 声明两个域并生成首选镜像设置；此前“独立源变体”说明有误。`preferredMirror` 默认 komiic.com，显式选择 komiic.cc 才切换 GraphQL 和图片描述域，不自动试探或更换；旧 komiic.com 图片描述在切换后仍按相同 kid 取得票据。旧书章 ID、默认请求、官网入口和 App 样式保持，不增加敏感明文字段或 Host import。
 
-两域同一具名作品3017的50章和首章226个图片 kid 实际一致；备用域生产 WASM 的首页、目录、搜索、详情、章节、页表和票据均已验证。备用域及0.1.8默认域同一首图请求均返回403，不能称正文图可见；设置持久和 Native 仍待具名设备验证，其他作品不可据样本外推。
+已缓存的两种镜像页描述仍按原 kid 取票据。.com 保留 img.komiic.com；.cc 保留服务端路径，使用同镜像 img.komiic.cc，失败不回退。封面 URL 不受正文 CDN 规则影响。
 
 搜索查询按请求 JSON 字符串解码后再编码进 GraphQL，保留实际引号及反斜线；空查询、分页、镜像选择及原请求合同不变。
 
@@ -25,3 +25,23 @@
 列表与搜索中，官网明确的 public.komiic.com/comics/<作品封面身份>/cover.jpg 或 cover.webp 可附既有图片解析器同样的 Accept 和所选镜像 Referer，方便新宿主首次公开封面加载；URL原样保留。票据图片、其他域和未知格式继续走原解析器，不发送凭据。
 
 详情标签按官网返回顺序先保留 categories，再追加 warnings 原文，与固定参考 genre 语义一致；请求所需 warnings 缺失或格式错误时明确失败，不冒充没有警示。
+
+## 账号会话
+
+固定参考 HyperionHXH/E-extensions Komiic 1.6.13（`e3365a1ab3f1a4083bdf3aa98e744f610fc725c4`）
+的 `Account.kt`，对照 Kototoro Parsers `b31a11184f6d4fa563fbc37f60fe8f9e0b391edc`
+的 `KomiicParser.kt`，并核对两域官网同版本登录前端及实际端点。
+原生表单沿公共认证入口。选中镜像仅使用其官方 `/api/login`，发送 email/password JSON。
+HTTP 成功且本次响应带新有效 `komiic-access-token` 后，用同域 GraphQL `account { id }`
+确认非游客账号，再用宿主私有事务提交。表单凭据仅用于本次登录，Asset 只持久化两个域
+各自的访问 Cookie 和有效期，切换镜像与退出不影响另一域。Cookie 不进入封面或正文 CDN，
+正文仍使用 `X-Image-Ticket`。游客可照常浏览和阅读其站点许可内容。
+
+`get_authentication` 只读本地状态与镜像对应表单合同。已登录请求以官网 JWT 的 exp
+为边界，采用参考的提前一小时窗口，或遇到明确认证失效后以同域 `/auth/refresh`
+更新 Cookie。并发续期复用宿主原 Asset 的原代认领，账号查询通过才发布，失败保留旧代。
+登出仅移除当前域的私有状态。最小宿主为 1.2.1，依赖
+`source_native_cookie_session_v1` 及原生认证/私有会话能力。
+
+官网游客 `getImageLimit` 返回 limit、usage 和 resetInSeconds，额度由站点决定。常规正文
+不为每页再查额度，明确 HTTP 429 仍走现有请求限流提示。

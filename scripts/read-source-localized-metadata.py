@@ -48,7 +48,7 @@ def navigation_homepage(value):
 
 
 def authentication_descriptor(value, web_origins):
-    if not isinstance(value, dict) or set(value) - {"kind", "loginUrl", "usernameLabel", "passwordLabel", "credentialStorage", "userAgent"}:
+    if not isinstance(value, dict) or set(value) - {"kind", "loginUrl", "usernameLabel", "passwordLabel", "credentialStorage", "userAgent", "loginUrls", "sessionCookieNames"}:
         raise ValueError("invalid authentication descriptor")
     kind = value.get("kind")
     login_url = value.get("loginUrl")
@@ -72,6 +72,28 @@ def authentication_descriptor(value, web_origins):
         ua = value["userAgent"]
         if kind != "web" or not isinstance(ua, str) or not ua.strip(TRIM) or utf16_length(ua) > 1024 or any(ord(c) < 32 or ord(c) == 127 for c in ua):
             raise ValueError("invalid authentication user agent")
+    if "loginUrls" in value or "sessionCookieNames" in value:
+        urls = value.get("loginUrls")
+        names = value.get("sessionCookieNames")
+        if (kind != "credentials" or not isinstance(urls, list) or not 1 <= len(urls) <= 8
+                or any(not isinstance(url, str) or utf16_length(url) > 4096 for url in urls)
+                or login_url not in urls or len(set(urls)) != len(urls)):
+            raise ValueError("invalid native session login URLs")
+        origins = set()
+        for url in urls:
+            navigation_homepage(url)
+            parsed_url = urlsplit(url)
+            if parsed_url.scheme != "https" or "#" in url:
+                raise ValueError("native session login requires exact HTTPS URLs")
+            origin = (parsed_url.hostname.encode("idna").decode("ascii").lower(), parsed_url.port or 443)
+            if origin in origins:
+                raise ValueError("duplicate native session login origin")
+            origins.add(origin)
+        if (not isinstance(names, list) or not 1 <= len(names) <= 16
+                or any(not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", name)
+                       for name in names)
+                or len(set(names)) != len(names)):
+            raise ValueError("invalid native session cookie names")
     for field in ("usernameLabel", "passwordLabel"):
         if field in value and (not isinstance(value[field], str) or not value[field].strip(TRIM)
                                or utf16_length(value[field]) > 128 or not valid_unicode(value[field])):

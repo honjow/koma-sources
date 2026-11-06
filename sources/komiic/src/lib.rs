@@ -1,9 +1,14 @@
 #![no_std]
 
+extern crate alloc;
 extern crate koma_source_sdk;
+
+#[global_allocator]
+static ALLOCATOR: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
 #[path = "../strict_json.rs"]
 mod strict_json;
 mod browse;
+mod session;
 
 use koma_source_sdk::host::{http_request, log_info};
 use koma_source_sdk::json_utils::{
@@ -44,7 +49,7 @@ static mut SEARCH_QUERY: [u8; GQL_BODY_CAP] = [0; GQL_BODY_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.komiic.koma",
     name: "Komiic",
-    version: "0.1.14",
+    version: "0.1.15",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -63,7 +68,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     filters: true,
     settings: true,
     image_request: true,
-    credentials: false,
+    credentials: true,
 };
 
 const QUERY_POPULAR: &[u8] = b"query hotComics($pagination: Pagination!) { comics: hotComics(pagination: $pagination) { id title description status imageUrl authors { id name } categories { id name } } }";
@@ -142,6 +147,9 @@ enum FetchError {
     ClientError,
     ServerError,
     Graphql,
+    AuthRequired,
+    StaleSession,
+    Cancelled,
 }
 
 fn fetch_error_code(e: FetchError) -> (&'static str, &'static str) {
@@ -152,10 +160,20 @@ fn fetch_error_code(e: FetchError) -> (&'static str, &'static str) {
         FetchError::ClientError => ("client_error", "client error (4xx)"),
         FetchError::ServerError => ("server_error", "server error (5xx)"),
         FetchError::Graphql => ("graphql_error", "graphql error response"),
+        FetchError::AuthRequired => ("auth_required", "Komiic account session unavailable"),
+        FetchError::StaleSession => ("network_error", "account session changed"),
+        FetchError::Cancelled => ("cancelled", "source request cancelled"),
     }
 }
 
 fn post_graphql(req: &[u8], body: &[u8]) -> Result<&'static [u8], FetchError> {
+    post_graphql_with_session(req, body, false)
+}
+
+fn post_graphql_with_session(req: &[u8], body: &[u8], image_ticket: bool) -> Result<&'static [u8], FetchError> {
+    if let Some(result) = session::graphql(req, body, image_ticket) {
+        return result;
+    }
     let mut api_url = [0u8; 64];
     let mut n = 0;
     if !write_bytes(&mut api_url, &mut n, selected_base(req)) || !write_bytes(&mut api_url, &mut n, b"/api/query") { return Err(FetchError::Network); }
@@ -775,6 +793,18 @@ fn run_get_pages(req: &[u8]) -> u32 {
     write_success_payload("get_pages", c)
 }
 
+const DEFAULT_CDN: &[u8] = b"https://img.komiic.com/";
+const MIRROR_CDN: &[u8] = b"https://img.komiic.cc/";
+
+fn ticket_image_path(url: &[u8], is_mirror: bool) -> Option<&[u8]> {
+    // The site's ticket names the same byte path on either CDN. Keep the
+    // existing default, and resolve the explicit .cc mirror on its own CDN.
+    let path = strip_prefix(url, DEFAULT_CDN)
+        .or_else(|| is_mirror.then(|| strip_prefix(url, MIRROR_CDN)).flatten())?;
+    let safe = path.iter().all(|byte| byte.is_ascii_graphic() && !matches!(byte, b'?' | b'#' | b'\\' | b'"'));
+    safe.then_some(path)
+}
+
 fn run_get_image_request(req: &[u8]) -> u32 {
     let url = match extract_json_string(req, b"url") {
         Some(v) if !v.is_empty() => v,
@@ -788,7 +818,7 @@ fn run_get_image_request(req: &[u8]) -> u32 {
             Some(v) => v,
             None => return write_error("get_image_request", "internal_error", "body overflow"),
         };
-        let api_json = match post_graphql(req, &gql_body_buf()[..body_len]) {
+        let api_json = match post_graphql_with_session(req, &gql_body_buf()[..body_len], true) {
             Ok(v) => v,
             Err(e) => {
                 let (code, message) = fetch_error_code(e);
@@ -799,25 +829,26 @@ fn run_get_image_request(req: &[u8]) -> u32 {
             Some(v) => v,
             None => return write_error("get_image_request", "parse_error", "missing image ticket result"),
         };
-        let image_url = match extract_json_string(record, b"url") {
-            Some(v) if v.starts_with(b"https://img.komiic.com/")
-                && !v.contains(&b'?') && !v.contains(&b'#') => v,
-            _ => return write_error("get_image_request", "parse_error", "invalid image ticket url"),
+        let is_mirror = selected_base(req) == MIRROR;
+        let image_path = extract_json_string(record, b"url").and_then(|value| ticket_image_path(value, is_mirror));
+        let Some(image_path) = image_path else {
+            return write_error("get_image_request", "parse_error", "invalid image ticket url");
         };
         let ticket = match extract_json_string(record, b"ticket") {
-            Some(v) if !v.is_empty() => v,
+            Some(v) if !v.is_empty() && v.len() <= 4096 && v.iter().all(|byte| byte.is_ascii_graphic()) => v,
             _ => return write_error("get_image_request", "parse_error", "missing image ticket"),
         };
         if extract_json_string(record, b"kid") != Some(kid) {
             return write_error("get_image_request", "parse_error", "image ticket identity mismatch");
         }
-        Some((image_url, ticket))
+        Some((if is_mirror { MIRROR_CDN } else { DEFAULT_CDN }, image_path, ticket))
     } else { None };
     let payload = payload_buf();
     let mut c = 0usize;
-    let ok = if let Some((image_url, ticket)) = ticket_response {
+    let ok = if let Some((cdn, image_path, ticket)) = ticket_response {
         write_bytes(payload, &mut c, br#"{"url":""#)
-            && append_json_unescaped_then_escaped(payload, &mut c, image_url)
+            && write_bytes(payload, &mut c, cdn)
+            && append_json_escaped(payload, &mut c, image_path)
             && write_bytes(payload, &mut c, br#"","headers":{"X-Image-Ticket":""#)
             && append_json_unescaped_then_escaped(payload, &mut c, ticket)
             && write_bytes(payload, &mut c, br#""}}"#)
@@ -938,6 +969,20 @@ pub extern "C" fn koma_source_get_image_request(req_ptr: u32, req_len: u32) -> u
 pub extern "C" fn koma_source_free(result_ptr: u32) {
     response_buffer().free(result_ptr)
 }
+
+fn run_get_authentication(req: &[u8]) -> u32 {
+    session::operation(req, "get_authentication")
+}
+
+fn run_authenticate(req: &[u8]) -> u32 {
+    session::operation(req, "authenticate")
+}
+
+fn run_logout(req: &[u8]) -> u32 {
+    session::operation(req, "logout")
+}
+
+koma_source_sdk::koma_source_authentication_exports!("komiic");
 
 #[no_mangle]
 pub extern "C" fn koma_source_get_settings(req_ptr: u32, req_len: u32) -> u32 {

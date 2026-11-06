@@ -1,3 +1,17 @@
 {
-  "homepage": "https://komiic.com/"
+  "homepage": "https://komiic.com/",
+  "authentication": {
+    "kind": "credentials",
+    "loginUrl": "https://komiic.com/api/login",
+    "loginUrls": [
+      "https://komiic.com/api/login",
+      "https://komiic.cc/api/login"
+    ],
+    "sessionCookieNames": [
+      "komiic-access-token"
+    ],
+    "credentialStorage": "memory",
+    "usernameLabel": "電子郵件",
+    "passwordLabel": "密碼"
+  }
 }

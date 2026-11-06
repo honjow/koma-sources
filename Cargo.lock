@@ -1189,6 +1189,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_bilimanga_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
 name = "koma_bns_zh_hant_source"
 version = "0.1.2"
 dependencies = [
@@ -1366,6 +1373,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_jinmantiantang_source"
+version = "0.1.0"
+dependencies = [
+ "aes",
+ "base64 0.22.1",
+ "dlmalloc",
+ "koma_source_sdk",
+ "md-5",
+ "serde_json",
+]
+
+[[package]]
 name = "koma_jiuermanhua_source"
 version = "0.1.8"
 dependencies = [
@@ -1374,9 +1393,12 @@ dependencies = [
 
 [[package]]
 name = "koma_komiic_source"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
+ "base64 0.22.1",
+ "dlmalloc",
  "koma_source_sdk",
+ "serde_json",
 ]
 
 [[package]]
@@ -1813,6 +1835,16 @@ name = "matchit"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
+
+[[package]]
+name = "md-5"
+version = "0.10.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d89e7ee0cfbedfc4da3340218492196241d89eefb6dab27de5df917a6d2e78cf"
+dependencies = [
+ "cfg-if",
+ "digest",
+]
 
 [[package]]
 name = "memchr"
