@@ -1,6 +1,6 @@
 # GoDa漫画
 
-Stable source `org.goda.koma`, runtime version 0.1.2, API 0.2, Chinese.
+Stable source `org.goda.koma`, runtime version 0.1.6, API 0.2, Chinese.
 Independent from installed Baozi identity; catalogue overlap unknown; no aliases or user-record migration.
 
 The default request backend remains baozimh.org; the separately declared website homepage remains godamh.com. Explicit mirror choices are described below. Fixed Keiyoushi 1319949ca9bc456908196e3ba2d104e94182c5d6 leaf GoDaManhua, parent GoDa and Dto public decoder, Apache-2.0. Upstream SAFE=1; individual content and actual usage unknown. The source excludes advertisements, downloads and external English links.
@@ -9,7 +9,7 @@ HTML popular/latest/search and details, full public chapter JSON API, static mar
 
 Strict complete UTF8/JSON/body and output capacity: 1MiB body and 1MiB payload, 8192 chapters, 2048 HTML/page selections, bounded individual text/attributes. Overflow/missing/invalid data errors, never partial-success truncation. Actual final envelope must fit native 1MiB runtime limit. Date fields are omitted rather than inferred.
 
-Current production entry: `bash build.sh --source goda` with current canonical SDK/formal CLI and required icon. The historical package_candidate.py remains only in the old owner, not imported into canonical. Original crate identity/version remains koma_goda_source 0.1.0, while sourceInfo/package runtime is 0.1.1; this intentional inherited distinction is not normalized. Minimum App version remains 0.1.0. No distribution or device action.
+Current production entry: `bash build.sh --source goda` with current canonical SDK/formal CLI and required icon. The historical package_candidate.py remains only in the old owner, not imported into canonical. The historical crate/runtime split recorded below predates the current production declarations. Cargo, sourceInfo and package now consistently declare 0.1.6; the crate identity remains koma_goda_source. Minimum App version remains 0.1.0. No distribution or device action.
 
 Evidence in ignored .hermes-artifacts/goda-20261011. Retained public responses and production-WASM replay are local contract evidence, not native read/download/cold acceptance. Root owns 197 ordinary user-path acceptance.
 
@@ -37,3 +37,11 @@ Latest accepted successor is 0.1.1 original-G icon correction. User-supplied god
 固定参考 949dea252eb8e867b7b40834a26e13088764ff55 声明六个首选镜像。`preferredMirror` 默认 `https://baozimh.org`，只有用户显式选择才使用另五项；未知值回退原默认，绝不自动探测或切换。设置影响目录、搜索、详情的站点域和 API/图片请求 Referer、Origin；共享 API 与原图地址仍由原实现及身份校验决定。`metadata.json` 的官网入口始终是 `https://godamh.com`，不随此选择重写。原漫画、章节和页面 ID 不改，也不自动迁移书库。
 
 六域真实首页与具名《有鬼拍不到》详情均能读取、作品ID及首章ID一致；生产WASM分别验证目录、搜索、详情、同一首章页表。实际一次实时API更新使第一域章节116条、后五域117条，116个已有章节ID均相同，不推断其他作品或站点全量一致。备用域godamh.com完整图片请求头实取首图200；此前缺UA的直接请求两种Origin均403，不把错误当图片。默认图像请求与0.1.3相同。真实237设置持久、图像渲染和跨镜像旧库仍需独立验证。
+
+## 0.1.6 explicit unavailable chapters and large declared image arrays
+
+The two retained HTTP200 manga detail pages for `woduzishengji-duburedicestudio-a04` and `guizhuoxiandao` explicitly mark their h1 status as `章節下架` and omit the entire `#mangachapters`/data-mid container. This is the manga's chapter catalogue, not one failed chapter or a proven whole-work deletion. In that precise combination detail/chapters return `error.code=content_removed` with `源站已标示该作品章节下架` and `reasonCode=not_found` for older hosts. Ordinary HTTP 404 keeps the original `not_found` result. Unknown missing nodes retain their previous parse error; available works are unaffected. No manga ID is inferred, no empty complete chapter list is fabricated, and no mirror is automatically probed. This follows the pinned reference GoDaManhua's removed-catalogue handling.
+
+The real identity-checked `32982/1788073` chapter contains a 41,288-byte encoded string: the previous local 32KiB input buffer rejected it even though the independently decoded array is only 30,958 bytes and contains 221 unique image URLs. Image-string unescaping now temporarily uses the existing 1MiB payload buffer. The complete decoder first writes to the separate REORDER and DECODED buffers; its temporary payload borrow ends before serialization starts, and the page array remains borrowed only from DECODED. This adds no memory buffer or SDK/host limit. The final 1MiB envelope, 2048-page capacity, complete JSON/UTF8 validation, marker/alphabet checks, mid/id/slug checks, fixed CDN, path restrictions, full original array order and page identities remain unchanged. No truncation or synthesized image URL is used.
+
+Reference readback uses immutable Keiyoushi `949dea252eb8e867b7b40834a26e13088764ff55` GoDa.kt, GoDaManhua.kt and Dto.kt. The static decoder is unchanged; the independent literal reference pipeline supplies the full expected array for all221 entries. Metadata/API replay and this classification do not claim current Native reading, image binary availability, or access to chapters the public manga page explicitly withholds.
