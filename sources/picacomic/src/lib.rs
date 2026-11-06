@@ -26,7 +26,7 @@ const HMAC_KEY: &str = r#"~d}$Q7$eIni=V)9\RK/P.RM4;9[7|@/CA}b~OW!3?EV`:<>M7pddUB
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.picacomic.koma",
     name: "哔咔漫画",
-    version: "0.1.0",
+    version: "0.1.1",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
