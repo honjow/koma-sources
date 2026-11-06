@@ -5,11 +5,11 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.soc.zh.koma",
     name: "铃兰之剑中文・官方漫画",
-    version: "0.1.0",
+    version: "0.1.1",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "Official Sword of Convallaria Chinese comics published on TapTap. Limited to the current first feed page; individual comic creators are unspecified.",
+    description: "Official Sword of Convallaria Chinese comics published on TapTap. Individual comic creators are unspecified.",
     content_rating: "unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
@@ -209,7 +209,11 @@ fn attr(doc: host::HtmlDescriptor, sel: &[u8], key: &[u8], dst: &mut [u8]) -> R<
 const BASE: &[u8] =
     b"https://www.taptap.cn/app/209866/topic?group_label_id=946587&type=group_label";
 const MEDIA: &[u8] = b"https://img2-tc.tapimg.com/moment/etag/";
-const LIMIT: usize = 10;
+const PAGE_SIZE: usize = 10;
+const MAX_IMAGES: usize = 16;
+const CANONICAL_FEED: &[u8] = b"https://www.taptap.cn/app/209866/topic?type=group_label";
+const PAGE_LINK: &[u8] = b"&page=";
+const LISTING_ID: &[u8] = b"listing:current-first-page";
 const INDEX_CAP: usize = 4096;
 static mut JSON: [u8; 1024 * 1024] = [0; 1024 * 1024];
 static mut START: [usize; INDEX_CAP] = [0; INDEX_CAP];
@@ -221,18 +225,29 @@ struct Work {
     il: usize,
     title: [u8; 384],
     tl: usize,
-    image: [u8; 256],
-    ul: usize,
+    images: [Image; MAX_IMAGES],
+    image_count: usize,
 }
+#[derive(Clone, Copy)]
+struct Image {
+    url: [u8; 256],
+    len: usize,
+}
+impl Image {
+    fn url(&self) -> &[u8] {
+        &self.url[..self.len]
+    }
+}
+const EMPTY_IMAGE: Image = Image { url: [0; 256], len: 0 };
 const ZERO: Work = Work {
     id: [0; 20],
     il: 0,
     title: [0; 384],
     tl: 0,
-    image: [0; 256],
-    ul: 0,
+    images: [EMPTY_IMAGE; MAX_IMAGES],
+    image_count: 0,
 };
-static mut WORKS: [Work; LIMIT] = [ZERO; LIMIT];
+static mut WORKS: [Work; PAGE_SIZE] = [ZERO; PAGE_SIZE];
 fn fetch(url: &[u8]) -> R<usize> {
     let n = build_get_request(http_req_buf(), url, Some(BASE), &[]).ok_or("capacity_exceeded")?;
     let n = host::http_request(&http_req_buf()[..n], http_out()).map_err(|_| "network_error")?;
@@ -578,9 +593,7 @@ fn container(detail: bool) -> R<&'static [u8]> {
             && if detail {
                 direct(v, b"first_post")?.is_some() && direct(v, b"moment")?.is_some()
             } else {
-                direct(v, b"list")?.is_some()
-                    && direct(v, b"total")?.is_some()
-                    && direct(v, b"next_page")?.is_some()
+                direct(v, b"list")?.is_some() && direct(v, b"total")?.is_some()
             }
         {
             if result.is_some() {
@@ -640,8 +653,9 @@ fn parse_image(s: &[u8], out: &mut [u8]) -> R<usize> {
     if actual[..len] != expected[..c] {
         return Err("wrong_owner");
     }
-    eqnum(link(s, b"width")?, 2362)?;
-    eqnum(link(s, b"height")?, 6385)?;
+    if number(link(s, b"width")?)? == 0 || number(link(s, b"height")?)? == 0 {
+        return Err("incomplete_pages");
+    }
     eqstr(
         link(s, b"original_format")?,
         if out[..n].ends_with(b".png") {
@@ -677,29 +691,78 @@ fn parse_work(s: &[u8]) -> R<Work> {
     valid_id(&work.id[..work.il])?;
     let topic = link(s, b"topic")?;
     work.tl = decoded(link(topic, b"title")?, &mut work.title)?;
-    if !work.title[..work.tl].starts_with("【伊利亚没问题！】".as_bytes())
-        || core::str::from_utf8(&work.title[..work.tl]).is_err()
-    {
+    let title = core::str::from_utf8(&work.title[..work.tl]).map_err(|_| "parse_error")?;
+    // The verified official account also published this three-image special under an unbracketed title.
+    if !title.starts_with("【伊利亚没问题！】") && title != "伊利亚没问题！这次真的没问题！！" {
         return Err("wrong_owner");
     }
-    let mut images = [0; 2];
-    if array_entries(link(topic, b"images")?, &mut images)? != 1 {
-        return Err("incomplete_pages");
-    }
-    work.ul = parse_image(node(images[0])?, &mut work.image)?;
+    work.image_count = parse_images(topic, &mut work.images)?;
     Ok(work)
 }
-fn catalogue() -> R<()> {
-    let size = fetch(BASE)?;
+fn parse_images(parent: &[u8], images: &mut [Image; MAX_IMAGES]) -> R<usize> {
+    let mut ids = [0; MAX_IMAGES];
+    let count = array_entries(link(parent, b"images")?, &mut ids)?;
+    if count == 0 {
+        return Err("incomplete_pages");
+    }
+    for (id, image) in ids[..count].iter().zip(images.iter_mut()) {
+        image.len = parse_image(node(*id)?, &mut image.url)?;
+    }
+    Ok(count)
+}
+fn feed_url(dst: &mut [u8], base: &[u8], page: usize) -> R<usize> {
+    let mut len = 0;
+    w(dst, &mut len, base)?;
+    if page > 1 {
+        w(dst, &mut len, PAGE_LINK)?;
+        if !write_usize(dst, &mut len, page) {
+            return Err("capacity_exceeded");
+        }
+    }
+    Ok(len)
+}
+fn check_feed_link(doc: host::HtmlDescriptor, selector: &[u8], key: &[u8], base: &[u8], page: usize) -> R<()> {
+    let mut actual = [0; 128];
+    let size = attr(doc, selector, key, &mut actual)?;
+    let mut expected = [0; 128];
+    let len = feed_url(&mut expected, base, page)?;
+    if actual[..size] != expected[..len] {
+        return Err("wrong_owner");
+    }
+    Ok(())
+}
+fn catalogue(page: usize) -> R<(usize, bool)> {
+    let mut uri = [0; 128];
+    let len = feed_url(&mut uri, BASE, page)?;
+    let size = fetch(&uri[..len])?;
     let doc = host::html_parse(&body_buf()[..size]).map_err(|_| "html_error")?;
     let r = (|| {
         index_json(doc)?;
-        let mut ids = [0; LIMIT];
-        if array_entries(link(container(false)?, b"list")?, &mut ids)? != LIMIT {
+        let feed = container(false)?;
+        let total = number(link(feed, b"total")?)?;
+        let offset = (page - 1).checked_mul(PAGE_SIZE).ok_or("invalid_request")?;
+        let remaining = total.checked_sub(offset).ok_or("not_found")?;
+        if remaining == 0 && page != 1 {
+            return Err("not_found");
+        }
+        // These are the public SSR navigation links, not the signed API cursors.
+        check_feed_link(doc, b"link[rel='canonical'][href]", b"href", CANONICAL_FEED, page)?;
+        if page > 1 {
+            check_feed_link(doc, b"link[rel='prev'][href]", b"href", BASE, page - 1)?;
+        }
+        let has_more = remaining > PAGE_SIZE;
+        if has_more {
+            check_feed_link(doc, b"link[rel='next'][href]", b"href", BASE, page + 1)?;
+        } else if count(doc, b"link[rel='next']")? != 0 {
             return Err("catalogue_changed");
         }
-        for i in 0..LIMIT {
-            let item = node(ids[i])?;
+        let mut ids = [0; PAGE_SIZE];
+        let rows = array_entries(link(feed, b"list")?, &mut ids)?;
+        if rows != core::cmp::min(remaining, PAGE_SIZE) {
+            return Err("catalogue_changed");
+        }
+        for (i, id) in ids[..rows].iter().enumerate() {
+            let item = node(*id)?;
             let work = parse_work(link(item, b"moment")?)?;
             let mut ident = [0; 32];
             let k = decoded(link(item, b"identification")?, &mut ident)?;
@@ -712,13 +775,9 @@ fn catalogue() -> R<()> {
                     return Err("duplicate_identity");
                 }
             }
-            let mut sel = [0; 256];
+            let mut sel = [0; 128];
             let mut c = 0;
-            w(
-                &mut sel,
-                &mut c,
-                b"a.moment-article__image-list[href='/moment/",
-            )?;
+            w(&mut sel, &mut c, b"a.moment-article__image-list[href='/moment/")?;
             w(&mut sel, &mut c, &work.id[..work.il])?;
             w(&mut sel, &mut c, b"?group_id=291080']")?;
             if count(doc, &sel[..c])? != 1 {
@@ -728,19 +787,10 @@ fn catalogue() -> R<()> {
                 WORKS[i] = work;
             }
         }
-        Ok(())
+        Ok((rows, has_more))
     })();
     host::html_close(doc).map_err(|_| "html_error")?;
     r
-}
-fn find(id: &[u8]) -> R<usize> {
-    for i in 0..LIMIT {
-        let w = unsafe { WORKS[i] };
-        if &w.id[..w.il] == id {
-            return Ok(i);
-        }
-    }
-    Err("not_found")
 }
 fn route(dst: &mut [u8], c: &mut usize, id: &[u8], group: bool) -> R<()> {
     w(dst, c, b"https://www.taptap.cn/moment/")?;
@@ -777,21 +827,59 @@ fn owner(req: &[u8], id: &[u8]) -> R<()> {
     }
     Ok(())
 }
-fn current_image(i: usize) -> R<()> {
-    let work = unsafe { WORKS[i] };
-    let mut uri = [0; 256];
+fn body_images_match(doc: host::HtmlDescriptor, work: &Work) -> R<()> {
+    const WRAPPER: &[u8] = b".tap-rich-content__wrapper.moment-detail__module-space";
+    const IMAGES: &[u8] = b".tap-rich-content__wrapper.moment-detail__module-space .tap-rich-content__image--topic img";
+    const SOURCES: &[u8] = b".tap-rich-content__wrapper.moment-detail__module-space .tap-rich-content__image--topic img[src]:not([src^='data:']),.tap-rich-content__wrapper.moment-detail__module-space .tap-rich-content__image--topic img.lazy-image[src^='data:'][data-src]";
+    const LAZY_PLACEHOLDER: &[u8] = b"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGP6zwAAAgcBApocMXEAAAAASUVORK5CYII=";
+    if count(doc, WRAPPER)? != 1 || count(doc, IMAGES)? != work.image_count {
+        return Err("incomplete_pages");
+    }
+    let mut descriptors = [0; MAX_IMAGES * 4];
+    let rows = unsafe {
+        select_all_raw(doc.raw(), SOURCES.as_ptr(), SOURCES.len() as u32, descriptors.as_mut_ptr(), descriptors.len() as u32)
+    };
+    if rows < 0 {
+        return Err("html_error");
+    }
+    let rows = rows as usize;
+    let mut result = if rows == work.image_count { Ok(()) } else { Err("incomplete_pages") };
+    for (i, raw) in descriptors.chunks_exact(4).take(rows).enumerate() {
+        let image = host::HtmlDescriptor::from_raw(i32::from_le_bytes([raw[0], raw[1], raw[2], raw[3]]));
+        if result.is_ok() {
+            result = (|| {
+                let mut src = [0; 280];
+                let mut len = host::html_attr(image, b"src", &mut src).map_err(|_| "html_error")?;
+                if &src[..len] == LAZY_PLACEHOLDER {
+                    len = host::html_attr(image, b"data-src", &mut src).map_err(|_| "html_error")?;
+                }
+                let original = work.images[i].url();
+                if src[..len].strip_suffix(b"/_tap_ugc.jpg") != Some(original) {
+                    return Err("wrong_owner");
+                }
+                Ok(())
+            })();
+        }
+        if host::html_close(image).is_err() && result.is_ok() {
+            result = Err("html_error");
+        }
+    }
+    result
+}
+fn fetch_work(id: &[u8]) -> R<Work> {
+    // The detail verifies the same official publisher, group, topic and image identity
+    // independently, so a saved item never has to rescan all listing pages.
+    let mut uri = [0; 128];
     let mut c = 0;
-    route(&mut uri, &mut c, &work.id[..work.il], true)?;
+    route(&mut uri, &mut c, id, true)?;
     let size = fetch(&uri[..c])?;
     let doc = host::html_parse(&body_buf()[..size]).map_err(|_| "html_error")?;
     let r = (|| {
         index_json(doc)?;
         let entry = container(true)?;
-        let actual = parse_work(link(entry, b"moment")?)?;
-        if actual.id[..actual.il] != work.id[..work.il]
-            || actual.title[..actual.tl] != work.title[..work.tl]
-            || actual.image[..actual.ul] != work.image[..work.ul]
-        {
+        let moment = link(entry, b"moment")?;
+        let work = parse_work(moment)?;
+        if &work.id[..work.il] != id {
             return Err("wrong_owner");
         }
         let post = link(entry, b"first_post")?;
@@ -799,60 +887,45 @@ fn current_image(i: usize) -> R<()> {
             return Err("wrong_owner");
         }
         eqnum(link(post, b"position")?, 1)?;
-        let moment_topic = link(link(entry, b"moment")?, b"topic")?;
+        let moment_topic = link(moment, b"topic")?;
         let mut id1 = [0; 32];
         let mut id2 = [0; 32];
         let a = decoded(link(moment_topic, b"id_str")?, &mut id1)?;
         let b = decoded(link(post, b"id_str")?, &mut id2)?;
         // The first-post ID is a distinct post identity; it is NOT the topic ID.
-        if a == 0
-            || b == 0
+        if a == 0 || b == 0
             || id1[..a].iter().any(|b| !b.is_ascii_digit())
             || id2[..b].iter().any(|b| !b.is_ascii_digit())
         {
             return Err("missing_identity");
         }
-        let mut images = [0; 2];
-        if array_entries(link(post, b"images")?, &mut images)? != 1 {
+        let mut images = [EMPTY_IMAGE; MAX_IMAGES];
+        if parse_images(post, &mut images)? != work.image_count {
             return Err("incomplete_pages");
         }
-        let mut url = [0; 256];
-        let n = parse_image(node(images[0])?, &mut url)?;
-        if url[..n] != work.image[..work.ul] {
-            return Err("wrong_owner");
+        for (topic, post) in work.images[..work.image_count].iter().zip(&images) {
+            if topic.url() != post.url() {
+                return Err("wrong_owner");
+            }
         }
-        let mut canonical = [0; 256];
-        let size = attr(
-            doc,
-            b"meta[property='og:url'][content]",
-            b"content",
-            &mut canonical,
-        )?;
-        let mut expected = [0; 256];
+        let mut canonical = [0; 128];
+        let size = attr(doc, b"meta[property='og:url'][content]", b"content", &mut canonical)?;
+        let mut expected = [0; 128];
         let mut len = 0;
-        route(&mut expected, &mut len, &work.id[..work.il], false)?;
+        route(&mut expected, &mut len, id, false)?;
         if canonical[..size] != expected[..len] {
             return Err("wrong_owner");
         }
-        if count(doc,b".tap-rich-content__wrapper.moment-detail__module-space")?!=1||count(doc,b".tap-rich-content__wrapper.moment-detail__module-space .tap-rich-content__image--topic img")?!=1{return Err("incomplete_pages");}
-        let len=attr(doc,b".tap-rich-content__wrapper.moment-detail__module-space .tap-rich-content__image--topic img[src]",b"src",&mut url)?;
-        let mut expected = [0; 280];
-        let mut c = 0;
-        w(&mut expected, &mut c, &work.image[..work.ul])?;
-        w(&mut expected, &mut c, b"/_tap_ugc.jpg")?;
-        if url[..len] != expected[..c] {
-            return Err("wrong_owner");
-        }
+        body_images_match(doc, &work)?;
         if count(doc, b".from-user-name[href='/user/391283780']")? != 1 {
             return Err("wrong_owner");
         }
-        Ok(())
+        Ok(work)
     })();
     host::html_close(doc).map_err(|_| "html_error")?;
     r
 }
-fn book(dst: &mut [u8], c: &mut usize, i: usize, detail: bool) -> R<()> {
-    let work = unsafe { WORKS[i] };
+fn book(dst: &mut [u8], c: &mut usize, work: &Work, detail: bool) -> R<()> {
     w(dst, c, b"{\"id\":\"")?;
     pref(dst, c, b"soc:zh:comic:", &work.id[..work.il])?;
     w(dst, c, b"\",\"title\":")?;
@@ -860,39 +933,45 @@ fn book(dst: &mut [u8], c: &mut usize, i: usize, detail: bool) -> R<()> {
     w(dst, c, b",\"url\":\"")?;
     route(dst, c, &work.id[..work.il], true)?;
     w(dst, c, b"\",\"cover\":{\"kind\":\"url\",\"url\":")?;
-    q(dst, c, &work.image[..work.ul])?;
-    w(dst,c,b"},\"language\":\"zh\",\"authors\":[],\"artists\":[],\"status\":\"unknown\",\"contentRating\":\"unknown\"")?;
+    q(dst, c, work.images[0].url())?;
+    // This original is an ordinary anonymous GET. Old clients still resolve
+    // the same bytes through get_image_request.
+    w(dst,c,b",\"headers\":{}},\"language\":\"zh\",\"authors\":[],\"artists\":[],\"status\":\"unknown\",\"contentRating\":\"unknown\"")?;
     if detail {
         w(dst, c, b",\"description\":")?;
-        q(dst,c,"铃兰之剑官方认证发布者的《伊利亚没问题！》漫画。当前首屏10篇有限目录；发布者不等于逐篇创作者，未确认作者与正式评级。".as_bytes())?;
+        q(dst,c,"铃兰之剑官方认证发布者的《伊利亚没问题！》漫画。发布者不等于逐篇创作者，未确认作者与正式评级。".as_bytes())?;
         w(dst, c, b",\"links\":[{\"kind\":\"source\",\"url\":\"")?;
         route(dst, c, &work.id[..work.il], true)?;
         w(dst, c, b"\"}]")?;
     }
     w(dst, c, b"}")
 }
-fn listing(query: &[u8]) -> R<usize> {
-    catalogue()?;
+fn listing(page: usize, query: &[u8]) -> R<usize> {
+    let (rows, has_more) = catalogue(page)?;
     let dst = payload_buf();
     let mut c = 0;
     let mut written = false;
     w(dst, &mut c, b"{\"items\":[")?;
-    for i in 0..LIMIT {
-        let work = unsafe { WORKS[i] };
+    for i in 0..rows {
+        let work = unsafe { &WORKS[i] };
         if !query.is_empty() && !contains_bytes(&work.title[..work.tl], query) {
             continue;
         }
         if written {
             w(dst, &mut c, b",")?;
         }
-        book(dst, &mut c, i, false)?;
+        book(dst, &mut c, work, false)?;
         written = true;
     }
-    w(
-        dst,
-        &mut c,
-        b"],\"page\":{\"nextCursor\":null,\"hasMore\":false},\"supportsPaging\":false}",
-    )?;
+    if has_more {
+        w(dst, &mut c, b"],\"page\":{\"nextCursor\":\"")?;
+        if !write_usize(dst, &mut c, page + 1) {
+            return Err("capacity_exceeded");
+        }
+        w(dst, &mut c, b"\",\"hasMore\":true}}")?;
+    } else {
+        w(dst, &mut c, b"],\"page\":{\"nextCursor\":null,\"hasMore\":false}}")?;
+    }
     Ok(c)
 }
 fn run_search(req: &[u8]) -> u32 {
@@ -907,41 +986,26 @@ fn run_search(req: &[u8]) -> u32 {
         Ok(n) => n,
         Err(e) => return write_error("search", e, ""),
     };
-    if page(req) != Ok(1) {
-        return write_error(
-            "search",
-            "invalid_request",
-            "Only the current first feed page is supported",
-        );
-    }
-    result("search", listing(&query[..size]))
+    result("search", page(req).and_then(|page| listing(page, &query[..size])))
 }
 fn run_get_manga_list(req: &[u8]) -> u32 {
-    if arg_string(req, b"listingId") != Ok(Some(b"listing:current-first-page".as_slice()))
-        || page(req) != Ok(1)
-    {
-        return write_error(
-            "get_manga_list",
-            "invalid_request",
-            "Only the current first feed page is supported",
-        );
+    if arg_string(req, b"listingId") != Ok(Some(LISTING_ID)) {
+        return write_error("get_manga_list", "invalid_request", "Unknown listing");
     }
-    result("get_manga_list", listing(b""))
+    result("get_manga_list", page(req).and_then(|page| listing(page, b"")))
 }
-fn request_work(req: &[u8], key: &[u8], prefix: &[u8]) -> R<usize> {
+fn request_work(req: &[u8], key: &[u8], prefix: &[u8]) -> R<Work> {
     let id = sid(arg_string(req, key)?.ok_or("invalid_request")?, prefix)?;
     owner(req, id)?;
-    catalogue()?;
-    find(id)
+    fetch_work(id)
 }
 fn run_get_manga(req: &[u8]) -> u32 {
     fn inner(req: &[u8]) -> R<usize> {
-        let i = request_work(req, b"mangaId", b"soc:zh:comic:")?;
-        current_image(i)?;
+        let work = request_work(req, b"mangaId", b"soc:zh:comic:")?;
         let p = payload_buf();
         let mut c = 0;
         w(p, &mut c, b"{\"manga\":")?;
-        book(p, &mut c, i, true)?;
+        book(p, &mut c, &work, true)?;
         w(p, &mut c, b"}")?;
         Ok(c)
     }
@@ -949,9 +1013,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
 }
 fn run_get_chapters(req: &[u8]) -> u32 {
     fn inner(req: &[u8]) -> R<usize> {
-        let i = request_work(req, b"mangaId", b"soc:zh:comic:")?;
-        current_image(i)?;
-        let work = unsafe { WORKS[i] };
+        let work = request_work(req, b"mangaId", b"soc:zh:comic:")?;
         let p = payload_buf();
         let mut c = 0;
         w(p, &mut c, b"{\"chapters\":[{\"id\":\"")?;
@@ -971,31 +1033,81 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         w(
             p,
             &mut c,
-            b"\",\"continuationEligible\":false,\"language\":\"zh\",\"pageCount\":1}]}",
+            b"\",\"continuationEligible\":false,\"language\":\"zh\",\"pageCount\":",
         )?;
+        if !write_usize(p, &mut c, work.image_count) {
+            return Err("capacity_exceeded");
+        }
+        w(p, &mut c, b"}]}")?;
         Ok(c)
     }
     result("get_chapters", inner(req))
 }
 fn run_get_pages(req: &[u8]) -> u32 {
     fn inner(req: &[u8]) -> R<usize> {
-        let i = request_work(req, b"chapterId", b"socread:zh:comic:")?;
-        current_image(i)?;
-        let work = unsafe { WORKS[i] };
+        let work = request_work(req, b"chapterId", b"socread:zh:comic:")?;
         let p = payload_buf();
         let mut c = 0;
-        w(p, &mut c, b"{\"pages\":[{\"id\":\"")?;
-        pref(p, &mut c, b"socpage:zh:comic:", &work.id[..work.il])?;
-        w(
-            p,
-            &mut c,
-            b":0\",\"index\":0,\"image\":{\"kind\":\"url\",\"url\":",
-        )?;
-        q(p, &mut c, &work.image[..work.ul])?;
-        w(p, &mut c, b"}}]}")?;
+        w(p, &mut c, b"{\"pages\":[")?;
+        for (index, image) in work.images[..work.image_count].iter().enumerate() {
+            if index != 0 {
+                w(p, &mut c, b",")?;
+            }
+            w(p, &mut c, b"{\"id\":\"")?;
+            pref(p, &mut c, b"socpage:zh:comic:", &work.id[..work.il])?;
+            w(p, &mut c, b":")?;
+            if !write_usize(p, &mut c, index) {
+                return Err("capacity_exceeded");
+            }
+            w(p, &mut c, b"\",\"index\":")?;
+            if !write_usize(p, &mut c, index) {
+                return Err("capacity_exceeded");
+            }
+            w(p, &mut c, b",\"image\":{\"kind\":\"url\",\"url\":")?;
+            q(p, &mut c, image.url())?;
+            w(p, &mut c, b"}}")?;
+        }
+        w(p, &mut c, b"]}")?;
         Ok(c)
     }
     result("get_pages", inner(req))
+}
+fn verify_image(req: &[u8], url: &[u8]) -> R<()> {
+    let page_id = match arg_string(req, b"pageId")? {
+        Some(page_id) => page_id,
+        None => {
+            // An old id-less cover request had access only to the first feed page.
+            let (rows, _) = catalogue(1)?;
+            let mut matching = None;
+            for i in 0..rows {
+                let work = unsafe { &WORKS[i] };
+                if work.images[0].url() == url && matching.replace(&work.id[..work.il]).is_some() {
+                    return Err("invalid_request");
+                }
+            }
+            return owner(req, matching.ok_or("invalid_request")?);
+        }
+    };
+    let (id, index) = if let Some(page) = page_id.strip_prefix(b"socpage:zh:comic:") {
+        let split = page.iter().position(|b| *b == b':').ok_or("invalid_request")?;
+        let number_text = &page[split + 1..];
+        if number_text.len() > 1 && number_text[0] == b'0' {
+            return Err("invalid_request");
+        }
+        let index = number(number_text).map_err(|_| "invalid_request")?;
+        if index >= MAX_IMAGES {
+            return Err("invalid_request");
+        }
+        (sid(&page[..split], b"")?, index)
+    } else {
+        (sid(page_id, b"soc:zh:comic:")?, 0)
+    };
+    owner(req, id)?;
+    let work = fetch_work(id)?;
+    if index >= work.image_count || work.images[index].url() != url {
+        return Err("invalid_request");
+    }
+    Ok(())
 }
 fn run_get_image_request(req: &[u8]) -> u32 {
     fn inner(req: &[u8]) -> R<usize> {
@@ -1003,47 +1115,7 @@ fn run_get_image_request(req: &[u8]) -> u32 {
         let size = raw_string(arg_string(req, b"url")?.ok_or("invalid_request")?, &mut url)?;
         let url = &url[..size];
         media(url).map_err(|_| "invalid_request")?;
-        let pid = arg_string(req, b"pageId")?;
-        let (id, body) = match pid {
-            Some(v) => {
-                if let Some(v) = v.strip_prefix(b"socpage:zh:comic:") {
-                    (
-                        Some(sid(v.strip_suffix(b":0").ok_or("invalid_request")?, b"")?),
-                        true,
-                    )
-                } else {
-                    (Some(sid(v, b"soc:zh:comic:")?), false)
-                }
-            }
-            None => (None, false),
-        };
-        if let Some(id) = id {
-            owner(req, id)?;
-        }
-        catalogue()?;
-        let i = if let Some(id) = id {
-            find(id)?
-        } else {
-            let mut found = None;
-            for i in 0..LIMIT {
-                let work = unsafe { WORKS[i] };
-                if url == &work.image[..work.ul] {
-                    if found.is_some() {
-                        return Err("invalid_request");
-                    }
-                    found = Some(i);
-                }
-            }
-            found.ok_or("invalid_request")?
-        };
-        let work = unsafe { WORKS[i] };
-        owner(req, &work.id[..work.il])?;
-        if url != &work.image[..work.ul] {
-            return Err("invalid_request");
-        }
-        if body {
-            current_image(i)?;
-        }
+        verify_image(req, url)?;
         let p = payload_buf();
         let mut c = 0;
         w(p, &mut c, b"{\"imageRequest\":{\"url\":")?;
@@ -1054,7 +1126,7 @@ fn run_get_image_request(req: &[u8]) -> u32 {
     result("get_image_request", inner(req))
 }
 fn run_get_listings(_req: &[u8]) -> u32 {
-    let b="{\"listings\":[{\"id\":\"listing:current-first-page\",\"name\":\"官方漫画・当前首屏10篇\",\"supportsPaging\":false}]}".as_bytes();
+    let b="{\"listings\":[{\"id\":\"listing:current-first-page\",\"name\":\"官方漫画\",\"supportsPaging\":true}]}".as_bytes();
     payload_buf()[..b.len()].copy_from_slice(b);
     write_success_payload("get_listings", b.len())
 }
