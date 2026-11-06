@@ -8,7 +8,7 @@ const BASE: &[u8] = b"https://www.liumanhua.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.sixmh.koma",
     name: "六漫画",
-    version: "0.1.9",
+    version: "0.1.10",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -24,7 +24,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     manga_list: true,
     image_request: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: false,
     credentials: false,
 };
@@ -637,6 +637,109 @@ fn image_url<'a>(node: &Node, out: &'a mut [u8]) -> Result<&'a [u8], &'static st
     let mut attr = [0; 8192];
     absolute(node.attr(b"src", &mut attr)?, out)
 }
+// The reference filter query is independent of popular/latest; older hosts
+// keep their existing schema and nonempty keyword search path.
+fn has_host_feature(r: &[u8], wanted: &[u8]) -> bool {
+    let Some(features) = json_object_member(r, b"hostFeatures") else {
+        return false;
+    };
+    let features = trim_ascii(features);
+    if !features.starts_with(b"[") || !features.ends_with(b"]") {
+        return false;
+    }
+    features[1..features.len() - 1].split(|c| *c == b',').any(|item| {
+        let item = trim_ascii(item);
+        item.strip_prefix(b"\"").and_then(|v| v.strip_suffix(b"\"")) == Some(wanted)
+    })
+}
+
+fn filters_supported(r: &[u8]) -> bool {
+    has_host_feature(r, b"source_filter_scope_header_v1")
+        && has_host_feature(r, b"source_filter_fetching_v1")
+        && has_host_feature(r, b"source_filter_search_without_query_v1")
+}
+
+fn filter_route(r: &[u8], out: &mut [u8], n: &mut usize) -> Result<(), &'static str> {
+    let filters = json_object_member(args(r), b"filters").unwrap_or(b"{}");
+    let status = string(filters, b"status").unwrap_or(b"all");
+    let sort = string(filters, b"sort").unwrap_or(b"hits");
+    let genre = string(filters, b"genre").unwrap_or(b"all");
+    bytes(out, n, b"/category/")?;
+    match status {
+        b"all" => (),
+        b"ongoing" => bytes(out, n, b"finish/1/")?,
+        b"completed" => bytes(out, n, b"finish/2/")?,
+        _ => return Err("invalid status filter"),
+    }
+    match sort {
+        b"hits" | b"addtime" | b"score" => {
+            bytes(out, n, b"order/")?;
+            bytes(out, n, sort)?;
+            bytes(out, n, b"/")?;
+        }
+        _ => return Err("invalid sort filter"),
+    }
+    if genre != b"all" {
+        if genre.is_empty() || genre.len() > 12 || !genre.iter().all(u8::is_ascii_digit) {
+            return Err("invalid genre filter");
+        }
+        bytes(out, n, b"tags/")?;
+        bytes(out, n, genre)?;
+        bytes(out, n, b"/")?;
+    }
+    bytes(out, n, b"page/")
+}
+
+fn filter_schema(r: &[u8]) -> Result<usize, &'static str> {
+    let out = payload_buf();
+    let mut n = 0;
+    if !filters_supported(r) {
+        bytes(out, &mut n, b"{\"filters\":[]}")?;
+        return Ok(n);
+    }
+    // The genre ID is present before fetching; the host keeps its saved value
+    // if the optional category request fails or has not yet run.
+    let basic = concat!(
+        r#"{"supportsFilterFetching":true,"useSearchForFilters":true,"filters":["#,
+        r#"{"id":"status","name":"状态","type":"select","scope":"search","default":"all","options":["#,
+        r#"{"value":"all","label":"全部"},{"value":"ongoing","label":"连载"},{"value":"completed","label":"完结"}]},"#,
+        r#"{"id":"sort","name":"排序","type":"select","scope":"search","default":"hits","options":["#,
+        r#"{"value":"hits","label":"热门"},{"value":"addtime","label":"最新"},{"value":"score","label":"评分"}]},"#,
+        r#"{"id":"genre","name":"标签","type":"select","scope":"search","default":"all""#,
+    );
+    bytes(out, &mut n, basic.as_bytes())?;
+    if json_object_member(args(r), b"fetchFilterData") == Some(b"true".as_slice()) {
+        let root = fetch_doc(b"/category/")?;
+        let category = root.select(b".cate-selector, .cy_list_l, .ticai, .stui-screen__list")?;
+        let nodes = Nodes::get(&category, b"a[href*='/tags/']")?;
+        if nodes.n == 0 {
+            return Err("category tags missing");
+        }
+        bytes(out, &mut n, r#", "options":[{"value":"all","label":"全部"}"#.as_bytes())?;
+        for i in 0..nodes.n {
+            let node = selected(&nodes, i);
+            let mut href_buf = [0u8; 2048];
+            let href = node.attr(b"href", &mut href_buf)?;
+            let id = href.strip_prefix(b"/category/tags/").ok_or("invalid category tag")?;
+            if id.is_empty() || id.len() > 12 || !id.iter().all(u8::is_ascii_digit) {
+                return Err("invalid category tag");
+            }
+            let mut title_buf = [0u8; 2048];
+            let title = node.text(&mut title_buf)?;
+            if title.is_empty() {
+                return Err("empty category tag");
+            }
+            bytes(out, &mut n, b",{\"value\":")?;
+            q(out, &mut n, id)?;
+            bytes(out, &mut n, b",\"label\":")?;
+            q(out, &mut n, title)?;
+            bytes(out, &mut n, b"}")?;
+        }
+        bytes(out, &mut n, b"]")?;
+    }
+    bytes(out, &mut n, b"}]}")?;
+    Ok(n)
+}
 fn listing_prefix(r: &[u8]) -> Result<&'static [u8], &'static str> {
     match string(args(r), b"listingId").unwrap_or(b"popular") {
         b"popular" => Ok(b"/category/order/hits/page/"),
@@ -652,22 +755,29 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
     let mut route = [0; 8192];
     let mut z = 0;
     let mut decoded = [0; 2048];
+    let mut filtered = false;
     let term = if search {
         let raw = string(args(r), b"query").ok_or("missing query")?;
         let term = trim_ascii(unescape(raw, &mut decoded)?);
         if term.is_empty() {
-            return Err("empty query");
+            if !filters_supported(r) {
+                return Err("empty query");
+            }
+            filtered = true;
+            filter_route(r, &mut route, &mut z)?;
+        } else {
+            bytes(&mut route, &mut z, b"/search/")?;
+            if !write_url_encoded(&mut route, &mut z, term) {
+                return Err("query overflow");
+            }
+            bytes(&mut route, &mut z, b"/")?;
         }
-        bytes(&mut route, &mut z, b"/search/")?;
-        if !write_url_encoded(&mut route, &mut z, term) {
-            return Err("query overflow");
-        }
-        bytes(&mut route, &mut z, b"/")?;
         term
     } else {
         bytes(&mut route, &mut z, listing_prefix(r)?)?;
         b"".as_slice()
     };
+    let prefix_len = z;
     if !write_usize(&mut route, &mut z, p) {
         return Err("page overflow");
     }
@@ -688,7 +798,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
             return Err("public listing empty or unknown");
         }
         let mut text = [0; 8192];
-        if !container
+        if !filtered && !container
             .text(&mut text)?
             .windows("没有找到相关漫画".len())
             .any(|w| w == "没有找到相关漫画".as_bytes())
@@ -697,6 +807,22 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
         }
     }
     let nav = root.select(b"#Pagination, .NewPages")?;
+    if filtered {
+        // Filter pages can legitimately contain no cards and no empty-state
+        // text. Require the actual category controls and selected route before
+        // accepting that result, so a challenge page cannot look like empty.
+        root.select(b".cate-selector, .cy_list_l, .ticai, .stui-screen__list")?;
+        let mut active = [0u8; 8192];
+        let actual = path(nav.select(b"a.on")?.attr(b"href", &mut active)?)?;
+        let expected = if p == 1 {
+            route[..prefix_len].strip_suffix(b"/page/").ok_or("invalid filter route")?
+        } else {
+            &route[..z]
+        };
+        if actual != expected {
+            return Err("filter page identity mismatch");
+        }
+    }
     let links = Nodes::get(&nav, b"a")?;
     if links.n < 2 {
         return Err("pagination controls missing");
@@ -718,7 +844,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
     next[..nn].copy_from_slice(v);
     // Search's next link may equal the last link when there are exactly two pages.
     // Compare against the currently selected page instead of the last-page link.
-    let at_end = if search {
+    let at_end = if search && !filtered {
         let mut current = [0; 4096];
         let href = nav.select(b"a.on")?.attr(b"href", &mut current)?;
         href == &next[..nn]
@@ -728,7 +854,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
     let target = if at_end {
         None
     } else {
-        let n = if search {
+        let n = if search && !filtered {
             let v = next[..nn]
                 .strip_prefix(b"/search/")
                 .ok_or("unexpected search pagination")?;
@@ -739,10 +865,12 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
             number(v).ok_or("invalid pagination number")?
         } else {
             let v = path(&next[..nn])?;
-            number(
-                v.strip_prefix(listing_prefix(r)?)
-                    .ok_or("unexpected pagination path")?,
-            )
+            let prefix = if filtered {
+                &route[..prefix_len]
+            } else {
+                listing_prefix(r)?
+            };
+            number(v.strip_prefix(prefix).ok_or("unexpected pagination path")?)
             .ok_or("invalid pagination number")?
         };
         if n != p.checked_add(1).ok_or("page overflow")? {
@@ -1214,8 +1342,8 @@ fn run_get_listings(_: &[u8]) -> u32 {
 fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_implemented", "not supported")
 }
-fn run_get_filters(_: &[u8]) -> u32 {
-    write_error("get_filters", "not_implemented", "not supported")
+fn run_get_filters(r: &[u8]) -> u32 {
+    execute("get_filters", filter_schema(r))
 }
 fn run_get_settings(_: &[u8]) -> u32 {
     write_error("get_settings", "not_implemented", "not supported")

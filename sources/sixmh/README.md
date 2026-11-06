@@ -77,3 +77,9 @@ The four live catalogues contained 3,277, 1,025, 2,206, and 2,197 entries. Local
 ## 0.1.9: explicit pending chapter list
 
 When the existing chapter list is empty, the site's present list element has no child elements, and the latest-chapter link has empty href and exactly “待浏览”, report `no_chapters`. Explicit “已下架” retains `not_found`; a missing list, unrecognized children, missing link, or any other marker remains `source_error`. This prevents an unknown layout from masquerading as a confirmed empty catalogue. Existing valid catalogue order and capacity remain unchanged.
+
+## 状态、排序与标签候选
+
+固定参考 `949dea252eb8e867b7b40834a26e13088764ff55` 的 MCCMSWeb 将空关键词筛选作为独立搜索：状态 all/finish-1/finish-2，排序 hits/addtime/score，标签由官网分类页动态取得；带关键词搜索忽略这些筛选，热门和最新保持各自原入口。候选仅在宿主支持 scope、动态选项和空词筛选时提供该 schema；旧宿主保持空 schema 和空词拒绝。动态选项初次不阻塞列表，实际展开时读取官网标签。
+
+2026-11-06 真实分类原体包含100个标签；校园热门前两页各30项、站点末页40为4项并终止，连载/评分/校园为1项终止，完结/评分/科技n为空且无提示文字。空页只有在站点分类控件和当前页身份均匹配时接受，挑战页失败。原热门、最新、非空词搜索同一真实 HTML 上与正式 WASM 返回逐字段一致；动态失败、非法值及旧宿主经回放验证。Koma 1.2.0 在 237 验证了打开动态标签、选择校园、实际续页和重置为全部。其余标签与旧宿主兼容按网页与本地回放证据记录。
