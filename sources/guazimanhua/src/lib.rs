@@ -14,7 +14,7 @@ const UA: &[u8] = b"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.guazimanhua.koma",
     name: "瓜子漫画",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -551,6 +551,48 @@ fn chapter_ordinal(title: &[u8]) -> Option<usize> {
             .fold(0usize, |n, b| n * 10 + (b - b'0') as usize),
     )
 }
+// Only the site's own matching detail page, an empty directory container and
+// its unambiguous zero-count update card establish that no chapters exist.
+// Missing or contradictory structure remains a parse error.
+fn confirmed_no_chapters(doc: HtmlDescriptor, id: &[u8]) -> bool {
+    let config = match Selection::new(doc, b"script#guazi-local-reading-config") {
+        Ok(x) if x.len == 1 => x,
+        _ => return false,
+    };
+    let mut text = [0u8; 2048];
+    let n = match html_text(config.at(0), &mut text) { Ok(n) => n, Err(_) => return false };
+    if extract_json_string(&text[..n], b"mode") != Some(b"detail".as_slice())
+        || extract_json_number(&text[..n], b"comicId") != Some(id) { return false; }
+    drop(config);
+    for (selector, expected) in [
+        (b"section#chapters div[data-chapter-list]".as_slice(), 1),
+        (b"section#chapters div[data-chapter-list] > *".as_slice(), 0),
+        (b"section.mobile-comic-all-chapters".as_slice(), 0),
+    ] {
+        match Selection::new(doc, selector) {
+            Ok(x) if x.len == expected => {},
+            _ => return false,
+        }
+    }
+    let cards = match Selection::new(doc, b"section.side-card") { Ok(x) => x, Err(_) => return false };
+    let mut matches = 0;
+    for i in 0..cards.len {
+        let mut heading = [0u8; 128];
+        if child_text(cards.at(i), b"h3", &mut heading) != Some("更新信息".as_bytes()) { continue; }
+        matches += 1;
+        let mut body = [0u8; 2048];
+        let body = match child_text(cards.at(i), b"p.desc", &mut body) { Some(x) => x, None => return false };
+        let prefix = "更新时间：".as_bytes();
+        let marker = "最新章节：暂无章节章节总数：0 话状态：".as_bytes();
+        if !body.starts_with(prefix) { return false; }
+        let remainder = &body[prefix.len()..];
+        let pos = match remainder.windows(marker.len()).position(|x| x == marker) { Some(x) if x > 0 => x, _ => return false };
+        let status = &remainder[pos + marker.len()..];
+        if status != "完结".as_bytes() && status != "连载".as_bytes() { return false; }
+        if remainder[..pos].windows("章节".len()).any(|x| x == "章节".as_bytes()) { return false; }
+    }
+    matches == 1
+}
 fn run_get_chapters(req: &[u8]) -> u32 {
     let id = match extract_json_string(req, b"mangaId").and_then(|b| numeric_id(b, b"guazi:manga:"))
     {
@@ -574,6 +616,10 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         Err(m) => return write_error("get_chapters", "parse_error", m),
     };
     if rows.len == 0 {
+        drop(rows);
+        if confirmed_no_chapters(d.0, id) {
+            return write_error("get_chapters", "no_chapters", "site reports no chapters");
+        }
         return write_error("get_chapters", "parse_error", "chapter directory missing");
     }
     let out = payload_buf();
