@@ -26,11 +26,12 @@ static ALLOCATOR: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
 const DEFAULTS: [&str; 2] = ["https://www.wnacg.buzz", "https://www.wnacg.site"];
 const DOMAIN_LIST: &str = "https://stevenyomi.github.io/source-domains/wnacg.txt";
 const UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0";
+const THUMBNAIL_PATH: &str = r"(?i)^/data/t/\d+/\d{2}/[a-z0-9_-]+\.(?:jpe?g|png|webp|gif)$";
 const LOGIN_HINT: &str = "内容不存在或需要登录，请在原网页登录后重试。";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.wnacg.koma",
     name: "紳士漫畫",
-    version: "0.1.0",
+    version: "0.1.1",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -178,7 +179,41 @@ fn image_url(raw: &str) -> R<String> {
     }
     Ok(u)
 }
-fn card(n: &Node, base: &str) -> R<Value> {
+fn thumbnail_url_allowed(url: &Url, path: &Regex) -> bool {
+    url.scheme() == "https"
+        && url.username().is_empty()
+        && url.password().is_none()
+        && url.port().is_none()
+        && url.fragment().is_none()
+        && matches!(url.host_str(), Some("t1.wnimg2.cfd" | "t2.wnimg2.cfd" | "t3.wnimg2.cfd" | "t4.wnimg2.cfd"))
+        && path.is_match(url.path())
+}
+
+fn thumbnail_headers(base: &str) -> Value {
+    json!({"User-Agent":UA,"Referer":format!("{}/",base)})
+}
+
+fn thumbnail_path_for_host(r: &[u8]) -> R<Option<Regex>> {
+    if protocol::feature(r, b"source_public_cover_user_agent_v1") {
+        return Ok(Some(rx(THUMBNAIL_PATH)?));
+    }
+    Ok(None)
+}
+
+fn cover(raw: &str, base: &str, public_path: Option<&Regex>) -> R<Value> {
+    let uri = image_url(raw)?;
+    let mut cover = json!({"kind":"url","url":uri});
+    // The catalogue already selected the mirror. Use its complete public
+    // request without a per-cover read of the private mirror session.
+    if let Some(path) = public_path {
+        if Url::parse(&uri).is_ok_and(|url| thumbnail_url_allowed(&url, path)) {
+            cover["headers"] = thumbnail_headers(base);
+        }
+    }
+    Ok(cover)
+}
+
+fn card(n: &Node, base: &str, public_path: Option<&Regex>) -> R<Value> {
     let a = n.required(".title > a")?;
     let aid = url_aid(
         &a.attr("href")?.ok_or_else(|| E::from("parse_error"))?,
@@ -189,7 +224,7 @@ fn card(n: &Node, base: &str) -> R<Value> {
     let mut item = json!({"id":format!("wnacg:{}",aid),"title":title,"contentRating":"nsfw","url":format!("{}{}",base,work_path(&aid))});
     if let Some(img) = n.one("img") {
         if let Some(src) = img.attr("src")?.filter(|s| !s.is_empty()) {
-            item["cover"] = json!({"kind":"url","url":image_url(&src)?})
+            item["cover"] = cover(&src, base, public_path)?
         }
     }
     Ok(item)
@@ -373,8 +408,9 @@ fn list(r: &[u8], v: &Value, search: bool) -> R<Value> {
             None
         };
     let mut cx = Context::network(r, v)?;
+    let public_path = thumbnail_path_for_host(r)?;
     if let Some(aid) = imported {
-        let manga = detail_for(&cx, &aid)?;
+        let manga = detail_for(&cx, &aid, public_path.as_ref())?;
         return Ok(json!({"items":[manga],"page":{"hasMore":false,"nextCursor":null}}));
     }
     let settings = &v["settings"];
@@ -403,7 +439,7 @@ fn list(r: &[u8], v: &Value, search: bool) -> R<Value> {
         }
         let mut items = Vec::new();
         for node in &nodes {
-            let card = card(node, &cx.base)?;
+            let card = card(node, &cx.base, public_path.as_ref())?;
             let title = card["title"]
                 .as_str()
                 .ok_or_else(|| E::from("parse_error"))?;
@@ -429,7 +465,7 @@ fn list(r: &[u8], v: &Value, search: bool) -> R<Value> {
         ),
     })
 }
-fn detail_for(cx: &Context, aid: &str) -> R<Value> {
+fn detail_for(cx: &Context, aid: &str, public_path: Option<&Regex>) -> R<Value> {
     let u = format!("{}{}", cx.base, work_path(aid));
     let d = document(&u, &cx.base)?;
     let title = match d.one("h2") {
@@ -479,7 +515,7 @@ fn detail_for(cx: &Context, aid: &str) -> R<Value> {
     }
     if let Some(img) = d.one("div.uwthumb img") {
         if let Some(src) = img.attr("src")?.filter(|s| !s.is_empty()) {
-            manga["cover"] = json!({"kind":"url","url":image_url(&src)?})
+            manga["cover"] = cover(&src, &cx.base, public_path)?
         }
     }
     for p in d.all("div.uwconn p")? {
@@ -651,11 +687,7 @@ fn image_request(r: &[u8], v: &Value) -> R<Value> {
         }
         let raw = v["args"]["url"].as_str().ok_or_else(|| E::from("invalid_request"))?;
         let url = Url::parse(raw).map_err(|_| E::from("invalid_request"))?;
-        if url.scheme() != "https" || !url.username().is_empty() || url.password().is_some()
-            || url.port().is_some() || url.fragment().is_some()
-            || !rx(r"^t[1-4]\.wnimg2\.cfd$")?.is_match(url.host_str().unwrap_or(""))
-            || !rx(r"(?i)^/data/t/\d+/\d{2}/[a-z0-9_-]+\.(?:jpe?g|png|webp|gif)$")?.is_match(url.path())
-        {
+        if !thumbnail_url_allowed(&url, &rx(THUMBNAIL_PATH)?) {
             return Err("invalid_request".into());
         }
         // Collection artwork may belong to a child gallery, so its thumbnail
@@ -667,7 +699,7 @@ fn image_request(r: &[u8], v: &Value) -> R<Value> {
                 return Err("invalid_request".into());
             }
         }
-        return Ok(json!({"url":raw,"headers":{"User-Agent":UA,"Referer":format!("{}/",cx.base)}}));
+        return Ok(json!({"url":raw,"headers":thumbnail_headers(&cx.base)}));
     }
     let pid = v["args"]["pageId"]
         .as_str()
@@ -809,7 +841,8 @@ fn dispatch(op: &str, r: &[u8]) -> R<Value> {
         "get_manga" => {
             let aid = manga_id(&v)?;
             let cx = Context::network(r, &v)?;
-            Ok(json!({"manga":detail_for(&cx,&aid)?}))
+            let public_path = thumbnail_path_for_host(r)?;
+            Ok(json!({"manga":detail_for(&cx,&aid,public_path.as_ref())?}))
         }
         "get_chapters" => chapters(r, &v),
         "get_pages" => pages(r, &v),

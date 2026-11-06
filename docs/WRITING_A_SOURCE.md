@@ -199,7 +199,11 @@ returned cursor or, for numbered pages, a decimal string such as `"2"`.
 | get_home | `{}` |
 | get_filters | `{}` |
 
-Read identities from the actual `args` object. For image requests the App sends the work ID as `pageId` for a cover and the stable page ID for a reader page. A public cover whose URL and headers are already known can use `cover.headers` as described in the host ABI.
+Read identities from the actual `args` object. For image requests the App sends the work ID as `pageId` for a cover and the stable page ID for a reader page. When a listing already knows a public cover URL and all its GET headers, include
+the complete `cover.headers` in that listing response, as described in the host
+ABI. Reuse the listing's mirror or other already known inputs. Do not re-read a
+session or fetch a detail page per cover. Keep the old resolver for older hosts
+and for covers that actually need a ticket, session, or special transport.
 
 ## JSON Response Formats
 
