@@ -1618,6 +1618,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_utifa_source"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "dlmalloc",
+ "koma_source_sdk",
+ "miniz_oxide",
+ "serde_json",
+ "sha2",
+ "url",
+]
+
+[[package]]
 name = "koma_webtoons_source"
 version = "0.1.9"
 dependencies = [

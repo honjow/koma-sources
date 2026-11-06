@@ -123,6 +123,7 @@ picacomic|picacomic|true|1.2.0
 copymanga|copymanga|true|1.2.0
 wnacg|wnacg|true|1.2.0
 hentaiclub|hentaiclub|true|1.2.0
+utifa|utifa|true|1.2.0
 mangapluscreators-en|mangapluscreators-en|false|0.1.1
 '
 

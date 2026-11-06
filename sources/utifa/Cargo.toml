@@ -1,0 +1,16 @@
+[package]
+name = "koma_utifa_source"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+koma_source_sdk = { path = "../../sdk" }
+base64 = { version = "=0.22.1", default-features = false, features = ["alloc"] }
+dlmalloc = { version = "=0.2.14", features = ["global"] }
+miniz_oxide = "=0.8.9"
+serde_json = { version = "=1.0.150", default-features = false, features = ["alloc"] }
+sha2 = { version = "=0.10.9", default-features = false }
+url = { version = "=2.5.8", default-features = false }
