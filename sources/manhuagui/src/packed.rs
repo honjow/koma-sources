@@ -148,7 +148,7 @@ fn digits(s: &[u8], p: &mut usize) -> Result<usize, &'static str> {
     };
     Ok(n)
 }
-fn parse(s: &[u8], start: usize) -> Result<(usize, usize, usize), &'static str> {
+fn parse(s: &[u8], start: usize) -> Result<(usize, usize, usize, usize), &'static str> {
     let mut p = start;
     need(s, &mut p, b"window[")?;
     let mut method = [0; 256];
@@ -195,7 +195,10 @@ fn parse(s: &[u8], start: usize) -> Result<(usize, usize, usize), &'static str> 
     let payload = unsafe { &mut *core::ptr::addr_of_mut!(PAYLOAD) };
     let plen = quoted(s, &mut p, payload, true)?;
     need(s, &mut p, b",")?;
-    if digits(s, &mut p)? != 62 {
+    // The same fixed packer now appears with bases 42, 51, 52 and 61.
+    // Decode its literal radix; retain finite digit and dictionary bounds.
+    let radix = digits(s, &mut p)?;
+    if !(2..=62).contains(&radix) {
         return Err("unsupported packer radix");
     };
     need(s, &mut p, b",")?;
@@ -253,9 +256,9 @@ fn parse(s: &[u8], start: usize) -> Result<(usize, usize, usize), &'static str> 
     if num != declared {
         return Err("packed dictionary count mismatch");
     };
-    Ok((plen, num, p))
+    Ok((plen, num, p, radix))
 }
-fn index(word: &[u8]) -> Option<usize> {
+fn index(word: &[u8], radix: usize) -> Option<usize> {
     let mut n = 0usize;
     for &c in word {
         let d = match c {
@@ -264,7 +267,8 @@ fn index(word: &[u8]) -> Option<usize> {
             b'A'..=b'Z' => c - b'A' + 36,
             _ => return None,
         };
-        n = n.checked_mul(62)?.checked_add(d as usize)?
+        if d as usize >= radix { return None; }
+        n = n.checked_mul(radix)?.checked_add(d as usize)?
     }
     Some(n)
 }
@@ -296,7 +300,7 @@ pub fn unpack(html: &[u8], out: &mut [u8]) -> Result<usize, &'static str> {
         found = Some(st);
     }
     let st = found.ok_or("packed wrapper missing")?;
-    let (plen, count, _) = parse(html, st)?;
+    let (plen, count, _, radix) = parse(html, st)?;
     let payload = unsafe { &*core::ptr::addr_of!(PAYLOAD) };
     let dictionary = unsafe { &*core::ptr::addr_of!(DICT) };
     let entries = unsafe { &*core::ptr::addr_of!(ENTRIES) };
@@ -309,7 +313,7 @@ pub fn unpack(html: &[u8], out: &mut [u8]) -> Result<usize, &'static str> {
                 p += 1
             }
             let word = &payload[st..p];
-            if let Some(i) = index(word).filter(|i| *i < count) {
+            if let Some(i) = index(word, radix).filter(|i| *i < count) {
                 let (a, b) = entries[i];
                 if a != b {
                     &dictionary[a as usize..b as usize]
