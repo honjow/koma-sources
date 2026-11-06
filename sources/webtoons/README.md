@@ -19,3 +19,7 @@ The independent Rust implementation and provider-asset attribution are documente
 搜索先解码请求中的 JSON 转义，再按既有站点请求规则编码用户输入；默认、空查询与分页规则保持原行为。
 
 章节标题中的 Unicode 转义遵循 [SDK 公共文本解码合同](../../sdk/README.md)，合法表情不使整份章节响应失效。
+
+## 独立列表候选
+
+固定参考 `949dea252eb8e867b7b40834a26e13088764ff55` 的热门依次请求 trending、popular、originals、canvas 四个榜单，最新按宿主本地星期请求 `/en/originals/{weekday}?sortOrder=UPDATE` 并单页结束；旧宿主没有时钟特性时仅显示热门。2026-11-06 四个榜单官网均 HTTP 200，实际 WASM 与 HTML 桥各解析 30 项，第四页终止；同日星期五最新 162 项、无下一页。热门与最新为独立栏目。支持空词筛选的宿主显示参考的 ALL、Originals、Canvas 搜索分类；旧宿主不显示新筛选。英文官网 love 查询的两类前两页各30项、空关键词 Originals 为空并终止；Canvas 第10页下一按钮指向11，空格关键词 high school 下一页链接也已用实际 WASM 回放。默认 ALL 与正式源在同一原页逐字段一致。既有目录对照回放通过；普通实机和正式发布未验。
