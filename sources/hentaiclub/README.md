@@ -23,6 +23,7 @@ separate, with no inferred takedown or payment.
 
 ## 参考对照与验收
 
+- 列表卡片标题去掉网页标签缩进产生的首尾空白，保留标题内空格、原文字及排序。
 - `get_listings` / `get_manga_list` 对应 Mihon 热门，无独立首页及最新列表。
   `search` 先用非空关键词，再按标签、分类、热门的顺序选择。关键词和标签使用
   页码游标；分类沿原参考对每个游标请求同一分类地址。是否有下一页沿用 24 项阈值。

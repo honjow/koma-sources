@@ -22,7 +22,7 @@ const UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/2010
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hentaiclub.koma",
     name: "绅士会所",
-    version: "0.1.1",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -255,8 +255,10 @@ fn list(r: &[u8], input: &Value, search: bool) -> R<Value> {
     for node in &nodes {
         let a = node.required("a.item-link")?;
         let path = local(&a.attr("href")?.ok_or("parse_error")?).map_err(|_| "parse_error")?;
-        let title = node.required(".item-link-text")?.text()?;
-        if title.trim().is_empty() {
+        let title_text = node.required(".item-link-text")?.text()?;
+        // The HTML indents this span. Keep the title itself intact for the grid and search.
+        let title = title_text.trim();
+        if title.is_empty() {
             return Err("parse_error");
         }
         let mut card = json!({"id":format!("hentaiclub:{}",path),"title":title,"contentRating":"unknown","url":format!("{}{}",BASE,path)});
