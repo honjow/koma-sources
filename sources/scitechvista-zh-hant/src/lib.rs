@@ -5,7 +5,7 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.scitechvista.zh-hant.koma",
     name: "科技大觀園・科普漫畫大賽",
-    version: "0.1.1",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -782,6 +782,83 @@ fn find(expected: Option<&[u8]>) -> R<Option<usize>> {
         Ok(None)
     }
 }
+fn json_text_eq(obj: &[u8], key: &[u8], expected: &[u8]) -> R<()> {
+    let mut decoded = [0; 512];
+    let len = raw_string(string(obj, key)?, &mut decoded)?;
+    if &decoded[..len] != expected { return Err("wrong_owner"); }
+    Ok(())
+}
+// The catalogue intentionally displays its first author/school. A second
+// real author row does not change that output, but must be a complete pair
+// and exactly match the Article's author/affiliation array in DOM order.
+fn article_authors(doc: host::HtmlDescriptor, i: usize, ld: &[u8]) -> R<()> {
+    let sel = b"#block > .DetailContent > .Article-AuthorRow";
+    let total = count(doc, sel)?;
+    if total == 0 || total > 2
+        || count(doc, b"#block > .DetailContent .Article-AuthorRow")? != total
+    { return Err("parse_error"); }
+    let mut raw = [0; 8];
+    let found = unsafe { select_all_raw(doc.raw(), sel.as_ptr(), sel.len() as u32, raw.as_mut_ptr(), raw.len() as u32) };
+    let mut authors = [[0; 256]; 2];
+    let mut schools = [[0; 512]; 2];
+    let mut author_lens = [0; 2];
+    let mut school_lens = [0; 2];
+    let mut result = if found == total as i32 { Ok(()) } else { Err("html_error") };
+    for row in 0..core::cmp::min(found.max(0) as usize, 2) {
+        let at = row * 4;
+        let node = host::HtmlDescriptor::from_raw(i32::from_le_bytes([raw[at],raw[at+1],raw[at+2],raw[at+3]]));
+        let item = (|| {
+            let n = text(node, b".Article-AuthorRow > .Author", &mut authors[row])?;
+            let author = trim_ascii(&authors[row][..n]);
+            let k = text(node, b".Article-AuthorRow > .Division", &mut schools[row])?;
+            let school = trim_ascii(&schools[row][..k]);
+            if core::str::from_utf8(author).is_err() || core::str::from_utf8(school).is_err()
+                || (total == 2 && author.is_empty())
+            { return Err("parse_error"); }
+            if row == 0 && (author != unsafe { &AUTHORS[i][..AL[i]] }
+                || school != unsafe { &DIVISIONS[i][..DL[i]] })
+            { return Err("wrong_owner"); }
+            let mut name = [0; 256];
+            let mut division = [0; 512];
+            name[..author.len()].copy_from_slice(author);
+            division[..school.len()].copy_from_slice(school);
+            author_lens[row] = author.len(); school_lens[row] = school.len();
+            authors[row] = name; schools[row] = division;
+            Ok(())
+        })();
+        let close = host::html_close(node).map_err(|_| "html_error");
+        if result.is_ok() { result = item.and(close); }
+    }
+    result?;
+    {
+        let list = member(ld, b"author")?;
+        if list.first() != Some(&b'[') { return Err("wrong_owner"); }
+        let mut at = whitespace(list, 1);
+        for row in 0..total {
+            let end = end_value(list, at)?;
+            let obj = &list[at..end];
+            json_text_eq(obj, b"@type", b"Person")?;
+            json_text_eq(obj, b"name", &authors[row][..author_lens[row]])?;
+            match direct(obj, b"affiliation")? {
+                None if school_lens[row] == 0 => {},
+                Some(affiliation) => {
+                    json_text_eq(affiliation, b"@type", b"Organization")?;
+                    json_text_eq(affiliation, b"name", &schools[row][..school_lens[row]])?;
+                }
+                None => return Err("wrong_owner"),
+            }
+            at = whitespace(list, end);
+            if row + 1 < total {
+                if list.get(at) != Some(&b',') { return Err("wrong_owner"); }
+                at = whitespace(list, at + 1);
+            }
+        }
+        if list.get(at) != Some(&b']') || whitespace(list, at + 1) != list.len() {
+            return Err("wrong_owner");
+        }
+    }
+    Ok(())
+}
 fn current_images(i: usize) -> R<()> {
     unsafe {
         IC = 0;
@@ -797,14 +874,6 @@ fn current_images(i: usize) -> R<()> {
             (
                 b"#block > .DetailContent > h2.kf-det-title".as_slice(),
                 unsafe { &TITLES[i][..TL[i]] },
-            ),
-            (
-                b"#block > .DetailContent .Article-AuthorRow > .Author",
-                unsafe { &AUTHORS[i][..AL[i]] },
-            ),
-            (
-                b"#block > .DetailContent .Article-AuthorRow > .Division",
-                unsafe { &DIVISIONS[i][..DL[i]] },
             ),
             (b"#block > .DetailContent .kf-date", unsafe {
                 &DATES[i][..DATE_LEN[i]]
@@ -827,6 +896,7 @@ fn current_images(i: usize) -> R<()> {
         // JSON-LD carries the canonical owner while body scope excludes every recommendation.
         let len = text(doc, b"head > script[type='application/ld+json']", &mut b)?;
         let ld = &b[..len];
+        json_text_eq(ld, b"@type", b"Article")?;
         let parent = direct(ld, b"mainEntityOfPage")?.ok_or("wrong_owner")?;
         let raw = arg_string(parent, b"@id")?.ok_or("wrong_owner")?;
         let mut actual = [0; 512];
@@ -834,6 +904,7 @@ fn current_images(i: usize) -> R<()> {
         if actual[..n] != u[..c] {
             return Err("wrong_owner");
         }
+        article_authors(doc, i, ld)?;
         let sel = b"#block > .DetailContent > span.templateLongText.kf-det-content";
         if count(doc, sel)? != 1 {
             return Err("incomplete_pages");
