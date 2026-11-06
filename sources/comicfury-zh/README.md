@@ -1,10 +1,12 @@
 # Comic Fury (Chinese) source
 
-Stable identity `com.comicfury.zh.koma`, version `0.1.7`, language `zh`, canonical origin `https://comicfury.com`. MIXED remains conservatively mapped to `nsfw=true`; this does not label every comic as adult. Source behavior follows the retained Keiyoushi ComicFury implementation and the fixed settings reference `949dea252eb8e867b7b40834a26e13088764ff55`.
+Stable identity `com.comicfury.zh.koma`, version `0.1.8`, language `zh`, canonical origin `https://comicfury.com`. MIXED remains conservatively mapped to `nsfw=true`; this does not label every comic as adult. Source behavior follows the retained Keiyoushi ComicFury implementation and the fixed settings reference `949dea252eb8e867b7b40834a26e13088764ff55`.
 
 ## Public behavior
 
 Popular, search and latest retain the published four content flag defaults at zero and Chinese language. The reference tags, sorting, last-updated, completed and four content filters are exposed through the existing host filter contract; explicit selections are forwarded to the official search form. Sort has no universal schema default: absent selection retains search=0, popular=1 and latest=2, so host default injection cannot change the adopted listing behavior. The explicit official empty-search marker returns an empty successful result; an unexplained empty card list remains an error. Catalogues retain primary order reversal, chapter identities and explicit group episode numbers; covers/extras keep null chapter numbers.
+
+A profile may genuinely omit its description or avatar. The source returns an empty description or null cover only after verifying the unique profile, its own nonempty title and the requested work's same-site reader link. An existing but malformed avatar, a description heading with an unknown body, conflicting ownership or a missing profile remains an error; warning and HTTP error handling is unchanged. Existing profiles with both fields retain their previous output.
 
 Reader images belong only to the exact first `div.is--comic-page` matching the requested chapter. Preloaded neighbouring chapters are excluded. A server response for another comic remains an owner error. The existing image URLs, IDs and order are unchanged with no settings.
 
