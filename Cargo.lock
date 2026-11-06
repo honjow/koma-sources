@@ -1374,7 +1374,7 @@ dependencies = [
 
 [[package]]
 name = "koma_jinmantiantang_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "aes",
  "base64 0.22.1",

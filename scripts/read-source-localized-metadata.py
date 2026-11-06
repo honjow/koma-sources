@@ -105,6 +105,11 @@ def extract(metadata, web_origins=None):
     if not isinstance(metadata, dict):
         return {}
     result = {}
+    if "requiredImageDecodes" in metadata:
+        kinds = metadata["requiredImageDecodes"]
+        if not isinstance(kinds, list) or any(kind != "jm_stripes_v1" for kind in kinds):
+            raise ValueError("invalid requiredImageDecodes: unsupported decoder kind")
+        result["requiredImageDecodes"] = sorted(set(kinds))
     if "authentication" in metadata:
         result["authentication"] = authentication_descriptor(metadata["authentication"], web_origins if web_origins is not None else metadata.get("webSessionOrigins", []))
     # Chronology belongs to the unchanged source output, not the App's display

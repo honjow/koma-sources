@@ -24,7 +24,7 @@ static ALLOCATOR: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.jmcomic.koma",
     name: "禁漫天堂",
-    version: "0.1.0",
+    version: "0.1.1",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
