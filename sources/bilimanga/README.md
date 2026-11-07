@@ -10,7 +10,7 @@
 | 作品地址与游客搜索 | `getMangaByUrl` 对应搜索框的同站 `/detail/{id}.html`，与 `get_manga` 共用 `write_detail_fields`。`ensureSearchTicket` 对应 `keyword_search`，CSS/JS 并发，同次调用仅消费网站签发的三个匿名 Cookie，redeem 无缓存，跟随宿主核验过的同域结果。最终详情和普通结果各自解析。游客 Cookie 不写存储，不使用 WebView 或账号会话。原扩展可复用进程间隔内的 CSS/JS Cookie，本移植按单次搜索隔离保存，redeem 每次执行。 |
 | 目录 | `fetchMangaUpdate` 对应 `chapters`。按原分卷、锚点、标题和顺序返回。不按网页标题的总话数补造目录。保留原生成的 `#prev`、`#next` 章节身份。 |
 | 正文 | `ChapterInterceptor`、`getPageList` 对应 `pages`。片段仅是本地跳转指示，第一跳不增加 `night=1`。次跳由网页给出的同书导航解析为 `_2.html`。缺失或非同书导航明确失败，不猜章节号。页面位置、原始图片地址、重复页与附页均保留。已实测的桌面浏览提示保留具体原因。 |
-| 封面与图片 | `KeiSource` 的 `Fetch.IMAGE` 对应 `write_cover` 和 `image_request`。同站封面按路径作品归属，正文按原章节／页身份和真实 HTTPS CDN 校验。实际 CDN 文件名是内容摘要，本地不虚构章节与摘要的关联。已实测 JPEG 和 AVIF。公开图片头不携游客、登录或夜间 Cookie。 |
+| 封面与图片 | `KeiSource` 的 `Fetch.IMAGE` 对应 `write_cover` 和 `image_request`。同站封面按路径作品归属，正文按原章节／页身份和真实 HTTPS CDN 校验。实际 CDN 文件名是内容摘要，本地不虚构章节与摘要的关联。已实测 JPEG 和 AVIF。公开图片头不携游客、登录或夜间 Cookie。 官网 `c.motiezw.com` 的作品封面先校验路径作品归属，再使用官网同域的 `/files/cartoon/image/` 对应地址，保留尺寸后缀与时间戳。浏览、详情及已保存 CDN 地址共用此转换，正文仍沿用实际图片 CDN。 |
 | 设置 | `POPULAR_MANGA_DISPLAY`、`RATE_LIMIT`、`DESCRIPTION`。热门默认周点击榜。请求速率默认 10/10，由 Koma 宿主共享限速并在进程重启后应用新设置。简介默认显示公告、别名、小说链接。速率在宿主读取时校验，源设置仍是文本字段。 |
 
 浏览与阅读需要宿主 `source_rate_limit_bilimanga_v1`，游客关键词另需

@@ -19,7 +19,7 @@ const CHROME_BRANDS: &[u8] = br#""Google Chrome";v="149", "Chromium";v="149", "N
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "net.bilimanga.koma",
     name: "嗶哩漫畫",
-    version: "0.1.0",
+    version: "0.1.1",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -336,8 +336,10 @@ fn canonical_detail_id(url: &[u8]) -> R<&[u8]> {
     let route = path.split(|b| matches!(b, b'?' | b'#')).next().ok_or("invalid_request")?;
     detail_id(route)
 }
-fn cover_owner(url: &[u8]) -> R<&[u8]> {
-    let raw = url.strip_prefix(b"https://www.bilimanga.net/files/cartoon/image/").ok_or("invalid_request")?;
+const SITE_COVER_PREFIX: &[u8] = b"https://www.bilimanga.net/files/cartoon/image/";
+const CDN_COVER_PREFIX: &[u8] = b"https://c.motiezw.com/";
+
+fn cover_owner(raw: &[u8]) -> R<&[u8]> {
     let mut parts = raw.splitn(3, |c| *c == b'/');
     let bucket = parts.next().ok_or("invalid_request")?;
     if bucket.is_empty() || !bucket.iter().all(u8::is_ascii_digit) {
@@ -360,6 +362,21 @@ fn cover_owner(url: &[u8]) -> R<&[u8]> {
     Ok(owner)
 }
 
+// The CDN rejects image clients on some networks. The site's first-party route
+// serves the same cover path, including its size variant and cache timestamp.
+fn public_cover_url<'a>(url: &'a [u8], owner: &[u8], out: &'a mut [u8]) -> R<&'a [u8]> {
+    let raw = url.strip_prefix(SITE_COVER_PREFIX)
+        .or_else(|| url.strip_prefix(CDN_COVER_PREFIX))
+        .ok_or("invalid_request")?;
+    if cover_owner(raw)? != owner {
+        return Err("identity_mismatch");
+    }
+    if url.starts_with(SITE_COVER_PREFIX) {
+        return Ok(url);
+    }
+    path(SITE_COVER_PREFIX, raw, b"", out)
+}
+
 fn body_image(url: &[u8]) -> R<()> {
     let name = url.strip_prefix(b"https://i.motiezw.com/img/")
         .or_else(|| url.strip_prefix(b"https://w.motiezw.com/img/"))
@@ -373,8 +390,10 @@ fn body_image(url: &[u8]) -> R<()> {
 
 fn write_cover(out: &mut [u8], n: &mut usize, url: &[u8], owner: &[u8], direct_headers: bool) -> R<()> {
     w(out, n, b"{\"kind\":\"url\",\"url\":")?;
-    q(out, n, url)?;
-    if direct_headers && cover_owner(url) == Ok(owner) {
+    let mut resolved = [0; 8192];
+    let public_url = public_cover_url(url, owner, &mut resolved);
+    q(out, n, public_url.unwrap_or(url))?;
+    if direct_headers && public_url.is_ok() {
         write_public_image_headers(out, n)?;
         w(out, n, b"}")?;
     }
@@ -1123,13 +1142,11 @@ fn image_request(r: &[u8]) -> R<usize> {
     let id = string(a, b"pageId")?;
     let mut url_buf = [0; 8192];
     let url = protocol::text(a, b"url", &mut url_buf)?.ok_or("invalid_request")?;
-    let is_cover = if let Some(owner) = id.strip_prefix(b"bilimanga:") {
+    let mut cover_buf = [0; 8192];
+    let (url, is_cover) = if let Some(owner) = id.strip_prefix(b"bilimanga:") {
         positive(owner)?;
-        if cover_owner(url)? != owner {
-            return Err("identity_mismatch");
-        }
         optional_image_owner(a, owner)?;
-        true
+        (public_cover_url(url, owner, &mut cover_buf)?, true)
     } else {
         let page = id.strip_prefix(b"bilimanga-page:").ok_or("invalid_request")?;
         let split = page.iter().rposition(|c| *c == b':').ok_or("invalid_request")?;
@@ -1142,7 +1159,7 @@ fn image_request(r: &[u8]) -> R<usize> {
         // The provider's image path is a content hash. Bind the request to the
         // exact known public image origins and file shape, not a fabricated CID.
         body_image(url)?;
-        false
+        (url, false)
     };
     let out = payload_buf();
     let mut n = 0;
