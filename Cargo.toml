@@ -3,6 +3,7 @@ resolver = "2"
 members = [
   "sources/cosplaytele",
   "sources/buondua",
+  "sources/xiutaku",
   "sources/kiutaku",
   "sources/hentaifox-zh",
   "sources/3hentai-zh",

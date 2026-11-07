@@ -34,6 +34,7 @@ RELEASE_PACKAGE_DIR="$OUTPUT_DIR/release-packages"
 SOURCE_ENTRIES='
 cosplaytele|cosplaytele|true|0.1.4
 buondua|buondua|true|1.2.0
+xiutaku|xiutaku|true|1.2.2
 kiutaku|kiutaku|true|1.2.0
 hentaifox-zh|hentaifox-zh|true|0.1.1
 3hentai-zh|3hentai-zh|true|0.1.1

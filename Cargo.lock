@@ -1705,6 +1705,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_xiutaku_source"
+version = "0.1.1"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+]
+
+[[package]]
 name = "koma_xkcd_zh_source"
 version = "0.1.7"
 dependencies = [
