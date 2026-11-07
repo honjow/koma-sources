@@ -14,7 +14,7 @@ const UA: &[u8] = b"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.guazimanhua.koma",
     name: "瓜子漫画",
-    version: "0.1.5",
+    version: "0.1.6",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -252,6 +252,27 @@ fn site_url(path: &[u8], id: &[u8], out: &mut [u8]) -> usize {
 }
 fn quoted(out: &mut [u8], n: &mut usize, b: &[u8]) -> bool {
     write_bytes(out, n, b"\"") && append_json_escaped(out, n, b) && write_bytes(out, n, b"\"")
+}
+// These Guazi display fields can contain numeric character references even
+// after the DOM has decoded the page's outer escaping. Decode one more pass
+// only for these fields, leaving the text used for chapter ordinals untouched.
+fn quoted_guazi_display_text(out: &mut [u8], n: &mut usize, text: &[u8]) -> bool {
+    if !text.windows(2).any(|pair| pair == b"&#") {
+        return quoted(out, n, text);
+    }
+    let raw = scratch_a();
+    let mut raw_len = 0;
+    let start = *n;
+    if append_json_escaped(raw, &mut raw_len, text)
+        && write_bytes(out, n, b"\"")
+        && koma_source_sdk::plain_text::append_entity_decoded_json_content(out, n, &raw[..raw_len])
+        && write_bytes(out, n, b"\"")
+    {
+        return true;
+    }
+    // Unusual inputs or a failed second parse must not remove the original text.
+    *n = start;
+    quoted(out, n, text)
 }
 fn page_tail(out: &mut [u8], n: &mut usize, more: bool, page: usize) -> bool {
     if !write_bytes(out, n, br#"],"page":{"nextCursor":"#) {
@@ -495,7 +516,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
         && write_bytes(out, &mut n, br#"},"description":"#)
         && quoted(out, &mut n, de)
         && write_bytes(out, &mut n, br#", "authors":["#)
-        && quoted(out, &mut n, a)
+        && quoted_guazi_display_text(out, &mut n, a)
         && write_bytes(out, &mut n, br#"],"status":"#)
         && quoted(out, &mut n, status)
         && write_bytes(
@@ -652,7 +673,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             && write_bytes(out, &mut n, br#"","mangaId":"guazi:manga:"#)
             && write_bytes(out, &mut n, id)
             && write_bytes(out, &mut n, br#"","title":"#)
-            && quoted(out, &mut n, t)
+            && quoted_guazi_display_text(out, &mut n, t)
             && write_bytes(out, &mut n, br#", "chapterNumber":"#)
             && if let Some(number) = chapter_ordinal(t) {
                 write_usize(out, &mut n, number)
