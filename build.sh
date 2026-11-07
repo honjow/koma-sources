@@ -32,7 +32,7 @@ RELEASE_PACKAGE_DIR="$OUTPUT_DIR/release-packages"
 # Source registry: source name | crate directory | nsfw | minimum Koma version.
 # Keep this Bash 3 compatible for macOS /bin/bash.
 SOURCE_ENTRIES='
-xiutaku|xiutaku|true|1.2.0
+xiutaku|xiutaku|true|1.2.1
 kiutaku|kiutaku|true|1.2.0
 hentaifox-zh|hentaifox-zh|true|0.1.1
 3hentai-zh|3hentai-zh|true|0.1.1

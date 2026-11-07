@@ -23,7 +23,7 @@ static ALLOCATOR: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: SOURCE_ID,
     name: NAME,
-    version: "0.1.0",
+    version: "0.1.1",
     api_version: "0.2",
     language: "all",
     author: "Koma",
@@ -293,6 +293,25 @@ fn detail_card(doc: &Node, id: u32) -> R<Value> {
     value["tags"] = json!(tags);
     Ok(value)
 }
+// Kiutaku serves related cards in the very same HTML as the work details.
+fn related_cards(doc: &Node, id: u32) -> R<Vec<Value>> {
+    let rows = Nodes::get(doc, b".bottom-articles .items-row")?;
+    let mut items = Vec::new();
+    let mut seen = alloc::collections::BTreeSet::new();
+    seen.insert(id.to_string());
+    for i in 0..rows.n {
+        let Ok(item) = card_from(&rows.at(i)) else {
+            continue;
+        };
+        if let Some(candidate) = item["id"].as_str() {
+            if seen.insert(candidate.to_string()) {
+                items.push(item);
+            }
+        }
+    }
+    Ok(items)
+}
+
 fn page_link(href: &str, id: u32) -> R<u32> {
     let path = site_path(href).ok_or("identity_mismatch")?;
     let (route, query) = path.split_once('?').unwrap_or((path, ""));
@@ -428,41 +447,54 @@ fn finish(op: &str, value: R<Value>) -> u32 {
                 "not_found" | "chapter_unavailable" => "网站没有提供该图集或这一页",
                 "forbidden" => "网站拒绝了请求，请在原网页确认",
                 "rate_limit" => "请求过于频繁，请稍后重试",
+                "host_feature_required" => "请更新 Koma 以支持此书源的请求限流",
                 _ => "图集获取失败，请在原网页确认",
             },
         ),
     }
 }
+fn network_request(r: &[u8]) -> R<()> {
+    protocol::request(r)?;
+    if !KIUTAKU && !protocol::feature(r, b"source_rate_limit_xiutaku_v1") {
+        return Err("host_feature_required");
+    }
+    Ok(())
+}
+
 fn run_search(r: &[u8]) -> u32 {
     finish(
         "search",
-        protocol::request(r).and_then(|_| result_list(r, true)),
+        network_request(r).and_then(|_| result_list(r, true)),
     )
 }
 fn run_get_manga_list(r: &[u8]) -> u32 {
     finish(
         "get_manga_list",
-        protocol::request(r).and_then(|_| result_list(r, false)),
+        network_request(r).and_then(|_| result_list(r, false)),
     )
 }
 fn run_get_manga(r: &[u8]) -> u32 {
     finish(
         "get_manga",
-        protocol::request(r).and_then(|_| {
+        network_request(r).and_then(|_| {
             let id = manga_id(r)?;
             let doc = fetch(&format!("/{id}"))?;
-            Ok(json!({"manga":detail_card(&doc,id)?}))
+            let mut detail = detail_card(&doc, id)?;
+            if KIUTAKU && protocol::feature(r, b"source_related_manga_v1") {
+                // Recommendations are optional metadata and cannot break the main detail.
+                if let Ok(items) = related_cards(&doc, id) {
+                    detail["relatedManga"] = json!(items);
+                }
+            }
+            Ok(json!({"manga":detail}))
         }),
     )
 }
 fn run_get_chapters(r: &[u8]) -> u32 {
-    finish(
-        "get_chapters",
-        protocol::request(r).and_then(|_| chapters(r)),
-    )
+    finish("get_chapters", network_request(r).and_then(|_| chapters(r)))
 }
 fn run_get_pages(r: &[u8]) -> u32 {
-    finish("get_pages", protocol::request(r).and_then(|_| pages(r)))
+    finish("get_pages", network_request(r).and_then(|_| pages(r)))
 }
 fn run_get_listings(_: &[u8]) -> u32 {
     finish(

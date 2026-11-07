@@ -1337,7 +1337,7 @@ dependencies = [
 
 [[package]]
 name = "koma_kiutaku_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1622,7 +1622,7 @@ dependencies = [
 
 [[package]]
 name = "koma_xiutaku_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
