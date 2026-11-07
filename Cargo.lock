@@ -1392,6 +1392,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_kiutaku_source"
+version = "0.1.1"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+]
+
+[[package]]
 name = "koma_komiic_source"
 version = "0.1.15"
 dependencies = [
