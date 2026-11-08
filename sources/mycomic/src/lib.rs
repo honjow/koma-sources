@@ -8,7 +8,7 @@ const BASE: &[u8] = b"https://mycomic.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mycomic.koma",
     name: "MYCOMIC - 我的漫畫",
-    version: "0.1.6",
+    version: "0.1.7",
     api_version: "0.2",
     language: "zh",
     author: "Koma",

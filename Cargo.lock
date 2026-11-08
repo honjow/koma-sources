@@ -1232,7 +1232,7 @@ dependencies = [
 
 [[package]]
 name = "koma_cmanhua_source"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1336,7 +1336,7 @@ dependencies = [
 
 [[package]]
 name = "koma_goda_source"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1445,7 +1445,7 @@ dependencies = [
 
 [[package]]
 name = "koma_jinmantiantang_source"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "aes",
  "base64 0.22.1",
@@ -1473,7 +1473,7 @@ dependencies = [
 
 [[package]]
 name = "koma_komiic_source"
-version = "0.1.17"
+version = "0.1.18"
 dependencies = [
  "base64 0.22.1",
  "dlmalloc",
@@ -1589,14 +1589,14 @@ dependencies = [
 
 [[package]]
 name = "koma_manhuashe_source"
-version = "0.1.11"
+version = "0.1.12"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_manhuawu_source"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1610,7 +1610,7 @@ dependencies = [
 
 [[package]]
 name = "koma_mh160_source"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1631,7 +1631,7 @@ dependencies = [
 
 [[package]]
 name = "koma_mycomic_source"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1645,14 +1645,14 @@ dependencies = [
 
 [[package]]
 name = "koma_namicomi_zh_hans_source"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_namicomi_zh_hant_source"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1680,7 +1680,7 @@ dependencies = [
 
 [[package]]
 name = "koma_noyacg_source"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1837,7 +1837,7 @@ dependencies = [
 
 [[package]]
 name = "koma_wnacg_source"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",

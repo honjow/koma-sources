@@ -9,7 +9,7 @@ use koma_source_sdk::{
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.namicomi.zh-hant.koma",
     name: "NamiComi",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
