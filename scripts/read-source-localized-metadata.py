@@ -101,10 +101,60 @@ def authentication_descriptor(value, web_origins):
     return dict(value)
 
 
+def request_limits(rules):
+    if not isinstance(rules, list) or len(rules) > 8:
+        raise ValueError("invalid requestLimits")
+    groups = set()
+    def integer(value, high):
+        return type(value) is int and 1 <= value <= high
+    def text(value, pattern):
+        return isinstance(value, str) and re.fullmatch(pattern, value) is not None
+    def strings(values, pattern):
+        return (isinstance(values, list) and 1 <= len(values) <= 16 and
+                all(text(value, pattern) for value in values))
+    for rule in rules:
+        if not isinstance(rule, dict):
+            raise ValueError("invalid request limit")
+        group = rule.get("group")
+        if (not text(group, r"[a-z][a-z0-9_-]{0,31}") or group in groups
+                or not integer(rule.get("permits"), 2147483647)
+                or not integer(rule.get("periodMs"), 2147483647000)):
+            raise ValueError("invalid request limit window")
+        groups.add(group)
+        if "hosts" in rule and ("firstLabels" in rule or
+                not strings(rule["hosts"], r"[a-z0-9][a-z0-9.-]{0,252}")):
+            raise ValueError("invalid request limit hosts")
+        if "firstLabels" in rule:
+            labels = rule["firstLabels"]
+            if (not isinstance(labels, list) or not 1 <= len(labels) <= 8 or
+                    any(not isinstance(label, dict) or
+                        not text(label.get("prefix"), r"[a-z0-9][a-z0-9-]{0,30}") or
+                        type(label.get("decimalSuffix", False)) is not bool for label in labels)):
+                raise ValueError("invalid request limit labels")
+        if "requestHeaders" in rule and not strings(rule["requestHeaders"], r"[a-z0-9][a-z0-9_-]{0,63}"):
+            raise ValueError("invalid request limit header names")
+        if any(type(rule.get(flag, False)) is not bool for flag in ("perOrigin", "oncePerRequest")):
+            raise ValueError("invalid request limit scope")
+        if "setting" in rule:
+            setting = rule["setting"]
+            if (not isinstance(setting, dict) or not text(setting.get("key"), r"[A-Za-z][A-Za-z0-9_-]{0,127}") or
+                    not integer(setting.get("maxPermits", 2147483647), 2147483647) or
+                    any(type(setting.get(flag, False)) is not bool for flag in ("windowValue", "keepUntilRestart"))):
+                raise ValueError("invalid request limit setting")
+    return rules
+
+
 def extract(metadata, web_origins=None):
     if not isinstance(metadata, dict):
         return {}
     result = {}
+    if "websitePolicy" in metadata:
+        policy = metadata["websitePolicy"]
+        if not isinstance(policy, dict):
+            raise ValueError("invalid websitePolicy")
+        result["websitePolicy"] = policy
+    if "requestLimits" in metadata:
+        result["requestLimits"] = request_limits(metadata["requestLimits"])
     if "requiredImageDecodes" in metadata:
         kinds = metadata["requiredImageDecodes"]
         if not isinstance(kinds, list) or any(kind != "jm_stripes_v1" for kind in kinds):
