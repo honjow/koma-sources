@@ -892,9 +892,11 @@ fn run_get_image_request(req: &[u8]) -> u32 {
         if extract_json_string(record, b"kid") != Some(kid) {
             return write_error("get_image_request", "parse_error", "image ticket identity mismatch");
         }
-        // The .cc CDN subdomain is unreachable on some direct networks. The
-        // mirror serves the same ticket-protected bytes on its own api/image
-        // endpoint, so only the default origin keeps the dedicated CDN host.
+        // Keiyoushi, Hyperion and Kotatsu all request
+        // {base}/api/image/{kid} with the ticket. The .cc CDN subdomain is
+        // unreachable on some direct networks, while the mirror serves the same
+        // ticket-protected bytes on its own api/image endpoint, so only the
+        // default origin keeps the dedicated CDN host.
         Some((if is_mirror { MIRROR_IMAGE_BASE } else { DEFAULT_CDN },
             if is_mirror { kid } else { image_path }, ticket))
     } else { None };

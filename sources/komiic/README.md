@@ -1,4 +1,4 @@
-# Komiic 0.1.16
+# Komiic 0.1.19
 
 源 ID `com.komiic.koma`，语言及 NSFW 标记保持；crate、runtime 与 package 版本对齐。普通网站为 `https://komiic.com/`，不把 API 地址冒作网页入口，也不由网页元数据授予验证或登录权限。源图标使用官网 PWA 标志及其原蓝色背景，素材依据见 [ASSET_SOURCES.md](ASSET_SOURCES.md)。
 
@@ -60,3 +60,13 @@ GET 和 [Keiyoushi](https://github.com/keiyoushi/extensions-source/blob/main/src
 0.1.17 的正文额度修复最低需要 Koma 1.3.0。取票保留 GraphQL `QUOTA_EXCEEDED`，
 原图 HTTP 402 显示为额度耗尽，HTTP 429 仍表示请求限流。两条路径都沿现有读取流程，
 每页无需额外查额度。
+
+## 正文大图
+
+页面图保留为 `{当前镜像}/api/image/{kid}`，通过 GraphQL `getImageTicket` 取得票据，
+再以 `X-Image-Ticket` 请求同一镜像端点。这一结构来自 Keiyoushi 与 Hyperion 的
+`getPageList`（`baseUrl + "/api/image/" + kid`）以及 Kotatsu Redo 的
+“若返回 kid，则拼接 `/api/image/{kid}`”。两个镜像的 API 主机都能用真实票据直接
+返回图片，不能把页面图改写到 `img.komiic.com`/`img.komiic.cc` 子域：该子域在
+部分直连网络不可达，也会偏离参考实现。封面仍按镜像把 `public.komiic.com` 改写为
+`public.komiic.cc`；普通网页入口由 `homepageChoices` 跟随镜像。
