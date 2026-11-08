@@ -1,0 +1,6 @@
+Tapas Koma source
+Copyright 2026 Koma contributors
+
+Independent Rust implementation of public behavior in Keiyoushi extensions-source
+https://github.com/keiyoushi/extensions-source/tree/fc7a827769f612dfa6dccb51e819f5b4eecaeab5/src/en/tapastic
+Original reference: Apache License 2.0, included in LICENSE.

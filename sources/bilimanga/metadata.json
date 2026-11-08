@@ -1,0 +1,73 @@
+{
+  "localizedNames": {
+    "zh-Hans": "哔哩漫画",
+    "zh-Hant": "嗶哩漫畫",
+    "en": "BiliManga"
+  },
+  "homepage": "https://www.bilimanga.net",
+  "chapterOrder": "newest_first",
+  "webSessionOrigins": [
+    "https://www.bilimanga.net"
+  ],
+  "requestLimits": [
+    {
+      "group": "all",
+      "permits": 10,
+      "periodMs": 10000,
+      "setting": {
+        "key": "RATE_LIMIT",
+        "windowValue": true,
+        "keepUntilRestart": true
+      }
+    }
+  ],
+  "websitePolicy": {
+    "guestHttp": {
+      "origin": "https://www.bilimanga.net",
+      "exactPaths": [
+        "/search.html?search_guard=css",
+        "/search.html?search_guard=js",
+        "/search.html?search_guard=redeem"
+      ],
+      "cookieDomain": "bilimanga.net",
+      "cookies": [
+        {
+          "name": "night",
+          "value": "1"
+        },
+        {
+          "name": "jieqiSearchCss"
+        },
+        {
+          "name": "jieqiSearchJs"
+        },
+        {
+          "name": "jieqiSearchTicket"
+        }
+      ],
+      "captures": [
+        {
+          "path": "/search.html?search_guard=css",
+          "name": "jieqiSearchCss"
+        },
+        {
+          "path": "/search.html?search_guard=redeem",
+          "name": "jieqiSearchTicket"
+        }
+      ],
+      "numberedPaths": [
+        {
+          "prefix": "/search/",
+          "suffix": ".html",
+          "numberSeparator": "_"
+        }
+      ],
+      "redirectNumberedPaths": [
+        {
+          "prefix": "/detail/",
+          "suffix": ".html"
+        }
+      ]
+    }
+  }
+}

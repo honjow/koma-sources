@@ -1,0 +1,40 @@
+{
+  "homepage": "https://www.mangacopy.com",
+  "chapterOrder": "newest_first",
+  "websitePolicy": {
+    "homepageChoices": {
+      "setting": "domain",
+      "options": [
+        {
+          "value": "https://api.mangacopy.com",
+          "url": "https://www.mangacopy.com"
+        },
+        {
+          "value": "https://api.copy3000.com",
+          "url": "https://www.copy3000.com"
+        },
+        {
+          "value": "https://api.copy4000.com",
+          "url": "https://www.copy4000.com"
+        }
+      ]
+    },
+    "httpProfiles": [
+      {
+        "origin": "https://api.mangacopy.com",
+        "profile": "fresh_http11",
+        "pathPrefix": "/api/v3/"
+      },
+      {
+        "origin": "https://api.copy3000.com",
+        "profile": "fresh_http11",
+        "pathPrefix": "/api/v3/"
+      },
+      {
+        "origin": "https://api.copy4000.com",
+        "profile": "fresh_http11",
+        "pathPrefix": "/api/v3/"
+      }
+    ]
+  }
+}

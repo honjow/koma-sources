@@ -1,0 +1,3 @@
+{"homepage":"https://manhuabika.com","chapterOrder":"newest_first","authentication":{"kind":"credentials","loginUrl":"https://picaapi.picacomic.com/auth/sign-in","usernameLabel":"用户名","passwordLabel":"密码","credentialStorage":"private"},
+  "websitePolicy": {"dnsBootstrap": {"domain": "picacomic.com", "url": "http://68.183.234.72/init", "urlSetting": "APP_CHANNEL_URL", "modeSetting": "APP_CHANNEL", "modeValues": ["2", "3"], "userAgent": "okhttp/3.8.1", "statusKey": "status", "statusValue": "ok", "addressesKey": "addresses"}}
+}

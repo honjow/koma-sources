@@ -1,0 +1,27 @@
+# Utifa
+
+独立移植 Keiyoushi `zh.utifa` v1.6.1，固定
+`fc7a827769f612dfa6dccb51e819f5b4eecaeab5` 的 Utifa.kt、Dto.kt 和
+Filters.kt，原参考 Apache-2.0。沿用 `https://bx.yaimer.com` 的匿名入口。
+原网页声明 `utifa.cc` 为 canonical 站点名，普通请求仍沿原扩展使用的域。
+原参考 MIXED，单部作品无权威年龄映射时保持 unknown。
+
+| Koma 入口 | 参考和消费 |
+|---|---|
+| `get_listings`、`get_manga_list` | 热门 `views` 降序、最新 `updateTime` 降序。只读 POST `/api/manga/common/list`，每页24条，按 `current < pages` 取下一游标。无独立首页。 |
+| `search`、`get_filters` | 保留关键词、题材、分级、进度和排序字段及方向，排序默认 views 降序。筛选打开时才取 `categoryTree`，两项既有单选分别呈现排序字段与方向。接受原站精确作品 URL 导入。无源设置或账号能力。 |
+| `get_manga`、`get_chapters` | 同 `get?id` 公开响应，保原标题、封面、简介、作者、标签、状态、目录逆序和原时间（含时区）。 |
+| `get_pages` | 原 `getChapterList?chapterId`，校验作品/章节属主，保原位次和所有 HTTPS 签名地址。页 ID 绑定作品、章节、位次和原图路径。 |
+| `get_image_request` | 普通公开封面支持无需 HTTP 的作品 MID 形状。正文未过期时使用原签名；已由原站 `se` 明确过期才重新请求同章节，按原图路径返回新签名，未知 403 不当作到期。 |
+
+原参考在实际 403 后重取同章，由于 Koma 图片描述先于 Reader 的实际图片 HTTP，
+现宿主内等价地用站点声明的签名到期时间触发。仍复用原参考刷新后25分钟的同章表，
+上限取原签名期限，换章、进程退出、到期均不复用。使用安装隔离的私有会话不透明
+压缩值和同代 CAS，跨章精确匹配，失败保持旧值并释放。私有签名不进入公开设置、
+索引、源日志或备份。本候选要求 Koma 1.2.0 的已有私有时钟、process scope、CAS
+与动态筛选能力。
+
+原站8个列表与本地 WASM 对照覆盖74部不同作品。34部真实作品的644章目录及6289个
+原页图位置逐项一致；10部作品的正文原图实际下载解码。另有两个主站请求在收到HTTP
+前 TLS 失败，留在分母。真实同章前后签名按本地时钟固定回放，过期首图一次取表、
+同章第二图不再取网。未将本地结果当真机验收。
