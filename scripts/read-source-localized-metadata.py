@@ -47,10 +47,122 @@ def navigation_homepage(value):
     return value
 
 
-def extract(metadata):
+
+def authentication_descriptor(value, web_origins):
+    if not isinstance(value, dict) or set(value) - {"kind", "loginUrl", "usernameLabel", "passwordLabel", "credentialStorage", "userAgent", "loginUrls", "sessionCookieNames"}:
+        raise ValueError("invalid authentication descriptor")
+    kind = value.get("kind")
+    login_url = value.get("loginUrl")
+    if kind not in ("web", "credentials") or not isinstance(login_url, str) or utf16_length(login_url) > 4096:
+        raise ValueError("invalid authentication descriptor")
+    navigation_homepage(login_url)
+    parsed = urlsplit(login_url)
+    if parsed.scheme != "https":
+        raise ValueError("authentication requires HTTPS")
+    host = parsed.hostname.encode("idna").decode("ascii").lower()
+    if ":" in host:
+        host = "[" + host + "]"
+    origin = "https://" + host + ((":" + str(parsed.port)) if parsed.port not in (None, 443) else "")
+    if kind == "web" and origin not in web_origins:
+        raise ValueError("web authentication requires its declared exact web-session origin")
+    if kind == "credentials" and value.get("credentialStorage") not in ("private", "memory"):
+        raise ValueError("credentials must declare private or memory credentialStorage")
+    if kind == "web" and "credentialStorage" in value:
+        raise ValueError("web authentication cannot declare native credential storage")
+    if "userAgent" in value:
+        ua = value["userAgent"]
+        if kind != "web" or not isinstance(ua, str) or not ua.strip(TRIM) or utf16_length(ua) > 1024 or any(ord(c) < 32 or ord(c) == 127 for c in ua):
+            raise ValueError("invalid authentication user agent")
+    if "loginUrls" in value or "sessionCookieNames" in value:
+        urls = value.get("loginUrls")
+        names = value.get("sessionCookieNames")
+        if (kind != "credentials" or not isinstance(urls, list) or not 1 <= len(urls) <= 8
+                or any(not isinstance(url, str) or utf16_length(url) > 4096 for url in urls)
+                or login_url not in urls or len(set(urls)) != len(urls)):
+            raise ValueError("invalid native session login URLs")
+        origins = set()
+        for url in urls:
+            navigation_homepage(url)
+            parsed_url = urlsplit(url)
+            if parsed_url.scheme != "https" or "#" in url:
+                raise ValueError("native session login requires exact HTTPS URLs")
+            origin = (parsed_url.hostname.encode("idna").decode("ascii").lower(), parsed_url.port or 443)
+            if origin in origins:
+                raise ValueError("duplicate native session login origin")
+            origins.add(origin)
+        if (not isinstance(names, list) or not 1 <= len(names) <= 16
+                or any(not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", name)
+                       for name in names)
+                or len(set(names)) != len(names)):
+            raise ValueError("invalid native session cookie names")
+    for field in ("usernameLabel", "passwordLabel"):
+        if field in value and (not isinstance(value[field], str) or not value[field].strip(TRIM)
+                               or utf16_length(value[field]) > 128 or not valid_unicode(value[field])):
+            raise ValueError("invalid authentication field label")
+    return dict(value)
+
+
+def request_limits(rules):
+    if not isinstance(rules, list) or len(rules) > 8:
+        raise ValueError("invalid requestLimits")
+    groups = set()
+    def integer(value, high):
+        return type(value) is int and 1 <= value <= high
+    def text(value, pattern):
+        return isinstance(value, str) and re.fullmatch(pattern, value) is not None
+    def strings(values, pattern):
+        return (isinstance(values, list) and 1 <= len(values) <= 16 and
+                all(text(value, pattern) for value in values))
+    for rule in rules:
+        if not isinstance(rule, dict):
+            raise ValueError("invalid request limit")
+        group = rule.get("group")
+        if (not text(group, r"[a-z][a-z0-9_-]{0,31}") or group in groups
+                or not integer(rule.get("permits"), 2147483647)
+                or not integer(rule.get("periodMs"), 2147483647000)):
+            raise ValueError("invalid request limit window")
+        groups.add(group)
+        if "hosts" in rule and ("firstLabels" in rule or
+                not strings(rule["hosts"], r"[a-z0-9][a-z0-9.-]{0,252}")):
+            raise ValueError("invalid request limit hosts")
+        if "firstLabels" in rule:
+            labels = rule["firstLabels"]
+            if (not isinstance(labels, list) or not 1 <= len(labels) <= 8 or
+                    any(not isinstance(label, dict) or
+                        not text(label.get("prefix"), r"[a-z0-9][a-z0-9-]{0,30}") or
+                        type(label.get("decimalSuffix", False)) is not bool for label in labels)):
+                raise ValueError("invalid request limit labels")
+        if "requestHeaders" in rule and not strings(rule["requestHeaders"], r"[a-z0-9][a-z0-9_-]{0,63}"):
+            raise ValueError("invalid request limit header names")
+        if any(type(rule.get(flag, False)) is not bool for flag in ("perOrigin", "oncePerRequest")):
+            raise ValueError("invalid request limit scope")
+        if "setting" in rule:
+            setting = rule["setting"]
+            if (not isinstance(setting, dict) or not text(setting.get("key"), r"[A-Za-z][A-Za-z0-9_-]{0,127}") or
+                    not integer(setting.get("maxPermits", 2147483647), 2147483647) or
+                    any(type(setting.get(flag, False)) is not bool for flag in ("windowValue", "keepUntilRestart"))):
+                raise ValueError("invalid request limit setting")
+    return rules
+
+
+def extract(metadata, web_origins=None):
     if not isinstance(metadata, dict):
         return {}
     result = {}
+    if "websitePolicy" in metadata:
+        policy = metadata["websitePolicy"]
+        if not isinstance(policy, dict):
+            raise ValueError("invalid websitePolicy")
+        result["websitePolicy"] = policy
+    if "requestLimits" in metadata:
+        result["requestLimits"] = request_limits(metadata["requestLimits"])
+    if "requiredImageDecodes" in metadata:
+        kinds = metadata["requiredImageDecodes"]
+        if not isinstance(kinds, list) or any(kind != "jm_stripes_v1" for kind in kinds):
+            raise ValueError("invalid requiredImageDecodes: unsupported decoder kind")
+        result["requiredImageDecodes"] = sorted(set(kinds))
+    if "authentication" in metadata:
+        result["authentication"] = authentication_descriptor(metadata["authentication"], web_origins if web_origins is not None else metadata.get("webSessionOrigins", []))
     # Chronology belongs to the unchanged source output, not the App's display
     # sort. Missing means unverified; never infer it from names or chapter IDs.
     if "chapterOrder" in metadata:
@@ -80,7 +192,9 @@ def extract(metadata):
 def main():
     path = Path(sys.argv[1])
     metadata = json.loads(path.read_text()) if path.exists() else {}
-    projected = extract(metadata)
+    origin_file = path.parent / "web-session-origins.json"
+    web_origins = json.loads(origin_file.read_text()) if origin_file.exists() else metadata.get("webSessionOrigins", [])
+    projected = extract(metadata, web_origins)
     # Production sources must not publish a dead ordinary WebView action.
     # This is navigation metadata only; it grants no HTTP/session permission.
     if "--require-homepage" in sys.argv[2:] and "homepage" not in projected:

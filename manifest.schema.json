@@ -29,6 +29,42 @@
       "items": { "type": "string", "pattern": "^https://[A-Za-z0-9.-]+(:[0-9]+)?$" },
       "description": "Optional exact HTTPS origins eligible for an explicitly authorized host WebView session; never a cookie value or wildcard."
     },
+    "requestLimits": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "required": ["group", "permits", "periodMs"],
+        "properties": {
+          "group": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{0,31}$" },
+          "permits": { "type": "integer", "minimum": 1, "maximum": 2147483647 },
+          "periodMs": { "type": "integer", "minimum": 1, "maximum": 2147483647000 },
+          "hosts": { "type": "array", "maxItems": 16, "items": { "type": "string" } },
+          "firstLabels": { "type": "array", "maxItems": 8, "items": { "type": "object" } },
+          "requestHeaders": { "type": "array", "maxItems": 16, "items": { "type": "string" } },
+          "perOrigin": { "type": "boolean" },
+          "oncePerRequest": { "type": "boolean" },
+          "setting": { "type": "object" }
+        }
+      }
+    },
+    "websitePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "homepageChoices": { "type": "object" },
+        "httpProfiles": { "type": "array" },
+        "systemWebAgentOrigins": { "type": "array" },
+        "mobileWebAndroidAgentOrigins": { "type": "array" },
+        "publicCookieOverrides": { "type": "array" },
+        "guestHttp": { "type": "object" },
+        "dnsBootstrap": { "type": "object" },
+        "preserveRouteCover": { "type": "boolean" },
+        "routeCoverPlaceholderSuffix": { "type": "string" },
+        "chapterIdentity": { "type": "object" },
+        "publicWorkUrlDomains": { "type": "array" }
+      }
+    },
     "localizedNames": {
       "type": "object",
       "maxProperties": 16,

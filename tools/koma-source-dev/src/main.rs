@@ -28,7 +28,7 @@ enum Commands {
     Run {
         /// Path to the compiled .wasm source
         wasm: PathBuf,
-        /// Operation name (search, get_manga, get_chapters, get_pages, get_listings, get_manga_list, get_home, get_filters, get_settings, get_image_request)
+        /// Operation name (search, get_manga, get_chapters, get_pages, get_listings, get_manga_list, get_home, get_filters, get_settings, get_image_request, get_authentication, authenticate, logout)
         #[arg(long)]
         op: String,
         /// Request JSON (e.g. '{"query":"one piece","page":1,"limit":20}')

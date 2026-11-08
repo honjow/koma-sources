@@ -2,6 +2,8 @@
 
 pub mod gallery_titles;
 
+pub mod source_protocol;
+
 pub mod host {
     pub const LOG_INFO: u32 = 1;
 
@@ -2481,4 +2483,40 @@ pub fn decode_json_content<'a>(s: &[u8], out: &'a mut [u8]) -> Result<&'a [u8], 
         let closed = host::html_close(descriptor).is_ok();
         match len { Ok(len) if closed && len < text.len() => append_json_escaped(out,cursor,&text[..len]), _ => false }
     }
+}
+
+/// Optional authentication ABI. Existing source exports and their request handlers stay unchanged.
+/// Credentials are read only via the Host-granted `private_session/credential_input` RPC;
+/// these operation requests never carry passwords in args or ordinary settings.
+#[macro_export]
+macro_rules! koma_source_authentication_exports {
+    ($source_name:literal) => {
+        #[no_mangle]
+        pub extern "C" fn koma_source_get_authentication(req_ptr: u32, req_len: u32) -> u32 {
+            let req = match read_request(req_ptr, req_len) {
+                Some(r) => r,
+                None => return write_error("get_authentication", "invalid_request", "empty request"),
+            };
+            $crate::host::log_info(concat!($source_name, " get_authentication").as_bytes());
+            run_get_authentication(req)
+        }
+        #[no_mangle]
+        pub extern "C" fn koma_source_authenticate(req_ptr: u32, req_len: u32) -> u32 {
+            let req = match read_request(req_ptr, req_len) {
+                Some(r) => r,
+                None => return write_error("authenticate", "invalid_request", "empty request"),
+            };
+            $crate::host::log_info(concat!($source_name, " authenticate").as_bytes());
+            run_authenticate(req)
+        }
+        #[no_mangle]
+        pub extern "C" fn koma_source_logout(req_ptr: u32, req_len: u32) -> u32 {
+            let req = match read_request(req_ptr, req_len) {
+                Some(r) => r,
+                None => return write_error("logout", "invalid_request", "empty request"),
+            };
+            $crate::host::log_info(concat!($source_name, " logout").as_bytes());
+            run_logout(req)
+        }
+    };
 }

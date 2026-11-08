@@ -153,23 +153,7 @@ fn do_http_request(req: &HttpRequest) -> HttpResponse {
 
     match result {
         Ok(resp) => build_success_response(&req, resp),
-        Err(ureq::Error::Status(code, resp)) => {
-            let mut resp_headers = std::collections::HashMap::new();
-            for name in resp.headers_names() {
-                if let Some(val) = resp.header(&name) {
-                    resp_headers.insert(name, val.to_string());
-                }
-            }
-            let body_text = resp.into_string().unwrap_or_default();
-            let body_json = if req.response_kind == "bodyJson" {
-                serde_json::from_str(&body_text).ok()
-            } else { None };
-            HttpResponse {
-                ok: true, status: Some(code), headers: Some(resp_headers),
-                body_text: Some(body_text), body_json,
-                final_url: Some(req.url.clone()), network_performed: true, error: None,
-            }
-        }
+        Err(ureq::Error::Status(_, resp)) => build_success_response(&req, resp),
         Err(e) => {
             eprintln!("[dev-runner] HTTP error: {:?}", e);
             HttpResponse {
@@ -241,6 +225,16 @@ where F: FnMut(&HttpRequest) -> HttpResponse {
 fn encode_http_envelope<F>(input: &[u8], mut send: F) -> Result<Vec<u8>>
 where F: FnMut(&HttpRequest, bool) -> HttpResponse {
     let value: serde_json::Value = serde_json::from_slice(input)?;
+    // This CLI has no RCP DNS adapter or Host-issued process proof. Never
+    // silently discard the opt-in plan and send via system DNS/channel 1.
+    let needs_pica_dns = |v: &serde_json::Value| {
+        v.get("type").and_then(|x| x.as_str()) == Some("pica_channel_init") || v.get("dnsOverride").is_some()
+    };
+    if needs_pica_dns(&value) || value.get("requests").and_then(|v| v.as_array())
+        .is_some_and(|requests| requests.iter().any(needs_pica_dns)) {
+        return Ok(serde_json::to_vec(&serde_json::json!({"ok":false,"networkPerformed":false,
+            "error":{"code":"unsupported","message":"DNS-preserving channel transport unavailable in this host","retryable":false}}))?);
+    }
     if value.get("type").and_then(|v| v.as_str()) == Some("private_session") {
         eprintln!("[dev-runner] unsupported host feature private_session");
         return Ok(serde_json::to_vec(&serde_json::json!({"ok":false,"networkPerformed":false,"error":{"code":"host_feature_required","message":"private session unsupported","retryable":false}}))?);
@@ -310,7 +304,20 @@ fn build_success_response(req: &HttpRequest, resp: ureq::Response) -> HttpRespon
             resp_headers.insert(name, val.to_string());
         }
     }
-    let body_text = resp.into_string().unwrap_or_default();
+    // A successful status is not a complete response: preserve body-read
+    // failure instead of silently turning a truncated response into empty HTML.
+    let body_text = match resp.into_string() {
+        Ok(body) => body,
+        Err(error) => return HttpResponse {
+            ok: false, status: Some(status), headers: Some(resp_headers),
+            body_text: None, body_json: None, final_url: Some(req.url.clone()),
+            network_performed: true,
+            error: Some(HttpErrorEnvelope {
+                code: "network_error".into(), message: error.to_string(),
+                phase: "response_body".into(), retryable: true,
+            }),
+        },
+    };
     let body_json = if req.response_kind == "bodyJson" {
         serde_json::from_str(&body_text).ok()
     } else { None };
@@ -354,6 +361,9 @@ pub fn run_operation(wasm_path: &Path, op: &str, request_json: &str) -> Result<s
         "get_home" => "koma_source_get_home",
         "get_filters" => "koma_source_get_filters",
         "get_settings" => "koma_source_get_settings",
+        "get_authentication" => "koma_source_get_authentication",
+        "authenticate" => "koma_source_authenticate",
+        "logout" => "koma_source_logout",
         "get_image_request" => "koma_source_get_image_request",
         "image_request" | "modify_image_request" => "koma_source_modify_image_request",
         _ => anyhow::bail!("Unknown operation: {}", op),
@@ -693,6 +703,23 @@ mod html_descriptor_tests {
 #[cfg(test)]
 mod coverage_batch_tests {
     use super::*;
+
+    #[test]
+    fn pica_dns_plan_is_rejected_before_any_http_in_this_non_rcp_host() {
+        for value in [
+            serde_json::json!({"type":"pica_channel_init","version":1}),
+            serde_json::json!({"version":1,"method":"POST","url":"https://picaapi.picacomic.com/auth/sign-in",
+                "dnsOverride":{"kind":"pica_channel_v1","proof":"fixture-only"}}),
+            serde_json::json!({"requests":[{"version":1,"method":"GET","url":"https://picaapi.picacomic.com/",
+                "dnsOverride":{"kind":"pica_channel_v1","proof":"fixture-only"}}]})
+        ] {
+            let output=encode_http_envelope(value.to_string().as_bytes(),|_,_|panic!("must not send without DNS support")).unwrap();
+            let response:serde_json::Value=serde_json::from_slice(&output).unwrap();
+            assert_eq!(response["error"]["code"],"unsupported");
+            assert_eq!(response["networkPerformed"],false);
+        }
+    }
+
     fn result(status: u16) -> HttpResponse { HttpResponse { ok:true,status:Some(status),headers:None,body_text:Some(status.to_string()),body_json:None,final_url:None,network_performed:true,error:None } }
     #[test]
     fn serial_batch_preserves_order_and_partial_http_failure() {
@@ -783,5 +810,51 @@ mod coverage_batch_tests {
         let mut calls=0;let input=br#"{"version":1,"method":"GET","url":"https://example.test/a"}"#;
         let output=encode_http_envelope(input,|r,batch|{calls+=1;assert!(!batch);assert_eq!(r.url,"https://example.test/a");result(200)}).unwrap();
         let v:serde_json::Value=serde_json::from_slice(&output).unwrap();assert_eq!(calls,1);assert_eq!(v["ok"],true);assert_eq!(v["status"],200);assert!(v.get("responses").is_none());
+    }
+}
+
+#[cfg(test)]
+mod response_body_tests {
+    use super::*;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    fn response(status: u16, declared: usize, body: &'static [u8]) -> HttpResponse {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0u8; 2048];
+            let _ = stream.read(&mut request);
+            write!(stream, "HTTP/1.1 {status} Test\r\nContent-Length: {declared}\r\nConnection: close\r\n\r\n").unwrap();
+            stream.write_all(body).unwrap();
+        });
+        let request: HttpRequest = serde_json::from_value(serde_json::json!({"version":1, "method":"GET", "url":format!("http://{address}/")})).unwrap();
+        let result = do_http_request(&request);
+        server.join().unwrap();
+        result
+    }
+
+    #[test]
+    fn complete_body_is_preserved() {
+        let result = response(200, 5, b"hello");
+        assert!(result.ok);
+        assert_eq!(result.status, Some(200));
+        assert_eq!(result.body_text.as_deref(), Some("hello"));
+        assert!(result.error.is_none());
+    }
+
+    #[test]
+    fn truncated_body_is_a_network_failure_with_status_preserved() {
+        for status in [200, 403, 429] {
+            let result = response(status, 64, b"short");
+            assert!(!result.ok);
+            assert_eq!(result.status, Some(status));
+            assert!(result.network_performed);
+            assert!(result.body_text.is_none());
+            let error = result.error.unwrap();
+            assert_eq!(error.code, "network_error");
+            assert_eq!(error.phase, "response_body");
+        }
     }
 }

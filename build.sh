@@ -22,7 +22,7 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SOURCES_DIR="$SCRIPT_DIR/sources"
-OUTPUT_DIR="$SCRIPT_DIR/dist"
+OUTPUT_DIR="${KOMA_SOURCE_OUTPUT_DIR:-$SCRIPT_DIR/dist}"
 RUNNER_FROM_ENV="${DEV_RUNNER:-}"
 DEV_RUNNER="${DEV_RUNNER:-$SCRIPT_DIR/target/release/koma-source-dev}"
 ICON_VALIDATOR="$SCRIPT_DIR/scripts/validate-source-icon.py"
@@ -32,7 +32,9 @@ RELEASE_PACKAGE_DIR="$OUTPUT_DIR/release-packages"
 # Source registry: source name | crate directory | nsfw | minimum Koma version.
 # Keep this Bash 3 compatible for macOS /bin/bash.
 SOURCE_ENTRIES='
-xiutaku|xiutaku|true|1.2.1
+cosplaytele|cosplaytele|true|0.1.4
+buondua|buondua|true|1.2.0
+xiutaku|xiutaku|true|1.2.2
 kiutaku|kiutaku|true|1.2.0
 hentaifox-zh|hentaifox-zh|true|0.1.1
 3hentai-zh|3hentai-zh|true|0.1.1
@@ -62,7 +64,7 @@ mangadex-zh-hant|mangadex-zh-hant|true|0.1.0
 mangadex-zh-hans|mangadex-zh-hans|true|0.1.0
 tipo-ipmini-zh-hant|tipo-ipmini-zh-hant|false|0.1.1
 webtoons-zh-hant|webtoons_zh_hant|false|0.1.0
-simplyhentai-zh|simplyhentai-zh|true|0.1.1
+simplyhentai-zh|simplyhentai-zh|true|1.0.0
 cartoon18-zh|cartoon18-zh|true|0.1.0
 hko-weather-family-zh-hant|hko-weather-family-zh-hant|false|0.1.1
 scitechvista-zh-hant|scitechvista-zh-hant|false|0.1.1
@@ -99,13 +101,13 @@ happymh|happymh|false|0.1.0
 manhuagui|manhuagui|true|0.1.0
 terrahistoricus|terrahistoricus|false|0.1.0
 noyacg|noyacg|true|0.1.0
-komiic|komiic|true|0.1.0
+komiic|komiic|true|1.3.0
 dm5|dm5|true|0.1.0
 comicabc|comicabc|false|0.1.0
 zerobyw|zerobyw|true|0.1.0
 manhuashe|manhuashe|true|0.1.0
 dongmanmanhua|dongmanmanhua|false|0.1.0
-manhuawu|manhuawu|false|0.1.0
+manhuawu|manhuawu|false|1.0.0
 iqiyi|iqiyi|false|0.1.4
 jiuermanhua|jiuermanhua|true|0.1.0
 zazhimi|zazhimi|false|0.1.0
@@ -119,6 +121,8 @@ webtoons|webtoons|false|0.1.0
 lol-zh|lol-zh|false|0.1.1
 honorofkings-zh|honorofkings-zh|false|0.1.1
 pgr-zh|pgr-zh|false|0.1.1
+picacomic|picacomic|true|1.2.0
+wnacg|wnacg|true|1.2.0
 mangapluscreators-en|mangapluscreators-en|false|0.1.1
 '
 
@@ -276,7 +280,7 @@ build_source() {
   # Find the wasm file (workspace builds output to root target/)
   local crate_name
   crate_name=$(grep '^name' "$src_path/Cargo.toml" | head -1 | sed 's/.*= *"\(.*\)"/\1/')
-  local wasm_file="$SCRIPT_DIR/target/wasm32-unknown-unknown/release/${crate_name}.wasm"
+  local wasm_file="${CARGO_TARGET_DIR:-$SCRIPT_DIR/target}/wasm32-unknown-unknown/release/${crate_name}.wasm"
   if [[ ! -f "$wasm_file" ]]; then
     # fallback: try crate-local target
     wasm_file="$src_path/target/wasm32-unknown-unknown/release/${crate_name}.wasm"
@@ -284,6 +288,12 @@ build_source() {
   if [[ ! -f "$wasm_file" ]]; then
     log "ERROR: no wasm output found for $name (expected $wasm_file)"
     return 1
+  fi
+
+  local wasm_limit
+  wasm_limit="$(jq -er '.wasmBuild.maxBytes // 0 | select(type == "number" and . >= 0 and floor == .)' "$src_path/metadata.json")"
+  if [[ "$wasm_limit" -gt 0 && "$(wc -c < "$wasm_file")" -gt "$wasm_limit" ]]; then
+    log "ERROR: $name WASM exceeds its declared size limit"; return 1
   fi
 
   # Extract source info via dev runner
@@ -418,6 +428,10 @@ build_source() {
   local pkg_sha256
   pkg_sha256="$(shasum -a 256 < "$koma_file")" || return 1
   pkg_sha256="${pkg_sha256%% *}"
+  local distribution
+  distribution="$(jq -ce '.distribution // {available: true} |
+    select(type == "object" and (.available | type == "boolean") and
+      ((.reason == null) or (.reason | type == "string")))' "$src_path/metadata.json")"
   # Output index entry JSON to stdout (only line on stdout)
   jq -n \
     --arg id "$src_id" \
@@ -433,7 +447,8 @@ build_source() {
     --arg icon "$icon_path" \
     --arg minAppVersion "$min_app_version" \
     --argjson sourceMetadata "$source_metadata" \
-    '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, pkg: $pkg, sha256: $sha256, icon: $icon, minAppVersion: $minAppVersion} + $sourceMetadata'
+    --argjson distribution "$distribution" \
+    '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, pkg: $pkg, sha256: $sha256, icon: $icon, minAppVersion: $minAppVersion} + $sourceMetadata + $distribution'
 }
 
 validate_index_packages() {
@@ -531,15 +546,28 @@ fi
 
 if [[ "$PACKAGE_ONLY" != 1 ]]; then
 log "▸ Building all selected WASM sources..."
-# Preserve current Kuaikan and all ordinary source build profiles.
-# Only CManhua retains its original source-specific 256 KiB stack budget.
+# Site-owned compiler requirements are data; the common profiles remain fixed.
 ordinary_crates=()
-large_stack_crates=()
 for name in $(compiled_source_names); do
   dir="$(source_crate_dir "$name")"
-  crate=$(grep '^name' "$SOURCES_DIR/$dir/Cargo.toml" | head -1 | sed 's/.*= *"\(.*\)"/\1/')
-  if [[ "$name" == "cmanhua" ]]; then
-    large_stack_crates+=("$crate")
+  crate="$(sed -nE 's/^name[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' "$SOURCES_DIR/$dir/Cargo.toml")"
+  metadata="$SOURCES_DIR/$dir/metadata.json"
+  if [[ -f "$metadata" ]]; then
+    stack="$(jq -er '.wasmBuild.stackBytes // 0 | select(type == "number" and . >= 0 and floor == .)' "$metadata")"
+    size="$(jq -r '.wasmBuild.optimizeForSize // false' "$metadata")"
+  else
+    # The SDK teaching demo is compiled for coverage but never distributed.
+    stack=0
+    size=false
+  fi
+  if [[ "$size" == "true" ]]; then
+    CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS="${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS:+$CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS }-C target-feature=-reference-types -C link-arg=--strip-all" \
+    CARGO_PROFILE_RELEASE_PANIC=abort CARGO_PROFILE_RELEASE_LTO=true CARGO_PROFILE_RELEASE_OPT_LEVEL=z \
+    cargo build --locked --release --target wasm32-unknown-unknown -p "$crate" >&2
+  elif [[ "$stack" -gt 0 ]]; then
+    CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS="${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS:+$CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS }-C target-feature=-reference-types -C link-arg=--strip-all" \
+    cargo rustc --locked --release --target wasm32-unknown-unknown -p "$crate" -- \
+      -C link-arg=-z -C "link-arg=stack-size=$stack" >&2
   else
     ordinary_crates+=(-p "$crate")
   fi
@@ -548,14 +576,6 @@ if [[ "${#ordinary_crates[@]}" -gt 0 ]]; then
   CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS="${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS:+$CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS }-C target-feature=-reference-types -C link-arg=--strip-all" \
   cargo build --locked --release --target wasm32-unknown-unknown "${ordinary_crates[@]}" >&2
 fi
-if [[ "${#large_stack_crates[@]}" -gt 0 ]]; then
-  for crate in "${large_stack_crates[@]}"; do
-  CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS="${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS:+$CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS }-C target-feature=-reference-types -C link-arg=--strip-all" \
-  cargo rustc --locked --release --target wasm32-unknown-unknown -p "$crate" -- \
-    -C link-arg=-z -C link-arg=stack-size=262144 >&2
-  done
-fi
-
 fi
 if [[ "$COMPILE_ONLY" == 1 ]]; then exit 0; fi
 
@@ -570,15 +590,13 @@ for name in $(selected_source_names | sort); do
   INDEX_ENTRIES+=("$json")
 done
 
-# Keep the source and package for existing installations, but stop offering new
-# installs while its upstream is unavailable. Restore discovery only when that
-# source is usable again; this does not remove installed data or old releases.
-printf '%s\n' "${INDEX_ENTRIES[@]}" | jq -s 'map(if .id == "com.happymh.koma" then . + {available: false, reason: "upstream unavailable"} else . + {available: true} end)' > "$OUTPUT_DIR/catalogue.json"
+# Discovery availability is declared by each source and never deletes its package.
+printf '%s\n' "${INDEX_ENTRIES[@]}" | jq -s '.' > "$OUTPUT_DIR/catalogue.json"
 
 # Generate index.json
 log ""
 log "▸ Generating index.json..."
-jq '[.[] | select(.available) | del(.available)]' "$OUTPUT_DIR/catalogue.json" > "$OUTPUT_DIR/index.json"
+jq '[.[] | select(.available) | del(.available, .reason)]' "$OUTPUT_DIR/catalogue.json" > "$OUTPUT_DIR/index.json"
 count=$(jq 'length' "$OUTPUT_DIR/index.json")
 log "  ✓ index.json ($count sources)"
 

@@ -4,6 +4,14 @@ A complete guide to creating manga sources for [Koma](https://github.com/honjow/
 
 Sources are compiled to WebAssembly (`wasm32-unknown-unknown`, `#![no_std]`) and run inside the Koma app. The host provides HTTP, HTML parsing, and logging — your source handles site-specific logic.
 
+## 站点规则归书源包
+
+域名、镜像、请求额度、站点Cookie形状、历史章节ID和站点兼容参数写在源实现或本源的 `metadata.json`。宿主对已安装包通用执行，禁止在App按源名、包名、域名或包版本加白名单、黑名单及特例。需要宿主执行的站点参数使用 [Koma源运行时ABI](https://github.com/honjow/Koma/blob/master/docs/source-runtime-abi.md#站点规则声明) 的 `requestLimits` 和 `websitePolicy`。声明不授予登录、账号或跨域会话权限。
+
+发布前按最低支持版本的正式宿主核对该包所需能力。仅新版宿主能完成的行为必须提高
+源登记的最低 Koma 版本，打包脚本将同一值写入包清单和订阅索引。最低版本必须对应
+确实具备该能力的宿主。正式版本尚未确定时，候选包不进入公开索引。
+
 ## Quick Start
 
 ```bash
@@ -39,6 +47,29 @@ bytes using the same extension.
 出处、处理前后证据。不能用占位、仓库星标或别站标识补缺。App 原有圆角显示
 裁剪属于独立层，必须保留；源资源要求不能被误用来取消它。新生产包要求不
 自动卸载旧设备来源，也不删除旧备份。
+
+素材制作与验收流程：选取素材前，主代理和执行子代理各自实际读取本段；
+出可安装候选前逐个打开原素材和最终素材，在浅、深背景核对真实身份、
+额外底板、外部遮罩、阴影及留白。来自指定上游或官网也不豁免这项检查，
+原字节未改、尺寸、解码及哈希通过都不能代替视觉验收。先按画面真实
+边界裁除外影和多余留白；旧外圆角遮罩裁缺的边角应恢复，由 App 统一
+做显示圆角。保留图案、文字与画面本有的填色，不按颜色把画面抠成
+透明。低清才做必要的锐化或恢复，无法可靠恢复时才使用受严格约束的
+重绘，并如实记为重绘。单张返工不影响已经可用的稿件。处理依据和
+前后证据记在该源 ASSET_SOURCES.md。主代理还须从
+最终候选包中打开实际图标亲审，核对列表中的真实显示；未完成或有缺陷
+就保留未验收状态，不能把执行代理的结论直接当成交付。
+
+## 移植前的源码对照
+
+1. 固定上游扩展版本。从入口追到实际请求和结果，列出分类、筛选、搜索、
+   分页、目录、阅读、登录和设置，以及默认值、适用条件和停止条件。
+2. 在该源 README 按行为记下上游实现、Koma 调用位置与源内消费位置。
+   逐项核对请求形状、分支、默认值和结果语义。比如分页要对照宿主传入的
+   `args.page.cursor` 与源的实际读取处。通用栏目和提示使用界面语言；
+   没有独立首页的参考不能把热门首屏包装成首页。
+3. 实现后沿同一调用链复核。删改或适配写明代码位置及依据；漏项标为
+   未完成。交付验证沿用项目现行规则。
 
 ## Architecture
 
@@ -141,23 +172,46 @@ After `koma_source_helpers!`, these functions are available:
 
 After `koma_source_exports!("name")`, all `koma_source_*` WASM exports are generated.
 
+### Strict request and transport boundaries
+
+For new ports, the opt-in SDK source_protocol module validates complete request
+syntax and direct selected fields before HTTP. Its direct/raw_string/text helpers
+distinguish absent from non-string or duplicate identities (including escaped key
+aliases); legacy json_utils extraction helpers do not provide that guarantee.
+text reuses plain_text::decode_json_content: decode a JSON search string before
+URL encoding it, rather than encoding its literal escape bytes. feature reads
+only the actual hostFeatures array. Existing sources are not silently switched.
+
+source_protocol::body preserves HTTP refusal/rate status first, then checks the
+Host's top-level ok completion, and reuses decode_json_body_into. A 200 response
+whose body transfer failed (ok:false, response_body/network_error) remains a
+network error, not a site parse error. Site HTML parsing happens only after a
+complete body. This centralizes the direct/duplicate/type checks already used
+by strict catalogue sources without changing the legacy SDK helper behavior.
+
 ## JSON Request Formats
 
-The host sends JSON requests to your source:
+The App sends an envelope with an `args` object. The examples below show its contents.
+For a pageable listing the first cursor is `null`; subsequent calls use the
+returned cursor or, for numbered pages, a decimal string such as `"2"`.
 
 | Operation | Request JSON |
 |-----------|-------------|
-| search | `{"query":"one piece","page":1,"limit":25}` |
+| search | `{"query":"one piece","page":{"cursor":null,"limit":20},"filters":{}}` |
 | get_manga | `{"mangaId":"manga:slug"}` |
 | get_chapters | `{"mangaId":"manga:slug"}` |
 | get_pages | `{"chapterId":"chapter:slug:001"}` |
-| get_image_request | `{"url":"https://..."}` |
+| get_image_request | `{"pageId":"manga:slug","url":"https://..."}` |
 | get_listings | `{}` |
-| get_manga_list | `{"listingId":"popular","page":1,"limit":25}` |
+| get_manga_list | `{"listingId":"popular","page":{"cursor":null,"limit":20},"filters":{}}` |
 | get_home | `{}` |
 | get_filters | `{}` |
 
-Parse with `extract_json_string(req, b"mangaId")`.
+Read identities from the actual `args` object. For image requests the App sends the work ID as `pageId` for a cover and the stable page ID for a reader page. When a listing already knows a public cover URL and all its GET headers, include
+the complete `cover.headers` in that listing response, as described in the host
+ABI. Reuse the listing's mirror or other already known inputs. Do not re-read a
+session or fetch a detail page per cover. Keep the old resolver for older hosts
+and for covers that actually need a ticket, session, or special transport.
 
 ## JSON Response Formats
 
