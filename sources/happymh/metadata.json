@@ -4,5 +4,6 @@
   "localizedNames": {
     "zh-Hans": "嗨皮漫画",
     "zh-Hant": "嗨皮漫畫"
-  }
+  },
+  "distribution": {"available": false, "reason": "upstream unavailable"}
 }

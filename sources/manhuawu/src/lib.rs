@@ -31,7 +31,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     image_request: true,
     credentials: false,
 };
-koma_source_sdk::koma_source_buffers! { payload:512*1024,http_out:2*1024*1024,body:1024*1024,http_req:8192,scratch:8192, }
+koma_source_sdk::koma_source_buffers! { payload:512*1024,http_out:2*1024*1024,body:1024*1024,http_req:16384,scratch:8192, }
 koma_source_sdk::koma_source_helpers!();
 // Existing host ABI, already exported by the native and development runtimes.
 #[link(wasm_import_module = "koma_host")]

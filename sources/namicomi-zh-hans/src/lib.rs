@@ -14,7 +14,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     language: "zh-Hans",
     author: "Koma",
     description:
-        "NamiComi Simplified Chinese public API; anonymous readable pages; optional locked chapter metadata. Usage unknown.",
+        "NamiComi 简体中文公开漫画，可浏览目录与免费页面。",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
@@ -825,21 +825,21 @@ fn filter_schema(r: &[u8]) -> Result<usize, E> {
     let dynamic=dynamic_features && member(args(r)?,b"fetchFilterData")?==Some(b"true".as_slice());
     let tags=if dynamic { let t=fetch(b"https://api.namicomi.com/title/tags",None)?; if text(t,b"type")?!=b"collection" {return Err("invalid collection");} Some(t) } else {None};
     let out=payload_buf(); let mut n=0;
-    bytes(out,&mut n,br#"{"supportsFilterFetching":true,"filters":[{"id":"availableBrowse","name":"Has available chapters","scope":"browse","type":"select","default":"all","options":[{"value":"all","label":"All"},{"value":"available","label":"Has available chapters"}]},{"id":"availableSearch","name":"Has available chapters","scope":"search","type":"select","default":"available","options":[{"value":"all","label":"All"},{"value":"available","label":"Has available chapters"}]},{"id":"rating","name":"Content rating","type":"multiselect","options":[{"value":"safe","label":"Safe"},{"value":"restricted","label":"Restricted"},{"value":"mature","label":"Mature"}]},{"id":"status","name":"Status","type":"multiselect","options":[{"value":"ongoing","label":"Ongoing"},{"value":"completed","label":"Completed"},{"value":"hiatus","label":"Hiatus"},{"value":"cancelled","label":"Cancelled"}]},{"id":"sort","name":"Sort","type":"select","options":["#)?;
-    let sorts=[(b"Alphabetic".as_slice(),b"title".as_slice()),(b"Chapter count",b"chapterCount"),(b"Followers",b"followCount"),(b"Likes",b"reactions"),(b"Comment count",b"commentCount"),(b"Content created at",b"publishedAt"),(b"Views",b"views"),(b"Year",b"year"),(b"Rating",b"rating")];
-    let mut first=true; for (label,value) in sorts { for (suffix,dir) in [(b" ascending".as_slice(),b"asc".as_slice()),(b" descending".as_slice(),b"desc".as_slice())] { if !first { bytes(out,&mut n,b",")?; } first=false; bytes(out,&mut n,b"{\"value\":\"")?; bytes(out,&mut n,value)?; bytes(out,&mut n,b":")?; bytes(out,&mut n,dir)?; bytes(out,&mut n,b"\",\"label\":\"")?; bytes(out,&mut n,label)?; bytes(out,&mut n,suffix)?; bytes(out,&mut n,b"\"}")?; } }
+    bytes(out,&mut n,r#"{"supportsFilterFetching":true,"filters":[{"id":"availableBrowse","name":"有可阅读章节","scope":"browse","type":"select","default":"all","options":[{"value":"all","label":"全部"},{"value":"available","label":"有可阅读章节"}]},{"id":"availableSearch","name":"有可阅读章节","scope":"search","type":"select","default":"available","options":[{"value":"all","label":"全部"},{"value":"available","label":"有可阅读章节"}]},{"id":"rating","name":"内容分级","type":"multiselect","options":[{"value":"safe","label":"安全"},{"value":"restricted","label":"受限"},{"value":"mature","label":"成熟"}]},{"id":"status","name":"状态","type":"multiselect","options":[{"value":"ongoing","label":"连载中"},{"value":"completed","label":"已完结"},{"value":"hiatus","label":"暂停"},{"value":"cancelled","label":"已取消"}]},{"id":"sort","name":"排序","type":"select","options":["#.as_bytes())?;
+    let sorts=[("标题".as_bytes(),b"title".as_slice()),("章节数".as_bytes(),b"chapterCount"),("关注数".as_bytes(),b"followCount"),("点赞数".as_bytes(),b"reactions"),("评论数".as_bytes(),b"commentCount"),("发布日期".as_bytes(),b"publishedAt"),("浏览量".as_bytes(),b"views"),("年份".as_bytes(),b"year"),("评分".as_bytes(),b"rating")];
+    let mut first=true; for (label,value) in sorts { for (suffix,dir) in [(" 升序".as_bytes(),b"asc".as_slice()),(" 降序".as_bytes(),b"desc".as_slice())] { if !first { bytes(out,&mut n,b",")?; } first=false; bytes(out,&mut n,b"{\"value\":\"")?; bytes(out,&mut n,value)?; bytes(out,&mut n,b":")?; bytes(out,&mut n,dir)?; bytes(out,&mut n,b"\",\"label\":\"")?; bytes(out,&mut n,label)?; bytes(out,&mut n,suffix)?; bytes(out,&mut n,b"\"}")?; } }
     bytes(out,&mut n,b"]}")?;
     if dynamic_features {
-        bytes(out,&mut n,br#",{"id":"includedMode","name":"Included tags mode","type":"select","default":"and","options":[{"value":"and","label":"And"},{"value":"or","label":"Or"}]},{"id":"excludedMode","name":"Excluded tags mode","type":"select","default":"or","options":[{"value":"and","label":"And"},{"value":"or","label":"Or"}]}"#)?;
+        bytes(out,&mut n,r#",{"id":"includedMode","name":"包含标签的匹配方式","type":"select","default":"and","options":[{"value":"and","label":"全部符合"},{"value":"or","label":"符合任一"}]},{"id":"excludedMode","name":"排除标签的匹配方式","type":"select","default":"or","options":[{"value":"and","label":"全部符合"},{"value":"or","label":"符合任一"}]}"#.as_bytes())?;
     if let Some(tags)=tags {
-    for (group,title,id) in [(b"content-warnings".as_slice(),b"Content".as_slice(),b"tags_content".as_slice()),(b"format",b"Format",b"tags_format"),(b"genre",b"Genre",b"tags_genre"),(b"theme",b"Theme",b"tags_theme")] {
+    for (group,title,id) in [(b"content-warnings".as_slice(),"内容警告".as_bytes(),b"tags_content".as_slice()),(b"format","形式".as_bytes(),b"tags_format"),(b"genre","题材".as_bytes(),b"tags_genre"),(b"theme","主题".as_bytes(),b"tags_theme")] {
         let mut items: [(&[u8],&[u8]); 128]=[(&[],&[]);128]; let mut count=0; let mut a=Array::new(required(tags,b"data")?)?;
         while let Some(t)=a.next()? { let attr=required(t,b"attributes")?; if text(attr,b"group")?!=group {continue;} if count==items.len(){return Err("payload overflow");} let tag=text(t,b"id")?; if tag.is_empty() || !tag.iter().all(|x| x.is_ascii_alphanumeric() || *x==b'-') {return Err("invalid request");} let label=localized(required(attr,b"name")?,false)?.ok_or("required field missing")?; items[count]=(tag,label); count+=1; }
         items[..count].sort_unstable_by(|a,b| a.1.cmp(b.1)); bytes(out,&mut n,b",{\"id\":")?; q(out,&mut n,id)?; bytes(out,&mut n,b",\"type\":\"tristate\",\"name\":")?; q(out,&mut n,title)?; bytes(out,&mut n,b",\"options\":[")?;
         for (index,(tag,label)) in items[..count].iter().enumerate() { if index>0 {bytes(out,&mut n,b",")?;} bytes(out,&mut n,b"{\"value\":")?; q(out,&mut n,tag)?; bytes(out,&mut n,b",\"label\":")?; bytes(out,&mut n,label)?; bytes(out,&mut n,b"}")?; }
         bytes(out,&mut n,b"]}")?;
     } } else {
-        for (id,title) in [(b"tags_content".as_slice(),b"Content".as_slice()),(b"tags_format",b"Format"),(b"tags_genre",b"Genre"),(b"tags_theme",b"Theme")] {
+        for (id,title) in [(b"tags_content".as_slice(),"内容警告".as_bytes()),(b"tags_format","形式".as_bytes()),(b"tags_genre","题材".as_bytes()),(b"tags_theme","主题".as_bytes())] {
             bytes(out,&mut n,b",{\"id\":")?; q(out,&mut n,id)?; bytes(out,&mut n,b",\"type\":\"tristate\",\"name\":")?; q(out,&mut n,title)?; bytes(out,&mut n,b"}")?;
         }
     } } bytes(out,&mut n,b"]}")?; Ok(n)
@@ -1389,10 +1389,10 @@ fn run_get_home(_: &[u8]) -> u32 {
 }
 fn run_get_filters(r: &[u8]) -> u32 { execute("get_filters", filter_schema(r)) }
 fn run_get_settings(r: &[u8]) -> u32 {
-    let data = r#"{"settings":[{"id":"thumbnailQuality_zh-hans","name":"封面品質","kind":"select","options":[{"value":"original","label":"原圖"},{"value":".512.jpg","label":"中等"},{"value":".256.jpg","label":"低"}],"default":"original"},{"id":"dataSaver_zh-hans","name":"省流量","kind":"toggle","default":"false"}]}"#.as_bytes();
+    let data = r#"{"settings":[{"id":"thumbnailQuality_zh-hans","name":"封面质量","kind":"select","options":[{"value":"original","label":"原图"},{"value":".512.jpg","label":"中等"},{"value":".256.jpg","label":"低"}],"default":"original"},{"id":"dataSaver_zh-hans","name":"省流量","kind":"toggle","default":"false"}]}"#.as_bytes();
     if !exclusions_supported(r){payload_buf()[..data.len()].copy_from_slice(data);return write_success_payload("get_settings",data.len());}
     let out=payload_buf();let mut n=0;
-    let result=bytes(out,&mut n,&data[..data.len()-2]).and_then(|_|bytes(out,&mut n,br#",{"id":"showLockedChapters_zh-hans","name":"Show locked/paywalled chapters","description":"Display chapters that require an account with a premium subscription","kind":"toggle","default":"false"}]}"#));
+    let result=bytes(out,&mut n,&data[..data.len()-2]).and_then(|_|bytes(out,&mut n,r#",{"id":"showLockedChapters_zh-hans","name":"显示付费章节","description":"显示需要高级会员账号的章节","kind":"toggle","default":"false"}]}"#.as_bytes()));
     match result{Ok(())=>write_success_payload("get_settings",n),Err(e)=>write_error("get_settings","internal_error",e)}
 }
 koma_source_sdk::koma_source_exports!("namicomi-zh-hans");

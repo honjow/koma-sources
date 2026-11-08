@@ -5,7 +5,7 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.oldmasterq.zh-hant.koma",
     name: "老夫子繁中・授權關聯站",
-    version: "0.1.1",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -245,10 +245,17 @@ static mut IL: usize = 0;
 fn fetch(u: &[u8]) -> R<usize> {
     let n = build_get_request(http_req_buf(), u, Some(BASE), &[]).ok_or("capacity_exceeded")?;
     let n = host::http_request(&http_req_buf()[..n], http_out()).map_err(|_| "network_error")?;
-    if extract_json_number(&http_out()[..n], b"status") != Some(b"200") {
-        return Err("http_error");
+    let response = &http_out()[..n];
+    // The host distinguishes explicit access refusal, removal candidates and
+    // rate limits. Keep the actual HTTP result before parsing any page body.
+    match json_object_member(response, b"status").and_then(|v| number(v).ok()) {
+        Some(200) => decode_json_body_into(response, body_buf()).map_err(|_| "network_error"),
+        Some(403) => Err("permission_denied"),
+        Some(404) => Err("not_found"),
+        Some(429) => Err("rate_limited"),
+        Some(500..=599) => Err("server_error"),
+        _ => Err("http_error"),
     }
-    decode_json_body_into(&http_out()[..n], body_buf()).map_err(|_| "network_error")
 }
 fn path_id(v: &[u8]) -> R<usize> {
     let raw = v

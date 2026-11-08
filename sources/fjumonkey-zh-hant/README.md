@@ -2,9 +2,9 @@
 
 作者原部落格「[專欄]四格漫畫」：https://fjumonkey.pixnet.net/blog/categories/1708975 。僅這個個人漫畫分類，按實際next逐頁瀏覽，不掃6頁、不把頁數乘每頁數當總量。每post獨立作品、一個完整閱讀單元，原標題不改；chapterNumber/volumeNumber=null，readingGroup=該作品MID，continuationEligible=false。Holly Plus標題中的59等數字不作全源章序。作者自署「輔大猴部落格」，正式作品評級/連載狀態/usage unknown。
 
-source ID `com.fjumonkey.pixnet.zh-hant.koma`，0.1.3，ABI0.2，zh-Hant。能力為search/listings/mangaList/detail/chapters/pages/imageRequest；不提供home/filter/settings/credentials。short postID保原字符串，最多24位正數字，不經f64/usize；MID=`fjumonkey:zh-hant:post:<post>`、CID=`fjumonkeyread:zh-hant:post:<post>`、PID=`fjumonkeypage:zh-hant:post:<post>:<0-based ordinal>`，只有本地ordinal/頁計數轉整數。
+source ID `com.fjumonkey.pixnet.zh-hant.koma`，0.1.4，ABI0.2，zh-Hant。能力為search/listings/mangaList/detail/chapters/pages/imageRequest；不提供home/filter/settings/credentials。short postID保原字符串，最多24位正數字，不經f64/usize；MID=`fjumonkey:zh-hant:post:<post>`、CID=`fjumonkeyread:zh-hant:post:<post>`、PID=`fjumonkeypage:zh-hant:post:<post>:<0-based ordinal>`，只有本地ordinal/頁計數轉整數。
 
-目錄限定主`#article-area > #article-box > div.article[id]`，逐項原ID/data-article-link/h2 URL/標題/個人分類/直接img封面一致，按post去重。兩頁各12原身份已核，合併24；24作品只有14個不同cover URI，原49/48及47至39共11篇共享同一封面，合法保留所有作品。原next完整URI作cursor，驗可見當前頁、back/next連續；canonical/og只鎖原分類基礎URL（page2原站不含query）。末6僅原導航，後4頁/終態未核，不能假終態。
+目錄限定主`#article-area > #article-box > div.article[id]`，逐項原ID/data-article-link/h2 URL/標題/個人分類/直接img封面一致，按post去重。兩頁各12原身份已核，合併24；24作品只有14個不同cover URI，原49/48及47至39共11篇共享同一封面，合法保留所有作品。原next完整URI作cursor，驗可見當前頁、back/next連續；canonical/og只鎖原分類基礎URL（page2原站不含query）。本次實站六頁共63篇，末頁3篇及無下一頁已對照。
 
 正文圖片可保留原頁明確提供的 `?v=` 加十位數字版本參數；完整URL仍由同一文章正文位置精確校驗，不接受任意查詢或跨作品圖片，目錄封面格式不變。
 
@@ -17,7 +17,7 @@ source ID `com.fjumonkey.pixnet.zh-hant.koma`，0.1.3，ABI0.2，zh-Hant。能�
 - MID封面（App實際pageId=MID且獨立mangaUrl與post一致）：只接受精確`http://pic.pimg.tw/fjumonkey/<10digits>-<positive digits>.jpg`或`https://pimg.1px.tw/fjumonkey/<10digits>-<positive digits>.jpg`兩種原聲明scheme/host/作者路徑，無query/任意子目錄/憑據；原樣返回URL、標準Firefox UA與該post Referer，0 metadata GET。前者對應目錄封面，後者可對應原詳情封面；不互相轉換、不稱alias或原體相同。此角色信任先前catalog/detail元數據配對，**不獨立重新驗證post→cover映射**；另一篇同作者合法媒體URI在MID/owner一致時也能被接受。這是明確的封面邊界，不誤報為正文歸屬檢查或安全阻塞。共享封面合法。
 - PID正文：post/ordinal/mangaUrl一致，每次1 GET重新核該post主DOM、頁數、完整bodyURI逐字及ordinal，未在原DOM的同作者URI也拒絕。原媒體檔名不帶post，不用basename/HTTP別名推正文身份，不能套MID封面的較寬邊界。無pageId或chapterID作pageId拒絕。
 
-每個正常metadata GET為SDK現有標準UA/原文章或分類Referer。圖片計畫明確標準Firefox UA/原post Referer，沒有登入/憑據/重試或URL重寫。get_listings 0 HTTP、browse每頁1 GET、detail/chapters/pages各1 GET、MID封面0 GET、PID正文計畫各1 GET。實際圖片位元組由App圖片層另外讀。原目錄HTTP cover實體尚未GET；品牌圖一條301/302不推其他封面，NetworkKit的HTTP/redirect與圖片headers組合仍待Root具名Native驗收。
+每個正常metadata GET為SDK現有標準UA/原文章或分類Referer。圖片計畫明確標準Firefox UA/原post Referer，沒有登入/憑據/重試或URL重寫。get_listings 0 HTTP、browse每頁1 GET、detail/chapters/pages各1 GET、MID封面0 GET、PID正文計畫各1 GET。實際圖片位元組由App圖片層另外讀。公開封面已核同一地址和原Referer及UA。宿主宣告 `source_public_cover_user_agent_v1` 時，瀏覽、搜尋及詳情一併回傳原圖片請求頭，省去每張封面的 WASM 呼叫。舊宿主的圖片計畫及正文歸屬校驗沿原路徑。
 
 2026-10-20圖標補交付：原header的30×30角色小圖未分發。Root實讀官方公司頁 `https://fjumonkey.cyberbiz.co/pages/about-us`，其明確將 `https://www.facebook.com/fjumonkeystore` 列為創辦人圖文創作粉絲頁；該頁og:title與og:image:alt均為「輔大猴 www.fjumonkey.com」，og:image明確聲明圖片ID `131077268_226348175528512_6961070914697872382_n.jpg`。本版採匿名200取得的完整720×720 JPEG原件（50149B），檔名icon.jpg，沒有轉碼、放大、描摹、裁切或加遮罩；原圖黃底、紅猴、文字與腳下橢圓均保留。這是官方認可作者標識，不是平台通用圖。原App槽尺寸與布局保持；197經普通文件選擇器導入0.1.1成功，Root已親看源包管理與Browse兩處原圖，完整紅猴標識清晰可辨；保留啟用狀態及索引URL。只驗本次圖標安裝／呈現，不擴大為正文、下載或cold。
 

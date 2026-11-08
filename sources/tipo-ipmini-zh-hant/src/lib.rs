@@ -5,7 +5,7 @@ use koma_source_sdk::{build_get_request, build_post_request, decode_json_body_in
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.tipo.ipmini.zh-hant.koma",
     name: "IP手札mini! 官方直達專欄",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -897,7 +897,16 @@ fn detail(i: usize) -> R<()> {
     close?;
     r
 }
-fn book(p: &mut [u8], c: &mut usize, i: usize, full: bool) -> R<()> {
+fn public_cover_headers_supported(req: &[u8]) -> bool {
+    koma_source_sdk::source_protocol::feature(req, b"source_public_cover_user_agent_v1")
+}
+
+fn write_image_headers(p: &mut [u8], c: &mut usize, referer: &[u8]) -> R<()> {
+    w(p, c, b",\"headers\":{\"User-Agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0\",\"Referer\":")?;
+    q(p, c, referer)?;
+    w(p, c, b"}")
+}
+fn book(p: &mut [u8], c: &mut usize, i: usize, full: bool, public_cover: bool) -> R<()> {
     w(p, c, b"{\"id\":\"")?;
     pref(p, c, MID, unsafe { &IDS[i][..IDL[i]] })?;
     w(p, c, b"\",\"title\":")?;
@@ -914,6 +923,10 @@ fn book(p: &mut [u8], c: &mut usize, i: usize, full: bool) -> R<()> {
     route(p, c, unsafe { &IDS[i][..IDL[i]] })?;
     w(p, c, b"\",\"cover\":{\"kind\":\"url\",\"url\":")?;
     q(p, c, unsafe { &COVERS[i][..CL[i]] })?;
+    // The verified public Attachment and its headers are already available from the catalogue.
+    if public_cover {
+        write_image_headers(p, c, LIST)?;
+    }
     w(p, c, b"},\"language\":\"zh-Hant\",\"authors\":[")?;
     if full {
         q(p, c, unsafe { &AUTHOR[..AL] })?;
@@ -948,7 +961,7 @@ fn book(p: &mut [u8], c: &mut usize, i: usize, full: bool) -> R<()> {
     }
     w(p, c, b"}")
 }
-fn listing(which: usize) -> R<usize> {
+fn listing(which: usize, public_cover: bool) -> R<usize> {
     reset();
     let first = catalogue_page(1, None)?;
     let start = if which == 1 { 0 } else { unsafe { USED } };
@@ -965,7 +978,7 @@ fn listing(which: usize) -> R<usize> {
         if i > start {
             w(p, &mut c, b",")?;
         }
-        book(p, &mut c, i, false)?;
+        book(p, &mut c, i, false, public_cover)?;
     }
     w(p, &mut c, b"],\"page\":{\"nextCursor\":")?;
     if which < row.pages {
@@ -975,12 +988,12 @@ fn listing(which: usize) -> R<usize> {
     }
     Ok(c)
 }
-fn run_get_manga_list(req: &[u8]) -> u32 {
+fn run_get_manga_list(req: &[u8], public_cover: bool) -> u32 {
     if arg_string(req, b"listingId").ok().flatten() != Some(b"listing:direct") {
         return write_error("get_manga_list", "invalid_request", "");
     }
     match page(req) {
-        Ok(n) if n <= 2 => result("get_manga_list", listing(n)),
+        Ok(n) if n <= 2 => result("get_manga_list", listing(n, public_cover)),
         _ => write_error("get_manga_list", "invalid_request", ""),
     }
 }
@@ -989,18 +1002,18 @@ fn work(req: &[u8], key: &[u8], prefix: &[u8]) -> R<usize> {
     owner(req, id)?;
     find(Some(id))?.ok_or("not_found")
 }
-fn run_get_manga(req: &[u8]) -> u32 {
-    fn inner(req: &[u8]) -> R<usize> {
+fn run_get_manga(req: &[u8], public_cover: bool) -> u32 {
+    fn inner(req: &[u8], public_cover: bool) -> R<usize> {
         let i = work(req, b"mangaId", MID)?;
         detail(i)?;
         let p = payload_buf();
         let mut c = 0;
         w(p, &mut c, b"{\"manga\":")?;
-        book(p, &mut c, i, true)?;
+        book(p, &mut c, i, true, public_cover)?;
         w(p, &mut c, b"}")?;
         Ok(c)
     }
-    result("get_manga", inner(req))
+    result("get_manga", inner(req, public_cover))
 }
 fn run_get_chapters(req: &[u8]) -> u32 {
     fn inner(req: &[u8]) -> R<usize> {
@@ -1128,9 +1141,8 @@ fn run_get_image_request(req: &[u8]) -> u32 {
         let mut c = 0;
         w(p, &mut c, b"{\"imageRequest\":{\"url\":")?;
         q(p, &mut c, u)?;
-        w(p,&mut c,b",\"headers\":{\"User-Agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0\",\"Referer\":")?;
-        q(p, &mut c, &referer[..r])?;
-        w(p, &mut c, b"}}}")?;
+        write_image_headers(p, &mut c, &referer[..r])?;
+        w(p, &mut c, b"}}")?;
         Ok(c)
     }
     result("get_image_request", inner(req))
@@ -1156,8 +1168,8 @@ fn run_get_listings(_req: &[u8]) -> u32 {
     }
     result("get_listings", inner())
 }
-fn run_search(req: &[u8]) -> u32 {
-    fn inner(req: &[u8]) -> R<usize> {
+fn run_search(req: &[u8], public_cover: bool) -> u32 {
+    fn inner(req: &[u8], public_cover: bool) -> R<usize> {
         let raw = arg_string(req, b"query")?.ok_or("invalid_request")?;
         let mut query = [0u8; 512];
         let len = raw_string(raw, &mut query).map_err(|_| "invalid_request")?;
@@ -1176,13 +1188,13 @@ fn run_search(req: &[u8]) -> u32 {
         };
         let end = unsafe { USED }; let p = payload_buf(); let mut c = 0;
         w(p, &mut c, b"{\"items\":[")?;
-        for i in start..end { if i > start { w(p, &mut c, b",")?; } book(p, &mut c, i, false)?; }
+        for i in start..end { if i > start { w(p, &mut c, b",")?; } book(p, &mut c, i, false, public_cover)?; }
         w(p, &mut c, b"],\"page\":{\"nextCursor\":")?;
         if which < row.pages { w(p, &mut c, b"\"2\",\"hasMore\":true},\"hasNextPage\":true}")?; }
         else { w(p, &mut c, b"null,\"hasMore\":false},\"hasNextPage\":false}")?; }
         Ok(c)
     }
-    result("search", inner(req))
+    result("search", inner(req, public_cover))
 }
 fn run_get_home(_req: &[u8]) -> u32 {
     write_error("get_home", "not_implemented", "")
@@ -1229,7 +1241,7 @@ pub extern "C" fn koma_source_free(ptr: u32) {
     response_buffer().free(ptr)
 }
 macro_rules! export_op {
-    ($f:ident,$op:literal,$run:ident) => {
+    ($f:ident, $op:literal, $run:ident $(, $request_context:ident)?) => {
         #[no_mangle]
         pub extern "C" fn $f(ptr: u32, len: u32) -> u32 {
             let req = match checked_request(ptr, len) {
@@ -1246,19 +1258,20 @@ macro_rules! export_op {
             if string(req, b"operation").ok() != Some($op.as_bytes()) {
                 return write_error($op, "invalid_request", "operation mismatch");
             }
-            $run(args)
+            $run(args $(, $request_context(req))?)
         }
     };
 }
-export_op!(koma_source_search, "search", run_search);
-export_op!(koma_source_get_manga, "get_manga", run_get_manga);
+export_op!(koma_source_search, "search", run_search, public_cover_headers_supported);
+export_op!(koma_source_get_manga, "get_manga", run_get_manga, public_cover_headers_supported);
 export_op!(koma_source_get_chapters, "get_chapters", run_get_chapters);
 export_op!(koma_source_get_pages, "get_pages", run_get_pages);
 export_op!(koma_source_get_listings, "get_listings", run_get_listings);
 export_op!(
     koma_source_get_manga_list,
     "get_manga_list",
-    run_get_manga_list
+    run_get_manga_list,
+    public_cover_headers_supported
 );
 export_op!(koma_source_get_home, "get_home", run_get_home);
 export_op!(koma_source_get_filters, "get_filters", run_get_filters);

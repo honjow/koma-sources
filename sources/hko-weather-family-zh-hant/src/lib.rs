@@ -5,7 +5,7 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hko.weatherfamily.zh-hant.koma",
     name: "天氣家族漫畫廊・精選六期",
-    version: "0.1.2", api_version: "0.2", language: "zh-Hant", author: "Koma",
+    version: "0.1.3", api_version: "0.2", language: "zh-Hant", author: "Koma",
     description: "香港天文台《談天說地》天氣家族漫畫廊，精選第77至82期。較早PDF及其他期刊不收錄，作品評級尚未確認。",
     content_rating: "unknown",
 };
@@ -22,7 +22,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     image_request: true,
     credentials: false,
 };
-koma_source_sdk::koma_source_buffers! {payload:1024*1024-1024,http_out:1024*1024,body:512*1024,http_req:4096,scratch:8192,}
+koma_source_sdk::koma_source_buffers! {payload:1024*1024-1024,http_out:2*1024*1024+128,body:512*1024,http_req:4096,scratch:8192,}
 koma_source_sdk::koma_source_helpers!();
 type R<T> = Result<T, &'static str>;
 fn whitespace(s: &[u8], mut i: usize) -> usize {
@@ -481,25 +481,79 @@ fn resolve_image(raw: &[u8], i: usize, dst: &mut [u8]) -> R<usize> {
     }
     Ok(n)
 }
+const ISSUE_HTTP_CAP: usize = 1024 * 1024;
+
 fn fetch(i: usize) -> R<usize> {
-    let len = build_get_request(http_req_buf(), SELECTED[i].uri, Some(SELECTED[i].uri), &[])
+    let url = SELECTED[i].uri;
+    let len = build_get_request(http_req_buf(), url, Some(url), &[])
         .ok_or("capacity_exceeded")?;
-    let n = host::http_request(&http_req_buf()[..len], http_out()).map_err(|_| "network_error")?;
-    if extract_json_number(&http_out()[..n], b"status") != Some(b"200") {
+    let n = host::http_request(&http_req_buf()[..len], &mut http_out()[..ISSUE_HTTP_CAP])
+        .map_err(|_| "network_error")?;
+    decode_issue_response(&http_out()[..n])
+}
+
+fn decode_issue_response(response: &[u8]) -> R<usize> {
+    if response.len() > ISSUE_HTTP_CAP {
+        return Err("network_error");
+    }
+    if extract_json_number(response, b"status") != Some(b"200") {
         return Err("http_error");
     }
-    let n = decode_json_body_into(&http_out()[..n], body_buf()).map_err(|_| "network_error")?;
+    let n = decode_json_body_into(response, body_buf()).map_err(|_| "network_error")?;
     if n == 0 || n >= 512 * 1024 {
         return Err("capacity_exceeded");
     }
     Ok(n)
 }
+
+fn fetch_issue_batch(start: usize) -> R<[&'static [u8]; 2]> {
+    let request = http_req_buf();
+    let mut len = 0;
+    w(request, &mut len, br#"{"version":1,"requests":["#)?;
+    for (index, issue) in SELECTED[start..start + 2].iter().enumerate() {
+        if index != 0 {
+            w(request, &mut len, b",")?;
+        }
+        len += build_get_request(&mut request[len..], issue.uri, Some(issue.uri), &[])
+            .ok_or("capacity_exceeded")?;
+    }
+    w(request, &mut len, b"]}")?;
+    let n = host::http_request(&request[..len], http_out()).map_err(|_| "network_error")?;
+    let response = &http_out()[..n];
+    if direct(response, b"ok").map_err(|_| "network_error")? != Some(b"true") {
+        return Err("network_error");
+    }
+    let parts = member(response, b"responses").map_err(|_| "network_error")?;
+    if !parts.starts_with(b"[") {
+        return Err("network_error");
+    }
+    let first = whitespace(parts, 1);
+    let end_first = end_value(parts, first).map_err(|_| "network_error")?;
+    let comma = whitespace(parts, end_first);
+    if parts.get(comma) != Some(&b',') {
+        return Err("network_error");
+    }
+    let second = whitespace(parts, comma + 1);
+    let end_second = end_value(parts, second).map_err(|_| "network_error")?;
+    if parts.get(first) != Some(&b'{')
+        || parts.get(second) != Some(&b'{')
+        || parts.get(whitespace(parts, end_second)..) != Some(b"]")
+    {
+        return Err("network_error");
+    }
+    Ok([&parts[first..end_first], &parts[second..end_second]])
+}
+
 fn article(i: usize) -> R<()> {
+    let len = fetch(i)?;
+    parse_article(i, len)
+}
+
+fn parse_article(i: usize, len: usize) -> R<()> {
     unsafe {
         IC = 0;
         TL = 0;
     }
-    let len = fetch(i)?;
     let doc = host::html_parse(&body_buf()[..len]).map_err(|_| "html_error")?;
     let r = (|| {
         let mut buf = [0; 512];
@@ -627,7 +681,21 @@ fn article(i: usize) -> R<()> {
     let closed = host::html_close(doc).map_err(|_| "html_error");
     r.and(closed)
 }
-fn book(p: &mut [u8], c: &mut usize, i: usize, full: bool) -> R<()> {
+fn public_cover_headers_supported(req: &[u8]) -> bool {
+    koma_source_sdk::source_protocol::feature(req, b"source_public_cover_user_agent_v1")
+}
+
+fn issue_batch_supported(req: &[u8]) -> bool {
+    koma_source_sdk::source_protocol::feature(req, b"source_http_batch_v1")
+}
+
+fn write_image_headers(p: &mut [u8], c: &mut usize, referer: &[u8]) -> R<()> {
+    w(p, c, b",\"headers\":{\"User-Agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0\",\"Referer\":")?;
+    q(p, c, referer)?;
+    w(p, c, b"}")
+}
+
+fn book(p: &mut [u8], c: &mut usize, i: usize, full: bool, public_cover: bool) -> R<()> {
     w(p, c, b"{\"id\":\"")?;
     identifier(p, c, MID, i)?;
     w(p, c, b"\",\"title\":")?;
@@ -636,6 +704,10 @@ fn book(p: &mut [u8], c: &mut usize, i: usize, full: bool) -> R<()> {
     q(p, c, SELECTED[i].uri)?;
     w(p, c, b",\"cover\":{\"kind\":\"url\",\"url\":")?;
     q(p, c, unsafe { &IMAGES[0][..IL[0]] })?;
+    // The verified original issue already supplies this public first image.
+    if public_cover {
+        write_image_headers(p, c, SELECTED[i].uri)?;
+    }
     w(p, c, b"},\"language\":\"zh-Hant\",\"authors\":[")?;
     q(p, c, "黃婷婷".as_bytes())?;
     w(
@@ -662,8 +734,8 @@ fn run_get_listings(_req: &[u8]) -> u32 {
     payload_buf()[..b.len()].copy_from_slice(b);
     write_success_payload("get_listings", b.len())
 }
-fn run_get_manga_list(req: &[u8]) -> u32 {
-    fn inner(req: &[u8]) -> R<usize> {
+fn run_get_manga_list(req: &[u8], public_cover: bool, batch: bool) -> u32 {
+    fn inner(req: &[u8], public_cover: bool, batch: bool) -> R<usize> {
         if arg_string(req, b"listingId")? != Some(b"listing:selected-six") {
             return Err("invalid_request");
         }
@@ -671,15 +743,23 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
         if !(1..=3).contains(&page) {
             return Err("invalid_request");
         }
+        let first = (page - 1) * 2;
+        // The two official issue URLs are independent. Parse the results in
+        // catalogue order with the same identity checks as individual reads.
+        let responses = if batch { Some(fetch_issue_batch(first)?) } else { None };
         let p = payload_buf();
         let mut c = 0;
         w(p, &mut c, b"{\"items\":[")?;
-        for i in (page - 1) * 2..page * 2 {
-            article(i)?;
-            if i % 2 != 0 {
+        for i in first..first + 2 {
+            if let Some(parts) = &responses {
+                parse_article(i, decode_issue_response(parts[i - first])?)?;
+            } else {
+                article(i)?;
+            }
+            if i != first {
                 w(p, &mut c, b",")?;
             }
-            book(p, &mut c, i, false)?;
+            book(p, &mut c, i, false, public_cover)?;
         }
         w(p, &mut c, b"],\"hasNextPage\":")?;
         w(p, &mut c, if page < 3 { b"true" } else { b"false" })?;
@@ -696,20 +776,20 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
         w(p, &mut c, b"}}")?;
         Ok(c)
     }
-    result("get_manga_list", inner(req))
+    result("get_manga_list", inner(req, public_cover, batch))
 }
-fn run_get_manga(req: &[u8]) -> u32 {
-    fn inner(req: &[u8]) -> R<usize> {
+fn run_get_manga(req: &[u8], public_cover: bool) -> u32 {
+    fn inner(req: &[u8], public_cover: bool) -> R<usize> {
         let i = request_work(req, b"mangaId", MID)?;
         article(i)?;
         let p = payload_buf();
         let mut c = 0;
         w(p, &mut c, b"{\"manga\":")?;
-        book(p, &mut c, i, true)?;
+        book(p, &mut c, i, true, public_cover)?;
         w(p, &mut c, b"}")?;
         Ok(c)
     }
-    result("get_manga", inner(req))
+    result("get_manga", inner(req, public_cover))
 }
 fn run_get_chapters(req: &[u8]) -> u32 {
     fn inner(req: &[u8]) -> R<usize> {
@@ -822,9 +902,8 @@ fn run_get_image_request(req: &[u8]) -> u32 {
         let mut c = 0;
         w(p, &mut c, b"{\"imageRequest\":{\"url\":")?;
         q(p, &mut c, u)?;
-        w(p,&mut c,b",\"headers\":{\"User-Agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0\",\"Referer\":")?;
-        q(p, &mut c, SELECTED[i].uri)?;
-        w(p, &mut c, b"}}}")?;
+        write_image_headers(p, &mut c, SELECTED[i].uri)?;
+        w(p, &mut c, b"}}")?;
         Ok(c)
     }
     result("get_image_request", inner(req))
@@ -877,7 +956,7 @@ pub extern "C" fn koma_source_free(ptr: u32) {
     response_buffer().free(ptr)
 }
 macro_rules! export_op {
-    ($f:ident,$op:literal,$run:ident) => {
+    ($f:ident, $op:literal, $run:ident $(, $request_context:ident)*) => {
         #[no_mangle]
         pub extern "C" fn $f(ptr: u32, len: u32) -> u32 {
             let req = match checked_request(ptr, len) {
@@ -894,19 +973,21 @@ macro_rules! export_op {
             if string(req, b"operation").ok() != Some($op.as_bytes()) {
                 return write_error($op, "invalid_request", "operation mismatch");
             }
-            $run(args)
+            $run(args $(, $request_context(req))*)
         }
     };
 }
 export_op!(koma_source_search, "search", run_search);
-export_op!(koma_source_get_manga, "get_manga", run_get_manga);
+export_op!(koma_source_get_manga, "get_manga", run_get_manga, public_cover_headers_supported);
 export_op!(koma_source_get_chapters, "get_chapters", run_get_chapters);
 export_op!(koma_source_get_pages, "get_pages", run_get_pages);
 export_op!(koma_source_get_listings, "get_listings", run_get_listings);
 export_op!(
     koma_source_get_manga_list,
     "get_manga_list",
-    run_get_manga_list
+    run_get_manga_list,
+    public_cover_headers_supported,
+    issue_batch_supported
 );
 export_op!(koma_source_get_home, "get_home", run_get_home);
 export_op!(koma_source_get_filters, "get_filters", run_get_filters);

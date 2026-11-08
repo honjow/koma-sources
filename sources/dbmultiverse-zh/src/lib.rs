@@ -11,11 +11,11 @@ const LIST: &[u8] = b"https://www.dragonball-multiverse.com/cn/read.html";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.dragonballmultiverse.zh.koma",
     name: "Dragon Ball Multiverse",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "Chinese public image comics with host-supported text overlays.",
+    description: "中文公开漫画，支持文字气泡叠加。",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
@@ -592,7 +592,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
 fn run_get_listings(_req: &[u8]) -> u32 {
     response_buffer().write_success(
         "get_listings",
-        br#"{"listings":[{"id":"popular","name":"Popular","supportsPaging":false}]}"#,
+        r#"{"listings":[{"id":"popular","name":"热门","supportsPaging":false}]}"#.as_bytes(),
     )
 }
 fn run_get_image_request(req: &[u8]) -> u32 {

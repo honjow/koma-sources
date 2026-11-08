@@ -97,15 +97,18 @@ koma_source_sdk::koma_source_buffers! {
     payload: 1024 * 1024,
     http_out: 2 * 1024 * 1024,
     body: 2 * 1024 * 1024,
-    http_req: 1024,
+    http_req: 4096,
     scratch: 1024,
 }
 koma_source_sdk::koma_source_helpers!();
 
+// Decode the request query separately from the URL scratch buffer.
+static mut SEARCH_QUERY: [u8; 1024] = [0; 1024];
+
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "online.baozimh.koma",
     name: "包子漫畫 (Baozimh)",
-    version: "0.1.16",
+    version: "0.1.13",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -302,17 +305,18 @@ fn slug_from_comic_path(path: &[u8], out: &mut [u8]) -> Option<usize> {
     if len == 0 { None } else { Some(len) }
 }
 
-// Decode search terms separately from URL scratch and the bounded WASM stack.
-static mut SEARCH_QUERY: [u8; 1024] = [0; 1024];
 fn run_search(req: &[u8]) -> u32 {
-    let query = match extract_json_string(req, b"query") {
-        Some(q) => q,
+    let args = json_object_member(req, b"args").unwrap_or(req);
+    let raw = match json_object_member(args, b"query") {
         None => return write_error("search", "invalid_request", "missing query"),
+        Some(v) if v.len() >= 2 && v[0] == b'"' && v[v.len() - 1] == b'"' => &v[1..v.len() - 1],
+        Some(_) => return write_error("search", "invalid_request", "invalid query"),
     };
-    let decoded = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
-    let query = match koma_source_sdk::plain_text::decode_json_content(query, decoded) {
-        Ok(v) => v,
-        Err(_) => return write_error("search", "invalid_request", "invalid query"),
+    // JSON escape bytes are not part of the user's search term.
+    let output = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
+    let query = match koma_source_sdk::plain_text::decode_json_content(raw, output) {
+        Ok(v) if core::str::from_utf8(v).is_ok() => v,
+        _ => return write_error("search", "invalid_request", "invalid query"),
     };
     let url_buf = scratch_a();
     let mut url_cursor = 0usize;
@@ -597,7 +601,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
 // Older hosts must keep the original identity and never expose this option.
 fn chapter_identity_feature(req: &[u8]) -> bool {
     json_object_member(req, b"hostFeatures").map(|v| v.starts_with(b"[") && v.ends_with(b"]") &&
-        v[1..v.len()-1].split(|c| *c == b',').any(|x| x.trim_ascii() == br#""source_baozi_chapter_identity_v1""#)).unwrap_or(false)
+        v[1..v.len()-1].split(|c| *c == b',').any(|x| x.trim_ascii() == br#""source_baozi_chapter_identity_v1""# || x.trim_ascii() == br#""source_chapter_identity_v1""#)).unwrap_or(false)
 }
 
 // Kotlin Char.isDigit tests individual UTF-16 units, not supplementary code points.

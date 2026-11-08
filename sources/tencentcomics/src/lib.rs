@@ -14,7 +14,7 @@ const BASE: &[u8] = b"https://ac.qq.com";
 const MOBILE: &[u8] = b"https://m.ac.qq.com";
 const UA:&[u8]=b"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36";
 const MOBILE_UA:&[u8]=b"Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36";
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.tencentcomics.koma",name:"腾讯动漫",version:"0.1.3",api_version:"0.2",language:"zh",author:"Koma",description:"Tencent Comics public catalogues and free chapters; paid content and JavaScript execution are unsupported.",content_rating:"safe"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.tencentcomics.koma",name:"腾讯动漫",version:"0.1.4",api_version:"0.2",language:"zh",author:"Koma",description:"Tencent Comics public catalogues and free chapters; paid content and JavaScript execution are unsupported.",content_rating:"safe"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -528,8 +528,17 @@ fn has(d: HtmlDescriptor, s: &[u8]) -> bool {
         })
         .unwrap_or(false)
 }
-fn chapter_is_free(d: HtmlDescriptor) -> bool {
-    has(d, b".ui-icon-free") && !has(d, b".ui-icon-pay")
+enum ChapterAccess {
+    Free,
+    Paid,
+    Unknown,
+}
+fn chapter_access(d: HtmlDescriptor) -> ChapterAccess {
+    match (has(d, b".ui-icon-free"), has(d, b".ui-icon-pay")) {
+        (true, false) => ChapterAccess::Free,
+        (false, true) => ChapterAccess::Paid,
+        _ => ChapterAccess::Unknown,
+    }
 }
 // The official chapter directory uses both "1.title" and "259 title".
 // Require a delimiter; a title beginning with digits alone is not a contract.
@@ -574,7 +583,7 @@ fn run_get_chapters(r: &[u8]) -> u32 {
             _ => return source_error(op, "parse_error", "missing chapter title"),
         };
         let number = explicit_chapter_number(title);
-        let free = chapter_is_free(node);
+        let free = matches!(chapter_access(node), ChapterAccess::Free);
         if i > 0 && !write_bytes(out, &mut n, b",") {
             return source_error(op, "internal_error", "overflow");
         }
@@ -617,13 +626,10 @@ fn free_chapter(m: &[u8], c: &[u8]) -> Result<(), (&'static str, &'static str)> 
         let node = chapters.at(i);
         if let Some((a, b)) = child_attr(node, b"a", b"href", &mut h).and_then(chapter_path) {
             if a == m && b == c {
-                return if chapter_is_free(node) {
-                    Ok(())
-                } else {
-                    Err((
-                        "permission_denied",
-                        "paid or unmarked chapter is not supported",
-                    ))
+                return match chapter_access(node) {
+                    ChapterAccess::Free => Ok(()),
+                    ChapterAccess::Paid => Err(("paid_chapter", "provider marks this chapter as paid")),
+                    ChapterAccess::Unknown => Err(("permission_denied", "chapter access is unconfirmed")),
                 };
             }
         }

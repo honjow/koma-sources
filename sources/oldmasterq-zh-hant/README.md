@@ -1,10 +1,10 @@
-# 老夫子繁中・授權關聯站 0.1.0
+# 老夫子繁中・授權關聯站 0.1.2
 
 提供 Oldmasterq.com 网页当次实际最新25条独立漫画，每条一个作品、一个章节、一张完整原图。不利用TOTAL_STRIPS=2518/Random整数公式造全目录，不抓随机/旧档案、不裁六格为六页，不把漫画图打包分发。
 
 站点原About声明其为OMQ ZMedia批准、独立运营并拥有展示许可的关联站，由作者孙女Ginger Wong维护；古典条漫Alfonso Wong创作、少量新作Ronny Cuxun。源名称标获授权关联站，不冒充总部。逐条详情没有独立作者字段，authors/artists为空（未知），不把全部作品归Alfonso；status/contentRating/usage unknown。实现作者Koma与漫画作者分开。
 
-Source ID `com.oldmasterq.zh-hant.koma`，0.1.0/API0.2，最低App0.1.1。当前原25目录2518..2494。Work ID=`omq:zh-hant:strip:<真实ID>`；CID=`omqread:zh-hant:strip:<真实ID>`；PageID=`omqpage:zh-hant:strip:<真实ID>:0`。ID只从实际href取得，Chinese title只从title-ch取得，原DOM顺序保留。每chapterNumber/volumeNumber null、readingGroup本作品MID、continuationEligible=false、pageCount1。Strip编号不是章号，前后条回环2518→1不是同书自动章。仅当前最新25成员范围；未来条目离开这个目录时无法在本最小范围继续读取，不宣称全档案/历史持久可用。
+Source ID `com.oldmasterq.zh-hant.koma`，0.1.2/API0.2，最低App0.1.1。当前原25目录2518..2494。Work ID=`omq:zh-hant:strip:<真实ID>`；CID=`omqread:zh-hant:strip:<真实ID>`；PageID=`omqpage:zh-hant:strip:<真实ID>:0`。ID只从实际href取得，Chinese title只从title-ch取得，原DOM顺序保留。每chapterNumber/volumeNumber null、readingGroup本作品MID、continuationEligible=false、pageCount1。Strip编号不是章号，前后条回环2518→1不是同书自动章。仅当前最新25成员范围；未来条目离开这个目录时无法在本最小范围继续读取，不宣称全档案/历史持久可用。
 
 ## 实际HTML合同
 
@@ -15,6 +15,10 @@ Source ID `com.oldmasterq.zh-hant.koma`，0.1.0/API0.2，最低App0.1.1。当前
 get_manga/get_chapters/get_pages及正文计划：1次当前目录GET验证当前成员，再1次同ID详情GET核正文（31354+28138=59492B为当前2518保留metadata）。25封面计划仅1目录GET逐原URI/MID验证。请求有mangaUrl时严格等同这个work的原www详情完整URL；有mangaId时必须对应该work。封面可无pageId或正确MID，空串/错MID拒绝。正文必须正确独立PageID且ordinal0/URL等同当前详情原URI。同一条封面与正文原URI可能相同，本例正是相同；正确正文PageID仍合法，不伪造一个不存在的独立封面路径。未知/未在最新25中的ID、错CID/MID/ordinal、错误URL与结构均fail closed；未成功解析不从硬编码表回退。
 
 原PNG来自head明确apple-touch-icon https://pub-ea4ffe6130c34b07a02c682abfde808a.r2.dev/images/favicons/apple-touch-icon.png ，3677B/RGB180×180，SHA9ad0fe72aa164850572cbeece5093a9ef0849c575f8ab20192e863b13439c306。源icon.png与原bytes严格相同，实际validator通过；黑底/白色衣服角色形状为素材固有，不是我们加底。未裁/转码/缩放/重画/生成/遮罩/抠黑，不借其他品牌。Native可辨性未验。
+
+## HTTP 错误反馈（0.1.2）
+
+原目录或同作品详情返回 403 时，源向宿主报告 permission_denied。404、429 与 5xx 分别返回 not_found、rate_limited 和 server_error。目录、身份校验、正文地址与请求头保持原规则。失败时只结束当次调用，不额外请求、换站或猜测付费和登录要求。
 
 ## 运行证据与界限
 

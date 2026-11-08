@@ -35,11 +35,11 @@ static mut SELECT_BUFFER: [u8; 4096] = [0; 4096];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.webtoons.koma",
     name: "WEBTOON (English)",
-    version: "0.1.8",
+    version: "0.1.9",
     api_version: "0.2",
     language: "en",
     author: "Koma source contributors",
-    description: "Public English WEBTOON and CANVAS search and reader source.",
+    description: "Public English WEBTOON and CANVAS browsing, search and reader source.",
     content_rating: "unknown",
 };
 
@@ -48,10 +48,10 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     manga_detail: true,
     chapters: true,
     pages: true,
-    listings: false,
-    manga_list: false,
+    listings: true,
+    manga_list: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: true,
     credentials: false,
     image_request: true,
@@ -449,6 +449,27 @@ fn viewer_url(
     Some(c)
 }
 
+fn category_filters_supported(r: &[u8]) -> bool {
+    json_object_member(r,b"hostFeatures").map(|v| { let v=trim_ascii(v); if !v.starts_with(b"[") || !v.ends_with(b"]") { return false; } let mut scoped=false; let mut empty=false; for x in v[1..v.len()-1].split(|c|*c==b',') { let x=trim_ascii(x); scoped|=x==br#""source_filter_scope_header_v1""#;empty|=x==br#""source_filter_search_without_query_v1""#; } scoped && empty }).unwrap_or(false)
+}
+fn search_category(r: &[u8]) -> Result<&'static [u8], &'static str> {
+    if !category_filters_supported(r) { return Ok(b"all"); }
+    let f=json_object_member(r,b"args").and_then(|a|json_object_member(a,b"filters"));
+    let v=f.and_then(|f|json_object_member(f,b"searchType"));
+    match v { None|Some(b"null")|Some(br#""all""#)=>Ok(b"all"), Some(br#""originals""#)=>Ok(b"originals"), Some(br#""canvas""#)=>Ok(b"canvas"), _=>Err("invalid search type") }
+}
+fn category_url(query: &[u8], category: &[u8], page: usize, out: &mut [u8]) -> Option<usize> {
+    let mut c=0;append_slice(out,&mut c,BASE).then_some(())?;append_slice(out,&mut c,b"/en/search/").then_some(())?;append_slice(out,&mut c,category).then_some(())?;append_slice(out,&mut c,b"?keyword=").then_some(())?;write_url_encoded(out,&mut c,query).then_some(())?;if page>1 { append_slice(out,&mut c,b"&page=").then_some(())?;write_usize(out,&mut c,page).then_some(())?; } Some(c)
+}
+fn category_link_matches(href: &[u8], query: &[u8], category: &[u8], page: usize) -> bool {
+    let raw=href.strip_prefix(BASE).unwrap_or(href);
+    let Some(rest)=raw.strip_prefix(b"/en/search/").and_then(|v|v.strip_prefix(category)).and_then(|v|v.strip_prefix(b"?keyword=")) else {return false};
+    let end=rest.iter().position(|b|*b==b'&').unwrap_or(rest.len());let suffix=&rest[end..];
+    if page==1 {if !suffix.is_empty(){return false}} else if suffix.strip_prefix(b"&page=").and_then(strict_usize)!=Some(page){return false}
+    let mut decoded=[0u8;8192];let mut i=0;let mut n=0;
+    while i<end { let c=match rest[i] { b'+'=>{i+=1;b' '},b'%'=>{if i+2>=end{return false} let hex=|x:u8|->Option<u8>{match x{b'0'..=b'9'=>Some(x-b'0'),b'a'..=b'f'=>Some(x-b'a'+10),b'A'..=b'F'=>Some(x-b'A'+10),_=>None}};let Some(a)=hex(rest[i+1]) else{return false};let Some(b)=hex(rest[i+2]) else{return false};i+=3;a*16+b},x=>{i+=1;x}};if n>=decoded.len(){return false}decoded[n]=c;n+=1; }
+    &decoded[..n]==query
+}
 fn search_url(query: &[u8], page: usize, output: &mut [u8]) -> Option<usize> {
     let mut c = 0;
     append_slice(output, &mut c, BASE).then_some(())?;
@@ -533,8 +554,14 @@ fn run_search(req: &[u8]) -> u32 {
         Err(_) => return write_error("search", "invalid_request", "invalid query"),
     };
     let page = request_page_number(req);
+    let category=match search_category(req){Ok(v)=>v,Err(e)=>return write_error("search","invalid_request",e)};
+    if category!=b"all" {
+        let raw=json_object_member(req,b"args").and_then(|a|json_object_member(a,b"page")).and_then(|p|json_object_member(p,b"cursor"));
+        match raw { None|Some(b"null")=>(),Some(v) if v.len()>=2 && v[0]==b'"' && v[v.len()-1]==b'"' && strict_usize(&v[1..v.len()-1]).filter(|n|*n>0)==Some(page)=>(),_=>return write_error("search","invalid_cursor","invalid search cursor") }
+    }
     let mut url = [0u8; 8192];
-    let Some(url_len) = search_url(query, page, &mut url) else {
+    let url_len=if category==b"all" { search_url(query,page,&mut url) } else { category_url(query,category,page,&mut url) };
+    let Some(url_len) = url_len else {
         return write_error("search", "invalid_request", "search URL is too long");
     };
     let body_len = match request(&url[..url_len], SEARCH_REFERER) {
@@ -655,19 +682,31 @@ fn run_search(req: &[u8]) -> u32 {
             },
         );
     }
+    if category != b"all" {
+        let tab=match host::html_select(doc,b"a.snb_tab[aria-current=page]") { Ok(v)=>v,Err(_)=>{let _=host::html_close(doc);return write_error("search","parse_error","search category missing");} };
+        let mut h=[0u8;8192];let hn=attr(tab,b"href",&mut h);let _=host::html_close(tab);
+        if !hn.map_or(false,|n|category_link_matches(&h[..n],query,category,1)) { let _=host::html_close(doc);return write_error("search","parse_error","search category identity mismatch"); }
+        if count==0 {
+            match host::html_select(doc,b".no_data") { Ok(v)=>{let _=host::html_close(v);},Err(_)=>{let _=host::html_close(doc);return write_error("search","parse_error","search empty state missing");} }
+        }
+    }
     // The all-types search page has no pagination anchors; it provides a
     // section total and 12 visible cards while accepting `page=N` directly.
-    let total_items = element_text(doc, b".series_count .number", scratch_a())
-        .and_then(|n| strict_usize(&scratch_a()[..n]));
-    let total_items = match total_items {
-        Some(total) => total,
-        None if count == 0 => 0,
-        None => {
-            let _ = host::html_close(doc);
-            return write_error("search", "parse_error", "WEBTOON search total could not be read; refusing to claim a terminal page");
+    let total_items = if category==b"all" {
+        match element_text(doc,b".series_count .number",scratch_a()).and_then(|n|strict_usize(&scratch_a()[..n])) {
+            Some(total)=>total, None if count==0=>0,
+            None=>{ let _=host::html_close(doc);return write_error("search","parse_error","WEBTOON search total could not be read; refusing to claim a terminal page"); }
+        }
+    } else { 0 };
+    let has_next = if category==b"all" { count > 0 && total_items > page.saturating_mul(SEARCH_PAGE_SIZE) } else {
+        match host::html_select(doc,b".list_pagination a.pagination[aria-current=true] + a.pagination, .list_pagination button.next[data-url-to]") {
+            Ok(node)=>{
+                let mut h=[0u8;8192]; let hlen=attr(node,b"href",&mut h).or_else(||attr(node,b"data-url-to",&mut h)); let _=host::html_close(node);
+                if hlen.map_or(false,|n|category_link_matches(&h[..n],query,category,page.saturating_add(1))) { true } else { let _=host::html_close(doc);return write_error("search","parse_error","search next link mismatch"); }
+            },
+            Err(_)=>false,
         }
     };
-    let has_next = count > 0 && total_items > page.saturating_mul(SEARCH_PAGE_SIZE);
     let _ = host::html_close(doc);
     if !write_bytes(out, &mut c, br#"],"page":{"nextCursor":"#) {
         return write_error("search", "internal_error", "response buffer overflow");
@@ -1397,29 +1436,87 @@ fn run_get_image_request(req: &[u8]) -> u32 {
     write_success_payload("get_image_request", c)
 }
 
-fn run_get_listings(_req: &[u8]) -> u32 {
-    write_error(
-        "get_listings",
-        "not_implemented",
-        "browse listings are not supported",
-    )
+// The reference uses the device's local calendar day for the latest feed.
+// Clock RPC returns local gts; old hosts keep the existing popular-only list.
+fn clock_supported(r: &[u8]) -> bool {
+    json_object_member(r,b"hostFeatures").map(|v| { let v=trim_ascii(v); v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|c|*c==b',').any(|x|trim_ascii(x)==br#""source_private_session_v1""#) }).unwrap_or(false)
 }
-fn run_get_manga_list(_req: &[u8]) -> u32 {
-    write_error(
-        "get_manga_list",
-        "not_implemented",
-        "browse listings are not supported",
-    )
+fn local_weekday() -> Result<&'static [u8], &'static str> {
+    let request=br#"{"type":"private_session","version":1,"op":"clock"}"#;
+    let mut response=[0u8;1024];
+    let n=host::http_request(request,&mut response).map_err(|_|"local clock unavailable")?;
+    if n >= response.len() || json_object_member(&response[..n],b"ok") != Some(b"true".as_slice()) { return Err("local clock unavailable"); }
+    let g=extract_json_string(&response[..n],b"gts").ok_or("invalid local clock")?;
+    if g.len()!=19 || g[4]!=b'-' || g[7]!=b'-' || g[10]!=b'+' || g[13]!=b':' || g[16]!=b':' { return Err("invalid local clock"); }
+    let year=strict_usize(&g[..4]).ok_or("invalid local clock")?;
+    let month=strict_usize(&g[5..7]).ok_or("invalid local clock")?;
+    let day=strict_usize(&g[8..10]).ok_or("invalid local clock")?;
+    if year==0 || month==0 || month>12 { return Err("invalid local clock"); }
+    let leap=year%4==0 && (year%100!=0 || year%400==0);
+    let days=[31,if leap {29}else{28},31,30,31,30,31,31,30,31,30,31];
+    if day==0 || day>days[month-1] { return Err("invalid local clock"); }
+    let y=year-if month<3 {1}else{0};
+    let offset=[0,3,2,5,0,3,5,1,4,6,2,4];
+    let weekday=(y+y/4-y/100+y/400+offset[month-1]+day)%7;
+    Ok([b"sunday".as_slice(),b"monday",b"tuesday",b"wednesday",b"thursday",b"friday",b"saturday"][weekday])
+}
+fn run_get_listings(req: &[u8]) -> u32 {
+    let value = if clock_supported(req) {
+        br#"{"listings":[{"id":"popular","name":"Popular","supportsPaging":true},{"id":"latest","name":"Latest","supportsPaging":false}]}"#.as_slice()
+    } else { br#"{"listings":[{"id":"popular","name":"Popular","supportsPaging":true}]}"#.as_slice() };
+    payload_buf()[..value.len()].copy_from_slice(value);
+    write_success_payload("get_listings",value.len())
+}
+fn run_get_manga_list(req: &[u8]) -> u32 {
+    let raw_cursor=json_object_member(req,b"args").and_then(|a|json_object_member(a,b"page")).and_then(|p|json_object_member(p,b"cursor"));
+    let page=match raw_cursor {
+        None | Some(b"null") => 1,
+        Some(v) if v.len()>=2 && v[0]==b'"' && v[v.len()-1]==b'"' => match strict_usize(&v[1..v.len()-1]) { Some(n) if n>0=>n,_=>return write_error("get_manga_list","invalid_cursor","invalid listing cursor") },
+        _=>return write_error("get_manga_list","invalid_cursor","invalid listing cursor"),
+    };
+    let listing=extract_json_string(req,b"listingId").unwrap_or(b"");
+    let mut url=[0u8;2048];let mut u=0;
+    if !append_slice(&mut url,&mut u,BASE) { return write_error("get_manga_list","internal_error","URL overflow"); }
+    let next=match listing {
+        b"popular"=>{
+            let ranking=match page {1=>b"trending".as_slice(),2=>b"popular",3=>b"originals",4=>b"canvas",_=>return write_error("get_manga_list","invalid_cursor","invalid ranking page")};
+            if !append_slice(&mut url,&mut u,b"/en/ranking/") || !append_slice(&mut url,&mut u,ranking) { return write_error("get_manga_list","internal_error","URL overflow"); }
+            page<4
+        },
+        b"latest"=>{
+            if !clock_supported(req) || page!=1 { return write_error("get_manga_list","invalid_cursor","invalid latest page"); }
+            let day=match local_weekday(){Ok(v)=>v,Err(e)=>return write_error("get_manga_list","source_error",e)};
+            if !append_slice(&mut url,&mut u,b"/en/originals/") || !append_slice(&mut url,&mut u,day) || !append_slice(&mut url,&mut u,b"?sortOrder=UPDATE") { return write_error("get_manga_list","internal_error","URL overflow"); }
+            false
+        },
+        _=>return write_error("get_manga_list","invalid_request","unknown listing"),
+    };
+    let len=match request(&url[..u],SEARCH_REFERER) { Ok(v)=>v,Err(e)=>return write_error("get_manga_list",koma_source_sdk::fetch_error_code(e).0,"unable to fetch WEBTOON listing") };
+    let doc=match host::html_parse(&body_buf()[..len]) { Ok(v)=>v,Err(_)=>return write_error("get_manga_list","parse_error","invalid listing HTML") };
+    let selected=html_select_all(doc.raw(),b".webtoon_list li a",unsafe{&mut *core::ptr::addr_of_mut!(SELECT_BUFFER)});
+    if selected <= 0 || selected as usize > 1024 { let _=host::html_close(doc);return write_error("get_manga_list","parse_error","invalid listing cards"); }
+    let descriptors=unsafe{&*core::ptr::addr_of!(SELECT_BUFFER)};let out=payload_buf();let mut c=0;
+    if !write_bytes(out,&mut c,br#"{"items":["#) { close_html_descriptors(descriptors,0,selected as usize);let _=host::html_close(doc);return write_error("get_manga_list","internal_error","output overflow"); }
+    for i in 0..selected as usize {
+        let x=i*4;let raw=i32::from_le_bytes([descriptors[x],descriptors[x+1],descriptors[x+2],descriptors[x+3]]);
+        let ok=raw>0 && (i==0 || write_bytes(out,&mut c,b",")) && write_search_item(out,&mut c,host::HtmlDescriptor::from_raw(raw));
+        if raw>0 { let _=host::html_close(host::HtmlDescriptor::from_raw(raw)); }
+        if !ok { close_html_descriptors(descriptors,i+1,selected as usize);let _=host::html_close(doc);return write_error("get_manga_list","parse_error","invalid listing card"); }
+    }
+    let _=host::html_close(doc);
+    if !write_bytes(out,&mut c,br#"],"page":{"hasMore":"#) || !write_bytes(out,&mut c,if next {b"true"} else {b"false"}) || !write_bytes(out,&mut c,br#", "nextCursor":"#) { return write_error("get_manga_list","internal_error","output overflow"); }
+    if next {
+        if !write_bytes(out,&mut c,b"\"") || !write_usize(out,&mut c,page+1) || !write_bytes(out,&mut c,b"\"") { return write_error("get_manga_list","internal_error","output overflow"); }
+    } else if !write_bytes(out,&mut c,b"null") { return write_error("get_manga_list","internal_error","output overflow"); }
+    if !write_bytes(out,&mut c,b"}}") { return write_error("get_manga_list","internal_error","output overflow"); }
+    write_success_payload("get_manga_list",c)
 }
 fn run_get_home(_req: &[u8]) -> u32 {
     write_error("get_home", "not_implemented", "home feed is not supported")
 }
-fn run_get_filters(_req: &[u8]) -> u32 {
-    write_error(
-        "get_filters",
-        "not_implemented",
-        "search filters are not supported",
-    )
+fn run_get_filters(req: &[u8]) -> u32 {
+    let data=if category_filters_supported(req) { br#"{"useSearchForFilters":true,"filters":[{"id":"searchType","name":"Search Type","type":"select","scope":"search","default":"all","options":[{"value":"all","label":"ALL"},{"value":"originals","label":"Originals"},{"value":"canvas","label":"Canvas"}]}]}"#.as_slice() } else { br#"{"filters":[]}"#.as_slice() };
+    payload_buf()[..data.len()].copy_from_slice(data);write_success_payload("get_filters",data.len())
 }
 fn run_get_settings(req: &[u8]) -> u32 {
     let out=payload_buf();let mut n=0;

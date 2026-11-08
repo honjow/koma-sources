@@ -13,7 +13,7 @@ const WEB: &[u8] = b"https://hentaifox.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hentaifox.zh.koma",
     name: "HentaiFox",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -467,9 +467,18 @@ fn fetch(url: &[u8]) -> R<Owned> {
     };
     let e = &http_out()[..z];
     valid_json(e)?;
-    let st = num(member(e, b"status")?
-        .or(member(e, b"statusCode")?)
-        .ok_or("HTTP status missing")?)?;
+    let status = member(e, b"status")?.or(member(e, b"statusCode")?);
+    // A failed transport has no HTTP status. Keep the provider's actual
+    // HTTP and parser errors separate from the host's transport outcome.
+    if status.is_none() && member(e, b"ok")? == Some(b"false") {
+        let code = member(e, b"error")?.and_then(|error| text(error, b"code").ok());
+        match code {
+            Some(b"network_error") => return Err("network_error"),
+            Some(b"timeout") => return Err("timeout"),
+            _ => {}
+        }
+    }
+    let st = num(status.ok_or("HTTP status missing")?)?;
     if !(200..300).contains(&st) {
         return Err("HTTP status error");
     };
@@ -1128,6 +1137,8 @@ fn image_request(r: &[u8]) -> R<usize> {
 fn execute(op: &str, r: R<usize>) -> u32 {
     match r {
         Ok(n) => write_success_payload(op, n),
+        Err("network_error") => write_error(op, "network_error", "Network request failed"),
+        Err("timeout") => write_error(op, "timeout", "Network request timed out"),
         Err(e) => write_error(op, "source_contract_error", e),
     }
 }

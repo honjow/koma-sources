@@ -13,6 +13,7 @@ use koma_source_sdk::{FetchError, build_get_request, fetch_error_code, parse_sta
 const BASE_URL: &[u8] = b"https://comic.hypergryph.com";
 const TOPIC_TERRA: &[u8] = b"terra-historicus";
 const TOPIC_TALOS: &[u8] = b"talos-ii-historicus";
+const IMAGE_HEADERS: &[u8] = br#"{"Referer":"https://comic.hypergryph.com/","User-Agent":"Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36"}"#;
 koma_source_sdk::koma_source_buffers! {
     payload: 512 * 1024,
     http_out: 1024 * 1024,
@@ -25,7 +26,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.terrahistoricus.koma",
     name: "TerraHistoricus",
-    version: "0.1.7",
+    version: "0.1.8",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -402,7 +403,22 @@ fn item_matches_query(obj: &[u8], query: &[u8]) -> bool {
             .unwrap_or(false)
 }
 
-fn write_manga_item(payload: &mut [u8], c: &mut usize, obj: &[u8], tag: &[u8]) -> bool {
+fn public_cover_headers_supported(req: &[u8]) -> bool {
+    koma_source_sdk::source_protocol::feature(req, b"source_public_cover_user_agent_v1")
+}
+
+fn write_cover(payload: &mut [u8], c: &mut usize, url: &[u8], public_cover: bool) -> bool {
+    // The official cover CDN supplies direct public images. Reader API URLs still need resolution.
+    write_bytes(payload, c, br#"{"kind":"url","url":""#)
+        && append_json_escaped(payload, c, url)
+        && write_bytes(payload, c, b"\"")
+        && (!public_cover || !url.starts_with(b"https://web.hycdn.cn/comic/pic/")
+            || (write_bytes(payload, c, br#", "headers":"#)
+                && write_bytes(payload, c, IMAGE_HEADERS)))
+        && write_bytes(payload, c, b"}")
+}
+
+fn write_manga_item(payload: &mut [u8], c: &mut usize, obj: &[u8], tag: &[u8], public_cover: bool) -> bool {
     let cid = match extract_json_string(obj, b"cid") {
         Some(v) => v,
         None => return false,
@@ -414,9 +430,9 @@ fn write_manga_item(payload: &mut [u8], c: &mut usize, obj: &[u8], tag: &[u8]) -
         && append_json_escaped(payload, c, cid)
         && write_bytes(payload, c, br#"","title":""#)
         && append_json_escaped(payload, c, title)
-        && write_bytes(payload, c, br#"","cover":{"kind":"url","url":""#)
-        && append_json_escaped(payload, c, cover)
-        && write_bytes(payload, c, br#""},"authors":["#)
+        && write_bytes(payload, c, br#"","cover":"#)
+        && write_cover(payload, c, cover, public_cover)
+        && write_bytes(payload, c, br#", "authors":["#)
         && if author.is_empty() {
             true
         } else {
@@ -434,7 +450,7 @@ fn write_manga_item(payload: &mut [u8], c: &mut usize, obj: &[u8], tag: &[u8]) -
         && write_bytes(payload, c, br#""]}"#)
 }
 
-fn write_recent_item(payload: &mut [u8], c: &mut usize, obj: &[u8], tag: &[u8]) -> bool {
+fn write_recent_item(payload: &mut [u8], c: &mut usize, obj: &[u8], tag: &[u8], public_cover: bool) -> bool {
     let cid = match extract_json_string(obj, b"comicCid") {
         Some(v) => v,
         None => return false,
@@ -445,12 +461,12 @@ fn write_recent_item(payload: &mut [u8], c: &mut usize, obj: &[u8], tag: &[u8]) 
         && append_json_escaped(payload, c, cid)
         && write_bytes(payload, c, br#"","title":""#)
         && append_json_escaped(payload, c, title)
-        && write_bytes(payload, c, br#"","cover":{"kind":"url","url":""#)
-        && append_json_escaped(payload, c, cover)
+        && write_bytes(payload, c, br#"","cover":"#)
+        && write_cover(payload, c, cover, public_cover)
         && write_bytes(
             payload,
             c,
-            br#""},"authors":[],"status":"unknown","contentRating":"safe","sourceTags":["#,
+            br#", "authors":[],"status":"unknown","contentRating":"safe","sourceTags":["#,
         )
         && write_bytes(payload, c, b"\"")
         && append_json_escaped(payload, c, tag)
@@ -464,6 +480,7 @@ fn append_topic_items(
     payload: &mut [u8],
     c: &mut usize,
     written: &mut usize,
+    public_cover: bool,
 ) -> Result<(), u32> {
     let url_len = build_topic_url(topic)
         .ok_or_else(|| write_error(operation, "internal_error", "url overflow"))?;
@@ -495,7 +512,7 @@ fn append_topic_items(
         if *written > 0 && !write_bytes(payload, c, b",") {
             return Err(write_error(operation, "internal_error", "payload overflow"));
         }
-        if !write_manga_item(payload, c, obj, topic) {
+        if !write_manga_item(payload, c, obj, topic, public_cover) {
             return Err(write_error(operation, "internal_error", "payload overflow"));
         }
         *written += 1;
@@ -509,6 +526,7 @@ fn append_recent_items(
     payload: &mut [u8],
     c: &mut usize,
     written: &mut usize,
+    public_cover: bool,
 ) -> Result<(), u32> {
     let url_len = build_recent_url(topic)
         .ok_or_else(|| write_error(operation, "internal_error", "url overflow"))?;
@@ -534,7 +552,7 @@ fn append_recent_items(
         if *written > 0 && !write_bytes(payload, c, b",") {
             return Err(write_error(operation, "internal_error", "payload overflow"));
         }
-        if !write_recent_item(payload, c, obj, topic) {
+        if !write_recent_item(payload, c, obj, topic, public_cover) {
             return Err(write_error(operation, "internal_error", "payload overflow"));
         }
         *written += 1;
@@ -544,17 +562,18 @@ fn append_recent_items(
 
 fn run_search(req: &[u8]) -> u32 {
     let query = request_string(req, b"query").unwrap_or(b"");
+    let public_cover = public_cover_headers_supported(req);
     let payload = payload_buf();
     let mut c = 0usize;
     if !write_bytes(payload, &mut c, br#"{"items":["#) {
         return write_error("search", "internal_error", "payload overflow");
     }
     let mut written = 0usize;
-    if let Err(e) = append_topic_items("search", TOPIC_TERRA, query, payload, &mut c, &mut written)
+    if let Err(e) = append_topic_items("search", TOPIC_TERRA, query, payload, &mut c, &mut written, public_cover)
     {
         return e;
     }
-    if let Err(e) = append_topic_items("search", TOPIC_TALOS, query, payload, &mut c, &mut written)
+    if let Err(e) = append_topic_items("search", TOPIC_TALOS, query, payload, &mut c, &mut written, public_cover)
     {
         return e;
     }
@@ -605,9 +624,9 @@ fn run_get_manga(req: &[u8]) -> u32 {
             br#"","alternateTitles":[],"description":""#,
         )
         && append_json_escaped(payload, &mut c, desc)
-        && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":""#)
-        && append_json_escaped(payload, &mut c, cover)
-        && write_bytes(payload, &mut c, br#""},"authors":["#)
+        && write_bytes(payload, &mut c, br#"","cover":"#)
+        && write_cover(payload, &mut c, cover, public_cover_headers_supported(req))
+        && write_bytes(payload, &mut c, br#", "authors":["#)
         && if author.is_empty() {
             true
         } else {
@@ -874,7 +893,9 @@ fn run_get_image_request(req: &[u8]) -> u32 {
     let mut c = 0usize;
     let ok = write_bytes(payload, &mut c, br#"{"url":""#)
         && append_json_escaped(payload,&mut c,resolved)
-        && write_bytes(payload, &mut c, br#"","headers":{"Referer":"https://comic.hypergryph.com/","User-Agent":"Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36"}}"#);
+        && write_bytes(payload, &mut c, br#"","headers":"#)
+        && write_bytes(payload, &mut c, IMAGE_HEADERS)
+        && write_bytes(payload, &mut c, b"}");
     if !ok {
         return write_error("get_image_request", "internal_error", "payload overflow");
     }
@@ -914,10 +935,11 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
         return write_error("get_manga_list", "internal_error", "payload overflow");
     }
     let mut written = 0usize;
+    let public_cover = public_cover_headers_supported(req);
     let result = if latest {
-        append_recent_items("get_manga_list", topic, payload, &mut c, &mut written)
+        append_recent_items("get_manga_list", topic, payload, &mut c, &mut written, public_cover)
     } else {
-        append_topic_items("get_manga_list", topic, b"", payload, &mut c, &mut written)
+        append_topic_items("get_manga_list", topic, b"", payload, &mut c, &mut written, public_cover)
     };
     if let Err(e) = result {
         return e;

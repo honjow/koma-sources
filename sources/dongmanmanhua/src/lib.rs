@@ -10,7 +10,7 @@ const BASE: &[u8] = b"https://www.dongmanmanhua.cn";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "cn.dongmanmanhua.koma",
     name: "咚漫 (DongmanManhua)",
-    version: "0.1.5",
+    version: "0.1.6",
     api_version: "0.2",
     language: "zh-Hans",
     author: "Koma",
@@ -662,11 +662,79 @@ fn next(root: &Node, out: &mut [u8]) -> Result<Option<usize>, &'static str> {
     out[..p.len()].copy_from_slice(p);
     Ok(Some(p.len()))
 }
+fn clock_supported(r: &[u8]) -> bool {
+    json_object_member(r, b"hostFeatures")
+        .map(|v| {
+            let v = trim_ascii(v);
+            v.starts_with(b"[")
+                && v.ends_with(b"]")
+                && v[1..v.len() - 1]
+                    .split(|c| *c == b',')
+                    .any(|x| trim_ascii(x) == br#""source_private_session_v1""#)
+        })
+        .unwrap_or(false)
+}
+fn local_weekday() -> Result<&'static [u8], &'static str> {
+    let request = br#"{"type":"private_session","version":1,"op":"clock"}"#;
+    let mut response = [0u8; 1024];
+    let n = host::http_request(request, &mut response).map_err(|_| "local clock unavailable")?;
+    if n >= response.len() || json_object_member(&response[..n], b"ok") != Some(b"true".as_slice())
+    {
+        return Err("local clock unavailable");
+    }
+    let g = string(&response[..n], b"gts").ok_or("invalid local clock")?;
+    if g.len() != 19
+        || g[4] != b'-'
+        || g[7] != b'-'
+        || g[10] != b'+'
+        || g[13] != b':'
+        || g[16] != b':'
+    {
+        return Err("invalid local clock");
+    }
+    let year = number(&g[..4]).ok_or("invalid local clock")?;
+    let month = number(&g[5..7]).ok_or("invalid local clock")?;
+    let day = number(&g[8..10]).ok_or("invalid local clock")?;
+    if year == 0 || month == 0 || month > 12 {
+        return Err("invalid local clock");
+    }
+    let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let days = [
+        31,
+        if leap { 29 } else { 28 },
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
+    ];
+    if day == 0 || day > days[month - 1] {
+        return Err("invalid local clock");
+    }
+    let y = year - if month < 3 { 1 } else { 0 };
+    let offset = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4];
+    let weekday = (y + y / 4 - y / 100 + y / 400 + offset[month - 1] + day) % 7;
+    Ok([
+        b"sunday".as_slice(),
+        b"monday",
+        b"tuesday",
+        b"wednesday",
+        b"thursday",
+        b"friday",
+        b"saturday",
+    ][weekday])
+}
 fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
     validate(r)?;
     let pg = page(r)?;
     let mut uri = [0; 8192];
     let mut un = 0;
+    let latest = !search && string(args(r), b"listingId") == Some(b"latest".as_slice());
     if search {
         let query = string(args(r), b"query").ok_or("missing query")?;
         let mut qb = [0; 2048];
@@ -685,22 +753,47 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
         }
     } else {
         let id = string(args(r), b"listingId").unwrap_or(b"dailySchedule");
-        if id != b"dailySchedule" {
+        if id != b"dailySchedule" && !(id == b"latest" && clock_supported(r)) {
             return Err("unknown listing");
         }
         if pg != 1 {
             return Err("invalid page cursor");
         }
-        bytes(&mut uri, &mut un, b"/dailySchedule")?;
+        bytes(
+            &mut uri,
+            &mut un,
+            if latest {
+                b"/dailySchedule?sortOrder=UPDATE&webtoonCompleteType=ONGOING"
+            } else {
+                b"/dailySchedule"
+            },
+        )?;
     }
     let root = fetch(&uri[..un])?;
     if search {
         root.select(b"#content > div.card_wrap.search")?;
+    } else if latest {
+        root.select(b"div#dailyList")?;
+    }
+    let mut selector = [0u8; 128];
+    let mut selector_len = 0;
+    if latest {
+        bytes(
+            &mut selector,
+            &mut selector_len,
+            b"div#dailyList > div._list_",
+        )?;
+        for &c in local_weekday()? {
+            bytes(&mut selector, &mut selector_len, &[c.to_ascii_uppercase()])?;
+        }
+        bytes(&mut selector, &mut selector_len, b" li > a")?;
     }
     let nodes = Nodes::get(
         &root,
         if search {
             b"#content > div.card_wrap.search ul:not(#filterLayer) li a"
+        } else if latest {
+            &selector[..selector_len]
         } else {
             b"div#dailyList .daily_section li a, div.daily_lst.comp li a"
         },
@@ -708,11 +801,40 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
     let o = payload_buf();
     let mut n = 0;
     bytes(o, &mut n, b"{\"items\":[")?;
+    // Upstream uses distinctBy(url) for both schedule listings. Retain exact
+    // paths for equality by re-reading a node on a hash collision.
+    let mut seen_hashes = [0u64; 2048];
+    let mut seen_indices = [0usize; 2048];
+    let mut seen_count = 0;
+    let mut emitted = 0;
     for i in 0..nodes.n {
         let a = selected(&nodes, i);
         let mut hp = [0; 4096];
         let p = a.attr(b"href", &mut hp)?;
         let p = canonical_path(p)?;
+        if !search {
+            let mut hash = 14695981039346656037u64;
+            for &byte in p {
+                hash = (hash ^ u64::from(byte)).wrapping_mul(1099511628211);
+            }
+            let mut duplicate = false;
+            for j in 0..seen_count {
+                if seen_hashes[j] == hash {
+                    let previous = selected(&nodes, seen_indices[j]);
+                    let mut previous_href = [0; 4096];
+                    if canonical_path(previous.attr(b"href", &mut previous_href)?)? == p {
+                        duplicate = true;
+                        break;
+                    }
+                }
+            }
+            if duplicate {
+                continue;
+            }
+            seen_hashes[seen_count] = hash;
+            seen_indices[seen_count] = i;
+            seen_count += 1;
+        }
         let mut tb = [0; 1024];
         let t = a.select(b"p.subj")?;
         let title = t.text(&mut tb)?;
@@ -725,9 +847,10 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
         if !valid_image(image) {
             return Err("invalid image URL");
         }
-        if i > 0 {
+        if emitted > 0 {
             bytes(o, &mut n, b",")?
         }
+        emitted += 1;
         bytes(o, &mut n, b"{\"id\":")?;
         let mut id = [0; 4096];
         let mut k = 0;
@@ -1037,8 +1160,8 @@ fn run_get_pages(r: &[u8]) -> u32 {
 fn run_get_image_request(r: &[u8]) -> u32 {
     execute("get_image_request", image_request(r))
 }
-fn run_get_listings(_: &[u8]) -> u32 {
-    let p = r#"{"listings":[{"id":"dailySchedule","name":"每日连载"}]}"#.as_bytes();
+fn run_get_listings(r: &[u8]) -> u32 {
+    let p = if clock_supported(r) { r#"{"listings":[{"id":"dailySchedule","name":"每日连载"},{"id":"latest","name":"最近更新","supportsPaging":false}]}"# } else { r#"{"listings":[{"id":"dailySchedule","name":"每日连载"}]}"# }.as_bytes();
     payload_buf()[..p.len()].copy_from_slice(p);
     execute("get_listings", Ok(p.len()))
 }

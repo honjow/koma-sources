@@ -1,8 +1,15 @@
 #![no_std]
 
+extern crate alloc;
 extern crate koma_source_sdk;
+
+#[global_allocator]
+static ALLOCATOR: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
 #[path = "../strict_json.rs"]
 mod strict_json;
+mod browse;
+mod recommendations;
+mod session;
 
 use koma_source_sdk::host::{http_request, log_info};
 use koma_source_sdk::json_utils::{
@@ -37,13 +44,13 @@ const PAGE_SIZE: usize = 30;
 
 static mut JSON_BUF: [u8; JSON_BUF_CAP] = [0; JSON_BUF_CAP];
 static mut GQL_BODY_BUF: [u8; GQL_BODY_CAP] = [0; GQL_BODY_CAP];
-// Decode request JSON before GraphQL encoding without aliasing the outgoing body.
+// Kept separately from the outgoing GraphQL body; do not consume WAMR stack.
 static mut SEARCH_QUERY: [u8; GQL_BODY_CAP] = [0; GQL_BODY_CAP];
 
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.komiic.koma",
     name: "Komiic",
-    version: "0.1.12",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -59,15 +66,15 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     listings: true,
     manga_list: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: true,
     image_request: true,
-    credentials: false,
+    credentials: true,
 };
 
 const QUERY_POPULAR: &[u8] = b"query hotComics($pagination: Pagination!) { comics: hotComics(pagination: $pagination) { id title description status imageUrl authors { id name } categories { id name } } }";
 const QUERY_SEARCH: &[u8] = b"query searchComicQuery($keyword: String!, $pagination: Pagination!) { comics: searchComics(keyword: $keyword, pagination: $pagination) { id title description status imageUrl authors { id name } categories { id name } } }";
-const QUERY_DETAIL: &[u8] = b"query chapterByComicId($comicId: ID!) { comicById(comicId: $comicId) { id title description status imageUrl authors { id name } categories { id name } } chaptersByComicId(comicId: $comicId) { id serial type size dateCreated } }";
+const QUERY_DETAIL: &[u8] = b"query chapterByComicId($comicId: ID!) { comicById(comicId: $comicId) { id title description status imageUrl authors { id name } categories { id name } warnings } chaptersByComicId(comicId: $comicId) { id serial type size dateCreated } }";
 const QUERY_IMAGE_TICKET: &[u8] = b"query getImageTicket($kid: String!) { getImageTicket(kid: $kid) { url ticket kid } }";
 const QUERY_PAGES: &[u8] = b"query imagesByChapterId($chapterId: ID!) { imagesByChapterId(chapterId: $chapterId) { kid } }";
 
@@ -82,25 +89,6 @@ fn json_buf() -> &'static mut [u8] {
 
 fn gql_body_buf() -> &'static mut [u8] {
     unsafe { &mut *core::ptr::addr_of_mut!(GQL_BODY_BUF) }
-}
-
-fn parse_usize(bytes: &[u8]) -> usize {
-    let mut n = 0usize;
-    let mut i = 0usize;
-    while i < bytes.len() {
-        let b = bytes[i];
-        if b < b'0' || b > b'9' {
-            break;
-        }
-        n = n.saturating_mul(10).saturating_add((b - b'0') as usize);
-        i += 1;
-    }
-    n
-}
-
-fn request_page(req: &[u8]) -> usize {
-    let n = extract_json_number(req, b"page").map(parse_usize).unwrap_or(1);
-    if n == 0 { 1 } else { n }
 }
 
 fn strip_prefix<'a>(value: &'a [u8], prefix: &[u8]) -> Option<&'a [u8]> {
@@ -157,9 +145,13 @@ enum FetchError {
     Network,
     NotFound,
     RateLimit,
+    ImageQuotaExhausted,
     ClientError,
     ServerError,
     Graphql,
+    AuthRequired,
+    StaleSession,
+    Cancelled,
 }
 
 fn fetch_error_code(e: FetchError) -> (&'static str, &'static str) {
@@ -167,13 +159,29 @@ fn fetch_error_code(e: FetchError) -> (&'static str, &'static str) {
         FetchError::Network => ("network_error", "connection or timeout failure"),
         FetchError::NotFound => ("not_found", "resource not found"),
         FetchError::RateLimit => ("rate_limited", "rate limited by server"),
+        FetchError::ImageQuotaExhausted => ("image_quota_exhausted", "daily image quota exhausted"),
         FetchError::ClientError => ("client_error", "client error (4xx)"),
         FetchError::ServerError => ("server_error", "server error (5xx)"),
         FetchError::Graphql => ("graphql_error", "graphql error response"),
+        FetchError::AuthRequired => ("auth_required", "Komiic account session unavailable"),
+        FetchError::StaleSession => ("network_error", "account session changed"),
+        FetchError::Cancelled => ("cancelled", "source request cancelled"),
     }
 }
 
+fn image_quota_error(error: &serde_json::Value) -> bool {
+    error["path"][0].as_str() == Some("getImageTicket")
+        && error["extensions"]["code"].as_str() == Some("QUOTA_EXCEEDED")
+}
+
 fn post_graphql(req: &[u8], body: &[u8]) -> Result<&'static [u8], FetchError> {
+    post_graphql_with_session(req, body, false)
+}
+
+fn post_graphql_with_session(req: &[u8], body: &[u8], image_ticket: bool) -> Result<&'static [u8], FetchError> {
+    if let Some(result) = session::graphql(req, body, image_ticket) {
+        return result;
+    }
     let mut api_url = [0u8; 64];
     let mut n = 0;
     if !write_bytes(&mut api_url, &mut n, selected_base(req)) || !write_bytes(&mut api_url, &mut n, b"/api/query") { return Err(FetchError::Network); }
@@ -220,6 +228,15 @@ fn post_graphql(req: &[u8], body: &[u8]) -> Result<&'static [u8], FetchError> {
 
     let len = decode_body_text(resp).ok_or(FetchError::Network)?;
     let body = json_slice(len);
+    if image_ticket {
+        if let Some(errors) = json_object_member(body, b"errors") {
+            if let Ok(items) = serde_json::from_slice::<alloc::vec::Vec<serde_json::Value>>(errors) {
+                if items.iter().any(image_quota_error) {
+                    return Err(FetchError::ImageQuotaExhausted);
+                }
+            }
+        }
+    }
     if contains_bytes(body, br#""errors":["#) || contains_bytes(body, br#""errors":[{"#) {
         return Err(FetchError::Graphql);
     }
@@ -237,20 +254,6 @@ fn build_search_body(query: &[u8], page: usize) -> Option<usize> {
     write_usize(dst, &mut c, page.saturating_sub(1).saturating_mul(20)).then_some(())?;
     // Request one extra result so a full final page does not advertise more.
     write_bytes(dst, &mut c, br#","limit":21,"orderBy":"MONTH_VIEWS","asc":false}}}"#).then_some(())?;
-    Some(c)
-}
-
-fn build_popular_body(page: usize) -> Option<usize> {
-    let offset = page.saturating_sub(1).saturating_mul(PAGE_SIZE);
-    let dst = gql_body_buf();
-    let mut c = 0usize;
-    write_bytes(dst, &mut c, br#"{"query":""#).then_some(())?;
-    append_json_escaped(dst, &mut c, QUERY_POPULAR).then_some(())?;
-    write_bytes(dst, &mut c, br#"","variables":{"pagination":{"offset":"#).then_some(())?;
-    write_usize(dst, &mut c, offset).then_some(())?;
-    write_bytes(dst, &mut c, br#","orderBy":"MONTH_VIEWS","status":"","asc":false,"limit":"#).then_some(())?;
-    write_usize(dst, &mut c, PAGE_SIZE).then_some(())?;
-    write_bytes(dst, &mut c, br#","sexyLevel":null},"categoryId":[]}}"#).then_some(())?;
     Some(c)
 }
 
@@ -350,22 +353,98 @@ fn write_names_from_array(payload: &mut [u8], c: &mut usize, obj: &[u8], key: &[
     true
 }
 
-fn write_manga_card(payload: &mut [u8], c: &mut usize, obj: &[u8]) -> bool {
-    let id = match extract_json_string(obj, b"id") {
+// Only the provider's observed public cover shape can skip the ticket resolver.
+// Unknown URLs, image-ticket endpoints and malformed identities keep the old path.
+const PUBLIC_COVER_BASE: &[u8] = b"https://public.komiic.com/";
+const MIRROR_PUBLIC_COVER_BASE: &[u8] = b"https://public.komiic.cc/";
+const PUBLIC_COVER_PATHS: [&[u8]; 2] =
+    [b"https://public.komiic.com/comics/", b"https://public.komiic.cc/comics/"];
+fn public_cover(url: &[u8]) -> bool {
+    let Some(rest) = PUBLIC_COVER_PATHS.iter().find_map(|prefix| url.strip_prefix(*prefix)) else { return false };
+    let Some(split) = rest.iter().position(|b| *b == b'/') else { return false };
+    let (owner, tail) = rest.split_at(split);
+    owner.len() == 32 && owner.iter().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(b))
+        && matches!(tail, b"/cover.jpg" | b"/cover.webp")
+}
+// Both API origins keep returning public.komiic.com cover URLs. The .cc mirror
+// serves the same paths on its own host, so direct connections must not leak
+// public covers back to the .com origin.
+fn append_cover(payload: &mut [u8], c: &mut usize, cover: &[u8], is_mirror: bool) -> bool {
+    if is_mirror {
+        if let Some(rest) = cover.strip_prefix(PUBLIC_COVER_BASE) {
+            return write_bytes(payload, c, MIRROR_PUBLIC_COVER_BASE) &&
+                append_json_unescaped_then_escaped(payload, c, rest);
+        }
+    }
+    append_json_unescaped_then_escaped(payload, c, cover)
+}
+fn valid_warning_array(obj: &[u8]) -> bool {
+    let Some(raw)=json_object_member(obj,b"warnings") else {return false};
+    if !strict_json::valid(raw) || raw.first()!=Some(&b'[') || raw.last()!=Some(&b']') {return false}
+    let mut i=1usize;
+    while i+1<raw.len() {
+        while i+1<raw.len() && raw[i].is_ascii_whitespace() {i+=1}
+        if raw[i]==b']' {break}
+        if raw[i]!=b'"' {return false}
+        i+=1;
+        while i<raw.len() && raw[i]!=b'"' {if raw[i]==b'\\' {i+=1}i+=1}
+        if i>=raw.len() {return false}i+=1;
+        while i+1<raw.len() && raw[i].is_ascii_whitespace() {i+=1}
+        if raw[i]==b',' {i+=1} else if raw[i]!=b']' {return false}
+    }
+    true
+}
+// Reference metadata presents provider categories followed by its warning
+// strings. A missing or malformed requested warnings array is not an empty one.
+fn write_detail_tags(payload: &mut [u8], c: &mut usize, obj: &[u8]) -> bool {
+    let begin = *c;
+    if !write_names_from_array(payload, c, obj, b"categories") { return false; }
+    let Some(raw) = json_object_member(obj, b"warnings") else { return false };
+    if !strict_json::valid(raw) || raw.first()!=Some(&b'[') || raw.last()!=Some(&b']') { return false; }
+    let mut i=1usize;
+    while i+1<raw.len() {
+        while i+1<raw.len() && raw[i].is_ascii_whitespace() {i+=1}
+        if raw[i]==b']' {break}
+        if raw[i]!=b'"' {return false}
+        i+=1; let start=i;
+        while i<raw.len() && raw[i]!=b'"' {
+            if raw[i]==b'\\' {i+=1}
+            i+=1;
+        }
+        if i>=raw.len() {return false}
+        let value=&raw[start..i];
+        if *c>begin && !write_bytes(payload,c,b",") {return false}
+        if !(write_bytes(payload,c,b"\"") && append_json_unescaped_then_escaped(payload,c,value) && write_bytes(payload,c,b"\"")) {return false}
+        i+=1;while i+1<raw.len() && raw[i].is_ascii_whitespace(){i+=1}
+        if raw[i]==b',' {i+=1} else if raw[i]!=b']' {return false}
+    }
+    true
+}
+fn write_manga_card(payload: &mut [u8], c: &mut usize, obj: &[u8], req: &[u8]) -> bool {
+    // GraphQL fields can be reordered (including AI metadata serialization).
+    // A nested authors[].id must never become the work ID.
+    let id = match koma_source_sdk::source_protocol::raw_string(obj, b"id").ok().flatten() {
         Some(v) => v,
         None => return true,
     };
     let title = extract_json_string(obj, b"title").unwrap_or(b"Unknown");
     let cover = extract_json_string(obj, b"imageUrl").unwrap_or(b"");
     let status = normalize_status(extract_json_string(obj, b"status").unwrap_or(b""));
+    let is_mirror = selected_base(req) == MIRROR;
 
     write_bytes(payload, c, br#"{"id":"kic:"#)
         && append_json_escaped(payload, c, id)
         && write_bytes(payload, c, br#"","title":""#)
         && append_json_unescaped_then_escaped(payload, c, title)
         && write_bytes(payload, c, br#"","cover":{"kind":"url","url":""#)
-        && append_json_unescaped_then_escaped(payload, c, cover)
-        && write_bytes(payload, c, br#""},"authors":["#)
+        && append_cover(payload, c, cover, is_mirror)
+        && write_bytes(payload, c, b"\"")
+        && if public_cover(cover) {
+            write_bytes(payload, c, br#", "headers":{"accept":"image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8","referer":""#)
+                && write_bytes(payload, c, selected_base(req))
+                && write_bytes(payload, c, br#"/"}"#)
+        } else { true }
+        && write_bytes(payload, c, br#"},"authors":["#)
         && write_names_from_array(payload, c, obj, b"authors")
         && write_bytes(payload, c, br#"],"status":""#)
         && write_bytes(payload, c, status)
@@ -382,11 +461,11 @@ fn normalize_status(status: &[u8]) -> &'static [u8] {
     }
 }
 
-fn write_manga_list(operation: &str, api_json: &[u8]) -> u32 {
-    write_manga_list_page(operation, api_json, PAGE_SIZE, None)
+fn write_manga_list(operation: &str, api_json: &[u8], page: usize, req: &[u8]) -> u32 {
+    write_manga_list_page(operation, api_json, PAGE_SIZE, Some(page), false, req)
 }
 
-fn write_manga_list_page(operation: &str, api_json: &[u8], page_size: usize, search_page: Option<usize>) -> u32 {
+fn write_manga_list_page(operation: &str, api_json: &[u8], page_size: usize, search_page: Option<usize>, lookahead: bool, req: &[u8]) -> u32 {
     let payload = payload_buf();
     let mut c = 0usize;
     if !write_bytes(payload, &mut c, br#"{"items":["#) {
@@ -406,12 +485,12 @@ fn write_manga_list_page(operation: &str, api_json: &[u8], page_size: usize, sea
         if written > 0 && !write_bytes(payload, &mut c, b",") {
             return write_error(operation, "internal_error", "overflow");
         }
-        if !write_manga_card(payload, &mut c, obj) {
+        if !write_manga_card(payload, &mut c, obj, req) {
             return write_error(operation, "internal_error", "overflow");
         }
         written += 1;
     }
-    let has_more = if search_page.is_some() { extra_result } else { written == PAGE_SIZE };
+    let has_more = if lookahead { extra_result } else { written == page_size };
     if !(write_bytes(payload, &mut c, br#"],"page":{"nextCursor":"#)
         && if has_more && search_page.is_some() {
             write_bytes(payload, &mut c, b"\"")
@@ -428,16 +507,20 @@ fn write_manga_list_page(operation: &str, api_json: &[u8], page_size: usize, sea
 }
 
 fn run_search(req: &[u8]) -> u32 {
-    let raw = match extract_json_string(req, b"query") {
-        Some(v) => v,
+    // The request carries a JSON string: decode once before GraphQL JSON
+    // encoding, otherwise quotes and backslashes are escaped twice.
+    let args = json_object_member(req, b"args").unwrap_or(req);
+    let raw = match json_object_member(args, b"query") {
         None => return run_popular_list("search", req),
+        Some(v) if v.len() >= 2 && v[0] == b'"' && v[v.len() - 1] == b'"' => &v[1..v.len()-1],
+        Some(_) => return write_error("search", "invalid_request", "invalid query"),
     };
-    let buf = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
-    let query = match koma_source_sdk::plain_text::decode_json_content(raw, buf) {
+    let decoded = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
+    let query = match koma_source_sdk::plain_text::decode_json_content(raw, decoded) {
         Ok(v) => v,
         Err(_) => return write_error("search", "invalid_request", "invalid query"),
     };
-    if query.is_empty() {
+    if core::str::from_utf8(query).map(|v| v.trim().is_empty()).unwrap_or(false) {
         return run_popular_list("search", req);
     }
     let page = koma_source_sdk::json_utils::request_page_number(req);
@@ -453,14 +536,14 @@ fn run_search(req: &[u8]) -> u32 {
             return write_error("search", c, m);
         }
     };
-    write_manga_list_page("search", api_json, 20, Some(page))
+    write_manga_list_page("search", api_json, 20, Some(page), true, req)
 }
 
 fn run_popular_list(operation: &str, req: &[u8]) -> u32 {
-    let page = request_page(req);
-    let body_len = match build_popular_body(page) {
-        Some(v) => v,
-        None => return write_error(operation, "internal_error", "body overflow"),
+    let page = koma_source_sdk::json_utils::request_page_number(req);
+    let body_len = match browse::build_list(req, page) {
+        Ok(v) => v,
+        Err(()) => return write_error(operation, "invalid_request", "invalid listing or filters"),
     };
     let body = &gql_body_buf()[..body_len];
     let api_json = match post_graphql(req, body) {
@@ -470,17 +553,21 @@ fn run_popular_list(operation: &str, req: &[u8]) -> u32 {
             return write_error(operation, c, m);
         }
     };
-    write_manga_list(operation, api_json)
+    write_manga_list(operation, api_json, page, req)
 }
 
 fn run_get_manga_list(req: &[u8]) -> u32 {
+    let args = json_object_member(req, b"args").unwrap_or(req);
+    if let Some(output) = extract_json_string(args, b"listingId").and_then(|id| recommendations::run(req, id)) {
+        return output;
+    }
     run_popular_list("get_manga_list", req)
 }
 
 fn run_get_listings(_req: &[u8]) -> u32 {
     let payload = payload_buf();
     let mut c = 0usize;
-    if !write_bytes(payload, &mut c, br#"{"listings":[{"id":"popular","name":"Popular"}]}"#) {
+    if !write_bytes(payload, &mut c, r#"{"listings":[{"id":"popular","name":"熱門","kind":"popular","supportsPaging":true},{"id":"latest","name":"最近更新","kind":"latest","supportsPaging":true},{"id":"reader-recommended-week","name":"讀者推薦 · 本週","supportsFilters":false},{"id":"reader-recommended-month","name":"讀者推薦 · 本月","supportsFilters":false},{"id":"reader-recommended-year","name":"讀者推薦 · 年度","supportsFilters":false},{"id":"ai-recommended","name":"AI 推薦","supportsFilters":false}]}"#.as_bytes()) {
         return write_error("get_listings", "internal_error", "overflow");
     }
     write_success_payload("get_listings", c)
@@ -516,10 +603,14 @@ fn run_get_manga(req: &[u8]) -> u32 {
         Some(v) => v,
         None => return write_error("get_manga", "parse_error", "missing comicById"),
     };
+    if !valid_warning_array(obj) {
+        return write_error("get_manga", "parse_error", "invalid warning metadata");
+    }
     let title = extract_json_string(obj, b"title").unwrap_or(b"Unknown");
     let desc = extract_json_string(obj, b"description").unwrap_or(b"");
     let cover = extract_json_string(obj, b"imageUrl").unwrap_or(b"");
     let status = normalize_status(extract_json_string(obj, b"status").unwrap_or(b""));
+    let is_mirror = selected_base(req) == MIRROR;
     let payload = payload_buf();
     let mut c = 0usize;
     let ok = write_bytes(payload, &mut c, br#"{"manga":{"id":"kic:"#)
@@ -529,13 +620,13 @@ fn run_get_manga(req: &[u8]) -> u32 {
         && write_bytes(payload, &mut c, br#"","alternateTitles":[],"description":""#)
         && append_json_unescaped_then_escaped(payload, &mut c, desc)
         && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":""#)
-        && append_json_unescaped_then_escaped(payload, &mut c, cover)
+        && append_cover(payload, &mut c, cover, is_mirror)
         && write_bytes(payload, &mut c, br#""},"authors":["#)
         && write_names_from_array(payload, &mut c, obj, b"authors")
         && write_bytes(payload, &mut c, br#"],"artists":[],"status":""#)
         && write_bytes(payload, &mut c, status)
         && write_bytes(payload, &mut c, br#"","contentRating":"nsfw","language":"zh","tags":["#)
-        && write_names_from_array(payload, &mut c, obj, b"categories")
+        && write_detail_tags(payload, &mut c, obj)
         && write_bytes(payload, &mut c, br#"],"links":[{"kind":"source","url":""#)
         && write_bytes(payload, &mut c, selected_base(req))
         && write_bytes(payload, &mut c, b"/comic/")
@@ -747,6 +838,18 @@ fn run_get_pages(req: &[u8]) -> u32 {
     write_success_payload("get_pages", c)
 }
 
+const DEFAULT_CDN: &[u8] = b"https://img.komiic.com/";
+const MIRROR_CDN: &[u8] = b"https://img.komiic.cc/";
+
+fn ticket_image_path(url: &[u8], is_mirror: bool) -> Option<&[u8]> {
+    // The site's ticket names the same byte path on either CDN. Keep the
+    // existing default, and resolve the explicit .cc mirror on its own CDN.
+    let path = strip_prefix(url, DEFAULT_CDN)
+        .or_else(|| is_mirror.then(|| strip_prefix(url, MIRROR_CDN)).flatten())?;
+    let safe = path.iter().all(|byte| byte.is_ascii_graphic() && !matches!(byte, b'?' | b'#' | b'\\' | b'"'));
+    safe.then_some(path)
+}
+
 fn run_get_image_request(req: &[u8]) -> u32 {
     let url = match extract_json_string(req, b"url") {
         Some(v) if !v.is_empty() => v,
@@ -760,10 +863,16 @@ fn run_get_image_request(req: &[u8]) -> u32 {
             Some(v) => v,
             None => return write_error("get_image_request", "internal_error", "body overflow"),
         };
-        let api_json = match post_graphql(req, &gql_body_buf()[..body_len]) {
+        let api_json = match post_graphql_with_session(req, &gql_body_buf()[..body_len], true) {
             Ok(v) => v,
             Err(e) => {
-                let (code, message) = fetch_error_code(e);
+                let (code, message) = if matches!(e, FetchError::ImageQuotaExhausted)
+                    && !koma_source_sdk::source_protocol::feature(req, b"source_image_response_errors_v1")
+                {
+                    ("rate_limited", "daily image quota exhausted")
+                } else {
+                    fetch_error_code(e)
+                };
                 return write_error("get_image_request", code, message);
             }
         };
@@ -771,28 +880,34 @@ fn run_get_image_request(req: &[u8]) -> u32 {
             Some(v) => v,
             None => return write_error("get_image_request", "parse_error", "missing image ticket result"),
         };
-        let image_url = match extract_json_string(record, b"url") {
-            Some(v) if v.starts_with(b"https://img.komiic.com/")
-                && !v.contains(&b'?') && !v.contains(&b'#') => v,
-            _ => return write_error("get_image_request", "parse_error", "invalid image ticket url"),
+        let is_mirror = selected_base(req) == MIRROR;
+        let image_path = extract_json_string(record, b"url").and_then(|value| ticket_image_path(value, is_mirror));
+        let Some(image_path) = image_path else {
+            return write_error("get_image_request", "parse_error", "invalid image ticket url");
         };
         let ticket = match extract_json_string(record, b"ticket") {
-            Some(v) if !v.is_empty() => v,
+            Some(v) if !v.is_empty() && v.len() <= 4096 && v.iter().all(|byte| byte.is_ascii_graphic()) => v,
             _ => return write_error("get_image_request", "parse_error", "missing image ticket"),
         };
         if extract_json_string(record, b"kid") != Some(kid) {
             return write_error("get_image_request", "parse_error", "image ticket identity mismatch");
         }
-        Some((image_url, ticket))
+        Some((if is_mirror { MIRROR_CDN } else { DEFAULT_CDN }, image_path, ticket))
     } else { None };
     let payload = payload_buf();
     let mut c = 0usize;
-    let ok = if let Some((image_url, ticket)) = ticket_response {
+    let ok = if let Some((cdn, image_path, ticket)) = ticket_response {
         write_bytes(payload, &mut c, br#"{"url":""#)
-            && append_json_unescaped_then_escaped(payload, &mut c, image_url)
+            && write_bytes(payload, &mut c, cdn)
+            && append_json_escaped(payload, &mut c, image_path)
             && write_bytes(payload, &mut c, br#"","headers":{"X-Image-Ticket":""#)
             && append_json_unescaped_then_escaped(payload, &mut c, ticket)
-            && write_bytes(payload, &mut c, br#""}}"#)
+            && write_bytes(payload, &mut c, br#""}"#)
+            // The website's ticketed image GET distinguishes daily quota (402)
+            // from temporary CDN rate limiting (429). The host sends that GET.
+            && (!koma_source_sdk::source_protocol::feature(req, b"source_image_response_errors_v1")
+                || write_bytes(payload, &mut c, br#","responseErrors":{"402":"image_quota_exhausted","429":"rate_limited"}"#))
+            && write_bytes(payload, &mut c, b"}")
     } else {
         // Covers and unrelated URLs retain the existing request contract.
         write_bytes(payload, &mut c, br#"{"url":""#)
@@ -878,6 +993,15 @@ pub extern "C" fn koma_source_get_manga_list(req_ptr: u32, req_len: u32) -> u32 
 }
 
 #[no_mangle]
+pub extern "C" fn koma_source_get_filters(req_ptr: u32, req_len: u32) -> u32 {
+    let req = match read_request(req_ptr, req_len) {
+        Some(v) => v,
+        None => return write_error("get_filters", "invalid_request", "empty"),
+    };
+    browse::run_filters(req)
+}
+
+#[no_mangle]
 pub extern "C" fn koma_source_get_home(req_ptr: u32, req_len: u32) -> u32 {
     let req = match read_request(req_ptr, req_len) {
         Some(v) => v,
@@ -901,6 +1025,20 @@ pub extern "C" fn koma_source_get_image_request(req_ptr: u32, req_len: u32) -> u
 pub extern "C" fn koma_source_free(result_ptr: u32) {
     response_buffer().free(result_ptr)
 }
+
+fn run_get_authentication(req: &[u8]) -> u32 {
+    session::operation(req, "get_authentication")
+}
+
+fn run_authenticate(req: &[u8]) -> u32 {
+    session::operation(req, "authenticate")
+}
+
+fn run_logout(req: &[u8]) -> u32 {
+    session::operation(req, "logout")
+}
+
+koma_source_sdk::koma_source_authentication_exports!("komiic");
 
 #[no_mangle]
 pub extern "C" fn koma_source_get_settings(req_ptr: u32, req_len: u32) -> u32 {

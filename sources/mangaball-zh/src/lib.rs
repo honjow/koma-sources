@@ -1,6 +1,6 @@
 #![no_std]
 extern crate alloc;
-use alloc::{string::String, vec::Vec};
+use alloc::{collections::BTreeSet, string::String, vec::Vec};
 // Full Unicode lowercase (including contextual sigma) follows the adopted
 // reference. Reuse Rust alloc rather than approximate per-character folding.
 #[global_allocator]
@@ -16,7 +16,7 @@ const BASE: &[u8] = b"https://mangaball.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mangaball.zh.koma",
     name: "MangaBall",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -37,7 +37,10 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     image_request: true,
     credentials: false,
 };
-koma_source_sdk::koma_source_buffers! { payload:1024*1024,http_out:2*1024*1024,body:1024*1024,http_req:8192,scratch:8192, }
+// The canonical chapter API returns every language in one complete array.
+// Public One Piece evidence is 6,322,808 raw bytes / 9,847 entries; keep
+// bounded 8 MiB input/envelope budgets while the App result remains 1 MiB.
+koma_source_sdk::koma_source_buffers! { payload:1024*1024,http_out:8*1024*1024,body:8*1024*1024,http_req:8192,scratch:8192, }
 koma_source_sdk::koma_source_helpers!();
 fn bytes(b: &mut [u8], n: &mut usize, s: &[u8]) -> Result<(), &'static str> {
     if write_bytes(b, n, s) {
@@ -370,6 +373,9 @@ fn code(e: &str) -> &'static str {
     match e {
         "permission denied" => "permission_denied",
         "not found" => "not_found",
+        // Only a complete, validated provider array can establish no chapters.
+        // Keep metadata available and let the App distinguish this from removal.
+        "empty catalogue" | "no Chinese chapters" => "no_chapters",
         "rate limited" => "rate_limit",
         "network failure" => "network_error",
         "timeout" => "timeout",
@@ -382,7 +388,7 @@ fn code(e: &str) -> &'static str {
         | "unknown listing"
         | "missing image URL"
         | "invalid image URL" => "invalid_request",
-        "payload overflow" => "internal_error",
+        "payload overflow" | "HTTP envelope too large" => "internal_error",
         _ => "parse_error",
     }
 }
@@ -444,7 +450,8 @@ fn fetch(path: &[u8], post: Option<&[u8]>) -> Result<&'static [u8], &'static str
                 _ => b"other",
             },
         );
-        "network failure"
+        // ABI -3 is a local output-capacity failure, not site transport.
+        if e == -3 { "HTTP envelope too large" } else { "network failure" }
     })?;
     let response = unsafe { core::slice::from_raw_parts(HTTP_OUT.as_ptr(), len) };
     if json_value_end(response, 0, 0).map(|e| ws(response, e)) != Some(response.len()) {
@@ -961,14 +968,14 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
     bytes(b, &mut n, b"}")?;
     Ok(n)
 }
-fn decimal(v: &[u8]) -> Result<(), &'static str> {
+fn decimal(v: &[u8], allow_negative: bool) -> Result<(), &'static str> {
     if v == b"null" {
         return Ok(());
     }
     json_complete(v)?;
     let s = core::str::from_utf8(v).map_err(|_| "invalid number")?;
     let f = s.parse::<f64>().map_err(|_| "invalid number")?;
-    if !f.is_finite() || f < 0.0 {
+    if !f.is_finite() || (!allow_negative && f < 0.0) {
         return Err("invalid number");
     }
     Ok(())
@@ -993,7 +1000,8 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
         Some(&body[..n]),
     )?;
     let arr = member(root, b"data")?;
-    let mut spans = [(0, 0); 2048];
+    // Keep larger catalogue bookkeeping off the native 64 KiB call stack.
+    let mut spans = alloc::vec![(0, 0); 16384];
     let count = array_spans(arr, &mut spans)?;
     if count == 0 {
         return Err("empty catalogue");
@@ -1007,20 +1015,23 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
     let mut n = 0;
     let mut written = 0;
     bytes(b, &mut n, b"{\"items\":[")?;
-    for (i, (a, z)) in spans[..count].iter().enumerate() {
+    let mut seen_ids = BTreeSet::new();
+    for (a, z) in &spans[..count] {
         let o = &arr[*a..*z];
         let cid = string(o, b"id").ok_or("missing chapter ID")?;
         if !id_valid(cid) || string(o, b"title_id") != Some(id) {
             return Err("chapter owner mismatch");
         }
-        for (pa, pz) in &spans[..i] {
-            if string(&arr[*pa..*pz], b"id") == Some(cid) {
-                return Err("duplicate chapter ID");
-            }
+        // Validate all languages before selection; a foreign/duplicate entity
+        // cannot be hidden by language or blacklist filtering. Preserve API order.
+        if !seen_ids.insert(cid) {
+            return Err("duplicate chapter ID");
         }
         let lang = string(o, b"lang").ok_or("missing language")?;
         let num = member(o, b"number")?;
-        decimal(num)?;
+        // The reference Float accepts real signed chapter numbers (e.g. Chapter -1).
+        // Validate every language without inventing a replacement number.
+        decimal(num, true)?;
         if !zh(lang) {
             continue;
         }
@@ -1048,7 +1059,7 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
             return Err("empty chapter title");
         }
         let volume = json_object_member(o, b"volume").unwrap_or(b"null");
-        decimal(volume)?;
+        decimal(volume, false)?;
         // A selected group never hides a malformed/forbidden source entity.
         if let Some(wanted)=wanted {
             // Resume restores only its exact valid chapter. It is not a full

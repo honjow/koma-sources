@@ -9,7 +9,7 @@ const WEB: &[u8] = b"https://nhentai.to";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.nhentaito.zh.koma",
     name: "NHentai.to",
-    version: "0.1.6",
+    version: "0.1.7",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -738,9 +738,9 @@ fn filtered_next(href: &[u8], query: &[u8], sort: Option<&[u8]>, exclude: &[u8],
     Ok(())
 }
 
-fn cursor_page(s: &[u8]) -> R<usize> {
+fn cursor_page(s: &[u8],latest:bool) -> R<usize> {
     let p = s
-        .strip_prefix(b"https://nhentai.to/search?q=%2A&sort=most-favorited&lang=chinese&page=")
+        .strip_prefix(if latest {b"https://nhentai.to/search?q=%2A&sort=newest&lang=chinese&page=".as_slice()} else {b"https://nhentai.to/search?q=%2A&sort=most-favorited&lang=chinese&page=".as_slice()})
         .ok_or("listing cursor owner")?;
     ident(p)?;
     let n = number(p).ok_or("listing page")?;
@@ -752,11 +752,10 @@ fn cursor_page(s: &[u8]) -> R<usize> {
 }
 fn listing(r: &[u8]) -> R<usize> {
     let a = args(r)?;
-    if text(a, b"listingId")? != b"listing:popular" {
-        return Err("unsupported listing");
-    };
+    let latest=match text(a,b"listingId")? {b"listing:popular"=>false,b"listing:latest"=>true,_=>return Err("unsupported listing")};
+    if latest && !listing_scope_supported(r) { return Err("unsupported listing"); }
     let mut filter_buf = [0; 2048];
-    let (sort, exclude) = search_filters(a, &mut filter_buf)?;
+    let (sort, exclude) = if latest {(None,b"".as_slice())} else {search_filters(a,&mut filter_buf)?};
     let filtered = sort.is_some() || !exclude.is_empty();
     let mut ub = [0; 2048];
     let mut built = [0; 8192];
@@ -778,13 +777,13 @@ fn listing(r: &[u8]) -> R<usize> {
         match member(p, b"cursor")? {
             Some(v) if v != b"null" => {
                 let s = uq(v, &mut ub)?;
-                current = cursor_page(s)?;
+                current = cursor_page(s,latest)?;
                 s
             }
-            _ => b"https://nhentai.to/search?q=*&sort=most-favorited&lang=chinese&page=1",
+            _ => if latest {b"https://nhentai.to/search?q=*&sort=newest&lang=chinese&page=1".as_slice()} else {b"https://nhentai.to/search?q=*&sort=most-favorited&lang=chinese&page=1"},
         }
     } else {
-        b"https://nhentai.to/search?q=*&sort=most-favorited&lang=chinese&page=1"
+        if latest {b"https://nhentai.to/search?q=*&sort=newest&lang=chinese&page=1".as_slice()} else {b"https://nhentai.to/search?q=*&sort=most-favorited&lang=chinese&page=1"}
     };
     let d = fetch(uri)?;
     let cards = All::new(d.0, b".gallery a:not([rel~=sponsored])")?;
@@ -797,7 +796,7 @@ fn listing(r: &[u8]) -> R<usize> {
         let v = attr(next.at(0), b"href", &mut nb)?;
         let next_page = current.checked_add(1).ok_or("page overflow")?;
         if filtered { filtered_next(v, b"*", Some(sort.unwrap_or(b"most-favorited")), exclude, next_page)?; }
-        else if cursor_page(v)? != next_page { return Err("next discontinuity"); }
+        else if cursor_page(v,latest)? != next_page { return Err("next discontinuity"); }
         if cards.len == 0 {
             return Err("listing no progress");
         };
@@ -1031,7 +1030,7 @@ fn detail(r: &[u8]) -> R<usize> {
     )?;
     wn(o, &mut n, total)?;
     if koma_source_sdk::gallery_titles::enabled(r) {
-        bytes(o, &mut n, br"\n\n**Full title**: ")?;
+        bytes(o, &mut n, r"\n\n**完整标题**：".as_bytes())?;
         if !append_json_escaped(o, &mut n, t) {
             return Err("payload overflow");
         }
@@ -1426,8 +1425,10 @@ fn run_get_pages(r: &[u8]) -> u32 {
 fn run_get_image_request(r: &[u8]) -> u32 {
     execute("get_image_request", image_request(r))
 }
-fn run_get_listings(_: &[u8]) -> u32 {
-    response_buffer().write_success("get_listings",b"{\"listings\":[{\"id\":\"listing:popular\",\"name\":\"Popular (Chinese)\",\"supportsPaging\":true}]}")
+fn listing_scope_supported(r:&[u8])->bool {json_object_member(r,b"hostFeatures").map(|v|{let v=trim_ascii(v);v.starts_with(b"[")&&v.ends_with(b"]")&&v[1..v.len()-1].split(|c|*c==b',').any(|x|trim_ascii(x)==br#""source_listing_filter_scope_v1""#)}).unwrap_or(false)}
+fn run_get_listings(r: &[u8]) -> u32 {
+    let data=if listing_scope_supported(r){r#"{"listings":[{"id":"listing:popular","name":"热门","supportsPaging":true},{"id":"listing:latest","name":"最新","supportsPaging":true,"supportsFilters":false}]}"#}else{r#"{"listings":[{"id":"listing:popular","name":"热门","supportsPaging":true}]}"#};
+    response_buffer().write_success("get_listings",data.as_bytes())
 }
 fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_implemented", "unsupported")
@@ -1435,14 +1436,14 @@ fn run_get_home(_: &[u8]) -> u32 {
 fn run_get_filters(_: &[u8]) -> u32 {
     // No universal sort default: search and popular retain their existing
     // different routes until the user explicitly selects a sort.
-    response_buffer().write_success("get_filters", br#"{"filters":[{"id":"exclude","name":"Exclude Tags (separate by comma)","type":"text"},{"id":"sort","name":"Sort By","type":"select","options":[{"value":"relevance","label":"Relevance"},{"value":"newest","label":"Newest"},{"value":"most-favorited","label":"Most favorited"},{"value":"most-liked","label":"Most Liked"}]}]}"#)
+    response_buffer().write_success("get_filters", r#"{"filters":[{"id":"exclude","name":"排除标签（逗号分隔）","type":"text"},{"id":"sort","name":"排序","type":"select","options":[{"value":"relevance","label":"相关性"},{"value":"newest","label":"最新"},{"value":"most-favorited","label":"收藏最多"},{"value":"most-liked","label":"点赞最多"}]}]}"#.as_bytes())
 }
 fn run_get_settings(req: &[u8]) -> u32 {
-    let prefix = br#"{"settings":[{"id":"pref_short_title","name":"Display Short Titles","kind":"toggle","default":"false","description":""#;
+    let prefix = r#"{"settings":[{"id":"pref_short_title","name":"显示简短标题","kind":"toggle","default":"false","description":""#.as_bytes();
     let state = if koma_source_sdk::gallery_titles::enabled(req) {
-        b"Showing short Titles".as_slice()
+        "当前显示简短标题".as_bytes()
     } else {
-        b"Showing Long Titles".as_slice()
+        "当前显示完整标题".as_bytes()
     };
     let out = payload_buf();
     let mut n = 0;
@@ -1473,7 +1474,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
-    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.nhentaito.zh.koma\",\"name\":\"NHentai.to\",\"version\":\"0.1.6\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"NHentai.to 中文漫画目录源。\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"NHentai.to（中文）\",\"zh-Hant\":\"NHentai.to（中文）\",\"en\":\"NHentai.to (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":true,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
+    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.nhentaito.zh.koma\",\"name\":\"NHentai.to\",\"version\":\"0.1.7\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"NHentai.to 中文漫画目录源。\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"NHentai.to（中文）\",\"zh-Hant\":\"NHentai.to（中文）\",\"en\":\"NHentai.to (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":true,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
 }
 macro_rules! export_op {
     ($f:ident,$op:literal,$run:ident) => {

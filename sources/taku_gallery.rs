@@ -455,7 +455,8 @@ fn finish(op: &str, value: R<Value>) -> u32 {
 }
 fn network_request(r: &[u8]) -> R<()> {
     protocol::request(r)?;
-    if !KIUTAKU && !protocol::feature(r, b"source_rate_limit_xiutaku_v1") {
+    if !KIUTAKU && !protocol::feature(r, b"source_rate_limit_xiutaku_v1")
+        && !protocol::feature(r, b"source_request_limits_v1") {
         return Err("host_feature_required");
     }
     Ok(())

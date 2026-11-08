@@ -5,7 +5,7 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.beeworks.namepara.zh-hant.koma",
     name: "菇菇官方四格漫畫",
-    version: "0.1.1",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -25,7 +25,11 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     image_request: true,
     credentials: false,
 };
-koma_source_sdk::koma_source_buffers! {payload:1024*1024-1024,http_out:1024*1024,body:1024*1024,http_req:4096,scratch:8192,}
+const HTTP_RESPONSE_CAP: usize = 1024 * 1024;
+const ARCHIVE_BATCH_SIZE: usize = 3;
+const BATCH_RESPONSE_CAP: usize = ARCHIVE_BATCH_SIZE * HTTP_RESPONSE_CAP + 128;
+// The largest result is 1000 fixed-width chapter entries, under 256 KiB.
+koma_source_sdk::koma_source_buffers! {payload:256*1024,http_out:BATCH_RESPONSE_CAP,body:HTTP_RESPONSE_CAP,http_req:4096,scratch:8192,}
 koma_source_sdk::koma_source_helpers!();
 type R<T> = Result<T, &'static str>;
 fn member<'a>(v: &'a [u8], k: &[u8]) -> R<&'a [u8]> {
@@ -216,11 +220,18 @@ fn image_url(u: &[u8]) -> bool {
 }
 fn fetch(u: &[u8]) -> R<usize> {
     let n = build_get_request(http_req_buf(), u, Some(BASE), &[]).ok_or("capacity_exceeded")?;
-    let n = host::http_request(&http_req_buf()[..n], http_out()).map_err(|_| "network_error")?;
-    if extract_json_number(&http_out()[..n], b"status") != Some(b"200") {
+    let n = host::http_request(&http_req_buf()[..n], &mut http_out()[..HTTP_RESPONSE_CAP])
+        .map_err(|_| "network_error")?;
+    decode_http_body(&http_out()[..n])
+}
+fn decode_http_body(response: &[u8]) -> R<usize> {
+    if response.len() > HTTP_RESPONSE_CAP {
+        return Err("network_error");
+    }
+    if extract_json_number(response, b"status") != Some(b"200") {
         return Err("http_error");
     }
-    decode_json_body_into(&http_out()[..n], body_buf()).map_err(|_| "network_error")
+    decode_json_body_into(response, body_buf()).map_err(|_| "network_error")
 }
 fn indicator(h: &[u8]) -> R<(usize, usize)> {
     let v = part(h, b"<p class=\"e-pagenation-indicator\">", b"</p>")?;
@@ -283,7 +294,63 @@ fn add_catalogue(h: &[u8], count: &mut usize) -> R<()> {
     }
     Ok(())
 }
-fn catalogue() -> R<usize> {
+fn catalogue_url(page: usize, url: &mut [u8]) -> R<&[u8]> {
+    let mut len = 0;
+    w(url, &mut len, BASE)?;
+    w(url, &mut len, b"index_")?;
+    n(url, &mut len, page)?;
+    w(url, &mut len, b".html")?;
+    Ok(&url[..len])
+}
+fn add_catalogue_page(page: usize, total: usize, size: usize, count: &mut usize) -> R<()> {
+    let body = &body_buf()[..size];
+    if indicator(body)? != (page, total) {
+        return Err("incomplete_catalogue");
+    }
+    add_catalogue(body, count)
+}
+fn archive_batch_supported(req: &[u8]) -> bool {
+    json_object_member(req, b"hostFeatures")
+        .and_then(|value| value.strip_prefix(b"[")?.strip_suffix(b"]"))
+        .is_some_and(|features| features.split(|b| *b == b',')
+            .any(|item| item.trim_ascii() == br#""source_http_batch_v1""#))
+}
+fn fetch_catalogue_batch(start: usize, end: usize, total: usize, count: &mut usize) -> R<()> {
+    if host::check_cancel() {
+        return Err("cancelled");
+    }
+    let request = http_req_buf();
+    let mut len = 0;
+    w(request, &mut len, br#"{"version":1,"requests":["#)?;
+    for page in start..end {
+        if page != start {
+            w(request, &mut len, b",")?;
+        }
+        let mut url = [0; 256];
+        let url = catalogue_url(page, &mut url)?;
+        len += build_get_request(&mut request[len..], url, Some(BASE), &[])
+            .ok_or("capacity_exceeded")?;
+    }
+    w(request, &mut len, b"]}")?;
+    let len = host::http_request(&request[..len], http_out()).map_err(|_| "network_error")?;
+    let response = &http_out()[..len];
+    if json_object_member(response, b"ok") != Some(b"true") {
+        return Err("network_error");
+    }
+    let mut parts = json_object_member(response, b"responses")
+        .and_then(JsonArrayIter::from_raw_array)
+        .ok_or("incomplete_catalogue")?;
+    for page in start..end {
+        let part = parts.next_object().ok_or("incomplete_catalogue")?;
+        let size = decode_http_body(part)?;
+        add_catalogue_page(page, total, size, count)?;
+    }
+    if parts.next_object().is_some() {
+        return Err("incomplete_catalogue");
+    }
+    Ok(())
+}
+fn catalogue(batch: bool) -> R<usize> {
     let size = fetch(BASE)?;
     let h = &body_buf()[..size];
     let (first, total) = indicator(h)?;
@@ -303,19 +370,19 @@ fn catalogue() -> R<usize> {
     }
     let mut count = 0;
     add_catalogue(h, &mut count)?;
-    for page in 2..=total {
-        let mut u = [0; 256];
-        let mut c = 0;
-        w(&mut u, &mut c, BASE)?;
-        w(&mut u, &mut c, b"index_")?;
-        n(&mut u, &mut c, page)?;
-        w(&mut u, &mut c, b".html")?;
-        let size = fetch(&u[..c])?;
-        let h = &body_buf()[..size];
-        if indicator(h)? != (page, total) {
-            return Err("incomplete_catalogue");
+    // The first page owns the archive shape. Its verified remaining links
+    // are independent, but their entries must still be consumed in site order.
+    if batch {
+        for start in (2..=total).step_by(ARCHIVE_BATCH_SIZE) {
+            let end = core::cmp::min(start + ARCHIVE_BATCH_SIZE, total + 1);
+            fetch_catalogue_batch(start, end, total, &mut count)?;
         }
-        add_catalogue(h, &mut count)?;
+    } else {
+        for page in 2..=total {
+            let mut url = [0; 256];
+            let size = fetch(catalogue_url(page, &mut url)?)?;
+            add_catalogue_page(page, total, size, &mut count)?;
+        }
     }
     Ok(count)
 }
@@ -353,8 +420,8 @@ fn empty(op: &str) -> u32 {
     payload_buf()[..b.len()].copy_from_slice(b);
     write_success_payload(op, b.len())
 }
-fn listing() -> R<usize> {
-    catalogue()?;
+fn listing(batch: bool) -> R<usize> {
+    catalogue(batch)?;
     let p = payload_buf();
     let mut c = 0;
     w(p, &mut c, b"{\"items\":[")?;
@@ -362,7 +429,7 @@ fn listing() -> R<usize> {
     w(p, &mut c, b"],\"page\":{\"hasMore\":false}}")?;
     Ok(c)
 }
-fn run_search(req: &[u8]) -> u32 {
+fn run_search(req: &[u8], batch: bool) -> u32 {
     let raw = extract_json_string(req, b"query").unwrap_or(b"");
     let mut b = [0; 1024];
     let n0 = match raw_string(raw, &mut b) {
@@ -378,27 +445,27 @@ fn run_search(req: &[u8]) -> u32 {
         return empty("search");
     }
     match page(req) {
-        Ok(1) => result("search", listing()),
+        Ok(1) => result("search", listing(batch)),
         Ok(_) => empty("search"),
         Err(e) => write_error("search", e, ""),
     }
 }
-fn run_get_manga_list(req: &[u8]) -> u32 {
+fn run_get_manga_list(req: &[u8], batch: bool) -> u32 {
     if extract_json_string(req, b"listingId") != Some(b"listing:official") {
         return write_error("get_manga_list", "invalid_request", "");
     }
     match page(req) {
-        Ok(1) => result("get_manga_list", listing()),
+        Ok(1) => result("get_manga_list", listing(batch)),
         Ok(_) => empty("get_manga_list"),
         Err(e) => write_error("get_manga_list", e, ""),
     }
 }
-fn run_get_manga(req: &[u8]) -> u32 {
-    fn inner(req: &[u8]) -> R<usize> {
+fn run_get_manga(req: &[u8], batch: bool) -> u32 {
+    fn inner(req: &[u8], batch: bool) -> R<usize> {
         if extract_json_string(req, b"mangaId") != Some(MID) {
             return Err("not_found");
         }
-        catalogue()?;
+        catalogue(batch)?;
         let p = payload_buf();
         let mut c = 0;
         w(p, &mut c, b"{\"manga\":")?;
@@ -406,14 +473,14 @@ fn run_get_manga(req: &[u8]) -> u32 {
         w(p, &mut c, b"}")?;
         Ok(c)
     }
-    result("get_manga", inner(req))
+    result("get_manga", inner(req, batch))
 }
-fn run_get_chapters(req: &[u8]) -> u32 {
-    fn inner(req: &[u8]) -> R<usize> {
+fn run_get_chapters(req: &[u8], batch: bool) -> u32 {
+    fn inner(req: &[u8], batch: bool) -> R<usize> {
         if extract_json_string(req, b"mangaId") != Some(MID) {
             return Err("not_found");
         }
-        let count = catalogue()?;
+        let count = catalogue(batch)?;
         let p = payload_buf();
         let mut c = 0;
         w(p, &mut c, b"{\"chapters\":[")?;
@@ -442,10 +509,10 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         w(p, &mut c, b"]}")?;
         Ok(c)
     }
-    result("get_chapters", inner(req))
+    result("get_chapters", inner(req, batch))
 }
-fn run_get_pages(req: &[u8]) -> u32 {
-    fn inner(req: &[u8]) -> R<usize> {
+fn run_get_pages(req: &[u8], batch: bool) -> u32 {
+    fn inner(req: &[u8], batch: bool) -> R<usize> {
         if let Some(mid) = extract_json_string(req, b"mangaId") {
             if mid != MID {
                 return Err("not_found");
@@ -458,7 +525,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
         if !valid_id(id) {
             return Err("invalid_request");
         }
-        let count = catalogue()?;
+        let count = catalogue(batch)?;
         if !unsafe { IDS[..count].iter().any(|x| x.as_slice() == id) } {
             return Err("not_found");
         }
@@ -521,7 +588,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
         w(p, &mut c, b"]}")?;
         Ok(c)
     }
-    result("get_pages", inner(req))
+    result("get_pages", inner(req, batch))
 }
 fn run_get_image_request(req: &[u8]) -> u32 {
     fn inner(req: &[u8]) -> R<usize> {
@@ -599,7 +666,7 @@ pub extern "C" fn koma_source_free(ptr: u32) {
     response_buffer().free(ptr)
 }
 macro_rules! export_op {
-    ($f:ident,$op:literal,$run:ident) => {
+    ($f:ident, $op:literal, $run:ident $(, $feature:ident)?) => {
         #[no_mangle]
         pub extern "C" fn $f(ptr: u32, len: u32) -> u32 {
             let req = match checked_request(ptr, len) {
@@ -616,19 +683,40 @@ macro_rules! export_op {
             if string(req, b"operation").ok() != Some($op.as_bytes()) {
                 return write_error($op, "invalid_request", "operation mismatch");
             }
-            $run(args)
+            $run(args $(, $feature(req))?)
         }
     };
 }
-export_op!(koma_source_search, "search", run_search);
-export_op!(koma_source_get_manga, "get_manga", run_get_manga);
-export_op!(koma_source_get_chapters, "get_chapters", run_get_chapters);
-export_op!(koma_source_get_pages, "get_pages", run_get_pages);
+export_op!(
+    koma_source_search,
+    "search",
+    run_search,
+    archive_batch_supported
+);
+export_op!(
+    koma_source_get_manga,
+    "get_manga",
+    run_get_manga,
+    archive_batch_supported
+);
+export_op!(
+    koma_source_get_chapters,
+    "get_chapters",
+    run_get_chapters,
+    archive_batch_supported
+);
+export_op!(
+    koma_source_get_pages,
+    "get_pages",
+    run_get_pages,
+    archive_batch_supported
+);
 export_op!(koma_source_get_listings, "get_listings", run_get_listings);
 export_op!(
     koma_source_get_manga_list,
     "get_manga_list",
-    run_get_manga_list
+    run_get_manga_list,
+    archive_batch_supported
 );
 export_op!(koma_source_get_home, "get_home", run_get_home);
 export_op!(koma_source_get_filters, "get_filters", run_get_filters);

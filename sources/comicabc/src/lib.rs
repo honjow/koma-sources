@@ -15,7 +15,7 @@ const BASE: &[u8] = b"https://www.8comic.com";
 const READER: &[u8] = b"https://articles.onemoreplace.tw";
 const UA:&[u8]=b"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36";
 const MOBILE_UA: &[u8] = UA;
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.comicabc.koma",name:"無限動漫",version:"0.1.11",api_version:"0.2",language:"zh",author:"Koma",description:"ComicABC public Chinese catalogues and bounded literal-record pages; no accounts or JavaScript execution.",content_rating:"safe"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.comicabc.koma",name:"無限動漫",version:"0.1.12",api_version:"0.2",language:"zh",author:"Koma",description:"ComicABC public Chinese catalogues and bounded literal-record pages; no accounts or JavaScript execution.",content_rating:"safe"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -795,15 +795,16 @@ fn run_get_pages(r: &[u8]) -> u32 {
         Ok(x) => x,
         Err(e) => return failure(op, e),
     };
-    let rec = match records::decode(&body_buf()[..len], comic, chapter, part) {
-        Some(x) => x,
-        None => {
-            return source_error(
-                op,
-                "parse_error",
-                "unsupported public literal record schema",
-            )
-        }
+    let rec = if let Some(x)=records::decode(&body_buf()[..len],comic,chapter,part) { x } else {
+        // The reference reader currently serves this unrelated board-game site.
+        // Only that observed response triggers the site's own public /view route;
+        // challenges, unknown schemas and HTTP errors never trigger a fallback.
+        let marker="<title>玩桌遊 - 桌遊是人生必要的精神糧食</title>".as_bytes();
+        if !body_buf()[..len].windows(marker.len()).any(|w|w==marker) {return source_error(op,"parse_error","unsupported public literal record schema")}
+        let mut direct=[0u8;512];
+        let size=match url(&mut direct,&[BASE,b"/view/",m,b".html?ch=",c]){Some(v)=>v,None=>return source_error(op,"invalid_request","oversized identity")};
+        let size=match fetch_body(&direct[..size],false){Ok(v)=>v,Err(e)=>return failure(op,e)};
+        match records::decode_site(&body_buf()[..size],comic,chapter,part){Some(v)=>v,None=>return source_error(op,"parse_error","unsupported public site reader schema")}
     };
     let out = payload_buf();
     let mut n = 0;

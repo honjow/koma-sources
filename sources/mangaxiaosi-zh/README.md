@@ -15,3 +15,7 @@
 页表必须先在该作品目录确认章节成员，并核对章节页面所属作品。封面和正文沿用服务端图片原 URL，仅允许 `www.jjmhw9.top`、`www.jjmhw10.top` 和 `www.jjmhw11.top` 的 `/static/upload/book/` 路径；严格校验 HTTPS、路径字符、作品、章节和文件归属，拒绝路径穿越、未知主机及跨作品或跨章节请求。宿主既有重定向处理不变。
 
 图标和来源见 `ASSET_SOURCES.md`；标准构建使用 `bash build.sh --source mangaxiaosi-zh`。真实站点响应、设备路径和受控回放分别按具名结果记录，不推及全部作品或镜像。
+
+## 0.1.7 最近更新候选
+
+固定参考独立 `/update?page=N` 作为最近更新，仅在宿主支持 source_listing_filter_scope_v1 时展示且不接受榜单筛选；旧宿主保留原人气榜。真实公开前两页和榜单筛选完成 WASM 原体重放，沿用镜像设置、身份和原图标，未真机验收或发布。

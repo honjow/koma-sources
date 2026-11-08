@@ -9,11 +9,11 @@ const WEB: &[u8] = b"https://nhentai.xxx";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.nhentaixxx.zh.koma",
     name: "NHentai.xxx",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "Chinese-language provider catalogue. Per-work rating and source usage unknown.",
+    description: "中文漫画目录，作品分级以实际内容为准。",
     content_rating: "adult",
 };
 koma_source_sdk::koma_source_buffers! {payload:1048000,http_out:MAX,body:MAX,http_req:32768,scratch:8192,}
@@ -804,9 +804,9 @@ fn emit_work(o: &mut [u8], n: &mut usize, id: &[u8], t: &[u8], c: &[u8], req: &[
     q(o, n, uri)?;
     bytes(o, n, b"}]}")
 }
-fn cursor_page(s: &[u8]) -> R<usize> {
+fn cursor_page(s: &[u8], latest:bool) -> R<usize> {
     let p = s
-        .strip_prefix(b"https://nhentai.xxx/language/chinese/popular/?page=")
+        .strip_prefix(if latest {b"https://nhentai.xxx/language/chinese/?page=".as_slice()} else {b"https://nhentai.xxx/language/chinese/popular/?page=".as_slice()})
         .ok_or("listing cursor owner")?;
     ident(p)?;
     let n = number(p).ok_or("listing cursor")?;
@@ -818,22 +818,20 @@ fn cursor_page(s: &[u8]) -> R<usize> {
 }
 fn listing(r: &[u8]) -> R<usize> {
     let a = args(r)?;
-    if text(a, b"listingId")? != b"listing:popular" {
-        return Err("unsupported listing");
-    }
+    let latest=match text(a,b"listingId")? {b"listing:popular"=>false,b"listing:latest"=>true,_=>return Err("unsupported listing")};
     let mut ub = [0; 2048];
     let mut current = 1;
     let uri = if let Some(p) = member(a, b"page")? {
         match member(p, b"cursor")? {
             Some(v) if v != b"null" => {
                 let s = uq(v, &mut ub)?;
-                current = cursor_page(s)?;
+                current = cursor_page(s,latest)?;
                 s
             }
-            _ => b"https://nhentai.xxx/language/chinese/popular/?page=1",
+            _ => if latest {b"https://nhentai.xxx/language/chinese/?page=1".as_slice()} else {b"https://nhentai.xxx/language/chinese/popular/?page=1"},
         }
     } else {
-        b"https://nhentai.xxx/language/chinese/popular/?page=1"
+        if latest {b"https://nhentai.xxx/language/chinese/?page=1".as_slice()} else {b"https://nhentai.xxx/language/chinese/popular/?page=1"}
     };
     let d = fetch(uri)?;
     let cards = All::new(d.0, b".galleries_box .gallery_item, .fav_item")?;
@@ -848,7 +846,7 @@ fn listing(r: &[u8]) -> R<usize> {
     let mut nb = [0; 2048];
     let nxt = if next.len == 1 {
         let v = absolute(attr(next.at(0), b"href", &mut nh)?, &mut nb)?;
-        if cursor_page(v)? != current.checked_add(1).ok_or("page overflow")? {
+        if cursor_page(v,latest)? != current.checked_add(1).ok_or("page overflow")? {
             return Err("listing next discontinuity");
         }
         Some(v)
@@ -1124,7 +1122,7 @@ fn detail(r: &[u8]) -> R<usize> {
     )?;
     wn(o, &mut n, g.count)?;
     if koma_source_sdk::gallery_titles::enabled(r) {
-        bytes(o, &mut n, br"\n\n**Full title**: ")?;
+        bytes(o, &mut n, r"\n\n**完整标题**：".as_bytes())?;
         if !append_json_escaped(o, &mut n, t) {
             return Err("payload overflow");
         }
@@ -1341,7 +1339,7 @@ fn run_get_image_request(r: &[u8]) -> u32 {
     execute("get_image_request", image_request(r))
 }
 fn run_get_listings(_: &[u8]) -> u32 {
-    response_buffer().write_success("get_listings",b"{\"listings\":[{\"id\":\"listing:popular\",\"name\":\"Popular (Chinese)\",\"supportsPaging\":true}]}")
+    response_buffer().write_success("get_listings",r#"{"listings":[{"id":"listing:popular","name":"热门","supportsPaging":true},{"id":"listing:latest","name":"最新","supportsPaging":true}]}"#.as_bytes())
 }
 fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_implemented", "unsupported")
@@ -1350,11 +1348,11 @@ fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "not_implemented", "unsupported")
 }
 fn run_get_settings(req: &[u8]) -> u32 {
-    let prefix = br#"{"settings":[{"id":"pref_short_title","name":"Display Short Titles","kind":"toggle","default":"false","description":""#;
+    let prefix = r#"{"settings":[{"id":"pref_short_title","name":"显示简短标题","kind":"toggle","default":"false","description":""#.as_bytes();
     let state = if koma_source_sdk::gallery_titles::enabled(req) {
-        b"Showing short Titles".as_slice()
+        "当前显示简短标题".as_bytes()
     } else {
-        b"Showing Long Titles".as_slice()
+        "当前显示完整标题".as_bytes()
     };
     let out = payload_buf();
     let mut n = 0;
@@ -1385,7 +1383,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
-    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.nhentaixxx.zh.koma\",\"name\":\"NHentai.xxx\",\"version\":\"0.1.4\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"Chinese-language provider catalogue. Per-work rating and source usage unknown.\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"NHentai.xxx（中文）\",\"zh-Hant\":\"NHentai.xxx（中文）\",\"en\":\"NHentai.xxx (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
+    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.nhentaixxx.zh.koma\",\"name\":\"NHentai.xxx\",\"version\":\"0.1.5\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"中文漫画目录，作品分级以实际内容为准。\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"NHentai.xxx（中文）\",\"zh-Hant\":\"NHentai.xxx（中文）\",\"en\":\"NHentai.xxx (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
 }
 macro_rules! export_op {
     ($f:ident,$op:literal,$run:ident) => {

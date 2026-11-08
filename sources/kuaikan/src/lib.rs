@@ -8,7 +8,7 @@ use koma_source_sdk::{fetch_error_code, FetchError};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.kuaikan.koma",
     name: "快看漫画",
-    version: "0.1.6",
+    version: "0.1.7",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -31,6 +31,8 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
 koma_source_sdk::koma_source_buffers! { payload:256*1024,http_out:2*1024*1024,body:1536*1024,http_req:8192,scratch:8192, }
 koma_source_sdk::koma_source_helpers!();
 static mut NUXT: [u8; 1024 * 1024] = [0; 1024 * 1024];
+// Separate from URL scratch and bounded by the existing 8 KiB URL capacity.
+static mut SEARCH_QUERY: [u8; 8192] = [0; 8192];
 const BASE: &[u8] = b"https://www.kuaikanmanhua.com";
 fn literal_string(v: &[u8]) -> Option<&[u8]> {
     if v.len() >= 2 && v[0] == b'"' && v[v.len() - 1] == b'"' {
@@ -67,6 +69,9 @@ fn network(op: &str, e: FetchError) -> u32 {
 enum WebError {
     Network(FetchError),
     Source(&'static str),
+    PaidChapter,
+    ChapterLocked,
+    UnknownAccess,
 }
 impl From<&'static str> for WebError {
     fn from(message: &'static str) -> Self { Self::Source(message) }
@@ -128,18 +133,33 @@ fn web_comic(topic: &[u8], comic: &[u8]) -> Result<&'static [u8], WebError> {
     if field(info, b"id").and_then(number) != number(comic) {
         return Err("comic identity mismatch".into());
     }
-    if field(info, b"locked") != Some(b"false")
-        || field(info, b"is_free") != Some(b"true")
+    // Preserve the original free gate: only explicit site data can identify a
+    // paid or locked chapter; missing access fields remain an unknown refusal.
+    if field(info, b"is_free") == Some(b"false")
         || field(info, b"need_vip") == Some(b"true")
         || field(info, b"is_pay_comic") == Some(b"true")
     {
-        return Err("paid or locked chapter is not supported".into());
+        return Err(WebError::PaidChapter);
+    }
+    if field(info, b"locked") == Some(b"true") {
+        // The official reader maps locked_code 10103 to this chapter's
+        // purchase flow. Other codes remain locked without guessing why.
+        if field(info, b"locked_code").and_then(number) == Some(10103) {
+            return Err(WebError::PaidChapter);
+        }
+        return Err(WebError::ChapterLocked);
+    }
+    if field(info, b"locked") != Some(b"false") || field(info, b"is_free") != Some(b"true") {
+        return Err(WebError::UnknownAccess);
     }
     Ok(info)
 }
 fn fail_web(op: &str, error: WebError) -> u32 {
     let e = match error {
         WebError::Network(error) => return network(op, error),
+        WebError::PaidChapter => return write_error(op, "paid_chapter", "site marks chapter paid or VIP"),
+        WebError::ChapterLocked => return write_error(op, "chapter_locked", "site marks chapter locked"),
+        WebError::UnknownAccess => return write_error(op, "permission_denied", "chapter access status is unknown"),
         WebError::Source(message) => message,
     };
     write_error(
@@ -209,12 +229,15 @@ fn cursor(req: &[u8]) -> Result<Option<usize>, &'static str> {
     let v = literal_string(c).ok_or("cursor must be a numeric string or null")?;
     number(v).map(Some).ok_or("invalid cursor")
 }
-// Decode search terms separately from request scratch and the bounded WASM stack.
-static mut SEARCH_QUERY: [u8; 8192] = [0; 8192];
 fn run_search(req: &[u8]) -> u32 {
-    let query = extract_json_string(req, b"query").unwrap_or(b"");
-    let decoded = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
-    let query = match koma_source_sdk::plain_text::decode_json_content(query, decoded) {
+    let args = json_object_member(req, b"args").unwrap_or(req);
+    let raw = match json_object_member(args, b"query") {
+        None => b"".as_slice(),
+        Some(v) if v.len() >= 2 && v[0] == b'"' && v[v.len()-1] == b'"' => &v[1..v.len()-1],
+        Some(_) => return write_error("search", "invalid_request", "invalid query"),
+    };
+    let buf = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
+    let query = match koma_source_sdk::plain_text::decode_json_content(raw, buf) {
         Ok(v) => v,
         Err(_) => return write_error("search", "invalid_request", "invalid query"),
     };
@@ -539,7 +562,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
         count += 1;
     }
     if count == 0 {
-        return write_error("get_pages", "permission_denied", "no public free images");
+        return write_error("get_pages", "chapter_unavailable", "no public free images");
     }
     if !write_bytes(b, &mut n, b"]}") {
         return write_error("get_pages", "internal_error", "payload overflow");
@@ -561,6 +584,9 @@ fn run_get_image_request(req: &[u8]) -> u32 {
             Ok(v) => v,
             Err(e) => return fail_web("get_image_request", e),
         };
+        if field(info, b"comic_images").map(|v| v.trim_ascii() == b"[]").unwrap_or(false) {
+            return write_error("get_image_request", "chapter_unavailable", "no public free images");
+        }
         match image_at(info, index) {
             Some(v) => v,
             None => return write_error("get_image_request", "not_found", "page not found"),

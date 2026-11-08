@@ -6,15 +6,15 @@ use koma_source_sdk::{
     json_utils::*,
     source::{SourceCapabilities, SourceInfo},
 };
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.pixiv.zh.koma",name:"pixiv",version:"0.1.14",api_version:"0.2",language:"zh",author:"Koma",description:"支持搜索漫画作品和系列。",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.pixiv.zh.koma",name:"pixiv",version:"0.1.15",api_version:"0.2",language:"zh",author:"Koma",description:"支持浏览和搜索漫画作品与系列。",content_rating:"nsfw"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
     chapters: true,
     pages: true,
     image_request: true,
-    listings: false,
-    manga_list: false,
+    listings: true,
+    manga_list: true,
     home: false,
     filters: true,
     settings: true,
@@ -850,19 +850,99 @@ fn filter_host(r: &[u8]) -> bool {
         while let Ok(Some(v))=a.next() { if v==br#""source_filter_scope_header_v1""# {return true;} } false
     })
 }
+fn extended_search_supported(r: &[u8]) -> bool {
+    filter_host(r) && member(r,b"hostFeatures").ok().flatten().and_then(|v|Array::new(v).ok()).map_or(false,|mut a|{while let Ok(Some(v))=a.next(){if v==br#""source_filter_search_without_query_v1""# {return true}}false})
+}
+fn tag_match(v: &[u8], filter: &[u8], full: bool) -> Result<bool,E> {
+    let wanted=core::str::from_utf8(filter).map_err(|_|"invalid tag filter")?;
+    if wanted.trim().is_empty(){return Ok(true)}
+    let mut flags=[false;128];let mut count=0;
+    for _ in wanted.split(' ') {if count>=flags.len(){return Err("too many tag terms")} count+=1;}
+    let tags=match member(v,b"tags")? {None|Some(b"null")=>return Ok(false),Some(t)=>t};
+    let mut rows=Array::new(tags)?;
+    while let Some(tag)=rows.next()? {let mut b=[0u8;8192];let value=unescape(quoted(tag)?,&mut b)?;let text=core::str::from_utf8(value).map_err(|_|"invalid tag")?;for (i,term) in wanted.split(' ').enumerate(){if if full {text==term} else {text.contains(term)} {flags[i]=true}}}
+    Ok(if full {flags[..count].iter().all(|v|*v)} else {flags[..count].iter().any(|v|*v)})
+}
 fn filter_text<'a>(f: &[u8], key: &[u8], out: &'a mut [u8]) -> Result<&'a [u8], E> {
     match member(f,key)? { None | Some(b"null") => Ok(b""), Some(v) => unescape(quoted(v)?,out) }
+}
+// Reference takes 36 samples, estimates a bounded window, then filters it.
+// Cursor carries the remainder of the last fetched public page so refreshes
+// cannot silently change the boundary between two result pages.
+fn adaptive_search(r:&[u8],query:&[u8],tags:&[u8],mode:&[u8],order:&[u8],before:&[u8],after:&[u8])->Result<usize,E>{
+    let a=args(r)?;let mut page=1usize;let mut offset=0usize;let mut wc=0usize;let mut sc=0usize;let mut pending_len=0usize;
+    if let Some(pg)=member(a,b"page")? { if pg.first()!=Some(&b'{'){return Err("invalid page contract")}
+        if let Some(c)=member(pg,b"cursor")? { if c!=b"null" {
+            let cv=unsafe{unescape(quoted(c)?,&mut CURSOR)?};valid_json(cv)?;
+            if member(cv,b"adaptive")?!=Some(b"true".as_slice()){return Err("invalid adaptive cursor")}
+            let mut qbuf=[0u8;8192];if unescape(text(cv,b"query")?,&mut qbuf)?!=query{return Err("cursor query mismatch")}
+            let mut t=[0u8;4096];let mut m=[0u8;32];let mut o=[0u8;32];let mut be=[0u8;1024];let mut af=[0u8;1024];
+            if filter_text(cv,b"tags",&mut t)?!=tags || filter_text(cv,b"tagsMode",&mut m)?!=mode || filter_text(cv,b"order",&mut o)?!=order || filter_text(cv,b"dateBefore",&mut be)?!=before || filter_text(cv,b"dateAfter",&mut af)?!=after {return Err("cursor filter mismatch")}
+            page=field_num(cv,b"p")?;offset=field_num(cv,b"offset")?;wc=cursor_arrays(cv,b"works",false)?;sc=cursor_arrays(cv,b"series",true)?;
+            if page>1024 || offset>4096 || sc>wc || (page==0 && offset!=0){return Err("invalid adaptive cursor")}
+            if let Some(p)=member(cv,b"pending")? {let data=unsafe{unescape(quoted(p)?,&mut SEARCH)?};valid_json(data)?;Array::new(required(data,b"illusts")?)?;pending_len=data.len()}
+            if (offset!=0)!=(pending_len!=0){return Err("invalid adaptive snapshot")}
+        }}
+    }
+    let out=payload_buf();let mut n=0;let mut emitted=0usize;let mut sampled=0usize;let mut hits=0usize;let mut goal=36usize;let mut retained=0usize;let mut fetched=0usize;
+    bytes(out,&mut n,b"{\"items\":[")?;
+    while page!=0 && sampled<goal {
+        fetched+=1;if fetched>128{return Err("adaptive request capacity exceeded")}
+        let len=if pending_len!=0 {let n=pending_len;pending_len=0;n} else {
+            let mut u=[0u8;16384];let mut z=0;bytes(&mut u,&mut z,b"https://www.pixiv.net/touch/ajax/search/illusts?lang=zh&word=")?;
+            if !write_url_encoded(&mut u,&mut z,query){return Err("query URL overflow")}
+            bytes(&mut u,&mut z,b"&s_mode=s_tc&type=manga&mode=all&p=")?;wn(&mut u,&mut z,page)?;
+            if order==b"date"{bytes(&mut u,&mut z,b"&order=date")?}
+            for (k,v) in [(b"&ecd=".as_slice(),before),(b"&scd=".as_slice(),after)] {if !v.is_empty(){bytes(&mut u,&mut z,k)?;if !write_url_encoded(&mut u,&mut z,v){return Err("filter URL overflow")}}}
+            let body=fetch(&u[..z])?;if body.len()>=MAX{return Err("search response capacity exceeded")};let n=body.len();unsafe{SEARCH[..n].copy_from_slice(body)};n
+        };
+        let data=unsafe{&SEARCH[..len]};let last=field_num(data,b"lastPage")?;if last>1024{return Err("search page capacity exceeded")}
+        let mut rows=Array::new(required(data,b"illusts")?)?;
+        if last==0 { if rows.next()?.is_some(){return Err("search page outside server window")};page=0;offset=0;break }
+        if page>last{return Err("search page outside server window")}let mut index=0usize;let mut stopped=false;
+        while let Some(v)=rows.next()? {
+            if index<offset {index+=1;continue} if sampled>=goal {stopped=true;break} index+=1;
+            if member(v,b"is_ad_container")?==Some(b"1".as_slice()){continue}
+            match guard(v){Ok(())=>(),Err("outside All ages manga scope"|"private artwork"|"invisible artwork"|"login required")=>continue,Err(e)=>return Err(e)}
+            sampled+=1;let matched=tag_match(v,tags,mode==b"full")?;if sampled<=36 && matched{hits+=1}
+            if sampled==36 {goal=if hits==0{1000}else{(50usize*36/hits).clamp(36,1000)}}
+            let x=field_id(v,b"id")?;if unsafe{WORKS[..wc].contains(&x)}{continue}if wc>=COUNT{return Err("adaptive cursor capacity exceeded")};unsafe{WORKS[wc]=x};wc+=1;
+            if !matched{continue} let series=member(v,b"series")?.unwrap_or(b"null");
+            let sid=if series!=b"null" {let id=field_id(series,b"id")?;search_series_owner(v,series)?;if unsafe{SEEN_SERIES[..sc].contains(&id)}{continue}if sc>=COUNT{return Err("adaptive cursor capacity exceeded")};unsafe{SEEN_SERIES[sc]=id};sc+=1;Some(id)} else {None};
+            if emitted!=0{bytes(out,&mut n,b",")?}if let Some(sid)=sid{search_series_card(out,&mut n,v,series,sid)?}else{artwork_card(out,&mut n,v,x)?}emitted+=1;
+        }
+        if offset>index{return Err("adaptive cursor offset")}
+        if stopped {offset=index;retained=len;break}
+        if index==0 || page>=last {page=0;offset=0;break}
+        page=page.checked_add(1).ok_or("search page overflow")?;offset=0;
+    }
+    bytes(out,&mut n,b"],\"page\":{\"hasMore\":")?;bytes(out,&mut n,if emitted>0{b"true"}else{b"false"})?;bytes(out,&mut n,b",\"nextCursor\":")?;
+    if emitted==0{bytes(out,&mut n,b"null")?}else{
+        let c=unsafe{&mut CURSOR};let mut cn=0;bytes(c,&mut cn,b"{\"adaptive\":true,\"p\":")?;wn(c,&mut cn,page)?;bytes(c,&mut cn,b",\"offset\":")?;wn(c,&mut cn,offset)?;
+        for (k,v) in [(b",\"query\":".as_slice(),query),(b",\"tags\":",tags),(b",\"tagsMode\":",mode),(b",\"order\":",order),(b",\"dateBefore\":",before),(b",\"dateAfter\":",after)]{bytes(c,&mut cn,k)?;q(c,&mut cn,v)?}
+        bytes(c,&mut cn,b",\"works\":[")?;for i in 0..wc{if i!=0{bytes(c,&mut cn,b",")?}unsafe{wi(c,&mut cn,WORKS[i])?}}
+        bytes(c,&mut cn,b"],\"series\":[")?;for i in 0..sc{if i!=0{bytes(c,&mut cn,b",")?}unsafe{wi(c,&mut cn,SEEN_SERIES[i])?}}bytes(c,&mut cn,b"]")?;
+        if retained!=0{bytes(c,&mut cn,b",\"pending\":")?;q(c,&mut cn,unsafe{&SEARCH[..retained]})?}bytes(c,&mut cn,b"}")?;q(out,&mut n,&c[..cn])?
+    }
+    bytes(out,&mut n,b"}}")?;Ok(n)
 }
 fn search(r: &[u8]) -> Result<usize, E> {
     let a = args(r)?;
     let mut qb = [0; 8192];
     let query = unescape(text(a, b"query")?, &mut qb)?;
-    if query.is_empty() {
-        return Err("empty query");
-    };
+    let extended=extended_search_supported(r);
+    if query.is_empty() && !extended { return Err("empty query"); }
     let filters = if filter_host(r) { member(a,b"filters")?.unwrap_or(b"{}") } else { b"{}" };
     let mut before_buf=[0u8;1024]; let before=filter_text(filters,b"dateBefore",&mut before_buf)?;
     let mut after_buf=[0u8;1024]; let after=filter_text(filters,b"dateAfter",&mut after_buf)?;
+    let mut tags_buf=[0u8;4096];let tags=if extended {filter_text(filters,b"tags",&mut tags_buf)?}else{b""};
+    let mut mode_buf=[0u8;32];let mode=if extended {filter_text(filters,b"tagsMode",&mut mode_buf)?}else{b""};
+    let mut order_buf=[0u8;32];let order=if extended {filter_text(filters,b"order",&mut order_buf)?}else{b""};
+    if !matches!(mode,b""|b"partial"|b"full") || !matches!(order,b""|b"default"|b"date") {return Err("invalid search filter")}
+    let blank=extended && core::str::from_utf8(query).map_err(|_|"invalid query")?.trim().is_empty();
+    let tags_blank=core::str::from_utf8(tags).map_err(|_|"invalid tags")?.trim().is_empty();
+    let word=if blank {if tags_blank {"漫画".as_bytes()} else {tags}} else {query};
+    if extended && !blank && !tags_blank { return adaptive_search(r,query,tags,mode,order,before,after); }
     let mut page = 1;
     let mut raw = 0;
     let mut sc = 0;
@@ -881,6 +961,8 @@ fn search(r: &[u8]) -> Result<usize, E> {
                 };
                 let mut prev_before=[0u8;1024]; let mut prev_after=[0u8;1024];
                 if filter_text(cv,b"dateBefore",&mut prev_before)? != before || filter_text(cv,b"dateAfter",&mut prev_after)? != after { return Err("cursor filter mismatch"); }
+                let mut t=[0u8;4096];let mut m=[0u8;32];let mut o=[0u8;32];
+                if filter_text(cv,b"tags",&mut t)?!=tags || filter_text(cv,b"tagsMode",&mut m)?!=mode || filter_text(cv,b"order",&mut o)?!=order {return Err("cursor filter mismatch")}
                 page = field_num(cv, b"p")?;
                 raw = field_num(cv, b"raw")?;
                 let wc = cursor_arrays(cv, b"works", false)?;
@@ -905,11 +987,11 @@ fn search(r: &[u8]) -> Result<usize, E> {
         &mut z,
         b"https://www.pixiv.net/touch/ajax/search/illusts?lang=zh&word=",
     )?;
-    if !write_url_encoded(b, &mut z, query) {
-        return Err("query URL overflow");
-    };
-    bytes(b, &mut z, b"&s_mode=s_tc&type=manga&mode=all&p=")?;
+    if !write_url_encoded(b, &mut z, word) { return Err("query URL overflow"); }
+    bytes(b,&mut z,if blank {if mode==b"full" {b"&s_mode=s_tag_full"} else {b"&s_mode=s_tag"}} else {b"&s_mode=s_tc"})?;
+    bytes(b, &mut z, b"&type=manga&mode=all&p=")?;
     wn(b, &mut z, page)?;
+    if order==b"date" { bytes(b,&mut z,b"&order=date")?; }
     for (key,value) in [(b"&ecd=".as_slice(),before),(b"&scd=".as_slice(),after)] {
         if !value.is_empty() { bytes(b,&mut z,key)?; if !write_url_encoded(b,&mut z,value) { return Err("filter URL overflow"); } }
     }
@@ -969,6 +1051,7 @@ fn search(r: &[u8]) -> Result<usize, E> {
             WORKS[raw] = x
         };
         raw += 1;
+        if extended && !blank && !tags_blank && !tag_match(v,tags,mode==b"full")? { continue; }
         let vs = member(v, b"series")?.unwrap_or(b"null");
         let is_series = vs != b"null";
         let mut series_id = 0;
@@ -1011,6 +1094,7 @@ fn search(r: &[u8]) -> Result<usize, E> {
         bytes(c, &mut cn, b",\"query\":")?;
         q(c, &mut cn, query)?;
         if !before.is_empty() || !after.is_empty() { bytes(c,&mut cn,b",\"dateBefore\":")?; q(c,&mut cn,before)?; bytes(c,&mut cn,b",\"dateAfter\":")?; q(c,&mut cn,after)?; }
+        if !tags.is_empty() || !mode.is_empty() || !order.is_empty() { bytes(c,&mut cn,b",\"tags\":")?;q(c,&mut cn,tags)?;bytes(c,&mut cn,b",\"tagsMode\":")?;q(c,&mut cn,mode)?;bytes(c,&mut cn,b",\"order\":")?;q(c,&mut cn,order)?; }
         bytes(c, &mut cn, b",\"works\":[")?;
         for i in 0..raw {
             if i > 0 {
@@ -1216,6 +1300,142 @@ fn run_get_pages(r: &[u8]) -> u32 {
 fn run_get_image_request(r: &[u8]) -> u32 {
     execute("get_image_request", image_request(r))
 }
+// Reference feeds buffer fifty unique works/series. Keep continuation state in
+// the opaque cursor, not a process-global paging buffer that another view can
+// overwrite. The established anonymous All ages guard remains authoritative.
+fn feed(r: &[u8]) -> Result<usize, E> {
+    let a = args(r)?;
+    let mode = text(a, b"listingId")?;
+    if mode != b"popular" && mode != b"latest" { return Err("unknown listing"); }
+    let mut page = 1usize; let mut offset = 0usize; let mut wc = 0usize; let mut sc = 0usize;
+    let mut pending_len = 0usize;
+    if let Some(pg) = member(a, b"page")? {
+        if pg.first() != Some(&b'{') { return Err("invalid page contract"); }
+        if let Some(c) = member(pg, b"cursor")? {
+            if c != b"null" {
+                let cv = unsafe { unescape(quoted(c)?, &mut CURSOR)? };
+                valid_json(cv)?;
+                if text(cv, b"mode")? != mode { return Err("cursor mode mismatch"); }
+                page = field_num(cv, b"p")?; offset = field_num(cv, b"offset")?;
+                wc = cursor_arrays(cv, b"works", false)?; sc = cursor_arrays(cv, b"series", true)?;
+                if page > 1024 || offset > 4096 { return Err("invalid feed cursor"); }
+                if page == 0 && offset != 0 { return Err("invalid feed cursor"); }
+                if let Some(pending) = member(cv, b"pending")? {
+                    let data = unsafe { unescape(quoted(pending)?, &mut SEARCH)? };
+                    valid_json(data)?;
+                    Array::new(required(data, if mode == b"popular" { b"illust_details" } else { b"illusts" })?)?;
+                    pending_len = data.len();
+                }
+                if (offset != 0) != (pending_len != 0) { return Err("invalid feed cursor snapshot"); }
+            }
+        }
+    }
+    let out = payload_buf(); let mut n = 0; let mut emitted = 0usize; let mut fetched = 0usize; let mut retained_len = 0usize;
+    bytes(out, &mut n, b"{\"items\":[")?;
+    while page != 0 && emitted < 50 {
+        fetched += 1; if fetched > 128 { return Err("feed request capacity exceeded"); }
+        let feed_len;
+        if pending_len != 0 {
+            feed_len = pending_len; pending_len = 0;
+        } else {
+        let mut url = [0u8; 8192]; let mut un = 0;
+        if mode == b"popular" { bytes(&mut url, &mut un, b"https://www.pixiv.net/touch/ajax/ranking/illust?mode=daily&type=manga&lang=zh&page=")?; }
+        else { bytes(&mut url, &mut un, b"https://www.pixiv.net/touch/ajax/latest?type=manga&lang=zh&p=")?; }
+        wn(&mut url, &mut un, page)?;
+        let body = fetch(&url[..un])?;
+        let mut expected = 0usize;
+        if mode == b"popular" {
+            let mut ranks = Array::new(required(body, b"ranking")?)?;
+            while let Some(row) = ranks.next()? {
+                if expected >= COUNT { return Err("ranking capacity exceeded"); }
+                let x = field_id(row, b"illustId")?;
+                unsafe { if CH_IDS[..expected].contains(&x) { return Err("duplicate ranking identity"); } CH_IDS[expected] = x; }
+                expected += 1;
+            }
+            if expected == 0 { page = 0; offset = 0; break; }
+            let mut details = [0u8; 32768]; let mut dn = 0;
+            bytes(&mut details, &mut dn, b"https://www.pixiv.net/touch/ajax/illust/details/many?lang=zh&")?;
+            for i in 0..expected {
+                if i != 0 { bytes(&mut details, &mut dn, b"&")?; }
+                bytes(&mut details, &mut dn, b"illust_ids%5B%5D=")?; unsafe { wi(&mut details, &mut dn, CH_IDS[i])?; }
+            }
+            let data = fetch(&details[..dn])?;
+            if data.len() >= MAX { return Err("feed response capacity exceeded"); }
+            feed_len = data.len();
+            unsafe { SEARCH[..data.len()].copy_from_slice(data); }
+            let data = unsafe { core::slice::from_raw_parts(core::ptr::addr_of!(SEARCH).cast::<u8>(), data.len()) };
+            let mut rows = Array::new(required(data, b"illust_details")?)?;
+            let mut count = 0usize;
+            while let Some(v) = rows.next()? {
+                if count >= expected || field_id(v, b"id")? != unsafe { CH_IDS[count] } { return Err("ranking detail identity mismatch"); }
+                count += 1;
+            }
+            if count != expected { return Err("ranking details incomplete"); }
+        } else {
+            if body.len() >= MAX { return Err("feed response capacity exceeded"); }
+            feed_len = body.len();
+            unsafe { SEARCH[..body.len()].copy_from_slice(body); }
+        }
+        }
+        let data = unsafe { &SEARCH[..feed_len] };
+        let mut rows = Array::new(required(data, if mode == b"popular" { b"illust_details" } else { b"illusts" })?)?;
+        let mut index = 0usize; let mut stopped = false;
+        while let Some(v) = rows.next()? {
+            if index < offset { index += 1; continue; }
+            if emitted == 50 { stopped = true; break; }
+            index += 1;
+            if member(v, b"is_ad_container")? == Some(b"1".as_slice()) { continue; }
+            match guard(v) {
+                Ok(()) => (),
+                Err("outside All ages manga scope" | "private artwork" | "invisible artwork" | "login required") => continue,
+                Err(e) => return Err(e),
+            }
+            let x = field_id(v, b"id")?;
+            let series = member(v, b"series")?.unwrap_or(b"null");
+            let sid = if series != b"null" {
+                let id = field_id(series, b"id")?; search_series_owner(v, series)?;
+                if unsafe { SEEN_SERIES[..sc].contains(&id) } { continue; }
+                if sc >= COUNT { return Err("feed cursor capacity exceeded"); }
+                unsafe { SEEN_SERIES[sc] = id }; sc += 1; Some(id)
+            } else {
+                if unsafe { WORKS[..wc].contains(&x) } { continue; }
+                if wc >= COUNT { return Err("feed cursor capacity exceeded"); }
+                unsafe { WORKS[wc] = x }; wc += 1; None
+            };
+            if emitted != 0 { bytes(out, &mut n, b",")?; }
+            if let Some(sid) = sid { search_series_card(out, &mut n, v, series, sid)?; }
+            else { artwork_card(out, &mut n, v, x)?; }
+            emitted += 1;
+        }
+        if offset > index { return Err("feed cursor offset"); }
+        if stopped { offset = index; retained_len = feed_len; break; }
+        if index == 0 { page = 0; offset = 0; break; }
+        page = page.checked_add(1).ok_or("feed page overflow")?; if page > 1024 { return Err("feed page capacity exceeded"); }
+        offset = 0;
+    }
+    // Reference reports a further page whenever this call returned items; a
+    // completed stream therefore emits one terminal empty continuation.
+    bytes(out, &mut n, b"],\"page\":{\"hasMore\":")?;
+    bytes(out, &mut n, if emitted > 0 { b"true" } else { b"false" })?;
+    bytes(out, &mut n, b",\"nextCursor\":")?;
+    if emitted == 0 { bytes(out, &mut n, b"null")?; }
+    else {
+        let c = unsafe { &mut CURSOR }; let mut cn = 0;
+        bytes(c, &mut cn, b"{\"mode\":")?; q(c, &mut cn, mode)?; bytes(c, &mut cn, b",\"p\":")?; wn(c, &mut cn, page)?;
+        bytes(c, &mut cn, b",\"offset\":")?; wn(c, &mut cn, offset)?; bytes(c, &mut cn, b",\"works\":[")?;
+        for i in 0..wc { if i != 0 { bytes(c, &mut cn, b",")?; } unsafe { wi(c, &mut cn, WORKS[i])?; } }
+        bytes(c, &mut cn, b"],\"series\":[")?;
+        for i in 0..sc { if i != 0 { bytes(c, &mut cn, b",")?; } unsafe { wi(c, &mut cn, SEEN_SERIES[i])?; } }
+        bytes(c, &mut cn, b"]")?;
+        if retained_len != 0 {
+            bytes(c, &mut cn, b",\"pending\":")?;
+            q(c, &mut cn, unsafe { &SEARCH[..retained_len] })?;
+        }
+        bytes(c, &mut cn, b"}")?; q(out, &mut n, &c[..cn])?;
+    }
+    bytes(out, &mut n, b"}}")?; Ok(n)
+}
+
 macro_rules! unsupported {
     ($f:ident,$op:literal) => {
         fn $f(_: &[u8]) -> u32 {
@@ -1223,11 +1443,14 @@ macro_rules! unsupported {
         }
     };
 }
-unsupported!(run_get_listings, "get_listings");
-unsupported!(run_get_manga_list, "get_manga_list");
+fn run_get_listings(_: &[u8]) -> u32 {
+    let data = "{\"listings\":[{\"id\":\"popular\",\"name\":\"热门\",\"supportsPaging\":true},{\"id\":\"latest\",\"name\":\"最新\",\"supportsPaging\":true}]}".as_bytes();
+    payload_buf()[..data.len()].copy_from_slice(data); write_success_payload("get_listings", data.len())
+}
+fn run_get_manga_list(r: &[u8]) -> u32 { execute("get_manga_list", feed(r)) }
 unsupported!(run_get_home, "get_home");
 fn run_get_filters(r: &[u8]) -> u32 {
-    let schema = if filter_host(r) { br#"{"filters":[{"id":"dateBefore","name":"Posted before","type":"text","scope":"search"},{"id":"dateAfter","name":"Posted after","type":"text","scope":"search"}]}"#.as_slice() } else { br#"{"filters":[]}"#.as_slice() };
+    let schema = if extended_search_supported(r) { r#"{"useSearchForFilters":true,"filters":[{"id":"tags","name":"标签","type":"text","scope":"search"},{"id":"tagsMode","name":"标签匹配","type":"select","scope":"search","default":"partial","options":[{"value":"partial","label":"部分匹配"},{"value":"full","label":"完整匹配"}]},{"id":"order","name":"排序","type":"select","scope":"search","options":[{"value":"default","label":"默认"},{"value":"date","label":"发布日期"}]},{"id":"dateBefore","name":"发布早于","type":"text","scope":"search"},{"id":"dateAfter","name":"发布晚于","type":"text","scope":"search"}]}"#.as_bytes() } else if filter_host(r) { r#"{"filters":[{"id":"dateBefore","name":"发布早于","type":"text","scope":"search"},{"id":"dateAfter","name":"发布晚于","type":"text","scope":"search"}]}"#.as_bytes() } else { br#"{"filters":[]}"#.as_slice() };
     payload_buf()[..schema.len()].copy_from_slice(schema); write_success_payload("get_filters",schema.len())
 }
 fn run_get_settings(_: &[u8]) -> u32 {

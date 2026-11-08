@@ -24,7 +24,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     manga_list: true,
     image_request: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: true,
     credentials: false,
 };
@@ -584,41 +584,70 @@ fn comics_path(r: &[u8]) -> &'static [u8] {
         _ => b"/cn/comics",
     }
 }
+const FILTER_ALLOWED: &[(&[u8], &[u8], &[&[u8]])] = &[
+    (b"country", b"filter%5Bcountry%5D", &[b"japan".as_slice(),b"hongkong".as_slice(),b"europe".as_slice(),b"china".as_slice(),b"korea".as_slice(),b"other".as_slice()]),
+    (b"tag", b"filter%5Btag%5D", &[b"mohuan".as_slice(),b"mofa".as_slice(),b"rexue".as_slice(),b"maoxian".as_slice(),b"xuanyi".as_slice(),b"zhentan".as_slice(),b"aiqing".as_slice(),b"xiaoyuan".as_slice(),b"gaoxiao".as_slice(),b"sige".as_slice(),b"kehuan".as_slice(),b"shengui".as_slice(),b"wudao".as_slice(),b"yinyue".as_slice(),b"baihe".as_slice(),b"hougong".as_slice(),b"jizhan".as_slice(),b"gedou".as_slice(),b"kongbu".as_slice(),b"mengxi".as_slice(),b"wuxia".as_slice(),b"shehui".as_slice(),b"lishi".as_slice(),b"danmei".as_slice(),b"lizhi".as_slice(),b"zhichang".as_slice(),b"shenghuo".as_slice(),b"zhiyu".as_slice(),b"weiniang".as_slice(),b"heidao".as_slice(),b"zhanzheng".as_slice(),b"jingji".as_slice(),b"tiyu".as_slice(),b"meishi".as_slice(),b"funv".as_slice(),b"zhainan".as_slice(),b"tuili".as_slice(),b"zazhi".as_slice()]),
+    (b"audience", b"filter%5Baudience%5D", &[b"shaonv".as_slice(),b"shaonian".as_slice(),b"qingnian".as_slice(),b"ertong".as_slice(),b"tongyong".as_slice()]),
+    (b"year", b"filter%5Byear%5D", &[b"2026".as_slice(),b"2025".as_slice(),b"2024".as_slice(),b"2023".as_slice(),b"2022".as_slice(),b"2021".as_slice(),b"2020".as_slice(),b"2019".as_slice(),b"2018".as_slice(),b"2017".as_slice(),b"2016".as_slice(),b"2015".as_slice(),b"2014".as_slice(),b"2013".as_slice(),b"2012".as_slice(),b"2011".as_slice(),b"2010".as_slice(),b"200x".as_slice(),b"199x".as_slice(),b"198x".as_slice(),b"197x".as_slice()]),
+    (b"end", b"filter%5Bend%5D", &[b"0".as_slice(),b"1".as_slice()]),
+];
+fn filter_search_supported(r: &[u8]) -> bool {
+    json_object_member(r, b"hostFeatures").map(trim_ascii).map_or(false, |v|
+        v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|b| *b == b',')
+            .any(|x| trim_ascii(x) == b"\"source_filter_search_without_query_v1\""))
+}
 fn list(r: &[u8], query: bool) -> Result<usize, &'static str> {
     let p = page(r)?;
-    let mut path = [0; 8192];
-    let mut len = 0;
-    bytes(&mut path, &mut len, comics_path(r))?;
-    if query {
-        let raw = string(args(r), b"query").ok_or("missing query")?;
-        let mut decoded = [0; 4096];
-        let term = unescape(raw, &mut decoded)?;
+    let a = args(r);
+    let filters = if query && filter_search_supported(r) { json_object_member(a, b"filters").unwrap_or(b"{}") } else { b"{}" };
+    let mut path = [0; 8192]; let mut len = 0;
+    let selected_sort = string(filters, b"sort");
+    if let Some(v) = selected_sort { if !matches!(v, b"new" | b"-update" | b"-views" | b"rank|" | b"rank|-week" | b"rank|-month" | b"rank|-views") { return Err("invalid sort"); } }
+    let rank = selected_sort.is_some_and(|v| v.starts_with(b"rank|"));
+    if rank && p != 1 { return Err("rank has no pagination"); }
+    let prefix = if comics_path(r) == b"/cn/comics" { b"/cn".as_slice() } else { b"".as_slice() };
+    if rank { bytes(&mut path, &mut len, prefix)?; bytes(&mut path, &mut len, b"/rank")?; }
+    else { bytes(&mut path, &mut len, comics_path(r))?; }
+    let mut sep = b'?';
+    if !rank && query {
+        let raw = string(a, b"query").ok_or("missing query")?;
+        let mut decoded = [0; 4096]; let term = unescape(raw, &mut decoded)?;
         if trim_ascii(term).is_empty() {
-            return Err("empty query");
-        };
-        bytes(&mut path, &mut len, b"?q=")?;
-        if !write_url_encoded(&mut path, &mut len, term) {
-            return Err("query overflow");
-        };
-    } else {
-        let listing = string(args(r), b"listingId").unwrap_or(b"popular");
-        bytes(
-            &mut path,
-            &mut len,
-            match listing {
-                b"popular" => b"?sort=-views",
-                b"latest" => b"?sort=-update",
-                _ => return Err("unknown listing"),
-            },
-        )?;
+            if !filter_search_supported(r) { return Err("empty query"); }
+        } else {
+            bytes(&mut path, &mut len, b"?q=")?;
+            if !write_url_encoded(&mut path, &mut len, term) { return Err("query overflow"); }
+            sep = b'&';
+        }
     }
-    if p > 1 {
-        bytes(&mut path, &mut len, b"&page=")?;
-        if !write_usize(&mut path, &mut len, p) {
-            return Err("page overflow");
-        };
+    let sort = selected_sort.or_else(|| if query { None } else { match string(a, b"listingId").unwrap_or(b"popular") { b"popular" => Some(b"-views".as_slice()), b"latest" => Some(b"-update".as_slice()), _ => None } });
+    if !query && selected_sort.is_none() && !matches!(string(a,b"listingId").unwrap_or(b"popular"), b"popular" | b"latest") { return Err("unknown listing"); }
+    if let Some(v) = sort {
+        let value = v.strip_prefix(b"rank|").unwrap_or(v);
+        if !value.is_empty() && value != b"new" { bytes(&mut path, &mut len, &[sep])?; bytes(&mut path, &mut len, b"sort=")?; bytes(&mut path, &mut len, value)?; sep = b'&'; }
     }
+    for (key, query_key, allowed) in FILTER_ALLOWED {
+        if let Some(value) = string(filters, key) {
+            if !allowed.contains(&value) { return Err("invalid filter"); }
+            bytes(&mut path, &mut len, &[sep])?; bytes(&mut path, &mut len, query_key)?; bytes(&mut path, &mut len, b"=")?;
+            if !write_url_encoded(&mut path, &mut len, value) { return Err("filter overflow"); } sep = b'&';
+        }
+    }
+    if !rank && p > 1 { bytes(&mut path, &mut len, &[sep])?; bytes(&mut path, &mut len, b"page=")?; if !write_usize(&mut path, &mut len, p) { return Err("page overflow"); } }
     let root = fetch(&path[..len])?;
+    if rank {
+        let nodes = Nodes::get(&root, b"table > tbody > tr > td:nth-child(2) a")?;
+        let b = payload_buf(); let mut n = 0; bytes(b, &mut n, b"{\"items\":[")?;
+        for i in 0..nodes.n {
+            let node = selected(&nodes, i); let mut h = [0; 8192]; let href = node.attr(b"href", &mut h)?;
+            let id = slug_from_href(href).ok_or("invalid public manga href")?;
+            let mut t = [0; 16384]; let title = node.text(&mut t)?; if trim_ascii(title).is_empty() { return Err("manga title missing"); }
+            if i > 0 { bytes(b, &mut n, b",")?; }
+            bytes(b, &mut n, b"{\"id\":")?; q(b, &mut n, id)?; bytes(b, &mut n, b",\"title\":")?; q(b, &mut n, title)?;
+            bytes(b, &mut n, b",\"cover\":{\"kind\":\"none\"},\"contentRating\":\"unknown\"}")?;
+        }
+        bytes(b, &mut n, b"],\"page\":{\"nextCursor\":null,\"hasMore\":false}}")?; return Ok(n);
+    }
     let _grid = root.select(b"div.grid")?;
     let nodes = Nodes::get(&root, b"div.grid > div.group")?;
     let next = root.select(b"nav[role=navigation] a[rel=next]").ok();
@@ -985,8 +1014,11 @@ fn run_get_image_request(r: &[u8]) -> u32 {
 fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_implemented", "not supported")
 }
-fn run_get_filters(_: &[u8]) -> u32 {
-    write_error("get_filters", "not_implemented", "not supported")
+fn run_get_filters(r: &[u8]) -> u32 {
+    if !filter_search_supported(r) { return write_error("get_filters", "not_implemented", "not supported"); }
+    let data = r###"{"useSearchForFilters":true,"filters":[{"id":"sort","name":"排序","type":"select","scope":"search","options":[{"value":"new","label":"最新上架"},{"value":"-update","label":"最近更新"},{"value":"-views","label":"最高人气"},{"value":"rank|","label":"日排行"},{"value":"rank|-week","label":"週排行"},{"value":"rank|-month","label":"月排行"},{"value":"rank|-views","label":"歷史排行"}]},{"id":"country","name":"作品地区","type":"select","scope":"search","options":[{"value":"japan","label":"日本"},{"value":"hongkong","label":"港台"},{"value":"europe","label":"歐美"},{"value":"china","label":"內地"},{"value":"korea","label":"韓國"},{"value":"other","label":"其他"}]},{"id":"tag","name":"作品类型","type":"select","scope":"search","options":[{"value":"mohuan","label":"魔幻"},{"value":"mofa","label":"魔法"},{"value":"rexue","label":"熱血"},{"value":"maoxian","label":"冒險"},{"value":"xuanyi","label":"懸疑"},{"value":"zhentan","label":"偵探"},{"value":"aiqing","label":"愛情"},{"value":"xiaoyuan","label":"校園"},{"value":"gaoxiao","label":"搞笑"},{"value":"sige","label":"四格"},{"value":"kehuan","label":"科幻"},{"value":"shengui","label":"神鬼"},{"value":"wudao","label":"舞蹈"},{"value":"yinyue","label":"音樂"},{"value":"baihe","label":"百合"},{"value":"hougong","label":"後宮"},{"value":"jizhan","label":"機戰"},{"value":"gedou","label":"格鬥"},{"value":"kongbu","label":"恐怖"},{"value":"mengxi","label":"萌系"},{"value":"wuxia","label":"武俠"},{"value":"shehui","label":"社會"},{"value":"lishi","label":"歷史"},{"value":"danmei","label":"耽美"},{"value":"lizhi","label":"勵志"},{"value":"zhichang","label":"職場"},{"value":"shenghuo","label":"生活"},{"value":"zhiyu","label":"治癒"},{"value":"weiniang","label":"偽娘"},{"value":"heidao","label":"黑道"},{"value":"zhanzheng","label":"戰爭"},{"value":"jingji","label":"競技"},{"value":"tiyu","label":"體育"},{"value":"meishi","label":"美食"},{"value":"funv","label":"腐女"},{"value":"zhainan","label":"宅男"},{"value":"tuili","label":"推理"},{"value":"zazhi","label":"雜誌"}]},{"id":"audience","name":"适合受众","type":"select","scope":"search","options":[{"value":"shaonv","label":"少女"},{"value":"shaonian","label":"少年"},{"value":"qingnian","label":"青年"},{"value":"ertong","label":"兒童"},{"value":"tongyong","label":"通用"}]},{"id":"year","name":"出品年份","type":"select","scope":"search","options":[{"value":"2026","label":"2026"},{"value":"2025","label":"2025"},{"value":"2024","label":"2024"},{"value":"2023","label":"2023"},{"value":"2022","label":"2022"},{"value":"2021","label":"2021"},{"value":"2020","label":"2020"},{"value":"2019","label":"2019"},{"value":"2018","label":"2018"},{"value":"2017","label":"2017"},{"value":"2016","label":"2016"},{"value":"2015","label":"2015"},{"value":"2014","label":"2014"},{"value":"2013","label":"2013"},{"value":"2012","label":"2012"},{"value":"2011","label":"2011"},{"value":"2010","label":"2010"},{"value":"200x","label":"00年代"},{"value":"199x","label":"90年代"},{"value":"198x","label":"80年代"},{"value":"197x","label":"70年代或更早"}]},{"id":"end","name":"目前进度","type":"select","scope":"search","options":[{"value":"0","label":"連載中"},{"value":"1","label":"已完結"}]}]}"###.as_bytes();
+    payload_buf()[..data.len()].copy_from_slice(data);
+    write_success_payload("get_filters", data.len())
 }
 fn run_get_settings(_: &[u8]) -> u32 {
     let data = r#"{"settings":[{"id":"pref_key_lang","name":"設置首選語言","kind":"select","default":"cn","options":[{"value":"original","label":"繁體中文"},{"value":"cn","label":"简体中文"}]}]}"#.as_bytes();

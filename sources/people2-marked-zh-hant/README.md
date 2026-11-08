@@ -25,3 +25,7 @@
 普通picker首次导入既有正式0.1.1，登记63→64只新增本源，原63条完整记录和相对顺序保持。现装App 0.1.2-pre/code3普通Browse首屏HTTP200，实际显示原4本及封面；一次正常滚到末尾后连续完成4次后继get_manga_list，均HTTP200/completed，最终仍4本并显示“没有更多了”。当前消费者没有在原留存的零匹配中间页处提前终止；源码严格校验next/back页号并仅按实际next输出hasMore，App按该标记保留后继。日志未导出逐页原JSON封套，不能把resultChars335/279当逐字段响应实读；本次仅接受具名普通分页消费，不宣称详情、阅读、下载或整源通过。
 
 原件沿Koma既有237 category-membership：`people2011-empty237-{gate,imported,firstpage,nextpage,final-restored}-001`，nextpage内为连续日志及完整原图。最终普通Browse喵趣组已恢复，reader整份内容与进入前相同，原10000ms/AWAKE、本人传包及两scratch不存在均读回，租约释放、哈希关闭。仅保留正常新装People2；未改源/App代码、版本、图标、偏好、读态或其他源。
+
+## 公開封面請求（0.1.3）
+
+支持 source_public_cover_user_agent_v1 的宿主可直接使用瀏覽、搜尋及詳情中已配對的原封面和文章 Referer，User-Agent 與既有計畫相同。保留原作者漫畫標記與網站範圍。舊宿主、既有記錄和正文圖片仍沿 get_image_request 原路徑，重新核對作品、圖序和完整原圖 URI。

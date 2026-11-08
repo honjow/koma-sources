@@ -12,6 +12,7 @@ use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 const API_URL: &[u8] = b"https://v4api.zaimanhua.com/app/v1";
 const MOBILE_BASE: &[u8] = b"https://m.zaimanhua.com";
 const DEFAULT_PAGE_SIZE: usize = 20;
+const IMAGE_HEADERS: &[u8] = br#"{"Referer":"https://manhua.zaimanhua.com/"}"#;
 
 koma_source_sdk::koma_source_buffers! {
     payload: 128 * 1024,
@@ -34,7 +35,7 @@ static mut CHAPTER_SNAPSHOT: [u8; JSON_BUF_CAP] = [0; JSON_BUF_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.zaimanhua.koma",
     name: "再漫画",
-    version: "0.1.10",
+    version: "0.1.11",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -292,6 +293,15 @@ fn format_authors_to_payload(payload: &mut [u8], cursor: &mut usize, authors: &[
 
 // --- Operations ---
 
+fn write_cover(payload: &mut [u8], cursor: &mut usize, url: &[u8]) -> bool {
+    // The public cover already contains the original URL used by the legacy resolver.
+    write_bytes(payload, cursor, br#"{"kind":"url","url":""#)
+        && append_json_escaped(payload, cursor, url)
+        && write_bytes(payload, cursor, br#"","headers":"#)
+        && write_bytes(payload, cursor, IMAGE_HEADERS)
+        && write_bytes(payload, cursor, b"}")
+}
+
 // mode 0: search metadata; 1: listing; 2: the existing Home ten-item summary.
 fn append_cards(operation:&str, items:&[u8], payload:&mut[u8], c:&mut usize, mode:u8) -> Result<usize,u32> {
     let mut pos=0; let mut written=0;
@@ -307,8 +317,7 @@ fn append_cards(operation:&str, items:&[u8], payload:&mut[u8], c:&mut usize, mod
         if written>0 && !write_bytes(payload,c,b",") { return Err(write_error(operation,"internal_error","overflow")); }
         let ok=write_bytes(payload,c,br#"{"id":""#) && append_json_escaped(payload,c,id)
             && write_bytes(payload,c,br#"","title":""#) && append_json_escaped(payload,c,title)
-            && write_bytes(payload,c,br#"","cover":{"kind":"url","url":""#) && append_json_escaped(payload,c,cover)
-            && write_bytes(payload,c,br#""}"#);
+            && write_bytes(payload,c,br#"","cover":"#) && write_cover(payload,c,cover);
         if !ok { return Err(write_error(operation,"internal_error","overflow")); }
         if mode==2 {
             if !write_bytes(payload,c,b"}") { return Err(write_error(operation,"internal_error","overflow")); }
@@ -344,15 +353,27 @@ fn run_search(req: &[u8]) -> u32 {
         _ => return write_error("search", "invalid_request", "invalid query"),
     };
 
-    // Check if query is a pure number for ID lookup
-    let is_pure_number = !query.is_empty() && query.iter().all(|&b| b >= b'0' && b <= b'9');
+    // Mihon makes ID lookup opt-in. Older hosts cannot render search-scoped
+    // filters, so preserve their existing automatic numeric lookup instead.
+    let scoped = browse_filters_supported(req);
+    let search_by_id = if scoped {
+        let args = json_object_member(req, b"args").unwrap_or(req);
+        let filters = json_object_member(args, b"filters").unwrap_or(b"{}");
+        match json_object_member(filters, b"search_by_id").map(|v| v.trim_ascii()) {
+            None | Some(b"null" | b"false") => false,
+            Some(b"true") => true,
+            _ => return write_error("search", "invalid_request", "invalid search_by_id"),
+        }
+    } else { true };
+    let is_pure_number = !query.is_empty() && query.iter().all(|&b| b >= b'0' && b <= b'9')
+        && (!scoped || core::str::from_utf8(query).ok()
+            .and_then(|value| value.parse::<i32>().ok()).is_some_and(|value| value > 0));
 
     // Extract page from request
     let page_num = request_page_number(req);
 
-
-    // If pure number and first page, try ID lookup first
-    if is_pure_number && page_num == 1 {
+    // Numeric lookup is scoped to the first page, as in the original contract.
+    if search_by_id && is_pure_number && page_num == 1 {
         let url_buf = scratch_a();
         let mut url_cursor = 0usize;
         let ok = write_bytes(url_buf, &mut url_cursor, API_URL)
@@ -361,9 +382,21 @@ fn run_search(req: &[u8]) -> u32 {
             && write_bytes(url_buf, &mut url_cursor, b"?_v=2.2.5");
         if ok {
             let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
-            if let Ok(api_json) = fetch_json(url_bytes) {
+            let fetched = fetch_json(url_bytes);
+            if scoped {
+                if let Err(error) = fetched {
+                    let (code, message) = fetch_error_code(error);
+                    return write_error("search", code, message);
+                }
+            }
+            if let Ok(api_json) = fetched {
                 // Try to extract manga detail from response
                 if let Some(manga_obj) = extract_data_inner_object(api_json) {
+                    if scoped {
+                        let expected = core::str::from_utf8(query).ok().and_then(|v| v.parse::<i32>().ok());
+                        let actual = json_object_member(manga_obj, b"id").and_then(|v| core::str::from_utf8(v).ok()).and_then(|v| v.parse::<i32>().ok());
+                        if expected != actual || actual.is_none() { return write_error("search", "parse_error", "detail identity mismatch"); }
+                    }
                     let payload = payload_buf();
                     let mut c = 0usize;
                     if write_bytes(payload, &mut c, br#"{"items":["#) {
@@ -378,9 +411,9 @@ fn run_search(req: &[u8]) -> u32 {
                             && append_json_escaped(payload, &mut c, id)
                             && write_bytes(payload, &mut c, br#"","title":""#)
                             && append_json_escaped(payload, &mut c, title)
-                            && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":""#)
-                            && append_json_escaped(payload, &mut c, cover)
-                            && write_bytes(payload, &mut c, br#""},"authors":["#);
+                            && write_bytes(payload, &mut c, br#"","cover":"#)
+                            && write_cover(payload, &mut c, cover)
+                            && write_bytes(payload, &mut c, br#", "authors":["#);
                         if !ok2 { return write_error("search","internal_error","overflow"); }
                         if ok2 {
                             if let Some(auth) = authors {
@@ -415,7 +448,8 @@ fn run_search(req: &[u8]) -> u32 {
                 }
             }
         }
-        // ID lookup failed, fall through to normal search
+        if scoped { return write_error("search", "parse_error", "invalid ID lookup response"); }
+        // Legacy hosts retain their automatic lookup followed by normal search.
     }
 
     // Normal search: /search/index?keyword=...&source=0&size=20&page=N
@@ -673,9 +707,9 @@ fn run_get_manga(req: &[u8]) -> u32 {
             br#"","alternateTitles":[],"description":""#,
         )
         && append_json_unescaped_then_escaped(payload, &mut c, description)
-        && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":""#)
-        && append_json_escaped(payload, &mut c, cover)
-        && write_bytes(payload, &mut c, br#""},"authors":["#);
+        && write_bytes(payload, &mut c, br#"","cover":"#)
+        && write_cover(payload, &mut c, cover)
+        && write_bytes(payload, &mut c, br#", "authors":["#);
     if !ok {
         return write_error("get_manga", "internal_error", "overflow");
     }
@@ -1232,7 +1266,7 @@ fn run_get_home(_req: &[u8]) -> u32 {
 }
 
 fn run_get_filters(req: &[u8]) -> u32 {
-    let schema=if browse_filters_supported(req) {r###"{"filters":[{"type":"header","scope":"browse","name":"排行榜（搜索时无效）"},{"id":"by_time","name":"榜单","type":"select","scope":"browse","options":[{"label":"不查看榜单","value":"none"},{"label":"日排行","value":"0"},{"label":"周排行","value":"1"},{"label":"月排行","value":"2"},{"label":"总排行","value":"3"}]},{"id":"rank_type","name":"排序","type":"select","scope":"browse","options":[{"label":"人气","value":"0"},{"label":"吐槽","value":"1"},{"label":"订阅","value":"2"}]},{"type":"header","scope":"browse","name":"分类(搜索/查看排行榜时无效)"},{"id":"sortType","name":"排序","type":"select","scope":"browse","options":[{"label":"更新排序","value":"1"},{"label":"人气排序","value":"2"}]},{"id":"status","name":"进度","type":"select","scope":"browse","options":[{"label":"全部","value":"0"},{"label":"连载中","value":"2309"},{"label":"已完结","value":"2310"},{"label":"短篇","value":"29205"}]},{"id":"cate","name":"读者群","type":"select","scope":"browse","options":[{"label":"全部","value":"0"},{"label":"少年漫画","value":"3262"},{"label":"少女漫画","value":"3263"},{"label":"青年漫画","value":"3264"},{"label":"女青漫画","value":"13626"}]},{"id":"zone","name":"地区","type":"select","scope":"browse","options":[{"label":"全部","value":"0"},{"label":"日本","value":"2304"},{"label":"韩国","value":"2305"},{"label":"欧美","value":"2306"},{"label":"港台","value":"2307"},{"label":"内地","value":"2308"},{"label":"其他","value":"8435"}]},{"id":"theme","name":"题材","type":"select","scope":"browse","options":[{"label":"全部","value":"0"},{"label":"冒险","value":"4"},{"label":"欢乐向","value":"5"},{"label":"格斗","value":"6"},{"label":"科幻","value":"7"},{"label":"爱情","value":"8"},{"label":"侦探","value":"9"},{"label":"竞技","value":"10"},{"label":"魔法","value":"11"},{"label":"神鬼","value":"12"},{"label":"校园","value":"13"},{"label":"惊悚","value":"14"},{"label":"其他","value":"16"},{"label":"四格","value":"17"},{"label":"亲情","value":"3242"},{"label":"ゆり","value":"3243"},{"label":"秀吉","value":"3244"},{"label":"悬疑","value":"3245"},{"label":"纯爱","value":"3246"},{"label":"热血","value":"3248"},{"label":"泛爱","value":"3249"},{"label":"历史","value":"3250"},{"label":"战争","value":"3251"},{"label":"萌系","value":"3252"},{"label":"宅系","value":"3253"},{"label":"治愈","value":"3254"},{"label":"励志","value":"3255"},{"label":"武侠","value":"3324"},{"label":"机战","value":"3325"},{"label":"音乐舞蹈","value":"3326"},{"label":"美食","value":"3327"},{"label":"职场","value":"3328"},{"label":"西方魔幻","value":"3365"},{"label":"高清单行","value":"4459"},{"label":"TS","value":"4518"},{"label":"东方","value":"5077"},{"label":"魔幻","value":"5806"},{"label":"奇幻","value":"5848"},{"label":"节操","value":"6219"},{"label":"轻小说","value":"6316"},{"label":"颜艺","value":"6437"},{"label":"搞笑","value":"7568"},{"label":"仙侠","value":"7900"},{"label":"舰娘","value":"13627"},{"label":"动画","value":"17192"},{"label":"AA","value":"18522"},{"label":"福瑞","value":"23323"},{"label":"生存","value":"23388"},{"label":"日常","value":"30788"},{"label":"画集","value":"31137"}]}]}"###.as_bytes()} else {b"{\"filters\":[]}"};
+    let schema=if browse_filters_supported(req) {r###"{"filters":[{"id":"search_by_id","name":"启用ID跳转（搜索纯数字时）","type":"check","scope":"search","default":false},{"type":"header","scope":"browse","name":"排行榜（搜索时无效）"},{"id":"by_time","name":"榜单","type":"select","scope":"browse","options":[{"label":"不查看榜单","value":"none"},{"label":"日排行","value":"0"},{"label":"周排行","value":"1"},{"label":"月排行","value":"2"},{"label":"总排行","value":"3"}]},{"id":"rank_type","name":"排序","type":"select","scope":"browse","options":[{"label":"人气","value":"0"},{"label":"吐槽","value":"1"},{"label":"订阅","value":"2"}]},{"type":"header","scope":"browse","name":"分类(搜索/查看排行榜时无效)"},{"id":"sortType","name":"排序","type":"select","scope":"browse","options":[{"label":"更新排序","value":"1"},{"label":"人气排序","value":"2"}]},{"id":"status","name":"进度","type":"select","scope":"browse","options":[{"label":"全部","value":"0"},{"label":"连载中","value":"2309"},{"label":"已完结","value":"2310"},{"label":"短篇","value":"29205"}]},{"id":"cate","name":"读者群","type":"select","scope":"browse","options":[{"label":"全部","value":"0"},{"label":"少年漫画","value":"3262"},{"label":"少女漫画","value":"3263"},{"label":"青年漫画","value":"3264"},{"label":"女青漫画","value":"13626"}]},{"id":"zone","name":"地区","type":"select","scope":"browse","options":[{"label":"全部","value":"0"},{"label":"日本","value":"2304"},{"label":"韩国","value":"2305"},{"label":"欧美","value":"2306"},{"label":"港台","value":"2307"},{"label":"内地","value":"2308"},{"label":"其他","value":"8435"}]},{"id":"theme","name":"题材","type":"select","scope":"browse","options":[{"label":"全部","value":"0"},{"label":"冒险","value":"4"},{"label":"欢乐向","value":"5"},{"label":"格斗","value":"6"},{"label":"科幻","value":"7"},{"label":"爱情","value":"8"},{"label":"侦探","value":"9"},{"label":"竞技","value":"10"},{"label":"魔法","value":"11"},{"label":"神鬼","value":"12"},{"label":"校园","value":"13"},{"label":"惊悚","value":"14"},{"label":"其他","value":"16"},{"label":"四格","value":"17"},{"label":"亲情","value":"3242"},{"label":"ゆり","value":"3243"},{"label":"秀吉","value":"3244"},{"label":"悬疑","value":"3245"},{"label":"纯爱","value":"3246"},{"label":"热血","value":"3248"},{"label":"泛爱","value":"3249"},{"label":"历史","value":"3250"},{"label":"战争","value":"3251"},{"label":"萌系","value":"3252"},{"label":"宅系","value":"3253"},{"label":"治愈","value":"3254"},{"label":"励志","value":"3255"},{"label":"武侠","value":"3324"},{"label":"机战","value":"3325"},{"label":"音乐舞蹈","value":"3326"},{"label":"美食","value":"3327"},{"label":"职场","value":"3328"},{"label":"西方魔幻","value":"3365"},{"label":"高清单行","value":"4459"},{"label":"TS","value":"4518"},{"label":"东方","value":"5077"},{"label":"魔幻","value":"5806"},{"label":"奇幻","value":"5848"},{"label":"节操","value":"6219"},{"label":"轻小说","value":"6316"},{"label":"颜艺","value":"6437"},{"label":"搞笑","value":"7568"},{"label":"仙侠","value":"7900"},{"label":"舰娘","value":"13627"},{"label":"动画","value":"17192"},{"label":"AA","value":"18522"},{"label":"福瑞","value":"23323"},{"label":"生存","value":"23388"},{"label":"日常","value":"30788"},{"label":"画集","value":"31137"}]}]}"###.as_bytes()} else {b"{\"filters\":[]}"};
     payload_buf()[..schema.len()].copy_from_slice(schema);
     write_success_payload("get_filters",schema.len())
 }
@@ -1259,11 +1293,9 @@ fn run_image_request(req: &[u8]) -> u32 {
     let mut c = 0usize;
     let ok = write_bytes(payload, &mut c, br#"{"url":""#)
         && append_json_escaped(payload, &mut c, url)
-        && write_bytes(
-            payload,
-            &mut c,
-            br#"","headers":{"Referer":"https://manhua.zaimanhua.com/"}}"#,
-        );
+        && write_bytes(payload, &mut c, br#"","headers":"#)
+        && write_bytes(payload, &mut c, IMAGE_HEADERS)
+        && write_bytes(payload, &mut c, b"}");
     if !ok {
         return write_error("get_image_request", "internal_error", "overflow");
     }

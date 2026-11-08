@@ -1,4 +1,8 @@
-# IP手札mini! 官方直達專欄（繁中）0.1.2
+# IP手札mini! 官方直達專欄（繁中）0.1.3
+
+## 封面直載
+
+官方目錄卡已驗證原 Attachment 網址。宿主宣告 `source_public_cover_user_agent_v1` 時，瀏覽、搜尋及詳情隨 `cover` 一併回傳既有 User-Agent 和目錄 Referer，讓宿主直接取原圖，省去每張封面重新讀取一至兩頁目錄。`get_image_request` 與舊宿主沿用原擁有者檢查；正文仍使用本篇詳情 Referer。網站目前兩頁共 23 筆，其中 16 篇可直達，含新增的 #23。以下 22 筆及 15 篇為初版取證時的數字。
 
 來源為經濟部智慧財產局主站 `https://www.tipo.gov.tw/tw/tipo1/295.html` 的漫畫目錄及其原 `cloud.tipo.gov.tw/S400/article/columnist/ID` 直達專欄。這是獨立於此前 `/tw/copyright/701.html` 校園混合宣導品／PDF的真漫畫入口，不重取舊入口、不取既有CCC作品。SourceInfo.author的Koma是源開發者；逐作原author欄位如「財團法人中衛發展中心彙編」原樣放authors和說明，不冒稱繪師，artists為空。正式作品評級、狀態與usage未知。
 

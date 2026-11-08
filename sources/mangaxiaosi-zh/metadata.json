@@ -5,5 +5,14 @@
     "en": "Manga Xiao Si (Chinese)"
   },
   "homepage": "https://www.jjmhw2.top",
+  "websitePolicy": {
+    "homepageChoices": {
+      "setting": "preferredMirror",
+      "options": [
+        { "value": "https://www.jjmhw2.top", "url": "https://www.jjmhw2.top/" },
+        { "value": "https://www.jjmh.top", "url": "https://www.jjmh.top/" }
+      ]
+    }
+  },
   "chapterOrder": "newest_first"
 }

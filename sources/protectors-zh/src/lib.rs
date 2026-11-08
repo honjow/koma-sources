@@ -5,7 +5,7 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.protectors.zh.koma",
     name: "那些需要守护的中文・官方漫画",
-    version: "0.1.0",
+    version: "0.1.1",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -944,7 +944,8 @@ fn book(dst: &mut [u8], c: &mut usize, i: usize, detail: bool) -> R<()> {
     route(dst, c, &work.id[..work.il], true)?;
     w(dst, c, b"\",\"cover\":{\"kind\":\"url\",\"url\":")?;
     q(dst, c, &work.image[..work.ul])?;
-    w(dst,c,b"},\"language\":\"zh\",\"authors\":[],\"artists\":[],\"status\":\"unknown\",\"contentRating\":\"unknown\"")?;
+    // The verified official feed already supplies the public primary image.
+    w(dst,c,b",\"headers\":{}},\"language\":\"zh\",\"authors\":[],\"artists\":[],\"status\":\"unknown\",\"contentRating\":\"unknown\"")?;
     if detail {
         w(dst, c, b",\"description\":")?;
         q(dst,c,"收录当前栏目中5篇有明确官方发布标记的漫画。创作者和作品评级尚未确认。".as_bytes())?;

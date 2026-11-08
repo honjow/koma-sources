@@ -10,7 +10,7 @@ type E = &'static str;
 type R<T> = Result<T, E>;
 const MAX: usize = 1048576;
 const WEB: &[u8] = b"https://ymcdnyfqdapp.ikmmh.com";
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.ikmmh.zh.koma",name:"Ikmmh",version:"0.1.2",api_version:"0.2",language:"zh",author:"Koma",description:"Ikmmh anonymous category catalogue and finite query. Per-work rating, picture availability and usage unknown.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.ikmmh.zh.koma",name:"Ikmmh",version:"0.1.3",api_version:"0.2",language:"zh",author:"Koma",description:"Ikmmh anonymous category catalogue and finite query. Per-work rating, picture availability and usage unknown.",content_rating:"nsfw"};
 #[allow(dead_code)]
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
@@ -493,6 +493,17 @@ fn fetch_body(url: &[u8], form: Option<&[u8]>) -> R<usize> {
     let status = num(member(env, b"status")?
         .or(member(env, b"statusCode")?)
         .ok_or("status missing")?)?;
+    if status == 403 {
+        // Only the provider's explicit restriction identifies a regional denial.
+        let body = member(env, b"bodyText")
+            .ok()
+            .flatten()
+            .and_then(|value| uq(value, body_buf()).ok());
+        if matches!(body, Some(text) if contains_bytes(text, "<p>当前区域禁止访问</p>".as_bytes())) {
+            return Err("region_restricted");
+        }
+        return Err("permission_denied");
+    }
     if !(200..300).contains(&status) {
         return Err("HTTP status");
     };
@@ -1038,6 +1049,12 @@ fn image_request(r: &[u8]) -> R<usize> {
 fn execute(op: &str, r: R<usize>) -> u32 {
     match r {
         Ok(n) => write_success_payload(op, n),
+        Err("region_restricted") => write_error(
+            op,
+            "region_restricted",
+            "Provider restricts access from the current region",
+        ),
+        Err("permission_denied") => write_error(op, "permission_denied", "HTTP 403"),
         Err(e) => write_error(op, "source_contract_error", e),
     }
 }

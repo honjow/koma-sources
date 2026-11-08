@@ -28,7 +28,7 @@ static mut URL_BUF: [u8; URL_CAP] = [0; URL_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.zazhimi.koma",
     name: "杂志迷",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -138,12 +138,50 @@ fn first_word_len(bytes: &[u8]) -> usize {
     i
 }
 
+fn write_image_url(payload: &mut [u8], cursor: &mut usize, url: &[u8]) -> bool {
+    const CDN: &[u8] = b"https://img2020.zazhimi.net/aazzmpic/";
+    const HEX: &[u8; 16] = b"0123456789ABCDEF";
+    let start = *cursor;
+    if !append_json_unescaped_then_escaped(payload, cursor, url) {
+        return false;
+    }
+    let end = *cursor;
+    let Some(path) = payload[start..end].strip_prefix(CDN) else { return true; };
+    let path_len = path.iter().position(|b| matches!(b, b'?' | b'#')).unwrap_or(path.len());
+    let needs_encoding = |byte: u8| byte == b' ' || !byte.is_ascii();
+    let extra = 2 * path[..path_len].iter().filter(|&&b| needs_encoding(b)).count();
+    if extra == 0 {
+        return true;
+    }
+    let Some(new_end) = end.checked_add(extra).filter(|&len| len <= payload.len()) else {
+        return false;
+    };
+    // This public CDN emits literal spaces and UTF-8 in file paths. Apply the
+    // browser's encoding for those bytes, preserving existing escapes and any suffix.
+    let path_start = start + CDN.len();
+    let path_end = path_start + path_len;
+    payload.copy_within(path_end..end, path_end + extra);
+    let mut write = path_end + extra;
+    for read in (path_start..path_end).rev() {
+        let byte = payload[read];
+        if needs_encoding(byte) {
+            write -= 3;
+            payload[write..write + 3].copy_from_slice(&[b'%', HEX[(byte >> 4) as usize], HEX[(byte & 15) as usize]]);
+        } else {
+            write -= 1;
+            payload[write] = byte;
+        }
+    }
+    *cursor = new_end;
+    true
+}
+
 fn write_cover(payload: &mut [u8], c: &mut usize, cover: &[u8]) -> bool {
     if cover.is_empty() {
         write_bytes(payload, c, br#"{"kind":"none"}"#)
     } else {
         write_bytes(payload, c, br#"{"kind":"url","url":""#)
-            && append_json_unescaped_then_escaped(payload, c, cover)
+            && write_image_url(payload, c, cover)
             && write_bytes(payload, c, br#""}"#)
     }
 }
@@ -455,7 +493,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
             && write_bytes(payload, &mut c, br#"","index":"#)
             && write_usize(payload, &mut c, written)
             && write_bytes(payload, &mut c, br#","image":{"kind":"url","url":""#)
-            && append_json_unescaped_then_escaped(payload, &mut c, img)
+            && write_image_url(payload, &mut c, img)
             && write_bytes(payload, &mut c, br#""}}"#);
         if !ok {
             return write_error("get_pages", "internal_error", "payload overflow");

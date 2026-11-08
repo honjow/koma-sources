@@ -1,4 +1,4 @@
-# NNHanman Chinese source 0.1.0
+# NNHanman Chinese source 0.1.4
 
 Independent com.nnhanman.zh.koma, formal Chinese entity6412117657297236190. NSFW=true; per-work rating and actual usage unknown. Source exposes published ranking, scoped category filters, search, details, complete catalogue, initial direct page descriptors and owned image requests. No latest, account, login, script evaluation, retry or CDN rotation.
 
@@ -36,3 +36,15 @@ The accepted011black transparent reconstruction was nearly invisible in the actu
 参考扩展的分类、排序和状态只用于空查询分类浏览，非空搜索沿原独立路径。未选择筛选时保留原热门排行；仅有明确选择（包括全部或按时间）时使用官网分类路径，分页游标绑定当前选择并依据官网下一页链接。宿主声明 `source_filter_scope_header_v1` 才提供参考原文说明及目录筛选，旧宿主不暴露新控件。网页失败与无法核实的分页保持失败，不用空结果伪装成功。
 
 搜索分页沿官网实际的同关键词下一页链接判断，不使用 SEO 简介中不可靠的总页数字；有效单页或空列表正常返回，缺少列表容器的网页仍按解析失败处理。
+
+## 0.1.4 declared image positions and transport failures
+
+The retained public chapter `nv-you-bu-neng-shuo-de-shi/chapter-82752.html` declares267 consecutive `data-index` positions0..266 and265 distinct initial image URIs: positions176/185 and184/186 reuse the same two URIs. Each is a separate original image wrapper, and the provider ComicLoader initial load visits every wrapper. The adopted fixed NNHanman reference likewise sorts and maps those declared positions without URL deduplication. Page identity therefore stays the exact declared index: all267 original descriptors/IDs/order are retained, while the evidence explicitly distinguishes267 positions from265 different image URIs. No missing images are invented or repeated slots removed. The original strict index sequence,1000-node/native payload bounds, allowed initial image host and fresh indexed imageRequest ownership recheck remain. No CDN rotation, retry, runtime script execution or media-host expansion is added.
+
+A separate retained `yan-ji-Lovers` detail log is a TLS connection-init failure, followed by an independently successful catalogue response at the same work URI. It is not an HTML structure failure or an HTTP refusal. Known failed host envelopes are now classified before looking for an HTTP status: network transport errors return `network_error`, and an explicit host timeout returns `timeout`. Unknown failed envelopes remain errors; a missing status on an otherwise successful/unknown envelope remains an explicit error. Ordinary2xx outputs and existing non2xx rejection behavior are unchanged. The failed URL was not retried during this repair.
+
+## 0.1.4 独立最近更新与 Unicode 作品路径候选
+
+固定参考 NNHanman 的 `/update` 是独立单页最近更新。宿主声明 `source_listing_filter_scope_v1` 时展示该栏目并禁用该栏浏览筛选；旧宿主保留原热门排行及筛选。公开最新页面的 50 项已由本地 WASM 对照，排行100项和恋爱分类18项同现有 WIP WASM 请求和输出保持一致。
+
+真实作品《老婆捲款潛逃後》的路径含汉字。作品、章节和页面 ID 保留原始 Unicode；JSON 输入先解码再校验，实际 HTTP 路径使用 UTF-8 百分号编码。真实详情与第 82131 章均 HTTP 200，章页表 208 张、首张 JPEG HTTP 200；本地覆盖原文及 JSON 转义形式、图片请求归属和非法路径拒绝。保留上节既有 WIP 的 267 原始位置、传输错误分类及其回归证据；本候选未做真机验收或发布。

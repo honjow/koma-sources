@@ -10,7 +10,7 @@ const BASE: &[u8] = b"https://comicfury.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.comicfury.zh.koma",
     name: "Comic Fury",
-    version: "0.1.7",
+    version: "0.1.8",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -813,11 +813,17 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
     if name.is_empty() {
         return Err("empty title");
     }
-    let avatar = doc.select(b"div.profile-avatar img")?;
+    let avatar_boxes = Nodes::get(&doc, b"div.profile-avatar")?;
     let mut ib = [0; 4096];
-    let src = avatar.attr(b"src", &mut ib)?;
     let mut ub = [0; 8192];
-    let cover = canonical_image(src, &mut ub)?;
+    let cover = match avatar_boxes.n {
+        0 => None,
+        1 => {
+            let avatar = selected(&avatar_boxes, 0).select(b"img")?;
+            Some(canonical_image(avatar.attr(b"src", &mut ib)?, &mut ub)?)
+        }
+        _ => return Err("ambiguous profile avatar"),
+    };
     let descriptions = Nodes::get(&doc, b"div.pccontent")?;
     let mut matches = 0;
     let mut chosen = 0;
@@ -827,12 +833,45 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
             chosen = i;
         }
     }
-    if matches != 1 {
-        return Err("missing description parent");
+    if matches > 1 { return Err("ambiguous description parent"); }
+    // An omitted optional field is accepted only on the requested work's actual
+    // profile; a changed/partial description or avatar structure remains an error.
+    if matches == 0 || cover.is_none() {
+        let profiles = Nodes::get(&doc, b"div.profilewrap > div.profile")?;
+        if profiles.n != 1 { return Err("missing profile identity"); }
+        let profile = selected(&profiles, 0);
+        let titles = Nodes::get(&profile, b"div.username-and-title div.authorname")?;
+        if titles.n != 1 { return Err("missing profile title"); }
+        let mut profile_title = [0u8; 2048];
+        if selected(&titles, 0).text(&mut profile_title)? != name {
+            return Err("profile title mismatch");
+        }
+        let links = Nodes::get(&profile, b"div.phead span.mobile-webcomic-link > a")?;
+        if links.n != 1 { return Err("missing profile reader link"); }
+        let mut linkbuf = [0u8; 512];
+        let link = selected(&links, 0).attr(b"href", &mut linkbuf)?;
+        let mut expected = [0u8; 512];
+        let mut en = 0;
+        bytes(&mut expected, &mut en, b"/read/")?;
+        bytes(&mut expected, &mut en, profile_slug(id)?)?;
+        if link != &expected[..en] { return Err("profile reader identity mismatch"); }
+        if matches == 0 {
+            let headings = Nodes::get(&profile, b"div.profilecontent > div.profilecategory > h2.pchead")?;
+            for i in 0..headings.n {
+                let mut h = [0u8; 256];
+                if selected(&headings, i).text(&mut h)? == b"Webcomic description" {
+                    return Err("missing description parent");
+                }
+            }
+            if Nodes::get(&doc, b"div.description-tags")?.n != 0 {
+                return Err("description ownership mismatch");
+            }
+        }
     }
-    let description = selected(&descriptions, chosen);
     let mut db = [0; 16384];
-    let desc = own_text(&description, &mut db)?;
+    let desc = if matches == 1 {
+        own_text(&selected(&descriptions, chosen), &mut db)?
+    } else { &[] };
     let authors = Nodes::get(&doc, b"a.authorname")?;
     let genres = Nodes::get(&doc, b"div.description-tags > a")?;
     let b = payload_buf();
@@ -843,9 +882,13 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
     q(b, &mut n, name)?;
     bytes(b, &mut n, b",\"description\":")?;
     q(b, &mut n, desc)?;
-    bytes(b, &mut n, b",\"cover\":{\"kind\":\"url\",\"url\":")?;
-    q(b, &mut n, cover)?;
-    bytes(b, &mut n, b"},\"authors\":[")?;
+    bytes(b, &mut n, b",\"cover\":")?;
+    if let Some(cover) = cover {
+        bytes(b, &mut n, b"{\"kind\":\"url\",\"url\":")?;
+        q(b, &mut n, cover)?;
+        bytes(b, &mut n, b"}")?;
+    } else { bytes(b, &mut n, b"null")?; }
+    bytes(b, &mut n, b",\"authors\":[")?;
     for i in 0..authors.n {
         if i > 0 {
             bytes(b, &mut n, b",")?;

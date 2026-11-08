@@ -5,7 +5,7 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.laya.zh-hant.koma",
     name: "醫院也瘋狂",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -599,7 +599,17 @@ fn request_work(req: &[u8], key: &[u8], prefix: &[u8]) -> R<usize> {
     owner(req, id)?;
     find(id)
 }
-fn book(p: &mut [u8], c: &mut usize, i: usize, detail: bool) -> R<()> {
+fn public_cover_headers_supported(req: &[u8]) -> bool {
+    koma_source_sdk::source_protocol::feature(req, b"source_public_cover_user_agent_v1")
+}
+
+fn write_image_headers(p: &mut [u8], c: &mut usize) -> R<()> {
+    w(p, c, b",\"headers\":{\"User-Agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0\",\"Referer\":")?;
+    q(p, c, LIST)?;
+    w(p, c, b"}")
+}
+
+fn book(p: &mut [u8], c: &mut usize, i: usize, detail: bool, public_cover: bool) -> R<()> {
     w(p, c, b"{\"id\":\"")?;
     pref(p, c, MID, unsafe { &FILES[i] })?;
     w(p, c, b"\",\"title\":")?;
@@ -608,7 +618,12 @@ fn book(p: &mut [u8], c: &mut usize, i: usize, detail: bool) -> R<()> {
     q(p, c, LIST)?;
     w(p, c, b",\"cover\":{\"kind\":\"url\",\"url\":\"")?;
     image_uri(p, c, unsafe { &FILES[i] })?;
-    w(p,c,"\"},\"language\":\"zh-Hant\",\"authors\":[\"雷亞（林子堯）\"],\"artists\":[\"兩元（梁德垣）\"],\"status\":\"unknown\",\"contentRating\":\"unknown\",\"description\":\"《醫院也瘋狂》精選漫畫。雷亞醫師編寫故事腳本，兩元老師繪製漫畫。作品評級尚未確認。\"".as_bytes())?;
+    w(p, c, b"\"")?;
+    // The verified gallery already supplies this public comic image.
+    if public_cover {
+        write_image_headers(p, c)?;
+    }
+    w(p,c,"},\"language\":\"zh-Hant\",\"authors\":[\"雷亞（林子堯）\"],\"artists\":[\"兩元（梁德垣）\"],\"status\":\"unknown\",\"contentRating\":\"unknown\",\"description\":\"《醫院也瘋狂》精選漫畫。雷亞醫師編寫故事腳本，兩元老師繪製漫畫。作品評級尚未確認。\"".as_bytes())?;
     if detail {
         w(p, c, b",\"links\":[{\"kind\":\"source\",\"url\":")?;
         q(p, c, LIST)?;
@@ -616,7 +631,7 @@ fn book(p: &mut [u8], c: &mut usize, i: usize, detail: bool) -> R<()> {
     }
     w(p, c, b"}")
 }
-fn listing(which: usize) -> R<usize> {
+fn listing(which: usize, public_cover: bool) -> R<usize> {
     let used = catalogue()?;
     let start = if which == 1 { 0 } else { 12 + (which - 2) * 24 };
     if start >= used {
@@ -631,7 +646,7 @@ fn listing(which: usize) -> R<usize> {
         if i > start {
             w(p, &mut c, b",")?;
         }
-        book(p, &mut c, i, false)?;
+        book(p, &mut c, i, false, public_cover)?;
     }
     w(p, &mut c, b"],\"page\":{\"nextCursor\":")?;
     if more {
@@ -643,27 +658,27 @@ fn listing(which: usize) -> R<usize> {
     }
     Ok(c)
 }
-fn run_get_manga_list(req: &[u8]) -> u32 {
+fn run_get_manga_list(req: &[u8], public_cover: bool) -> u32 {
     if arg_string(req, b"listingId").ok().flatten() != Some(b"listing:comics") {
         return write_error("get_manga_list", "invalid_request", "");
     }
     // 12 initial + 24 per subsequent page within the bounded 256-item parser capacity.
     match page(req) {
-        Ok(n) if n <= 12 => result("get_manga_list", listing(n)),
+        Ok(n) if n <= 12 => result("get_manga_list", listing(n, public_cover)),
         _ => write_error("get_manga_list", "invalid_request", ""),
     }
 }
-fn run_get_manga(req: &[u8]) -> u32 {
-    fn inner(req: &[u8]) -> R<usize> {
+fn run_get_manga(req: &[u8], public_cover: bool) -> u32 {
+    fn inner(req: &[u8], public_cover: bool) -> R<usize> {
         let i = request_work(req, b"mangaId", MID)?;
         let p = payload_buf();
         let mut c = 0;
         w(p, &mut c, b"{\"manga\":")?;
-        book(p, &mut c, i, true)?;
+        book(p, &mut c, i, true, public_cover)?;
         w(p, &mut c, b"}")?;
         Ok(c)
     }
-    result("get_manga", inner(req))
+    result("get_manga", inner(req, public_cover))
 }
 fn run_get_chapters(req: &[u8]) -> u32 {
     fn inner(req: &[u8]) -> R<usize> {
@@ -745,9 +760,8 @@ fn run_get_image_request(req: &[u8]) -> u32 {
         let mut c = 0;
         w(p, &mut c, b"{\"imageRequest\":{\"url\":")?;
         q(p, &mut c, url)?;
-        w(p, &mut c, b",\"headers\":{\"User-Agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0\",\"Referer\":")?;
-        q(p, &mut c, LIST)?;
-        w(p, &mut c, b"}}}")?;
+        write_image_headers(p, &mut c)?;
+        w(p, &mut c, b"}}")?;
         Ok(c)
     }
     result("get_image_request", inner(req))
@@ -805,7 +819,7 @@ pub extern "C" fn koma_source_free(ptr: u32) {
     response_buffer().free(ptr)
 }
 macro_rules! export_op {
-    ($f:ident,$op:literal,$run:ident) => {
+    ($f:ident, $op:literal, $run:ident $(, $request_context:ident)?) => {
         #[no_mangle]
         pub extern "C" fn $f(ptr: u32, len: u32) -> u32 {
             let req = match checked_request(ptr, len) {
@@ -822,19 +836,20 @@ macro_rules! export_op {
             if string(req, b"operation").ok() != Some($op.as_bytes()) {
                 return write_error($op, "invalid_request", "operation mismatch");
             }
-            $run(args)
+            $run(args $(, $request_context(req))?)
         }
     };
 }
 export_op!(koma_source_search, "search", run_search);
-export_op!(koma_source_get_manga, "get_manga", run_get_manga);
+export_op!(koma_source_get_manga, "get_manga", run_get_manga, public_cover_headers_supported);
 export_op!(koma_source_get_chapters, "get_chapters", run_get_chapters);
 export_op!(koma_source_get_pages, "get_pages", run_get_pages);
 export_op!(koma_source_get_listings, "get_listings", run_get_listings);
 export_op!(
     koma_source_get_manga_list,
     "get_manga_list",
-    run_get_manga_list
+    run_get_manga_list,
+    public_cover_headers_supported
 );
 export_op!(koma_source_get_home, "get_home", run_get_home);
 export_op!(koma_source_get_filters, "get_filters", run_get_filters);

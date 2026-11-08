@@ -39,3 +39,7 @@
 通过原模式菜单选回单页，原2/17·游说状态实际恢复。普通返回再进全局设置，前后22个可见标签/值逐项相同；最初现存偏好目录无Reader文件，普通保存后真实生成koma_reader_preferences_v1，最终只读XML为pageMode=single_page、readingDirection=left_to_right、reader.seriesModeOverrides.v1={}。这是模式/覆盖与全局语义恢复，不是原不存在文件的全字节恢复；没有直接编辑或删除持久偏好。
 
 原图/回执为category-membership/lol010-global-reader-{original,restored}237-001、lol010-book-settings-original237-001、lol010-book-mode-menu-original237-001、lol010-star-continuous237-001、lol010-star-continuous-readable237-001、lol010-book-mode-restored237-001。最终lol010-continuous-session-restored237-001含reader-preferences.xml、reader.json、registry.json和run-metadata.json：52项registry全bytes同，其他书原reader对象全保持，织星P2/17保留且只其自身时间戳自然更新；原Browse末端及AWAKE/OverrideTimeout10000ms恢复，df6b1c67已释放，哈希关闭。
+
+## 公开封面（0.1.2）
+
+六部系列的封面来自既有原站目录约束，浏览、搜索与详情沿用相同原 URL 和系列 Referer。支持公开封面描述的宿主可直接下载。旧宿主与已有记录继续使用既有图片请求路径，正文仍核对原图、作品、话和页序。

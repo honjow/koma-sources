@@ -1,4 +1,4 @@
-# XCOMIC 0.1.13（繁體中文 / API zh_hk）
+# XCOMIC 0.1.14（繁體中文 / API zh_hk）
 
 支持章节阅读序能力的宿主按原版本身份和有效话号组织续读；缺少话号的章节不自动续读。 当前版本要求 Koma 0.1.4 或更新版本，以正确处理同组重复话号。
 
@@ -34,6 +34,6 @@
 
 ## 版本探测调度
 
-宿主声明 `source_http_batch_v1` 时，详情和目录的独立版本probe沿固定参考每批最多5个，使用原HTTP import的requests/responses合同；原单请求方法、地址、头、正文和超时保持。按输入顺序逐项检查状态、GraphQL和版本身份，全部成功后才发布原目录，保留取消、容量、语言及后续作品/章节归属检查和原排序。无该能力的旧宿主继续原逐次请求，不复用跨操作缓存，不把多个GraphQL根字段拼进一个请求。
+宿主声明 `source_http_batch_v1` 时，详情和目录的独立版本probe沿固定参考每批最多5个，使用原HTTP import的requests/responses合同；原单请求方法、地址、头、正文和超时保持。按输入顺序逐项检查状态、GraphQL和版本身份；仅当同一版本节点 ID 精确匹配且 data 明确为 null 时，沿固定 949dea 参考排除该空版本，不推测原因。节点缺失、字段缺失、身份不符、HTTP 或 GraphQL 错误仍失败，其他版本全部核验后才发布目录；取消、容量、语言及后续作品/章节归属检查和原排序不变。无该能力的旧宿主继续原逐次请求，不复用跨操作缓存，不把多个GraphQL根字段拼进一个请求。
 
 `source_detail_chapter_context_v1` permits the host to carry the non-sensitive version resolution from a successful detail request only to the immediately following chapter request in the same live transaction. The source re-fetches the work, verifies the source version, work identity, complete ordered edition IDs and every result shape, and falls back to fresh probes if the context is absent or invalid. Exact chapter recovery never uses it; no source-side cache or persistence is added.

@@ -24,7 +24,7 @@ use koma_source_sdk::{
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.xcomic.zh-hant.koma",
     name: "XCOMIC",
-    version: "0.1.13",
+    version: "0.1.14",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -935,7 +935,10 @@ fn accept_probe(cid: Identity, data: &[u8], good: &mut usize) -> Result<(), E> {
     };
     let probe = required(node, b"data")?;
     if probe == b"null" {
-        return Err("edition missing");
+        // The fixed upstream reference omits a null probe, while this exact
+        // node identity is still checked above. Missing nodes, fields, HTTP or
+        // GraphQL errors remain failures; null does not imply a reason.
+        return Ok(());
     };
     if live_zh(probe)? {
         unsafe { EDITIONS[*good] = edition(cid, probe)? };

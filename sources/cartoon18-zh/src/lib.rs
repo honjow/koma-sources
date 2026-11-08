@@ -10,7 +10,7 @@ type E = &'static str;
 type R<T> = Result<T, E>;
 const MAX: usize = 1048576;
 const WEB: &[u8] = b"https://www.cartoon18.com";
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.cartoon18.zh.koma",name:"Cartoon18",version:"0.1.2",api_version:"0.2",language:"zh",author:"Koma",description:"Cartoon18 published Chinese interface and anonymous manga metadata. Per-work rating, artwork availability and usage unknown.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.cartoon18.zh.koma",name:"Cartoon18",version:"0.1.3",api_version:"0.2",language:"zh",author:"Koma",description:"Cartoon18 published Chinese interface and anonymous manga metadata. Per-work rating, artwork availability and usage unknown.",content_rating:"nsfw"};
 #[allow(dead_code)]
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
@@ -21,7 +21,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     manga_list: true,
     image_request: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: true,
     credentials: false,
 };
@@ -534,6 +534,8 @@ fn nonempty(v: &[u8]) -> R<&[u8]> {
     }
 }
 fn image_url(v: &[u8], cover: bool) -> R<()> {
+    // The provider uses this exact public default thumbnail on cards without a cover.
+    if cover && v == b"https://img.cartoon18.com/imgdef/node.avif" { return Ok(()); }
     let x = v
         .strip_prefix(if cover {
             b"https://img.cartoon18.com/images/node/".as_slice()
@@ -909,7 +911,7 @@ fn encoded<'a>(v: &[u8], b: &'a mut [u8]) -> R<&'a [u8]> {
     };
     Ok(&b[..n])
 }
-fn next_path(v: &[u8], query: &[u8], search: bool, prefix: &[u8]) -> R<usize> {
+fn next_path(v: &[u8], query: &[u8], sort_value: &[u8], prefix: &[u8]) -> R<usize> {
     let p = v.strip_prefix(WEB).unwrap_or(v);
     if p.len() > 2048 || p.contains(&b'#') {
         return Err("cursor path");
@@ -920,7 +922,7 @@ fn next_path(v: &[u8], query: &[u8], search: bool, prefix: &[u8]) -> R<usize> {
     let mut encoded_query = [0; 2048];
     let eq = encoded(query, &mut encoded_query)?;
     let mut qb = [0; 2100];
-    if search {
+    if !query.is_empty() {
         if route != make(&[prefix, b"/q/", eq], &mut qb)? {
             return Err("cursor query owner");
         }
@@ -942,13 +944,7 @@ fn next_path(v: &[u8], query: &[u8], search: bool, prefix: &[u8]) -> R<usize> {
                 pg = number(v)
             }
             b"sort" => {
-                if sort
-                    || v != if search {
-                        b"score".as_slice()
-                    } else {
-                        b"hits".as_slice()
-                    }
-                {
+                if sort || v != sort_value {
                     return Err("cursor sort");
                 };
                 sort = true
@@ -971,17 +967,36 @@ fn next_path(v: &[u8], query: &[u8], search: bool, prefix: &[u8]) -> R<usize> {
 fn list(r: &[u8], search: bool) -> R<usize> {
     let prefix = language_prefix(r);
     let a = args(r)?;
+    let latest = if search { false } else {
+        match member(a, b"listingId")? {
+            None => false,
+            Some(v) => match quoted(v)? {
+                b"listing:popular" => false,
+                b"listing:latest" => true,
+                _ => return Err("listing identity"),
+            },
+        }
+    };
+    // An absent browse selection preserves the chosen listing. Search without
+    // an explicit sort uses the reference search default (score).
+    let filters = if search && filters_supported(r) { member(a, b"filters")?.unwrap_or(b"{}") } else { b"{}" };
     let mut qb = [0; 512];
     let query = if search {
-        nonempty(trim_ascii(uq(required(a, b"query")?, &mut qb)?))?
-    } else {
-        if let Some(v) = member(a, b"listingId")? {
-            if quoted(v)? != b"listing:popular" {
-                return Err("listing identity");
-            }
-        };
-        b""
+        let raw = uq(required(a, b"query")?, &mut qb)?;
+        if trim_ascii(raw).is_empty() {
+            if !filters_supported(r) { return Err("empty query"); }
+            if let Some(v) = member(filters, b"keyword")? { trim_ascii(uq(v, &mut qb)?) } else { b"" }
+        } else { trim_ascii(raw) }
+    } else { b"" };
+    core::str::from_utf8(query).map_err(|_| "invalid query")?;
+    let mut sort_buf = [0; 32];
+    let sort_value = match member(filters, b"sort")? {
+        Some(v) => uq(v, &mut sort_buf)?,
+        None if search => b"score".as_slice(),
+        None if latest => b"created".as_slice(),
+        None => b"hits".as_slice(),
     };
+    if !matches!(sort_value, b"created" | b"hits" | b"score" | b"likes") { return Err("invalid sort"); }
     let mut path = [0; 2048];
     let mut queryenc = [0; 2048];
     let mut page = 1;
@@ -1003,14 +1018,14 @@ fn list(r: &[u8], search: bool) -> R<usize> {
                     != if search {
                         b"search".as_slice()
                     } else {
-                        b"popular".as_slice()
+                        if latest { b"latest".as_slice() } else { b"popular".as_slice() }
                     }
                 {
                     return Err("cursor mode");
                 };
                 let mut href = [0; 2048];
                 let v = uq(required(cur, b"href")?, &mut href)?;
-                page = next_path(v, query, search, prefix)?;
+                page = next_path(v, query, sort_value, prefix)?;
                 let v = v.strip_prefix(WEB).unwrap_or(v);
                 bytes(&mut path, &mut pathn, v)?
             }
@@ -1019,12 +1034,15 @@ fn list(r: &[u8], search: bool) -> R<usize> {
     if pathn == 0 {
         bytes(&mut path, &mut pathn, if prefix.is_empty() { b"/" } else { prefix })?;
         bytes(&mut path, &mut pathn, b"?")?;
-        if search {
+        if !query.is_empty() {
             bytes(&mut path, &mut pathn, b"q=")?;
             bytes(&mut path, &mut pathn, encoded(query, &mut queryenc)?)?;
-            bytes(&mut path, &mut pathn, b"&page=1&sort=score")?
+            bytes(&mut path, &mut pathn, b"&page=1&sort=")?;
+            bytes(&mut path, &mut pathn, sort_value)?;
         } else {
-            bytes(&mut path, &mut pathn, b"sort=hits&page=1")?
+            bytes(&mut path, &mut pathn, b"sort=")?;
+            bytes(&mut path, &mut pathn, sort_value)?;
+            bytes(&mut path, &mut pathn, b"&page=1")?;
         }
     };
     let mut ub = [0; 2200];
@@ -1049,7 +1067,7 @@ fn list(r: &[u8], search: bool) -> R<usize> {
             };
             let mut hb = [0; 2048];
             let h = attr(links.at(0), b"href", &mut hb)?;
-            if next_path(h, query, search, prefix)? != page.checked_add(1).ok_or("next page overflow")? {
+            if next_path(h, query, sort_value, prefix)? != page.checked_add(1).ok_or("next page overflow")? {
                 return Err("next page progress");
             };
             bytes(&mut next, &mut nextn, h.strip_prefix(WEB).unwrap_or(h))?
@@ -1133,7 +1151,7 @@ fn list(r: &[u8], search: bool) -> R<usize> {
             if search {
                 b"search".as_slice()
             } else {
-                b"popular".as_slice()
+                if latest { b"latest".as_slice() } else { b"popular".as_slice() }
             },
         )?;
         bytes(&mut cur, &mut cn, b",\"href\":")?;
@@ -1172,7 +1190,7 @@ fn run_get_image_request(r: &[u8]) -> u32 {
 fn run_get_listings(_: &[u8]) -> u32 {
     let p = payload_buf();
     let v =
-        "{\"listings\":[{\"id\":\"listing:popular\",\"name\":\"热门\",\"supportsPaging\":true}]}"
+        "{\"listings\":[{\"id\":\"listing:popular\",\"name\":\"热门\",\"supportsPaging\":true},{\"id\":\"listing:latest\",\"name\":\"最新\",\"supportsPaging\":true}]}"
             .as_bytes();
     p[..v.len()].copy_from_slice(v);
     write_success_payload("get_listings", v.len())
@@ -1185,9 +1203,66 @@ fn run_get_settings(_: &[u8]) -> u32 {
     payload_buf()[..schema.len()].copy_from_slice(schema);
     write_success_payload("get_settings", schema.len())
 }
-fn run_get_filters(_: &[u8]) -> u32 {
-    write_error("get_filters", "not_implemented", "not supported")
+fn filter_feature(r: &[u8], feature: &[u8]) -> bool {
+    member(r, b"hostFeatures").ok().flatten().map(trim_ascii).map_or(false, |v|
+        v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|b| *b == b',')
+            .any(|x| trim_ascii(x).strip_prefix(b"\"").and_then(|s| s.strip_suffix(b"\"")) == Some(feature)))
 }
+fn filters_supported(r: &[u8]) -> bool {
+    filter_feature(r, b"source_filter_scope_header_v1") && filter_feature(r, b"source_filter_fetching_v1") && filter_feature(r, b"source_filter_search_without_query_v1")
+}
+fn category_value<'a>(href: &[u8], prefix: &[u8], out: &'a mut [u8]) -> R<&'a [u8]> {
+    let mut route = [0; 64];
+    let stem = make(&[prefix, b"/q/"], &mut route)?;
+    let raw = href.strip_prefix(WEB).unwrap_or(href).strip_prefix(stem).ok_or("category route")?;
+    if raw.is_empty() || raw.contains(&b'/') || raw.contains(&b'?') || raw.contains(&b'#') { return Err("category identity"); }
+    let mut i = 0; let mut n = 0;
+    while i < raw.len() {
+        let v = if raw[i] == b'%' {
+            if i + 2 >= raw.len() { return Err("category escape"); }
+            let hex = |c| match c { b'0'..=b'9' => Some(c-b'0'), b'a'..=b'f' => Some(c-b'a'+10), b'A'..=b'F' => Some(c-b'A'+10), _ => None };
+            let v = hex(raw[i+1]).zip(hex(raw[i+2])).map(|(a,b)| a*16+b).ok_or("category escape")?;
+            i += 3; v
+        } else { let v = if raw[i] == b'+' { b' ' } else { raw[i] }; i += 1; v };
+        if v < 32 || n >= out.len() { return Err("category capacity"); }
+        out[n] = v; n += 1;
+    }
+    core::str::from_utf8(&out[..n]).map_err(|_| "category UTF8")?;
+    Ok(&out[..n])
+}
+fn filter_schema(r: &[u8]) -> R<usize> {
+    let out = payload_buf(); let mut n = 0;
+    if !filters_supported(r) { bytes(out, &mut n, b"{\"filters\":[]}")?; return Ok(n); }
+    // Filtering is a distinct source search, including an empty-query search;
+    // unfiltered popular/latest remain independent feeds as in the reference.
+    let schema = if language_prefix(r).is_empty() {
+        r#"{"supportsFilterFetching":true,"useSearchForFilters":true,"filters":[{"id":"sort","name":"排序","type":"select","scope":"search","options":[{"value":"created","label":"最新"},{"value":"hits","label":"熱門"},{"value":"score","label":"推薦"},{"value":"likes","label":"最受喜愛"}]},{"id":"keyword","name":"關鍵詞","type":"select","scope":"search""#
+    } else {
+        r#"{"supportsFilterFetching":true,"useSearchForFilters":true,"filters":[{"id":"sort","name":"排序","type":"select","scope":"search","options":[{"value":"created","label":"最新"},{"value":"hits","label":"热门"},{"value":"score","label":"推荐"},{"value":"likes","label":"最受喜爱"}]},{"id":"keyword","name":"关键词","type":"select","scope":"search""#
+    };
+    bytes(out, &mut n, schema.as_bytes())?;
+    if member(args(r)?, b"fetchFilterData")? == Some(b"true".as_slice()) {
+        let mut url = [0; 256]; let prefix = language_prefix(r);
+        let doc = fetch(make(&[WEB, prefix, b"/category"], &mut url)?)?;
+        let nodes = All::new(doc.0, b"div.content a.btn")?;
+        if nodes.len == 0 { return Err("category structure missing"); }
+        bytes(out, &mut n, b",\"options\":[")?; let mut count = 0;
+        for i in 0..nodes.len {
+            let mut h = [0; 2048]; let mut v = [0; 1024]; let mut t = [0; 1024];
+            let href = attr(nodes.at(i), b"href", &mut h)?;
+            let title = trim_ascii(txt(nodes.at(i), &mut t)?);
+            if title.is_empty() || href.is_empty() { continue; }
+            let value = category_value(href, prefix, &mut v)?;
+            if count > 0 { bytes(out, &mut n, b",")?; }
+            bytes(out, &mut n, b"{\"value\":")?; q(out, &mut n, value)?;
+            bytes(out, &mut n, b",\"label\":")?; q(out, &mut n, title)?; bytes(out, &mut n, b"}")?; count += 1;
+        }
+        if count == 0 { return Err("category empty"); }
+        bytes(out, &mut n, b"]")?;
+    }
+    bytes(out, &mut n, b"}]}")?; Ok(n)
+}
+fn run_get_filters(r: &[u8]) -> u32 { execute("get_filters", filter_schema(r)) }
 fn checked_request(ptr: u32, len: u32) -> Option<&'static [u8]> {
     let cap = core::arch::wasm32::memory_size::<0>().checked_mul(65536)?;
     let start = ptr as usize;
@@ -1209,7 +1284,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 pub extern "C" fn koma_source_info() -> u32 {
     response_buffer().write_success_parts("source_info", &[
  b"{\"sourceInfo\":{\"id\":\"", SOURCE_INFO.id.as_bytes(), b"\",\"name\":\"", SOURCE_INFO.name.as_bytes(), b"\",\"version\":\"", SOURCE_INFO.version.as_bytes(), b"\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"",SOURCE_INFO.description.as_bytes(),
- "\",\"contentRating\":\"nsfw\",\"localizedNames\":{\"zh-Hans\":\"色漫网\",\"zh-Hant\":\"色漫網\",\"en\":\"Cartoon18 (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes()
+ "\",\"contentRating\":\"nsfw\",\"localizedNames\":{\"zh-Hans\":\"色漫网\",\"zh-Hant\":\"色漫網\",\"en\":\"Cartoon18 (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":true,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes()
  ])
 }
 macro_rules! export_op {

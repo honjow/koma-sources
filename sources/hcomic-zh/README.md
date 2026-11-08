@@ -18,3 +18,7 @@ The user explicitly approved this resource treatment from source-icons-four-prop
 ## 0.1.3 search and browse filters
 
 The reference random sort and popular-tag selections are applied to search and browse requests. Existing no-filter latest/search URLs and cursors remain unchanged; filtered cursors include their selected state. The current site may return null for a translated tag name, in which case its original name is retained. Real saved responses for `love` with `full color`, including the random endpoint, were replayed using production WASM and the original C++ host; this does not establish device acceptance.
+
+## 0.1.4 独立随机目录候选
+
+固定参考的热门为每次重新请求 `/random/__data.json` 的随机目录，故在宿主支持 `source_listing_filter_scope_v1` 时增加独立「隨機」并禁用该栏筛选；旧宿主保留原有单一最新栏目。已有最新和筛选、作品身份及图标保持。两次真实公开随机原体本地 WASM 重放可续页，旧最新输出与正式包同原体一致；未做真机验收或发布。

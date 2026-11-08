@@ -1,3 +1,4 @@
 {
-  "homepage": "https://cmanhua.com"
+  "homepage": "https://cmanhua.com",
+  "wasmBuild": {"stackBytes": 262144}
 }

@@ -9,7 +9,7 @@ const ASSET: &[u8] = b"https://assets.mangaplus-creators.jp";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mangapluscreators.en.koma",
     name: "MANGA Plus Creators by SHUEISHA",
-    version: "0.1.5",
+    version: "0.1.6",
     api_version: "0.2",
     language: "en",
     author: "Koma",
@@ -454,6 +454,26 @@ fn txt<'a>(d: HtmlDescriptor, b: &'a mut [u8]) -> R<&'a [u8]> {
     }
     Ok(&b[..n])
 }
+// Summaries may contain a single paragraph larger than the normal 8 KiB
+// selector-text budget. Normalize in place within the existing 32 KiB total
+// description budget; titles and all other selectors retain their old bound.
+fn summary_text<'a>(d: HtmlDescriptor, b: &'a mut [u8]) -> R<&'a [u8]> {
+    let z = host::html_text(d, b).map_err(|_| "text capacity or parse")?;
+    if z >= b.len() { return Err("text capacity"); }
+    core::str::from_utf8(&b[..z]).map_err(|_| "text UTF8")?;
+    let mut n = 0;
+    let mut pending = false;
+    for i in 0..z {
+        let c = b[i];
+        if c.is_ascii_whitespace() {
+            if n > 0 { pending = true; }
+        } else {
+            if pending { b[n] = b' '; n += 1; pending = false; }
+            b[n] = c; n += 1;
+        }
+    }
+    Ok(&b[..n])
+}
 fn sa<'a>(d: HtmlDescriptor, s: &[u8], k: &[u8], b: &'a mut [u8]) -> R<&'a [u8]> {
     let x = Owned(host::html_select(d, s).map_err(|_| "missing_field")?);
     attr(x.0, k, b)
@@ -723,8 +743,8 @@ fn detail(r: &[u8]) -> R<usize> {
     let mut desc = [0; 32768];
     let mut z = 0;
     for i in 0..paragraphs.len {
-        let mut b = [0; 8192];
-        let p = txt(paragraphs.at(i), &mut b)?;
+        let mut b = [0; 32768];
+        let p = summary_text(paragraphs.at(i), &mut b)?;
         if i > 0 {
             bytes(&mut desc, &mut z, b"\n\n")?
         };
@@ -824,18 +844,37 @@ fn collect(id: &[u8]) -> R<usize> {
         } else {
             z
         };
-        let mut abs = [0; 512];
-        let url = absolute(raw, &mut abs)?;
+        // The real terminal arrow is hidden and its active page is explicit.
+        // Do not execute or follow arbitrary javascript links.
+        if raw == b"javascript:void(0);" {
+            let hidden = All::new(d.0, b".mod-pagination li[style=\"visibility: hidden;\"] > a.next")?;
+            let active = All::new(d.0, b".mod-pagination a.active")?;
+            let mut text = [0; 32];
+            let mut active_href = [0; 64];
+            if hidden.len != 1 || active.len != 1
+                || number(txt(active.at(0), &mut text)?) != Some(page)
+                || attr(active.at(0), b"href", &mut active_href)? != b"javascript:void(0);"
+            { return Err("invalid catalogue terminal"); }
+            break;
+        }
         let mut expected = [0; 256];
         let mut len = 0;
         bytes(&mut expected, &mut len, WEB)?;
         bytes(&mut expected, &mut len, b"/titles/")?;
         bytes(&mut expected, &mut len, id)?;
-        bytes(&mut expected, &mut len, b"/?page=")?;
+        bytes(&mut expected, &mut len, b"/")?;
+        let query_start = len;
+        bytes(&mut expected, &mut len, b"?page=")?;
         let np = page.checked_add(1).ok_or("page overflow")?;
         wn(&mut expected, &mut len, np)?;
-        if url != &expected[..len] {
-            return Err("chapter next ownership");
+        // A query-only link is accepted solely for this work's exact next
+        // page. The request remains built from our validated identity.
+        if raw != &expected[query_start..len] {
+            let mut abs = [0; 512];
+            let url = absolute(raw, &mut abs)?;
+            if url != &expected[..len] {
+                return Err("chapter next ownership");
+            }
         };
         page = np;
     }
@@ -1193,7 +1232,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
-    response_buffer().write_success_parts("source_info", &[b"{\"sourceInfo\":{\"id\":\"com.mangapluscreators.en.koma\",\"name\":\"MANGA Plus Creators by SHUEISHA\",\"version\":\"0.1.5\",\"apiVersion\":\"0.2\",\"language\":\"en\",\"author\":\"Koma\",\"description\":\"Official English creator catalogue. Per-work rating and source usage unknown.\",\"contentRating\":\"safe\",\"localizedNames\":", "{\"zh-Hans\":\"MANGA Plus Creators（英语）\",\"zh-Hant\":\"MANGA Plus Creators（英語）\",\"en\":\"MANGA Plus Creators by SHUEISHA\"}".as_bytes(), b"},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":true,\"settings\":false,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}"])
+    response_buffer().write_success_parts("source_info", &[b"{\"sourceInfo\":{\"id\":\"com.mangapluscreators.en.koma\",\"name\":\"MANGA Plus Creators by SHUEISHA\",\"version\":\"0.1.6\",\"apiVersion\":\"0.2\",\"language\":\"en\",\"author\":\"Koma\",\"description\":\"Official English creator catalogue. Per-work rating and source usage unknown.\",\"contentRating\":\"safe\",\"localizedNames\":", "{\"zh-Hans\":\"MANGA Plus Creators（英语）\",\"zh-Hant\":\"MANGA Plus Creators（英語）\",\"en\":\"MANGA Plus Creators by SHUEISHA\"}".as_bytes(), b"},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":true,\"settings\":false,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}"])
 }
 macro_rules! export_op {
     ($f:ident,$op:literal,$run:ident) => {

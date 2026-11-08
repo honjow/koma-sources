@@ -1,4 +1,6 @@
-# 王者荣耀世界观漫画 0.1.0
+# 王者荣耀世界观漫画 0.1.2
+
+浏览、搜索和详情随已校验的公开封面附带原图片 Referer，宿主可直接下载相同 URL。旧宿主的封面解析、正文图片计划及归属校验仍走原目录验证。
 
 `com.tencent.honorofkings.zh.koma`，`zh`，minimum Koma0.1.1，既有SDK/ABI。只接王者荣耀官方 `pvp.qq.com/ip` 世界观体验站已声明的公开漫画 JSON。源码/包/Wasmtime回放不代替WAMR或197 Native验收；不提交/推送/内置App。
 
@@ -20,7 +22,7 @@ MID含dp/lz+原slug；CID及pageID含明确章ordinal，pageID再含明确0based
 
 get_image_request每次fresh Module再次1目录JSON GET：严格sourceId（空值亦拒绝）、MID类别/slug、mangaUrl有值时必须为输出的精确作品URL、CID章ordinal、pageordinal及完整URI校对。封面pageId=MID必须匹配该原record真实fmlz_2740，不以正文首图代cover；bodypage必须匹配该真实章与页。Wrongowner/错页/不符query/外部URI均失败。资源前缀只限当前原计划实证game.gtimg.cn/images/yxzj/zlkdatasys/images/image/；前缀不是归属许可，仍每次逐项校对。其他资源域/形状暂失败关闭。
 
-**每个图片解析增加1次完整目录JSON GET**（当前137273B），不隐藏成本，不跨调用/Module缓存，不依赖不存在的cache ABI。只有每操作临时buffers，无内部retry/签名/登录/watchman/凭据。Host/CDN缓存命中与更新鲜度unknown，不能据“fresh Module”声称真实无缓存网络。HTTP/正文/payload各约1MiB、搜索解码512B、每类browse256条、单本1000章、单章10000图；容量不足明确失败，不扩App/SDK限制。原HTTP200及原计划不证明其它作品实体可解码或年龄。
+**正文与旧宿主的每次图片解析增加1次完整目录JSON GET**（当前137273B），不隐藏成本，不跨调用/Module缓存，不依赖不存在的cache ABI。只有每操作临时buffers，无内部retry/签名/登录/watchman/凭据。Host/CDN缓存命中与更新鲜度unknown，不能据“fresh Module”声称真实无缓存网络。HTTP/正文/payload各约1MiB、搜索解码512B、每类browse256条、单本1000章、单章10000图；容量不足明确失败，不扩App/SDK限制。原HTTP200及原计划不证明其它作品实体可解码或年龄。
 
 ## 官方图标与格式
 

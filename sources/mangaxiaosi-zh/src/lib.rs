@@ -18,7 +18,7 @@ fn request_origin(r: &[u8]) -> &'static [u8] {
         _ => WEB,
     }
 }
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.mangaxiaosi.zh.koma",name:"Manga Xiao Si",version:"0.1.6",api_version:"0.2",language:"zh",author:"Koma",description:"Manga Xiao Si published finite rank and query catalogue. Per-work rating, picture availability and usage unknown.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.mangaxiaosi.zh.koma",name:"Manga Xiao Si",version:"0.1.7",api_version:"0.2",language:"zh",author:"Koma",description:"Manga Xiao Si published finite rank and query catalogue. Per-work rating, picture availability and usage unknown.",content_rating:"nsfw"};
 #[allow(dead_code)]
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
@@ -625,10 +625,19 @@ fn filter_feature(r: &[u8]) -> bool {
 fn selected<'a>(f: &'a [u8], k: &[u8], out: &'a mut [u8], fallback: &'a [u8]) -> R<&'a [u8]> {
     match member(f,k)? { Some(v)=>uq(v,out), None=>Ok(fallback) }
 }
+fn listing_scope_supported(r: &[u8]) -> bool {
+    json_object_member(r, b"hostFeatures").map(trim_ascii)
+        .filter(|v| v.starts_with(b"[") && v.ends_with(b"]"))
+        .map(|v| v[1..v.len()-1].split(|c| *c == b',')
+            .any(|v| trim_ascii(v) == br#""source_listing_filter_scope_v1""#))
+        .unwrap_or(false)
+}
 fn list(r: &[u8], search: bool) -> R<usize> {
     let origin=request_origin(r);
     let a=args(r)?;
-    let f = if !search && filter_feature(r) {member(a,b"filters")?.unwrap_or(b"{}")} else {b"{}"};
+    // Existing rank filters remain attached to rank; reference latest is separate.
+    let latest = !search && listing_scope_supported(r) && text(a, b"listingId")? == b"listing:latest";
+    let f = if !search && !latest && filter_feature(r) {member(a,b"filters")?.unwrap_or(b"{}")} else {b"{}"};
     let filtered = member(f,b"tag")?.is_some() || member(f,b"area")?.is_some() || member(f,b"status")?.is_some();
     let mut tb=[0u8;256];let mut ab=[0u8;64];let mut sb=[0u8;64];
     let tag=selected(f,b"tag",&mut tb,"全部".as_bytes())?;
@@ -638,6 +647,18 @@ fn list(r: &[u8], search: bool) -> R<usize> {
     if filtered {
         if let Some(p)=member(a,b"page")? { if p!=b"null" { if let Some(c)=member(p,b"cursor")? {if c!=b"null" && quoted(c)?!=b"" {let mut b=[0;32];page=number(uq(c,&mut b)?).ok_or("invalid filter cursor")?;if page<2 || page>10000 {return Err("invalid filter cursor");}}}}}
         if !["全部","青春","性感","长腿","多人","御姐","巨乳","新婚","媳妇","暧昧","清纯","调教","少妇","风骚","同居","淫乱","好友","女神","诱惑","偷情","出轨","正妹","家教"].iter().any(|v| v.as_bytes()==tag) || ![b"-1".as_slice(),b"1",b"2",b"3"].contains(&area) || ![b"-1".as_slice(),b"0",b"1"].contains(&status) {return Err("invalid filter");}
+    } else if latest {
+        if let Some(p) = member(a, b"page")? {
+            if p != b"null" {
+                if let Some(c) = member(p, b"cursor")? {
+                    if c != b"null" && quoted(c)? != b"" {
+                        let mut b = [0; 32];
+                        page = number(uq(c, &mut b)?.strip_prefix(b"latest:").ok_or("invalid latest cursor")?)
+                            .filter(|n| *n >= 2 && *n <= 10000).ok_or("invalid latest cursor")?;
+                    }
+                }
+            }
+        }
     } else {first_page(r)?;}
     let mut qb = [0; 2048];
     let mut ub = [0; 8192];
@@ -653,9 +674,12 @@ fn list(r: &[u8], search: bool) -> R<usize> {
             return Err("query capacity");
         }
     } else {
-        if text(args(r)?, b"listingId")? != b"listing:popular" {return Err("listing identity");}
+        if !latest && text(args(r)?, b"listingId")? != b"listing:popular" {return Err("listing identity");}
         bytes(&mut ub,&mut un,origin)?;
-        if filtered {
+        if latest {
+            bytes(&mut ub, &mut un, b"/update?page=")?;
+            wn(&mut ub, &mut un, page)?;
+        } else if filtered {
             bytes(&mut ub,&mut un,b"/booklist?page=")?;wn(&mut ub,&mut un,page)?;
             bytes(&mut ub,&mut un,b"&tag=")?;if !write_url_encoded(&mut ub,&mut un,tag) {return Err("tag capacity");}
             bytes(&mut ub,&mut un,b"&area=")?;bytes(&mut ub,&mut un,area)?;
@@ -665,7 +689,7 @@ fn list(r: &[u8], search: bool) -> R<usize> {
     let doc = fetch(&ub[..un],origin)?;
     let mut section = None;
     let mut sections_owner: Option<All> = None;
-    if !search && !filtered {
+    if !search && !filtered && !latest {
         let sections = All::new(doc.0, b".mh-list.col3.top-cat > li")?;
         for i in 0..sections.len {
             let mut b = [0; 256];
@@ -686,7 +710,7 @@ fn list(r: &[u8], search: bool) -> R<usize> {
     let _keep_sections = &sections_owner;
     let cards = All::new(
         d,
-        if search || filtered {
+        if search || filtered || latest {
             b".mh-item"
         } else {
             b".mh-item, .mh-itme-top"
@@ -698,17 +722,24 @@ fn list(r: &[u8], search: bool) -> R<usize> {
     let next = All::new(doc.0, b"a#nextPage")?;
     let mut next_page=None;
     if next.len > 0 {
-        if !filtered || next.len != 1 {return Err("unverified query pagination");}
+        if (!filtered && !latest) || next.len != 1 {return Err("unverified query pagination");}
         let mut hb=[0u8;2048];let href=attr(next.at(0),b"href",&mut hb)?;
-        let query=href.strip_prefix(origin).or_else(||href.strip_prefix(WEB)).unwrap_or(href).strip_prefix(b"/booklist?").ok_or("next path")?;
-        let mut seen=0u8;let mut encoded_tag=[0u8;512];let mut etn=0;
-        if !write_url_encoded(&mut encoded_tag,&mut etn,tag) {return Err("tag capacity");}
-        for part in query.split(|v|*v==b'&') {
-            let pos=part.iter().position(|v|*v==b'=').ok_or("next parameter")?;let (k,v)=(&part[..pos],&part[pos+1..]);
-            let bit=match k {b"page"=>{if number(v)!=page.checked_add(1) {return Err("next page");}1},b"tag"=>{if v!=tag && v!=&encoded_tag[..etn] {return Err("next tag");}2},b"area"=>{if v!=area{return Err("next area");}4},b"end"=>{if v!=status{return Err("next status");}8},_=>return Err("next parameter")};
-            if seen & bit != 0 {return Err("duplicate next parameter");}seen|=bit;
+        if latest {
+            let target = href.strip_prefix(origin).or_else(|| href.strip_prefix(WEB)).unwrap_or(href)
+                .strip_prefix(b"/update?page=").ok_or("next path")?;
+            if number(target) != page.checked_add(1) { return Err("next page"); }
+            next_page = page.checked_add(1);
+        } else {
+            let query=href.strip_prefix(origin).or_else(||href.strip_prefix(WEB)).unwrap_or(href).strip_prefix(b"/booklist?").ok_or("next path")?;
+            let mut seen=0u8;let mut encoded_tag=[0u8;512];let mut etn=0;
+            if !write_url_encoded(&mut encoded_tag,&mut etn,tag) {return Err("tag capacity");}
+            for part in query.split(|v|*v==b'&') {
+                let pos=part.iter().position(|v|*v==b'=').ok_or("next parameter")?;let (k,v)=(&part[..pos],&part[pos+1..]);
+                let bit=match k {b"page"=>{if number(v)!=page.checked_add(1) {return Err("next page");}1},b"tag"=>{if v!=tag && v!=&encoded_tag[..etn] {return Err("next tag");}2},b"area"=>{if v!=area{return Err("next area");}4},b"end"=>{if v!=status{return Err("next status");}8},_=>return Err("next parameter")};
+                if seen & bit != 0 {return Err("duplicate next parameter");}seen|=bit;
+            }
+            if seen!=15 {return Err("incomplete next parameter");}next_page=page.checked_add(1);
         }
-        if seen!=15 {return Err("incomplete next parameter");}next_page=page.checked_add(1);
     }
     let out = payload_buf();
     let mut n = 0;
@@ -718,14 +749,14 @@ fn list(r: &[u8], search: bool) -> R<usize> {
         if i > 0 {
             bytes(out, &mut n, b",")?
         };
-        let id = emit_card(out, &mut n, cards.at(i), !search && !filtered, origin)?;
+        let id = emit_card(out, &mut n, cards.at(i), !search && !filtered && !latest, origin)?;
         if seen[..i].contains(&id) {
             return Err("listing duplicate");
         };
         seen[i] = id
     }
     bytes(out,&mut n,b"],\"page\":{\"nextCursor\":")?;
-    if let Some(v)=next_page {bytes(out,&mut n,b"\"")?;wn(out,&mut n,v)?;bytes(out,&mut n,b"\",\"hasMore\":true}}")?;}
+    if let Some(v)=next_page {bytes(out,&mut n,b"\"")?;if latest {bytes(out,&mut n,b"latest:")?;}wn(out,&mut n,v)?;bytes(out,&mut n,b"\",\"hasMore\":true}}")?;}
     else {bytes(out,&mut n,b"null,\"hasMore\":false}}")?;}
     Ok(n)
 }
@@ -1045,8 +1076,12 @@ fn run_get_pages(r: &[u8]) -> u32 {
 fn run_get_image_request(r: &[u8]) -> u32 {
     execute("get_image_request", image_request(r))
 }
-fn run_get_listings(_: &[u8]) -> u32 {
-    let s="{\"listings\":[{\"id\":\"listing:popular\",\"name\":\"人气榜\",\"kind\":\"popular\",\"supportsPaging\":false}]}".as_bytes();
+fn run_get_listings(r: &[u8]) -> u32 {
+    let s = if listing_scope_supported(r) {
+        r#"{"listings":[{"id":"listing:popular","name":"人气榜","kind":"popular","supportsPaging":false},{"id":"listing:latest","name":"最近更新","kind":"latest","supportsPaging":true,"supportsFilters":false}]}"#
+    } else {
+        r#"{"listings":[{"id":"listing:popular","name":"人气榜","kind":"popular","supportsPaging":false}]}"#
+    }.as_bytes();
     payload_buf()[..s.len()].copy_from_slice(s);
     write_success_payload("get_listings", s.len())
 }

@@ -10,7 +10,7 @@ type E = &'static str;
 type R<T> = Result<T, E>;
 const MAX: usize = 1048576;
 const WEB: &[u8] = b"https://nnhanman.xyz";
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.nnhanman.zh.koma",name:"NNHanman",version:"0.1.3",api_version:"0.2",language:"zh",author:"Koma",description:"NNHanman published Chinese ranking and search metadata. Per-work rating, artwork availability and usage unknown.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.nnhanman.zh.koma",name:"NNHanman",version:"0.1.4",api_version:"0.2",language:"zh",author:"Koma",description:"NNHanman published Chinese ranking and search metadata. Per-work rating, artwork availability and usage unknown.",content_rating:"nsfw"};
 #[allow(dead_code)]
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
@@ -454,6 +454,20 @@ fn fetch(url: &[u8]) -> R<Owned> {
     }
     let env = &http_out()[..z];
     valid_json(env)?;
+    // A failed host transport has no HTTP status/body. Preserve that distinction
+    // instead of reporting a parser error about the absent status field.
+    if member(env, b"ok")? == Some(b"false".as_slice()) {
+        if let Some(error) = member(env, b"error")? {
+            match text(error, b"code")? {
+                b"network_error" | b"transport_unavailable" | b"transport_invalid_response" => {
+                    return Err("transport error");
+                }
+                b"timeout" => return Err("timeout"),
+                _ => return Err("HTTP host failure"),
+            }
+        }
+        return Err("HTTP host failure");
+    }
     let status = num(member(env, b"status")?
         .or(member(env, b"statusCode")?)
         .ok_or("HTTP status missing")?)?;
@@ -483,10 +497,10 @@ fn child(d: HtmlDescriptor, s: &[u8]) -> R<Owned> {
     ))
 }
 fn slug(v: &[u8]) -> R<&[u8]> {
+    let text = core::str::from_utf8(v).map_err(|_| "work identity")?;
     if v.is_empty()
         || v.len() > 256
-        || v.iter()
-            .any(|c| !c.is_ascii_alphanumeric() && *c != b'-' && *c != b'_')
+        || text.chars().any(|c| !c.is_alphanumeric() && c != '-' && c != '_')
     {
         Err("work identity")
     } else {
@@ -519,19 +533,17 @@ fn chapter_href<'a>(v: &'a [u8], w: &[u8]) -> R<&'a [u8]> {
         .and_then(|x| x.strip_suffix(b".html"))
         .ok_or("chapter owner")?)
 }
-fn work(r: &[u8]) -> R<&[u8]> {
-    slug(
-        text(args(r)?, b"mangaId")?
-            .strip_prefix(b"nn:zh:")
-            .ok_or("work namespace")?,
-    )
+// The provider also uses Unicode letters in slugs. Decode JSON identities
+// before validating them; keep the original slug in IDs and encode only URLs.
+fn work<'a>(r: &[u8], buf: &'a mut [u8]) -> R<&'a [u8]> {
+    let value = uq(required(args(r)?, b"mangaId")?, buf)?;
+    slug(value.strip_prefix(b"nn:zh:").ok_or("work namespace")?)
 }
-fn chapter(r: &[u8]) -> R<(&[u8], &[u8])> {
-    let v = text(args(r)?, b"chapterId")?
-        .strip_prefix(b"nnch:zh:")
-        .ok_or("chapter namespace")?;
-    let p = v.iter().position(|x| *x == b':').ok_or("chapter parts")?;
-    Ok((slug(&v[..p])?, cid(&v[p + 1..])?))
+fn chapter<'a>(r: &[u8], buf: &'a mut [u8]) -> R<(&'a [u8], &'a [u8])> {
+    let value = uq(required(args(r)?, b"chapterId")?, buf)?;
+    let value = value.strip_prefix(b"nnch:zh:").ok_or("chapter namespace")?;
+    let p = value.iter().position(|x| *x == b':').ok_or("chapter parts")?;
+    Ok((slug(&value[..p])?, cid(&value[p + 1..])?))
 }
 fn safe_path(v: &[u8]) -> R<()> {
     if v.is_empty()
@@ -626,6 +638,18 @@ fn query_path<'a>(query: &[u8], b: &'a mut [u8]) -> R<&'a [u8]> {
     };
     Ok(&b[..n])
 }
+// Latest is a separate unfiltered upstream feed; old hosts retain the
+// previously accepted ranking and browse-filter behavior.
+fn listing_scope_supported(r: &[u8]) -> bool {
+    member(r, b"hostFeatures").ok().flatten().map(|v| {
+        let v = trim_ascii(v);
+        v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1]
+            .split(|c| *c == b',').any(|x| trim_ascii(x) == br#""source_listing_filter_scope_v1""#)
+    }).unwrap_or(false)
+}
+fn latest_requested(r: &[u8]) -> bool {
+    listing_scope_supported(r) && args(r).ok().and_then(|a| text(a, b"listingId").ok()) == Some(b"listing:latest".as_slice())
+}
 fn list(r: &[u8], search: bool) -> R<usize> {
     let mut cb = [0; 8192];
     let cl = cursor(r, &mut cb)?;
@@ -664,10 +688,11 @@ fn list(r: &[u8], search: bool) -> R<usize> {
         if cl != 0 {
             return Err("finite ranking cursor");
         };
-        if text(args(r)?, b"listingId")? != b"listing:popular" {
-            return Err("listing identity");
-        };
-        b"/ranking"
+        match text(args(r)?, b"listingId")? {
+            b"listing:popular" => b"/ranking".as_slice(),
+            b"listing:latest" if listing_scope_supported(r) => b"/update".as_slice(),
+            _ => return Err("listing identity"),
+        }
     };
     let doc = fetch(make(&[WEB, path], &mut url)?)?;
     let cards = All::new(
@@ -749,8 +774,10 @@ fn list(r: &[u8], search: bool) -> R<usize> {
     Ok(n)
 }
 fn detail_doc(w: &[u8]) -> R<Owned> {
+    let mut encoded = [0; 768]; let mut en = 0;
+    if !write_url_encoded(&mut encoded, &mut en, w) { return Err("work URL overflow"); }
     let mut u = [0; 1024];
-    fetch(make(&[WEB, b"/comic/", w, b".html"], &mut u)?)
+    fetch(make(&[WEB, b"/comic/", &encoded[..en], b".html"], &mut u)?)
 }
 fn collect(doc: HtmlDescriptor, w: &[u8]) -> R<All> {
     let a = All::new(doc, b"#mh-chapter-list-ol-0 li a")?;
@@ -789,7 +816,8 @@ fn chapter_number(t: &[u8]) -> Option<&[u8]> {
     Some(x)
 }
 fn detail(r: &[u8], chapters: bool) -> R<usize> {
-    let w = work(r)?;
+    let mut work_buf = [0; 1024];
+    let w = work(r, &mut work_buf)?;
     let doc = detail_doc(w)?;
     let a = collect(doc.0, w)?;
     let out = payload_buf();
@@ -891,7 +919,9 @@ fn detail(r: &[u8], chapters: bool) -> R<usize> {
         &mut n,
         b",\"links\":[{\"kind\":\"source\",\"url\":\"https://nnhanman.xyz/comic/",
     )?;
-    bytes(out, &mut n, w)?;
+    let mut encoded = [0; 768]; let mut en = 0;
+    if !write_url_encoded(&mut encoded, &mut en, w) { return Err("work URL overflow"); }
+    bytes(out, &mut n, &encoded[..en])?;
     bytes(out, &mut n, b".html\"}]}}")?;
     Ok(n)
 }
@@ -908,9 +938,11 @@ fn chapter_doc(w: &[u8], c: &[u8]) -> R<Owned> {
     if !found {
         return Err("chapter absent");
     };
+    let mut encoded = [0; 768]; let mut en = 0;
+    if !write_url_encoded(&mut encoded, &mut en, w) { return Err("work URL overflow"); }
     let mut u = [0; 1024];
     fetch(make(
-        &[WEB, b"/comic/", w, b"/chapter-", c, b".html"],
+        &[WEB, b"/comic/", &encoded[..en], b"/chapter-", c, b".html"],
         &mut u,
     )?)
 }
@@ -929,11 +961,10 @@ fn page_collect(d: HtmlDescriptor) -> R<usize> {
         let v = attr(a.at(i), b"data-src", &mut u)?;
         image_url(v, false)?;
         unsafe {
-            for j in 0..i {
-                if &PAGES[j][..PAGE_LEN[j]] == v {
-                    return Err("duplicate image");
-                }
-            }
+            // The public reader and adopted NNHanman reference render each
+            // declared data-index slot, even when two slots reuse one URI.
+            // Keep those real positions/IDs; URL uniqueness is not page identity.
+            // The strict index sequence and later exact indexed owner check stay.
             PAGES[i][..v.len()].copy_from_slice(v);
             PAGE_LEN[i] = v.len()
         }
@@ -941,7 +972,8 @@ fn page_collect(d: HtmlDescriptor) -> R<usize> {
     Ok(a.len)
 }
 fn pages(r: &[u8]) -> R<usize> {
-    let (w, c) = chapter(r)?;
+    let mut chapter_buf = [0; 1024];
+    let (w, c) = chapter(r, &mut chapter_buf)?;
     let d = chapter_doc(w, c)?;
     let count = page_collect(d.0)?;
     let out = payload_buf();
@@ -1029,7 +1061,11 @@ fn image_request(r: &[u8]) -> R<usize> {
 fn execute(op: &str, r: R<usize>) -> u32 {
     match r {
         Ok(n) => write_success_payload(op, n),
-        Err(e) => write_error(op, "source_error", e),
+        Err(e) => write_error(op, match e {
+            "transport error" => "network_error",
+            "timeout" => "timeout",
+            _ => "source_error",
+        }, e),
     }
 }
 fn run_search(r: &[u8]) -> u32 {
@@ -1068,6 +1104,7 @@ fn filtered_list(r: &[u8]) -> R<Option<usize>> {
     bytes(out,&mut n,b"],\"page\":{\"nextCursor\":")?;if next {q(out,&mut n,&want[..wnlen])?}else{bytes(out,&mut n,b"null")?};bytes(out,&mut n,if next{b",\"hasMore\":true}}"}else{b",\"hasMore\":false}}"})?;Ok(Some(n))
 }
 fn run_get_manga_list(r: &[u8]) -> u32 {
+    if latest_requested(r) { return execute("get_manga_list", list(r, false)); }
     match filtered_list(r) {Ok(Some(n))=>write_success_payload("get_manga_list",n),Ok(None)=>execute("get_manga_list",list(r,false)),Err(e)=>write_error("get_manga_list","source_error",e)}
 }
 fn run_get_manga(r: &[u8]) -> u32 {
@@ -1082,11 +1119,13 @@ fn run_get_pages(r: &[u8]) -> u32 {
 fn run_get_image_request(r: &[u8]) -> u32 {
     execute("get_image_request", image_request(r))
 }
-fn run_get_listings(_: &[u8]) -> u32 {
+fn run_get_listings(r: &[u8]) -> u32 {
     let p = payload_buf();
-    let v =
-        "{\"listings\":[{\"id\":\"listing:popular\",\"name\":\"热门\",\"supportsPaging\":false}]}"
-            .as_bytes();
+    let v = if listing_scope_supported(r) {
+        r#"{"listings":[{"id":"listing:popular","name":"热门","supportsPaging":false},{"id":"listing:latest","name":"最近更新","supportsPaging":false,"supportsFilters":false}]}"#
+    } else {
+        r#"{"listings":[{"id":"listing:popular","name":"热门","supportsPaging":false}]}"#
+    }.as_bytes();
     p[..v.len()].copy_from_slice(v);
     write_success_payload("get_listings", v.len())
 }

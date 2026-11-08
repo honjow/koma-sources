@@ -11,7 +11,7 @@ const MOBILE: &[u8] = b"https://m.webtoons.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.webtoons.zh-hant.koma",
     name: "LINE WEBTOON (Traditional Chinese)",
-    version: "0.1.11",
+    version: "0.1.12",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma source contributors",
@@ -746,6 +746,9 @@ enum SearchPage { All, Originals(usize, bool), Canvas(usize) }
 fn search_filter_supported(r: &[u8]) -> bool {
     json_object_member(r,b"hostFeatures").map(|v| { let v=trim_ascii(v);v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|c| *c==b',').any(|v|trim_ascii(v)==b"\"source_filter_scope_header_v1\"") }).unwrap_or(false)
 }
+fn empty_filter_search_supported(r: &[u8]) -> bool {
+    search_filter_supported(r) && json_object_member(r,b"hostFeatures").map(|v| { let v=trim_ascii(v);v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|c|*c==b',').any(|v|trim_ascii(v)==br#""source_filter_search_without_query_v1""#) }).unwrap_or(false)
+}
 fn search_category(r: &[u8]) -> Result<&[u8], &'static str> {
     if !search_filter_supported(r) { return Ok(b"all"); }
     let a=input(r)?; let filter=json_object_member(a,b"filters").unwrap_or(b"{}");
@@ -824,9 +827,34 @@ fn search_next(root: &Node, section: &[u8], query: &[u8], pn: usize) -> Result<b
     Ok(true)
 }
 
+// The reference uses the device's local calendar day for the latest feed.
+// Clock RPC returns local gts; old hosts keep the existing popular-only list.
+fn clock_supported(r: &[u8]) -> bool {
+    json_object_member(r,b"hostFeatures").map(|v| { let v=trim_ascii(v); v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|c|*c==b',').any(|x|trim_ascii(x)==br#""source_private_session_v1""#) }).unwrap_or(false)
+}
+fn local_weekday() -> Result<&'static [u8], &'static str> {
+    let request=br#"{"type":"private_session","version":1,"op":"clock"}"#;
+    let mut response=[0u8;1024];
+    let n=host::http_request(request,&mut response).map_err(|_|"local clock unavailable")?;
+    if n >= response.len() || json_object_member(&response[..n],b"ok") != Some(b"true".as_slice()) { return Err("local clock unavailable"); }
+    let g=extract_json_string(&response[..n],b"gts").ok_or("invalid local clock")?;
+    if g.len()!=19 || g[4]!=b'-' || g[7]!=b'-' || g[10]!=b'+' || g[13]!=b':' || g[16]!=b':' { return Err("invalid local clock"); }
+    let year=number(&g[..4]).ok_or("invalid local clock")?;
+    let month=number(&g[5..7]).ok_or("invalid local clock")?;
+    let day=number(&g[8..10]).ok_or("invalid local clock")?;
+    if year==0 || month==0 || month>12 { return Err("invalid local clock"); }
+    let leap=year%4==0 && (year%100!=0 || year%400==0);
+    let days=[31,if leap {29}else{28},31,30,31,30,31,31,30,31,30,31];
+    if day==0 || day>days[month-1] { return Err("invalid local clock"); }
+    let y=year-if month<3 {1}else{0};
+    let offset=[0,3,2,5,0,3,5,1,4,6,2,4];
+    let weekday=(y+y/4-y/100+y/400+offset[month-1]+day)%7;
+    Ok([b"sunday".as_slice(),b"monday",b"tuesday",b"wednesday",b"thursday",b"friday",b"saturday"][weekday])
+}
 fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
     let a = input(r)?;
     let pn = if search { 1 } else { page(r)? };
+    let latest = !search && string(a,b"listingId")==Some(b"latest".as_slice());
     let step = if search {
         let page=search_page(r)?; let category=search_category(r)?;
         match (category,page) {
@@ -846,7 +874,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
     if search {
         let raw = string(a, b"query").ok_or("missing query")?;
         let query = unescape(raw, &mut query_buf)?;
-        if trim_ascii(query).is_empty() {
+        if trim_ascii(query).is_empty() && !empty_filter_search_supported(r) {
             return Err("empty query");
         };
         query_len = query.len();
@@ -863,9 +891,13 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
         let listing = string(a, b"listingId")
             .or_else(|| string(a, b"listing"))
             .unwrap_or(b"popular");
-        if listing != b"popular" {
-            return Err("unknown listing");
-        };
+        if latest {
+            if !clock_supported(r) || pn != 1 { return Err("invalid latest listing"); }
+            bytes(&mut url, &mut u, b"/zh-hant/originals/")?;
+            bytes(&mut url, &mut u, local_weekday()?)?;
+            bytes(&mut url, &mut u, b"?sortOrder=UPDATE")?;
+        } else {
+        if listing != b"popular" { return Err("unknown listing"); }
         let ranking = match pn {
             1 => b"trending".as_slice(),
             2 => b"popular",
@@ -875,6 +907,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
         };
         bytes(&mut url, &mut u, b"/zh-hant/ranking/")?;
         bytes(&mut url, &mut u, ranking)?;
+        }
     }
     let root = doc(&url[..u])?;
     if search && host::check_cancel() { return Err("cancelled"); }
@@ -885,7 +918,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
         };
         match step {
             SearchPage::All => { root.select(b".search_wrap, .search_result, .search_area")?; },
-            _ => { root.select(b".webtoon_list_wrap")?; },
+            _ => { root.select(b".webtoon_list_wrap, .no_data")?; },
         }
     }
     let mut next = [0; 32]; let mut next_len = 0;
@@ -910,7 +943,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
             },
         }
     }
-    let has_more = if search { next_len > 0 } else { pn < 4 };
+    let has_more = if search { next_len > 0 } else { !latest && pn < 4 };
     if nodes.n == 0 && has_more && !search {
         return Err("empty page has next cursor");
     };
@@ -1352,9 +1385,8 @@ fn run_get_pages(r: &[u8]) -> u32 {
 fn run_get_image_request(r: &[u8]) -> u32 {
     execute("get_image_request", image_request(r))
 }
-fn run_get_listings(_: &[u8]) -> u32 {
-    let p = "{\"listings\":[{\"id\":\"popular\",\"name\":\"熱門\",\"supportsPaging\":true}]}"
-        .as_bytes();
+fn run_get_listings(r: &[u8]) -> u32 {
+    let p = if clock_supported(r) { "{\"listings\":[{\"id\":\"popular\",\"name\":\"熱門\",\"supportsPaging\":true},{\"id\":\"latest\",\"name\":\"最新\",\"supportsPaging\":false}]}" } else { "{\"listings\":[{\"id\":\"popular\",\"name\":\"熱門\",\"supportsPaging\":true}]}" }.as_bytes();
     payload_buf()[..p.len()].copy_from_slice(p);
     write_success_payload("get_listings", p.len())
 }
@@ -1362,7 +1394,7 @@ fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "unsupported", "home unsupported")
 }
 fn run_get_filters(r: &[u8]) -> u32 {
-    let data=if search_filter_supported(r) { br#"{"filters":[{"id":"searchType","name":"Search Type","type":"select","scope":"search","default":"all","options":[{"value":"all","label":"ALL"},{"value":"originals","label":"Originals"},{"value":"canvas","label":"Canvas"}]}]}"#.as_slice() } else { br#"{"filters":[]}"#.as_slice() };
+    let data=if empty_filter_search_supported(r) { r#"{"useSearchForFilters":true,"filters":[{"id":"searchType","name":"搜尋類型","type":"select","scope":"search","default":"all","options":[{"value":"all","label":"全部"},{"value":"originals","label":"原創作品"},{"value":"canvas","label":"投稿作品"}]}]}"#.as_bytes() } else if search_filter_supported(r) { r#"{"filters":[{"id":"searchType","name":"搜尋類型","type":"select","scope":"search","default":"all","options":[{"value":"all","label":"全部"},{"value":"originals","label":"原創作品"},{"value":"canvas","label":"投稿作品"}]}]}"#.as_bytes() } else { br#"{"filters":[]}"#.as_slice() };
     payload_buf()[..data.len()].copy_from_slice(data);write_success_payload("get_filters",data.len())
 }
 fn run_get_settings(r: &[u8]) -> u32 {

@@ -1,8 +1,10 @@
-# Zazhimi package assets
+# 杂志迷书源图标
 
-- `icon.png` is the public Zazhimi PWA icon published at
-  `https://www.zazhimi.net/wp-content/uploads/2022/03/cropped-512-192x192.png`.
-- Retrieved on 2026-08-14; SHA-256:
-  `520287e672e24ac998696412404e5448d9768e1b3aa1abda73e44fe1f88d3a5e`.
-- It is packaged only as the identity icon for this Zazhimi source. Do not use
-  it as a manga cover or as a substitute for another source's brand asset.
+图标采用杂志迷官网公开媒体目录中标记为 logo 的附件 547，2026-11-06 获取。
+原文件为 512×512 PNG，完整保留「杂志迷」字样、粉色填面及装饰圆，四角均为原画面。
+[官网媒体记录](https://www.zazhimi.net/wp-json/wp/v2/media/547) · [原图](https://www.zazhimi.net/wp-content/uploads/2022/03/512-2.png)
+
+发布成品沿用原件字节。原圆角裁图和完整方形原图已在浅、深背景逐一对照。成品 SHA-256 为
+`81b650b2da33cc8959e2e19052e75941343cd05c494107d744f498cc4b0a0e62`。
+
+此前采用官网生成的 192×192 圆角站点图标，已改用相同设计的官方完整方形原件。

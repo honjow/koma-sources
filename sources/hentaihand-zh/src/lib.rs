@@ -9,11 +9,11 @@ const MAX: usize = 1048576;
 const INFO: SourceInfo = SourceInfo {
     id: "com.hentaihand.zh.koma",
     name: "HentaiHand",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "Anonymous Chinese metadata; NSFW source; per-work rating and usage unknown.",
+    description: "匿名中文作品信息；含成人内容，各作品分级及使用情况未知。",
     content_rating: "nsfw",
 };
 const CAPS: SourceCapabilities = SourceCapabilities {
@@ -25,7 +25,7 @@ const CAPS: SourceCapabilities = SourceCapabilities {
     manga_list: true,
     image_request: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: false,
     credentials: false,
 };
@@ -41,7 +41,7 @@ fn fetch(url: &[u8]) -> Result<usize, E> {
         return Err("cancelled");
     }
     if !url.starts_with(b"https://hentaihand.com/api/comics")
-        && ![b"tags" as &[u8], b"artists", b"characters"]
+        && ![b"tags" as &[u8], b"artists", b"characters", b"categories", b"groups", b"parodies", b"languages"]
             .iter()
             .any(|uri| {
                 let mut prefix = [0; 128];
@@ -195,7 +195,7 @@ fn cover_allowed(u: &[u8], work: usize) -> Result<(), E> {
     let mut expected = [0; 32];
     let mut n = 0;
     wn(&mut expected, &mut n, work)?;
-    if !path.starts_with(&expected[..n]) || !matches!(&path[n..], b".jpg" | b".png") {
+    if !path.starts_with(&expected[..n]) || !matches!(&path[n..], b".jpg" | b".png" | b".webp") {
         return Err("cover owner");
     }
     Ok(())
@@ -266,7 +266,8 @@ fn emit_work(v: &[u8], b: &mut [u8], n: &mut usize) -> Result<(), E> {
 }
 fn listing(r: &[u8]) -> Result<usize, E> {
     let a = args(r)?;
-    if text(a, b"listingId")? != b"listing:popular" {
+    let listing = text(a, b"listingId")?;
+    if listing != b"listing:popular" && listing != b"listing:latest" {
         return Err("listing identity");
     }
     let page = if let Some(p) = member(a, b"page")? {
@@ -291,7 +292,11 @@ fn listing(r: &[u8]) -> Result<usize, E> {
     bytes(
         &mut url,
         &mut un,
-        b"&sort=popularity&order=desc&duration=all&languages%5B-1%5D=1&languages%5B-2%5D=50",
+        if listing == b"listing:latest" {
+            b"&sort=uploaded_at&order=desc&duration=all&languages%5B-1%5D=1&languages%5B-2%5D=50"
+        } else {
+            b"&sort=popularity&order=desc&duration=all&languages%5B-1%5D=1&languages%5B-2%5D=50"
+        },
     )?;
     let len = fetch(&url[..un])?;
     emit_listing(len, page, None)
@@ -676,7 +681,7 @@ fn hex_query(b: &mut [u8], n: &mut usize, query: &[u8]) -> Result<(), E> {
     }
     Ok(())
 }
-fn lookup(query: &[u8], uri: &[u8]) -> Result<Option<usize>, E> {
+fn lookup(query: &[u8], uri: &[u8], exact_only: bool) -> Result<Option<usize>, E> {
     let mut url = [0; 8192];
     let mut n = 0;
     bytes(&mut url, &mut n, b"https://hentaihand.com/api/")?;
@@ -697,12 +702,14 @@ fn lookup(query: &[u8], uri: &[u8]) -> Result<Option<usize>, E> {
     let mut it = Array::new(required(v, b"data")?)?;
     let mut count = 0;
     let mut exact = None;
+    let mut first = None;
     let mut name_buf = [0; 8192];
     while let Some(row) = it.next()? {
         if count >= per {
             return Err("lookup count");
         }
         let owner = field_num(row, b"id")?;
+        if first.is_none() { first = Some(owner); }
         if owner == 0 {
             return Err("lookup identity");
         }
@@ -727,6 +734,7 @@ fn lookup(query: &[u8], uri: &[u8]) -> Result<Option<usize>, E> {
     if let Some(id) = exact {
         return Ok(Some(id));
     }
+    if !exact_only && first.is_some() { return Ok(first); }
     if last != 1 || required(v, b"next_page_url")? != b"null" || count != total {
         return Err("lookup incomplete exact miss");
     }
@@ -739,6 +747,12 @@ fn lookup(query: &[u8], uri: &[u8]) -> Result<Option<usize>, E> {
     }
     Ok(None)
 }
+fn filter_search_supported(r: &[u8]) -> bool {
+    let Some(f) = json_object_member(r, b"hostFeatures").map(trim_ascii) else { return false; };
+    if !f.starts_with(b"[") || !f.ends_with(b"]") { return false; }
+    let has = |name: &[u8]| f[1..f.len()-1].split(|c| *c == b',').any(|v| trim_ascii(v) == name);
+    has(br#""source_filter_scope_header_v1""#) && has(br#""source_filter_search_without_query_v1""#)
+}
 fn search(r: &[u8]) -> Result<usize, E> {
     let a = args(r)?;
     let mut query_buf = [0; 2048];
@@ -747,9 +761,39 @@ fn search(r: &[u8]) -> Result<usize, E> {
         .map_err(|_| "query UTF8")?
         .trim()
         .as_bytes();
-    if query.is_empty() {
-        return Err("empty query");
+    let filters = if filter_search_supported(r) {
+        match member(a, b"filters")? {
+            None | Some(b"null") => b"{}".as_slice(),
+            Some(v) if v.first() == Some(&b'{') => v,
+            _ => return Err("invalid filters"),
+        }
+    } else { b"{}" };
+    if query.is_empty() && !filter_search_supported(r) { return Err("empty query"); }
+    // Default-valued controls must keep the old query-only cursor across a
+    // source update. A meaningful selection binds subsequent pages to filters.
+    let mut changed = false;
+    for (key, default) in [(b"sort".as_slice(), b"uploaded_at".as_slice()), (b"order", b"desc"), (b"duration", b"day")] {
+        if let Some(v) = member(filters, key)? { if v != b"null" && quoted(v)? != default { changed = true; } }
     }
+    let mut check = [0u8; 2048];
+    for key in [b"categories".as_slice(), b"tags", b"artists", b"groups", b"characters", b"parodies", b"languages"] {
+        if let Some(v) = member(filters, key)? {
+            if v != b"null" {
+                let text = unescape(quoted(v)?, &mut check)?;
+                if !core::str::from_utf8(text).map_err(|_| "filter UTF8")?.trim().is_empty() { changed = true; }
+            }
+        }
+    }
+    for key in [b"attributes".as_slice(), b"statuses"] {
+        if let Some(v) = member(filters, key)? { if v != b"null" && Array::new(v)?.next()?.is_some() { changed = true; } }
+    }
+    let mut identity_buf = [0u8; 3500]; let mut identity_len = 0;
+    bytes(&mut identity_buf, &mut identity_len, query)?;
+    if changed {
+        bytes(&mut identity_buf, &mut identity_len, b"\0")?;
+        bytes(&mut identity_buf, &mut identity_len, filters)?;
+    }
+    let identity = &identity_buf[..identity_len];
     let mut page = 1;
     let mut cursor_buf = [0; 8192];
     if let Some(p) = member(a, b"page")? {
@@ -759,7 +803,7 @@ fn search(r: &[u8]) -> Result<usize, E> {
                 let mut expected = [0; 8192];
                 let mut en = 0;
                 bytes(&mut expected, &mut en, b"hhq:")?;
-                hex_query(&mut expected, &mut en, query)?;
+                hex_query(&mut expected, &mut en, identity)?;
                 bytes(&mut expected, &mut en, b":")?;
                 let tail = c
                     .strip_prefix(&expected[..en])
@@ -774,11 +818,24 @@ fn search(r: &[u8]) -> Result<usize, E> {
     if page > 10000 {
         return Err("cursor capacity");
     }
+    let lookup_fields: &[&[u8]] = &[b"categories", b"tags", b"artists", b"groups", b"characters", b"parodies", b"languages"];
+    let mut lookup_selected = false;
+    let mut textbuf = [0u8; 2048];
+    for &field in lookup_fields {
+        if let Some(v) = member(filters, field)? {
+            if v != b"null" {
+                let value = unescape(quoted(v)?, &mut textbuf)?;
+                if !core::str::from_utf8(value).map_err(|_| "filter UTF8")?.trim().is_empty() { lookup_selected = true; }
+            }
+        }
+    }
     let mut matched = None;
-    for uri in [b"tags" as &[u8], b"artists", b"characters"] {
-        if let Some(id) = lookup(query, uri)? {
-            matched = Some((uri, id));
-            break;
+    if !query.is_empty() && !lookup_selected {
+        for uri in [b"tags" as &[u8], b"artists", b"characters"] {
+            if let Some(id) = lookup(query, uri, true)? {
+                matched = Some((uri, id));
+                break;
+            }
         }
     }
     let mut url = [0; 8192];
@@ -790,17 +847,52 @@ fn search(r: &[u8]) -> Result<usize, E> {
         bytes(&mut url, &mut n, uri)?;
         bytes(&mut url, &mut n, b"%5B0%5D=")?;
         wn(&mut url, &mut n, id)?;
-    } else {
+    } else if !query.is_empty() {
         bytes(&mut url, &mut n, b"&q=")?;
         percent_query(&mut url, &mut n, query)?;
     }
-    bytes(
-        &mut url,
-        &mut n,
-        b"&languages%5B-1%5D=1&languages%5B-2%5D=50&sort=uploaded_at&order=desc&duration=day",
-    )?;
+    bytes(&mut url, &mut n, b"&languages%5B-1%5D=1&languages%5B-2%5D=50")?;
+    for (field, default, allowed) in [
+        (b"sort".as_slice(), b"uploaded_at".as_slice(), &[b"uploaded_at".as_slice(), b"title", b"pages", b"favorites", b"popularity"][..]),
+        (b"order", b"desc", &[b"desc".as_slice(), b"asc"][..]),
+        (b"duration", b"day", &[b"day".as_slice(), b"week", b"month", b"year", b"all"][..]),
+    ] {
+        let value = match member(filters, field)? { None | Some(b"null") => default, Some(v) => quoted(v)? };
+        if !allowed.contains(&value) { return Err("invalid filter value"); }
+        bytes(&mut url, &mut n, b"&")?; bytes(&mut url, &mut n, field)?;
+        bytes(&mut url, &mut n, b"=")?; bytes(&mut url, &mut n, value)?;
+    }
+    for &field in lookup_fields {
+        if let Some(v) = member(filters, field)? {
+            if v == b"null" { continue; }
+            let value = unescape(quoted(v)?, &mut textbuf)?;
+            let value = core::str::from_utf8(value).map_err(|_| "filter UTF8")?;
+            for (index, term) in value.split(',').map(str::trim).filter(|v| !v.is_empty()).enumerate() {
+                let id = lookup(term.as_bytes(), field, false)?.ok_or("filter value not found")?;
+                if field == b"languages" && (id == 1 || id == 50) { continue; }
+                bytes(&mut url, &mut n, b"&")?; bytes(&mut url, &mut n, field)?;
+                bytes(&mut url, &mut n, b"%5B")?; wn(&mut url, &mut n, index)?;
+                bytes(&mut url, &mut n, b"%5D=")?; wn(&mut url, &mut n, id)?;
+            }
+        }
+    }
+    for (field, allowed) in [
+        (b"attributes".as_slice(), &[b"translated".as_slice(), b"speechless", b"rewritten"][..]),
+        (b"statuses".as_slice(), &[b"ongoing".as_slice(), b"complete", b"onhold", b"canceled"][..]),
+    ] {
+        if let Some(raw) = member(filters, field)? {
+            if raw == b"null" { continue; }
+            let mut items = Array::new(raw)?;
+            while let Some(item) = items.next()? {
+                let value = quoted(item)?;
+                if !allowed.contains(&value) { return Err("invalid filter value"); }
+                bytes(&mut url, &mut n, b"&")?; bytes(&mut url, &mut n, field)?;
+                bytes(&mut url, &mut n, b"=")?; bytes(&mut url, &mut n, value)?;
+            }
+        }
+    }
     let len = fetch(&url[..n])?;
-    emit_listing(len, page, Some(query))
+    emit_listing(len, page, Some(identity))
 }
 fn run_search(r: &[u8]) -> u32 {
     execute("search", search(r))
@@ -821,21 +913,25 @@ fn run_get_image_request(r: &[u8]) -> u32 {
     execute("get_image_request", image_request(r))
 }
 fn run_get_listings(_: &[u8]) -> u32 {
-    let s="{\"listings\":[{\"id\":\"listing:popular\",\"name\":\"人气较多（全部时间）\",\"kind\":\"popular\",\"supportsPaging\":true}]}".as_bytes();
+    let s="{\"listings\":[{\"id\":\"listing:popular\",\"name\":\"人气较多（全部时间）\",\"kind\":\"popular\",\"supportsPaging\":true},{\"id\":\"listing:latest\",\"name\":\"最近更新\",\"kind\":\"latest\",\"supportsPaging\":true}]}".as_bytes();
     payload_buf()[..s.len()].copy_from_slice(s);
     write_success_payload("get_listings", s.len())
 }
 fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_supported", "not supported")
 }
-fn run_get_filters(_: &[u8]) -> u32 {
-    write_error("get_filters", "not_supported", "not supported")
+fn run_get_filters(r: &[u8]) -> u32 {
+    let data = if filter_search_supported(r) {
+        r#"{"useSearchForFilters":true,"filters":[{"id":"sort","name":"排序","type":"select","scope":"search","default":"uploaded_at","options":[{"value":"uploaded_at","label":"上传日期"},{"value":"title","label":"标题"},{"value":"pages","label":"页数"},{"value":"favorites","label":"收藏"},{"value":"popularity","label":"人气"}]},{"id":"order","name":"顺序","type":"select","scope":"search","default":"desc","options":[{"value":"desc","label":"降序"},{"value":"asc","label":"升序"}]},{"id":"duration","name":"时间范围","type":"select","scope":"search","default":"day","options":[{"value":"day","label":"今天"},{"value":"week","label":"本周"},{"value":"month","label":"本月"},{"value":"year","label":"今年"},{"value":"all","label":"全部时间"}]},{"id":"categories","name":"分类（逗号分隔）","type":"text","scope":"search"},{"id":"tags","name":"标签（逗号分隔）","type":"text","scope":"search"},{"id":"artists","name":"作者（逗号分隔）","type":"text","scope":"search"},{"id":"groups","name":"社团（逗号分隔）","type":"text","scope":"search"},{"id":"characters","name":"角色（逗号分隔）","type":"text","scope":"search"},{"id":"parodies","name":"原作（逗号分隔）","type":"text","scope":"search"},{"id":"languages","name":"其他语言（逗号分隔）","type":"text","scope":"search"},{"id":"attributes","name":"属性","type":"multiselect","scope":"search","options":[{"value":"translated","label":"翻译"},{"value":"speechless","label":"无对白"},{"value":"rewritten","label":"改写"}]},{"id":"statuses","name":"状态","type":"multiselect","scope":"search","options":[{"value":"ongoing","label":"连载"},{"value":"complete","label":"完结"},{"value":"onhold","label":"暂停"},{"value":"canceled","label":"取消"}]}]}"#.as_bytes()
+    } else { br#"{"filters":[]}"#.as_slice() };
+    payload_buf()[..data.len()].copy_from_slice(data);
+    write_success_payload("get_filters", data.len())
 }
 fn run_get_settings(_: &[u8]) -> u32 {
     write_error("get_settings", "not_supported", "not supported")
 }
 
-const INFO_JSON: &str = r#"{"sourceInfo":{"id":"com.hentaihand.zh.koma","name":"HentaiHand","version":"0.1.2","apiVersion":"0.2","language":"zh","author":"Koma","contentRating":"nsfw","description":"Anonymous Chinese metadata; NSFW source; per-work rating and usage unknown.","localizedNames":{"zh-Hans":"HentaiHand（中文）","zh-Hant":"HentaiHand（中文）","en":"HentaiHand (Chinese)"}},"capabilities":{"search":true,"mangaDetail":true,"chapters":true,"pages":true,"listings":true,"mangaList":true,"imageRequest":true,"home":false,"filters":false,"settings":false,"future":{"login":false,"auth":false,"process_page_image":false,"page_description":false,"base_url":false,"deeplink":false,"migration":false}}}"#;
+const INFO_JSON: &str = r#"{"sourceInfo":{"id":"com.hentaihand.zh.koma","name":"HentaiHand","version":"0.1.3","apiVersion":"0.2","language":"zh","author":"Koma","contentRating":"nsfw","description":"匿名中文作品信息；含成人内容，各作品分级及使用情况未知。","localizedNames":{"zh-Hans":"HentaiHand（中文）","zh-Hant":"HentaiHand（中文）","en":"HentaiHand (Chinese)"}},"capabilities":{"search":true,"mangaDetail":true,"chapters":true,"pages":true,"listings":true,"mangaList":true,"imageRequest":true,"home":false,"filters":true,"settings":false,"future":{"login":false,"auth":false,"process_page_image":false,"page_description":false,"base_url":false,"deeplink":false,"migration":false}}}"#;
 // Source-local ABI gate; SDK remains byte-identical. Check before helper forms a slice.
 fn checked_request(ptr: u32, len: u32) -> Option<&'static [u8]> {
     let cap = core::arch::wasm32::memory_size::<0>().checked_mul(65536)?;

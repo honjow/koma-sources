@@ -24,12 +24,12 @@ use koma_source_sdk::{
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.xcomic.zh.koma",
     name: "XCOMIC",
-    version: "0.1.12",
+    version: "0.1.13",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
     description:
-        "XCOMIC Chinese public editions; anonymous GraphQL queries and direct original images. Usage unknown.",
+        "XCOMIC 中文公开版本；匿名查询并读取原图。使用情况未知。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
@@ -1250,7 +1250,99 @@ fn list(r: &[u8], search: bool) -> Result<usize, E> {
     if json_object_member(r,b"settings").and_then(|s|json_object_member(s,b"IGNORE_GENRE_BLOCKLIST"))==Some(b"true") {
         bytes(&mut vars,&mut v,b",\"ignoreGlobalGenres\":true")?;
     }
-    bytes(&mut vars,&mut v,b"}}")?;
+    // These reference filters are static and belong to search. Browse keeps
+    // its already accepted sort behavior until the host can route scopes separately.
+    if search && filter_host(r) {
+        if let Some(filters) = member(a, b"filters")?.filter(|v| *v != b"null") {
+            let mut tmp = [0u8; 1024];
+            if let Some(raw) = optional_text(filters, b"year")? {
+                let year = unescape(raw, &mut tmp)?;
+                let year = core::str::from_utf8(year).map_err(|_| "invalid year")?.trim();
+                let (min, max) = if let Some((a, b)) = year.split_once('-') {
+                    (a.trim().parse::<i32>().ok(), b.trim().parse::<i32>().ok())
+                } else {
+                    let n = year.parse::<i32>().ok(); (n, n)
+                };
+                if let Some(n) = min { bytes(&mut vars, &mut v, b",\"releaseYearMin\":")?; bytes(&mut vars, &mut v, n.to_string().as_bytes())?; }
+                if let Some(n) = max { bytes(&mut vars, &mut v, b",\"releaseYearMax\":")?; bytes(&mut vars, &mut v, n.to_string().as_bytes())?; }
+            }
+            let mut minimum = None; let mut maximum = None;
+            for (id, output) in [(b"chapMin".as_slice(), &mut minimum), (b"chapMax".as_slice(), &mut maximum)] {
+                if let Some(raw) = optional_text(filters, id)? {
+                    let text = unescape(raw, &mut tmp)?;
+                    *output = core::str::from_utf8(text).map_err(|_| "invalid chapter count")?.trim().parse::<i32>().ok().map(|n| n.max(1));
+                }
+            }
+            if minimum.is_some() || maximum.is_some() {
+                let mut value = String::new();
+                match (minimum, maximum) {
+                    (Some(a), Some(b)) => { value.push_str(&a.to_string()); value.push('-'); value.push_str(&b.to_string()); }
+                    (Some(a), None) => value.push_str(&a.to_string()),
+                    (None, Some(b)) => { value.push_str("1-"); value.push_str(&b.to_string()); }
+                    _ => {}
+                }
+                bytes(&mut vars, &mut v, b",\"chapCount\":")?; q(&mut vars, &mut v, value.as_bytes())?;
+            }
+            if let Some(raw) = member(filters, b"originalLanguage")? {
+                if raw != b"null" {
+                    let allowed: &[&[u8]] = &[b"en",b"fr",b"pt",b"ko",b"ja",b"id",b"zh",b"zh_hk",b"af",b"sq",b"ar",b"az",b"eu",b"be",b"bn",b"bg",b"my",b"km",b"ca",b"ceb",b"hr",b"cv",b"cs",b"da",b"nl",b"eo",b"et",b"fil",b"fi",b"gl",b"ka",b"de",b"el",b"gu",b"he",b"hi",b"hu",b"is",b"ga",b"it",b"jv",b"kk",b"la",b"lv",b"lt",b"ms",b"ml",b"mr",b"mo",b"mn",b"ne",b"no",b"fa",b"pl",b"pt_br",b"ro",b"ru",b"sr",b"sh",b"si",b"sk",b"sl",b"es",b"es_419",b"ss",b"sv",b"ta",b"te",b"th",b"tr",b"uk",b"ur",b"uz",b"vi",b"zu",b"_t"];
+                    let mut values = Array::new(raw)?; let mut first = true;
+                    while let Some(value) = values.next()? {
+                        let value = quoted(value)?;
+                        if !allowed.contains(&value) { return Err("invalid original language"); }
+                        if first { bytes(&mut vars, &mut v, b",\"incOLangs\":[")?; first = false; }
+                        else { bytes(&mut vars, &mut v, b",")?; }
+                        q(&mut vars, &mut v, value)?;
+                    }
+                    if !first { bytes(&mut vars, &mut v, b"]")?; }
+                }
+            }
+            if tristate_host(r) {
+                let allowed: &[&[u8]] = &[b"1_koma",b"2_koma",b"3_koma",b"4_koma",b"adaptation",b"anthology",b"artbook",b"award_winning",b"doujinshi",b"fan_colored",b"fanbook",b"fanwork",b"full_color",b"guidebook",b"illustbook",b"illustration_book",b"japanese_novel",b"light_novel",b"long_strip",b"longstrip",b"novels",b"official_colored",b"oneshot",b"original_doujinshi",b"partially_colored",b"partially_colored_webtoon",b"web_comic",b"web_novel",b"webtoon"];
+                let mut included = Vec::new(); let mut excluded = Vec::new();
+                if let Some(raw) = member(filters, b"formats")? {
+                    if raw != b"null" {
+                        let mut values = Array::new(raw)?;
+                        while let Some(value) = values.next()? {
+                            let value = quoted(value)?;
+                            let (negated, id) = match value.strip_prefix(b"!") { Some(id) => (true, id), None => (false, value) };
+                            if !allowed.contains(&id) || included.contains(&id) || excluded.contains(&id) { return Err("invalid format"); }
+                            if negated { excluded.push(id); } else { included.push(id); }
+                        }
+                    }
+                }
+                for (name, values) in [(b"incGenres".as_slice(), &included), (b"excGenres".as_slice(), &excluded)] {
+                    if !values.is_empty() {
+                        bytes(&mut vars, &mut v, b",")?; q(&mut vars, &mut v, name)?; bytes(&mut vars, &mut v, b":[")?;
+                        for (i, value) in values.iter().enumerate() { if i > 0 { bytes(&mut vars, &mut v, b",")?; } q(&mut vars, &mut v, value)?; }
+                        bytes(&mut vars, &mut v, b"]")?;
+                    }
+                }
+                for (id, name, default, enabled) in [(b"genresIncludeMode".as_slice(), b"incGenresMode".as_slice(), b"and".as_slice(), !included.is_empty()), (b"genresExcludeMode".as_slice(), b"excGenresMode".as_slice(), b"or".as_slice(), !excluded.is_empty())] {
+                    let explicit = optional_text(filters, id)?;
+                    if enabled {
+                        let value = explicit.unwrap_or(default);
+                        if value != b"and" && value != b"or" { return Err("invalid genre mode"); }
+                        bytes(&mut vars, &mut v, b",")?; q(&mut vars, &mut v, name)?; bytes(&mut vars, &mut v, b":")?; q(&mut vars, &mut v, value)?;
+                    }
+                }
+            }
+            if let Some(raw) = member(filters, b"originalStatus")? {
+                if raw != b"null" {
+                    let mut values = Array::new(raw)?; let mut first = true;
+                    while let Some(value) = values.next()? {
+                        let value = quoted(value)?;
+                        if ![b"releasing".as_slice(),b"completed",b"hiatus",b"cancelled",b"upcoming",b"unknown"].contains(&value) { return Err("invalid original status"); }
+                        if first { bytes(&mut vars, &mut v, b",\"origStatus\":[")?; first = false; }
+                        else { bytes(&mut vars, &mut v, b",")?; }
+                        q(&mut vars, &mut v, value)?;
+                    }
+                    if !first { bytes(&mut vars, &mut v, b"]")?; }
+                }
+            }
+        }
+    }
+    bytes(&mut vars, &mut v, b"}}")?;
     let data = query(TITLE_BROWSE_QUERY, &vars[..v])?;
     let items = required(data, b"get_title_browse_items")?;
     let len = items.len();
@@ -1755,18 +1847,27 @@ fn run_get_listings(_: &[u8]) -> u32 {
 fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_implemented", "not supported")
 }
+fn tristate_host(r: &[u8]) -> bool {
+    member(r, b"hostFeatures").ok().flatten().and_then(|v| Array::new(v).ok()).map_or(false, |mut a| {
+        while let Ok(Some(v)) = a.next() { if v == br#""source_filter_tristate_v1""# { return true; } }
+        false
+    })
+}
 fn run_get_filters(r: &[u8]) -> u32 {
-    let schema = if filter_host(r) { br#"{"filters":[{"id":"sort","name":"Order by","type":"select","options":[{"value":"field_score","label":"Rating Score"},{"value":"field_update","label":"Latest Update"},{"value":"field_create","label":"Recently Added"},{"value":"field_name_asc","label":"Name A-Z"},{"value":"field_name_desc","label":"Name Z-A"},{"value":"field_follow","label":"Most Follows"},{"value":"field_review","label":"Most Reviews"},{"value":"field_comment","label":"Most Comments"},{"value":"field_chapter","label":"Most Chapters"}]}]}"#.as_slice() } else { br#"{"filters":[]}"#.as_slice() };
+    let schema = if filter_host(r) {
+        if tristate_host(r) { r###"{"filters":[{"id":"sort","name":"排序","type":"select","options":[{"value":"field_score","label":"评分"},{"value":"field_update","label":"最近更新"},{"value":"field_create","label":"最近添加"},{"value":"field_name_asc","label":"名称 A-Z"},{"value":"field_name_desc","label":"名称 Z-A"},{"value":"field_follow","label":"关注最多"},{"value":"field_review","label":"评价最多"},{"value":"field_comment","label":"评论最多"},{"value":"field_chapter","label":"章节最多"}]},{"id":"year","name":"年份或年份范围","type":"text","scope":"search"},{"id":"chapMin","name":"最少章节数","type":"text","scope":"search"},{"id":"chapMax","name":"最多章节数","type":"text","scope":"search"},{"id":"originalStatus","name":"原作状态","type":"multiselect","scope":"search","options":[{"value":"releasing","label":"连载中"},{"value":"completed","label":"已完结"},{"value":"hiatus","label":"暂停更新"},{"value":"cancelled","label":"已取消"},{"value":"upcoming","label":"即将推出"},{"value":"unknown","label":"未知"}]},{"id":"originalLanguage","name":"原作语言","type":"multiselect","scope":"search","options":[{"label":"英语","value":"en"},{"label":"法语","value":"fr"},{"label":"葡萄牙语","value":"pt"},{"label":"韩语","value":"ko"},{"label":"日语","value":"ja"},{"label":"印度尼西亚语","value":"id"},{"label":"中文","value":"zh"},{"label":"繁体中文","value":"zh_hk"},{"label":"南非荷兰语","value":"af"},{"label":"阿尔巴尼亚语","value":"sq"},{"label":"阿拉伯语","value":"ar"},{"label":"阿塞拜疆语","value":"az"},{"label":"巴斯克语","value":"eu"},{"label":"白俄罗斯语","value":"be"},{"label":"孟加拉语","value":"bn"},{"label":"保加利亚语","value":"bg"},{"label":"缅甸语","value":"my"},{"label":"高棉语","value":"km"},{"label":"加泰罗尼亚语","value":"ca"},{"label":"宿务语","value":"ceb"},{"label":"克罗地亚语","value":"hr"},{"label":"楚瓦什语","value":"cv"},{"label":"捷克语","value":"cs"},{"label":"丹麦语","value":"da"},{"label":"荷兰语","value":"nl"},{"label":"世界语","value":"eo"},{"label":"爱沙尼亚语","value":"et"},{"label":"菲律宾语","value":"fil"},{"label":"芬兰语","value":"fi"},{"label":"加利西亚语","value":"gl"},{"label":"格鲁吉亚语","value":"ka"},{"label":"德语","value":"de"},{"label":"希腊语","value":"el"},{"label":"古吉拉特语","value":"gu"},{"label":"希伯来语","value":"he"},{"label":"印地语","value":"hi"},{"label":"匈牙利语","value":"hu"},{"label":"冰岛语","value":"is"},{"label":"爱尔兰语","value":"ga"},{"label":"意大利语","value":"it"},{"label":"爪哇语","value":"jv"},{"label":"哈萨克语","value":"kk"},{"label":"拉丁语","value":"la"},{"label":"拉脱维亚语","value":"lv"},{"label":"立陶宛语","value":"lt"},{"label":"马来语","value":"ms"},{"label":"马拉雅拉姆语","value":"ml"},{"label":"马拉地语","value":"mr"},{"label":"罗马尼亚语","value":"mo"},{"label":"蒙古语","value":"mn"},{"label":"尼泊尔语","value":"ne"},{"label":"挪威语","value":"no"},{"label":"波斯语","value":"fa"},{"label":"波兰语","value":"pl"},{"label":"巴西葡萄牙语","value":"pt_br"},{"label":"罗马尼亚语","value":"ro"},{"label":"俄语","value":"ru"},{"label":"塞尔维亚语","value":"sr"},{"label":"塞尔维亚语（拉丁文）","value":"sh"},{"label":"僧伽罗语","value":"si"},{"label":"斯洛伐克语","value":"sk"},{"label":"斯洛文尼亚语","value":"sl"},{"label":"西班牙语","value":"es"},{"label":"拉丁美洲西班牙语","value":"es_419"},{"label":"斯瓦蒂语","value":"ss"},{"label":"瑞典语","value":"sv"},{"label":"泰米尔语","value":"ta"},{"label":"泰卢固语","value":"te"},{"label":"泰语","value":"th"},{"label":"土耳其语","value":"tr"},{"label":"乌克兰语","value":"uk"},{"label":"乌尔都语","value":"ur"},{"label":"乌兹别克语","value":"uz"},{"label":"越南语","value":"vi"},{"label":"祖鲁语","value":"zu"},{"label":"其他","value":"_t"}]},{"id":"formats","name":"格式","type":"tristate","scope":"search","options":[{"value":"1_koma","label":"单格漫画"},{"value":"2_koma","label":"两格漫画"},{"value":"3_koma","label":"三格漫画"},{"value":"4_koma","label":"四格漫画"},{"value":"adaptation","label":"改编"},{"value":"anthology","label":"合集"},{"value":"artbook","label":"画集"},{"value":"award_winning","label":"获奖作品"},{"value":"doujinshi","label":"同人志"},{"value":"fan_colored","label":"同人上色"},{"value":"fanbook","label":"粉丝书"},{"value":"fanwork","label":"同人作品"},{"value":"full_color","label":"全彩"},{"value":"guidebook","label":"指南书"},{"value":"illustbook","label":"插画集"},{"value":"illustration_book","label":"插图书"},{"value":"japanese_novel","label":"日本小说"},{"value":"light_novel","label":"轻小说"},{"value":"long_strip","label":"长条漫画"},{"value":"longstrip","label":"长条作品"},{"value":"novels","label":"小说"},{"value":"official_colored","label":"官方上色"},{"value":"oneshot","label":"短篇"},{"value":"original_doujinshi","label":"原创同人志"},{"value":"partially_colored","label":"部分彩色"},{"value":"partially_colored_webtoon","label":"部分彩色条漫"},{"value":"web_comic","label":"网络漫画"},{"value":"web_novel","label":"网络小说"},{"value":"webtoon","label":"条漫"}]},{"id":"genresIncludeMode","name":"包含条件","type":"select","scope":"search","default":"and","options":[{"value":"and","label":"全部符合"},{"value":"or","label":"任一符合"}]},{"id":"genresExcludeMode","name":"排除条件","type":"select","scope":"search","default":"or","options":[{"value":"and","label":"全部符合"},{"value":"or","label":"任一符合"}]}]}"###.as_bytes() }
+        else { r###"{"filters":[{"id":"sort","name":"排序","type":"select","options":[{"value":"field_score","label":"评分"},{"value":"field_update","label":"最近更新"},{"value":"field_create","label":"最近添加"},{"value":"field_name_asc","label":"名称 A-Z"},{"value":"field_name_desc","label":"名称 Z-A"},{"value":"field_follow","label":"关注最多"},{"value":"field_review","label":"评价最多"},{"value":"field_comment","label":"评论最多"},{"value":"field_chapter","label":"章节最多"}]},{"id":"year","name":"年份或年份范围","type":"text","scope":"search"},{"id":"chapMin","name":"最少章节数","type":"text","scope":"search"},{"id":"chapMax","name":"最多章节数","type":"text","scope":"search"},{"id":"originalStatus","name":"原作状态","type":"multiselect","scope":"search","options":[{"value":"releasing","label":"连载中"},{"value":"completed","label":"已完结"},{"value":"hiatus","label":"暂停更新"},{"value":"cancelled","label":"已取消"},{"value":"upcoming","label":"即将推出"},{"value":"unknown","label":"未知"}]},{"id":"originalLanguage","name":"原作语言","type":"multiselect","scope":"search","options":[{"label":"英语","value":"en"},{"label":"法语","value":"fr"},{"label":"葡萄牙语","value":"pt"},{"label":"韩语","value":"ko"},{"label":"日语","value":"ja"},{"label":"印度尼西亚语","value":"id"},{"label":"中文","value":"zh"},{"label":"繁体中文","value":"zh_hk"},{"label":"南非荷兰语","value":"af"},{"label":"阿尔巴尼亚语","value":"sq"},{"label":"阿拉伯语","value":"ar"},{"label":"阿塞拜疆语","value":"az"},{"label":"巴斯克语","value":"eu"},{"label":"白俄罗斯语","value":"be"},{"label":"孟加拉语","value":"bn"},{"label":"保加利亚语","value":"bg"},{"label":"缅甸语","value":"my"},{"label":"高棉语","value":"km"},{"label":"加泰罗尼亚语","value":"ca"},{"label":"宿务语","value":"ceb"},{"label":"克罗地亚语","value":"hr"},{"label":"楚瓦什语","value":"cv"},{"label":"捷克语","value":"cs"},{"label":"丹麦语","value":"da"},{"label":"荷兰语","value":"nl"},{"label":"世界语","value":"eo"},{"label":"爱沙尼亚语","value":"et"},{"label":"菲律宾语","value":"fil"},{"label":"芬兰语","value":"fi"},{"label":"加利西亚语","value":"gl"},{"label":"格鲁吉亚语","value":"ka"},{"label":"德语","value":"de"},{"label":"希腊语","value":"el"},{"label":"古吉拉特语","value":"gu"},{"label":"希伯来语","value":"he"},{"label":"印地语","value":"hi"},{"label":"匈牙利语","value":"hu"},{"label":"冰岛语","value":"is"},{"label":"爱尔兰语","value":"ga"},{"label":"意大利语","value":"it"},{"label":"爪哇语","value":"jv"},{"label":"哈萨克语","value":"kk"},{"label":"拉丁语","value":"la"},{"label":"拉脱维亚语","value":"lv"},{"label":"立陶宛语","value":"lt"},{"label":"马来语","value":"ms"},{"label":"马拉雅拉姆语","value":"ml"},{"label":"马拉地语","value":"mr"},{"label":"罗马尼亚语","value":"mo"},{"label":"蒙古语","value":"mn"},{"label":"尼泊尔语","value":"ne"},{"label":"挪威语","value":"no"},{"label":"波斯语","value":"fa"},{"label":"波兰语","value":"pl"},{"label":"巴西葡萄牙语","value":"pt_br"},{"label":"罗马尼亚语","value":"ro"},{"label":"俄语","value":"ru"},{"label":"塞尔维亚语","value":"sr"},{"label":"塞尔维亚语（拉丁文）","value":"sh"},{"label":"僧伽罗语","value":"si"},{"label":"斯洛伐克语","value":"sk"},{"label":"斯洛文尼亚语","value":"sl"},{"label":"西班牙语","value":"es"},{"label":"拉丁美洲西班牙语","value":"es_419"},{"label":"斯瓦蒂语","value":"ss"},{"label":"瑞典语","value":"sv"},{"label":"泰米尔语","value":"ta"},{"label":"泰卢固语","value":"te"},{"label":"泰语","value":"th"},{"label":"土耳其语","value":"tr"},{"label":"乌克兰语","value":"uk"},{"label":"乌尔都语","value":"ur"},{"label":"乌兹别克语","value":"uz"},{"label":"越南语","value":"vi"},{"label":"祖鲁语","value":"zu"},{"label":"其他","value":"_t"}]}]}"###.as_bytes() }
+    } else { br#"{"filters":[]}"#.as_slice() };
     payload_buf()[..schema.len()].copy_from_slice(schema);
-    write_success_payload("get_filters",schema.len())
+    write_success_payload("get_filters", schema.len())
 }
 fn run_get_settings(req: &[u8]) -> u32 {
-    let schema = r#"{"settings":[{"id":"REMOVE_TITLE_VERSION","name":"Remove Version Information From Entry Titles","kind":"toggle","default":"false","description":"This removes version tags like '(Official)' or '(Yaoi)' from entry titles."},{"id":"IGNORE_GENRE_BLOCKLIST","name":"Ignore WebView Genre Blocklist","kind":"toggle","default":"false"},{"id":"GROUP_BY_SOURCE","name":"Group Chapters By Edition","kind":"toggle","default":"false","description":"Sort chapters by edition label, then chapter number."}]}"#.as_bytes();
+    let schema = r#"{"settings":[{"id":"REMOVE_TITLE_VERSION","name":"移除作品标题中的版本信息","kind":"toggle","default":"false","description":"移除作品标题中的版本标签，例如“官方”或“耽美”。"},{"id":"IGNORE_GENRE_BLOCKLIST","name":"忽略网页中的类型屏蔽列表","kind":"toggle","default":"false"},{"id":"GROUP_BY_SOURCE","name":"按版本分组章节","kind":"toggle","default":"false","description":"按版本名称和章节号排序。"}]}"#.as_bytes();
     let out=payload_buf();let mut n=0;
     if !chapter_editions::supported(req) && !xcomic_java_regex::supported(req){out[..schema.len()].copy_from_slice(schema);return write_success_payload("get_settings",schema.len());}
     if bytes(out,&mut n,&schema[..schema.len()-2]).is_err() {return write_error("get_settings","internal_error","payload overflow");}
-    if chapter_editions::supported(req) && bytes(out,&mut n,br#",{"id":"DEDUPLICATE_CHAPTERS","name":"Deduplicate Chapter List","kind":"toggle","default":"true","description":"Use the provider deduplicated list; duplicate uploads from the same edition may be hidden."},{"id":"SOURCE_INCLUDE","name":"Chapter Editions To Include","kind":"text","default":"","description":"Comma-separated edition labels; a base label includes matching editions, while a suffixed label selects one. Empty includes all editions."}"#).is_err() {return write_error("get_settings","internal_error","payload overflow");}
-    if xcomic_java_regex::supported(req) && bytes(out,&mut n,br#",{"id":"REMOVE_TITLE_CUSTOM","name":"Custom Regex To Be Removed From Title","kind":"text","default":"","validation":{"kind":"java_regex","message":"Invalid regular expression"}}"#).is_err() {return write_error("get_settings","internal_error","payload overflow");}
+    if chapter_editions::supported(req) && bytes(out,&mut n,r#",{"id":"DEDUPLICATE_CHAPTERS","name":"去除重复章节","kind":"toggle","default":"true","description":"使用站点去重后的目录，可能隐藏同一版本的重复上传。"},{"id":"SOURCE_INCLUDE","name":"显示的章节版本","kind":"text","default":"","description":"用逗号分隔版本名称；基础名称包含匹配的版本，带后缀的名称只选择对应版本。留空显示全部版本。"}"#.as_bytes()).is_err() {return write_error("get_settings","internal_error","payload overflow");}
+    if xcomic_java_regex::supported(req) && bytes(out,&mut n,r#",{"id":"REMOVE_TITLE_CUSTOM","name":"自定义标题移除规则","kind":"text","default":"","validation":{"kind":"java_regex","message":"正则表达式无效"}}"#.as_bytes()).is_err() {return write_error("get_settings","internal_error","payload overflow");}
     if bytes(out,&mut n,b"]}").is_err() {return write_error("get_settings","internal_error","payload overflow");}
     write_success_payload("get_settings",n)
 }

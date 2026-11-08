@@ -9,8 +9,8 @@ use koma_source_sdk::{
 const BASE: &[u8] = b"https://www.miaoqumh.org";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.miaoqu.koma",
-    name: "妙趣漫画",
-    version: "0.1.3",
+    name: "喵趣漫画",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -26,7 +26,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     listings: true,
     manga_list: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: false,
     image_request: true,
     credentials: false,
@@ -82,14 +82,18 @@ impl Node {
         Ok(trim_ascii(&out[..n]))
     }
 }
-struct Nodes {
-    ids: [i32; 2048],
+type Nodes = HtmlNodes<2048>;
+// Real 全职法师 has 2197 chapter links. Only chapter selection gets the
+// larger bound; Host returns the full match count so overflow stays an error.
+type ChapterNodes = HtmlNodes<8192>;
+struct HtmlNodes<const CAPACITY: usize> {
+    ids: [i32; CAPACITY],
     n: usize,
 }
-impl Nodes {
+impl<const CAPACITY: usize> HtmlNodes<CAPACITY> {
     fn get(root: &Node, s: &[u8]) -> Result<Self, &'static str> {
         let mut v = Self {
-            ids: [0; 2048],
+            ids: [0; CAPACITY],
             n: 0,
         };
         let n = unsafe {
@@ -114,7 +118,7 @@ impl Nodes {
         Node(host::HtmlDescriptor::from_raw(self.ids[i]))
     }
 }
-impl Drop for Nodes {
+impl<const CAPACITY: usize> Drop for HtmlNodes<CAPACITY> {
     fn drop(&mut self) {
         for &id in &self.ids[..self.n] {
             let _ = host::html_close(host::HtmlDescriptor::from_raw(id));
@@ -122,7 +126,7 @@ impl Drop for Nodes {
     }
 }
 // A borrowed selected node must not be closed twice: at() transfers no ownership.
-fn selected(nodes: &Nodes, i: usize) -> core::mem::ManuallyDrop<Node> {
+fn selected<const CAPACITY: usize>(nodes: &HtmlNodes<CAPACITY>, i: usize) -> core::mem::ManuallyDrop<Node> {
     core::mem::ManuallyDrop::new(nodes.at(i))
 }
 fn bytes(b: &mut [u8], n: &mut usize, s: &[u8]) -> Result<(), &'static str> {
@@ -401,7 +405,7 @@ fn diagnostic(stage: &[u8], code: &[u8]) {
 fn code(e: &str) -> &'static str {
     match e {
         "permission denied" => "permission_denied",
-        "not found" => "not_found",
+        "not found" | "源站提示该漫画不存在或章节已被删除" => "not_found",
         "rate limited" => "rate_limit",
         "network failure" => "network_error",
         "timeout" => "timeout",
@@ -679,6 +683,62 @@ fn absolute<'a>(url: &[u8], base: &[u8], out: &'a mut [u8]) -> Result<&'a [u8], 
     valid_image(&out[..n])?;
     Ok(&out[..n])
 }
+
+// The reference uses empty-query search for category filtering. Keep old hosts
+// on their existing search and listing contract until all three capabilities exist.
+fn filters_supported(r: &[u8]) -> bool {
+    let Some(v) = json_object_member(r, b"hostFeatures").map(trim_ascii) else { return false; };
+    if !v.starts_with(b"[") || !v.ends_with(b"]") { return false; }
+    let has = |x: &[u8]| v[1..v.len()-1].split(|c| *c == b',').any(|i| trim_ascii(i) == x);
+    has(br#""source_filter_scope_header_v1""#) && has(br#""source_filter_fetching_v1""#)
+        && has(br#""source_filter_search_without_query_v1""#)
+}
+fn filter_path(r: &[u8], out: &mut [u8], n: &mut usize) -> Result<(), &'static str> {
+    let f = json_object_member(args(r), b"filters").unwrap_or(b"{}");
+    if !f.starts_with(b"{") || !f.ends_with(b"}") { return Err("invalid request"); }
+    let value = |key: &[u8], default: &'static [u8]| -> Result<&[u8], &'static str> {
+        match json_object_member(f, key) {
+            None | Some(b"null") => Ok(default),
+            Some(_) => string(f, key).ok_or("invalid request"),
+        }
+    };
+    let status = value(b"status",b"all")?;
+    let sort = value(b"sort",b"hits")?;
+    let genre = value(b"genre",b"all")?;
+    bytes(out,n,b"/category/")?;
+    match status { b"all"=>(), b"ongoing"=>bytes(out,n,b"finish/1/")?, b"completed"=>bytes(out,n,b"finish/2/")?, _=>return Err("invalid request") }
+    match sort { b"hits"|b"addtime"|b"score"=>{bytes(out,n,b"order/")?;bytes(out,n,sort)?;bytes(out,n,b"/")?}, _=>return Err("invalid request") }
+    if genre!=b"all" { if genre.is_empty() || genre.len()>12 || !genre.iter().all(u8::is_ascii_digit) { return Err("invalid request"); } bytes(out,n,b"tags/")?;bytes(out,n,genre)?;bytes(out,n,b"/")?; }
+    bytes(out,n,b"page/")
+}
+fn filter_schema(r: &[u8]) -> Result<usize, &'static str> {
+    let b=payload_buf();let mut n=0;
+    bytes(b,&mut n,r#"{"useSearchForFilters":true,"supportsFilterFetching":true,"filters":[{"id":"status","name":"状态","type":"select","scope":"search","default":"all","options":[{"value":"all","label":"全部"},{"value":"ongoing","label":"连载"},{"value":"completed","label":"完结"}]},{"id":"sort","name":"排序","type":"select","scope":"search","default":"hits","options":[{"value":"hits","label":"热门"},{"value":"addtime","label":"最新"},{"value":"score","label":"评分"}]},{"id":"genre","name":"标签","type":"select","scope":"search","default":"all""#.as_bytes())?;
+    if json_object_member(args(r),b"fetchFilterData")==Some(b"true".as_slice()) {
+        // Miaoqu's reference fetches genres from the mobile category page;
+        // desktop category cards expose only a subset of those labels.
+        let root=fetch(MOBILE,b"/category/")?;
+        let category=root.select(b".cate-selector, .cy_list_l, .ticai, .stui-screen__list")?;
+        let boxes=Nodes::get(&category,b"a[href*='/tags/']")?;
+        let mut seen=[0usize;128];let mut count=0usize;
+        bytes(b,&mut n,r#", "options":[{"value":"all","label":"全部"}"#.as_bytes())?;
+        for i in 0..boxes.n {
+            let link=selected(&boxes,i);
+            let mut hb=[0u8;512];let href=link.attr(b"href",&mut hb)?;
+            let id=href.strip_prefix(b"/category/tags/").ok_or("invalid request")?;
+            if id.is_empty() || id.len()>12 || !id.iter().all(u8::is_ascii_digit) {return Err("invalid request")}
+            let value=number(id).filter(|v|*v>0).ok_or("invalid request")?;
+            if count>=seen.len() || seen[..count].contains(&value) {return Err("invalid request")}; seen[count]=value;count+=1;
+            let mut tb=[0u8;1024];let title=link.text(&mut tb)?;
+            if title.is_empty() {return Err("invalid request")}
+            bytes(b,&mut n,br#",{"value":"#)?;q(b,&mut n,id)?;bytes(b,&mut n,br#", "label":"#)?;q(b,&mut n,title)?;bytes(b,&mut n,b"}")?;
+        }
+        if count==0 { return Err("required HTML node missing"); }
+        bytes(b,&mut n,b"]")?;
+    }
+    bytes(b,&mut n,b"}]}")?;Ok(n)
+}
+
 fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
     let pn = page(r)?;
     if pn > 100000 {
@@ -690,14 +750,14 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
         let raw = string(args(r), b"query").ok_or("missing query")?;
         let mut tmp = [0; 2048];
         let query = trim_ascii(unescape(raw, &mut tmp)?);
-        if query.is_empty() {
-            return Err("empty query");
+        if query.is_empty() && filters_supported(r) {
+            filter_path(r, &mut path, &mut n)?;
+        } else {
+            if query.is_empty() { return Err("empty query"); }
+            bytes(&mut path, &mut n, b"/search/")?;
+            if !write_url_encoded(&mut path, &mut n, query) { return Err("payload overflow"); }
+            bytes(&mut path, &mut n, b"/")?;
         }
-        bytes(&mut path, &mut n, b"/search/")?;
-        if !write_url_encoded(&mut path, &mut n, query) {
-            return Err("payload overflow");
-        }
-        bytes(&mut path, &mut n, b"/")?;
     } else {
         let id = string(args(r), b"listingId").unwrap_or(b"popular");
         bytes(
@@ -724,6 +784,11 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
         Ok(next) => {
             let raw = next.attr(b"href", &mut href)?;
             let raw = canonical(raw)?;
+            // A real first-and-last filtered page links #next to its same
+            // route without /page/1. It is an end marker only for that route.
+            if search && pn == 1 && path[..n].strip_suffix(b"/page/1") == Some(raw) {
+                false
+            } else {
             let suffix = raw
                 .rsplit(|c| *c == b'/')
                 .next()
@@ -743,6 +808,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
                 return Err("pagination target mismatch");
             }
             suffix != pn
+            }
         }
         Err(_) => false,
     };
@@ -799,10 +865,27 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
     }
     Ok(n)
 }
+// MCCMSWeb rejects the final /err/comic route before parsing. The host ABI
+// does not expose that redirect URL, so recognize only its complete observed
+// public error body. A missing selector or an empty catalogue alone is still
+// the original parse error; no alternate slug or chapters are invented.
+fn reject_removed_work() -> Result<(), &'static str> {
+    let body = unsafe { &body_buf()[..BODY_LEN] };
+    const REMOVED: &[u8] = concat!(
+        "很遗憾，该漫画不存在或章节已被删除。我们将自动跳转到漫画检索页，在那里您可以发现更多精彩内容。\r\n",
+        "<script type=\"text/javascript\">\r\n",
+        "setTimeout(function() {\r\n\twindow.location.href = '/category';\r\n}, 2000);\r\n</script>"
+    ).as_bytes();
+    if trim_ascii(body) == REMOVED {
+        return Err("源站提示该漫画不存在或章节已被删除");
+    }
+    Ok(())
+}
 fn detail(r: &[u8]) -> Result<usize, &'static str> {
     let (id, s) = manga_identity(r)?;
     let mut path = [0; 1024];
     let root = fetch(MOBILE, detail_path(s, &mut path)?)?;
+    reject_removed_work()?;
     let owner = root.select(b".infobox")?;
     let mut text = [0; 32768];
     let title = owner.select(b".title")?.text(&mut text)?;
@@ -912,7 +995,8 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
     let (id, s) = manga_identity(r)?;
     let mut path = [0; 1024];
     let root = fetch(MOBILE, detail_path(s, &mut path)?)?;
-    let nodes = Nodes::get(&root, b"ul.list > li > :first-child")?;
+    reject_removed_work()?;
+    let nodes = ChapterNodes::get(&root, b"ul.list > li > :first-child")?;
     if nodes.n == 0 {
         return Err("chapter structure missing");
     }
@@ -1129,8 +1213,9 @@ fn run_get_listings(_: &[u8]) -> u32 {
 fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_implemented", "not supported")
 }
-fn run_get_filters(_: &[u8]) -> u32 {
-    write_error("get_filters", "not_implemented", "not supported")
+fn run_get_filters(r: &[u8]) -> u32 {
+    if filters_supported(r) { execute("get_filters", filter_schema(r)) }
+    else { write_success_payload("get_filters", { let b=payload_buf();let x=br#"{"filters":[]}"#;b[..x.len()].copy_from_slice(x);x.len() }) }
 }
 fn run_get_settings(_: &[u8]) -> u32 {
     write_error("get_settings", "not_implemented", "not supported")

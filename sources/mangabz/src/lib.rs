@@ -14,7 +14,7 @@ const BASE_URL: &[u8] = b"https://www.mangabz.com";
 const XM_URL: &[u8] = b"https://xmanhua.com";
 const YY_URL: &[u8] = b"https://yymanhua.com";
 fn mirror_supported(req: &[u8]) -> bool {
-    json_object_member(req,b"hostFeatures").map(|v| v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|b|*b==b',').any(|v|v.trim_ascii()==br#""mangabz_mirror_session_v1""#)).unwrap_or(false)
+    json_object_member(req,b"hostFeatures").map(|v| v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|b|*b==b',').any(|v|v.trim_ascii()==br#""mangabz_mirror_session_v1""# || v.trim_ascii() == br#""source_homepage_choices_v1""#)).unwrap_or(false)
 }
 fn mirror_origin(req: &[u8]) -> &'static [u8] {
     if !mirror_supported(req) { return BASE_URL; }
@@ -39,14 +39,17 @@ koma_source_sdk::koma_source_buffers! {
 }
 koma_source_sdk::koma_source_helpers!();
 
+// Keep decoded search terms separate from URL scratch and the bounded WASM stack.
+static mut SEARCH_QUERY: [u8; 8192] = [0; 8192];
+
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mangabz.koma",
     name: "Mangabz",
-    version: "0.1.11",
+    version: "0.1.12",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "Mangabz HTML scraping source.",
+    description: "",
     content_rating: "safe",
 };
 
@@ -73,7 +76,7 @@ fn language_supported(req: &[u8]) -> bool {
     json_object_member(req, b"hostFeatures").map(|v| {
         let v = v.trim_ascii();
         v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|b| *b == b',')
-            .any(|v| v.trim_ascii() == br#""mangabz_language_cookie_v1""#)
+            .any(|v| v.trim_ascii() == br#""mangabz_language_cookie_v1""# || v.trim_ascii() == br#""source_public_cookie_override_v1""#)
     }).unwrap_or(false)
 }
 fn language_cookie(req: &[u8]) -> Option<&'static [u8]> {
@@ -362,14 +365,18 @@ fn write_manga_page_from_url(operation: &str, url: &[u8], page: usize, cookie: O
     write_success_payload(operation, c)
 }
 
-// Decode search terms separately from request scratch and the bounded WASM stack.
-static mut SEARCH_QUERY: [u8; 8192] = [0; 8192];
 fn run_search(req: &[u8]) -> u32 {
-    let query = extract_json_string(req, b"query").unwrap_or(b"");
-    let decoded = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
-    let query = match koma_source_sdk::plain_text::decode_json_content(query, decoded) {
-        Ok(v) => v,
-        Err(_) => return write_error("search", "invalid_request", "invalid query"),
+    let args = json_object_member(req, b"args").unwrap_or(req);
+    let raw = match json_object_member(args, b"query") {
+        None => b"".as_slice(),
+        Some(v) if v.len() >= 2 && v[0] == b'"' && v[v.len() - 1] == b'"' => &v[1..v.len() - 1],
+        Some(_) => return write_error("search", "invalid_request", "invalid query"),
+    };
+    // JSON request escapes must be removed before provider URL encoding.
+    let output = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
+    let query = match koma_source_sdk::plain_text::decode_json_content(raw, output) {
+        Ok(v) if core::str::from_utf8(v).is_ok() => v,
+        _ => return write_error("search", "invalid_request", "invalid query"),
     };
     if query.is_empty() {
         return run_manga_list(req, "search");
@@ -630,6 +637,63 @@ fn run_get_manga(req: &[u8]) -> u32 {
     write_success_payload("get_manga", c)
 }
 
+// Only the canonical site's exact, work-bound blocking notice changes this
+// error. A missing or unfamiliar directory alone never establishes removal.
+#[link(wasm_import_module = "koma_host")]
+extern "C" {
+    #[link_name = "html_select_all"]
+    fn notice_select_all(d: i32, s: *const u8, n: u32, o: *mut i32, c: u32) -> i32;
+}
+fn notice_texts(doc: host::HtmlDescriptor, selector: &[u8], expected: &[&[u8]]) -> bool {
+    let mut ids = [-1i32; 8];
+    let count = unsafe { notice_select_all(doc.raw(), selector.as_ptr(), selector.len() as u32, ids.as_mut_ptr(), (ids.len()*4) as u32) };
+    let mut ok = count >= 0 && count as usize == expected.len();
+    let length = if count < 0 { 0 } else { (count as usize).min(ids.len()) };
+    for i in 0..length {
+        let d = host::HtmlDescriptor::from_raw(ids[i]);
+        let mut text = [0u8; 4096];
+        if i >= expected.len() || host::html_text(d, &mut text).ok().filter(|n| *n < text.len()).map(|n| text[..n].trim_ascii() == expected[i]) != Some(true) { ok = false; }
+        let _ = host::html_close(d);
+    }
+    ok
+}
+fn blocked_notice(html: &[u8], id: &[u8]) -> bool {
+    let Some(number) = id.strip_suffix(b"bz") else { return false };
+    if number.is_empty() || !number.iter().all(u8::is_ascii_digit) { return false; }
+    let marker = b"var MANGABZ_COMIC_MID=";
+    let Some(pos) = find_subslice(html, marker) else { return false };
+    let rest = &html[pos + marker.len()..];
+    if find_subslice(rest, marker).is_some() || !rest.starts_with(number) || rest.get(number.len()) != Some(&b';') { return false; }
+    let Ok(doc) = host::html_parse(html) else { return false };
+    let result = (|| {
+        let mut ids = [-1i32; 8];
+        let sel = b"div.detail-info-1 .detail-info-title";
+        let count = unsafe { notice_select_all(doc.raw(), sel.as_ptr(), sel.len() as u32, ids.as_mut_ptr(), (ids.len()*4) as u32) };
+        if count != 1 {
+            if count > 0 { for &v in ids.iter().take((count as usize).min(ids.len())) { let _ = host::html_close(host::HtmlDescriptor::from_raw(v)); } }
+            return false;
+        }
+        let t = host::HtmlDescriptor::from_raw(ids[0]);
+        let mut title = [0u8; 1024];
+        let n = host::html_text(t, &mut title).ok();
+        let _ = host::html_close(t);
+        let Some(n) = n.filter(|n| *n < title.len()) else { return false };
+        let name = title[..n].trim_ascii();
+        if name.is_empty() { return false; }
+        let mut work = [0u8; 2048]; let mut w = 0;
+        if !write_bytes(&mut work, &mut w, name) || !write_bytes(&mut work, &mut w, "漫畫".as_bytes()) { return false; }
+        let work = &work[..w];
+        let mut notice = [0u8; 4096]; let mut n = 0;
+        if !write_bytes(&mut notice, &mut n, work)
+            || !write_bytes(&mut notice, &mut n, " 中有部份或全部章節數據缺少，導致情節不連續影響正常觀看，我們將對 ".as_bytes())
+            || !write_bytes(&mut notice, &mut n, work)
+            || !write_bytes(&mut notice, &mut n, " 進行屏蔽處理，給您帶來不便，敬請諒解！".as_bytes()) { return false; }
+        notice_texts(doc, b"body > div.container > div[style] > p", &[&notice[..n]])
+            && notice_texts(doc, b"body > div.container > div[style] > p > b", &[work, work])
+    })();
+    let _ = host::html_close(doc);
+    result
+}
 fn run_get_chapters(req: &[u8]) -> u32 {
     let cookie = language_cookie(req);
     let manga_id = match extract_json_string(req, b"mangaId") {
@@ -656,7 +720,12 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     let html = unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), html_len) };
     let list_start = match find_subslice(html, b"id=\"chapterlistload\"") {
         Some(v) => v,
-        None => return write_error("get_chapters", "parse_error", "chapter list not found"),
+        None => {
+            if mirror_origin(req) == BASE_URL && blocked_notice(html, id) {
+                return write_error("get_chapters", "not_found", "site has blocked this work");
+            }
+            return write_error("get_chapters", "parse_error", "chapter list not found");
+        },
     };
     let list_end = find_subslice(&html[list_start..], b"</div>")
         .map(|v| list_start + v)

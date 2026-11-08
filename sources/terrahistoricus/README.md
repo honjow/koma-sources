@@ -1,6 +1,8 @@
 # TerraHistoricus
 
-The current source is 0.1.7, with stable ID `com.terrahistoricus.koma` and the existing work, episode and page identities. Canonical Cargo and standard source-build registration are present. The source keeps anonymous public API access; home, filters, settings and credentials remain unsupported. Localized display names and content language are separate contracts. Real usage remains unknown.
+The current source is 0.1.8, with stable ID `com.terrahistoricus.koma` and the existing work, episode and page identities. Canonical Cargo and standard source-build registration are present. The source keeps anonymous public API access; home, filters, settings and credentials remain unsupported. Localized display names and content language are separate contracts. Real usage remains unknown.
+
+When the host declares `source_public_cover_user_agent_v1`, 0.1.8 passes the existing Referer and User-Agent alongside public `web.hycdn.cn/comic/pic/` covers. The app can fetch the same URL directly on browse, recent updates, search and detail. Other cover URLs and legacy consumers still follow the existing image request resolver, including the separate signed reader-page resolution. The current official catalogue has 22 Terra and 6 Talos-II works.
 
 The 0.1.6 business successor corrected complete-array termination, direct JSON-member/whitespace/escape handling, episode numbers and unknown chapter language. The 0.1.7 successor changes the version and package identity asset only. The current unmodified site-declared 512px asset and its provenance are described in [ASSET_SOURCES.md](ASSET_SOURCES.md); the older black-composited favicon is historical material.
 

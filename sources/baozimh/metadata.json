@@ -4,5 +4,6 @@
     "zh-Hant": "包子漫畫",
     "en": "Baozimh"
   },
-  "homepage": "https://www.baozimh.com/"
+  "homepage": "https://www.baozimh.com/",
+  "websitePolicy": {"publicWorkUrlDomains": ["baozimh.com", "baozicdn.com", "bzcdn.net"], "chapterIdentity": {"workPrefix": "manga:", "chapterPrefix": "chapter:", "chapterSeparator": ":", "titleSeparator": "#"}}
 }

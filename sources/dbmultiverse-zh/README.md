@@ -7,3 +7,7 @@
 生产入口为根build.sh --source dbmultiverse-zh；使用当前SDK及既有标准flags，必需icon.png保原bytes，metadata.json仅已知localizedNames进入manifest。不引入旧owner写死010的临时package_candidate.py。标准编译WASM不保证与旧owner直接cargo全bytes相同；成员/完整生产输出须单独核对。
 
 历史010/011 owner及证据：/Users/honjow/git/Koma-sources-dbmultiverse-zh-20261011；/private/tmp/koma-dbm011-chapter-language-unknown-20261017。011仅Host语言候选已Root亲审，canonical集成/Native须另审。原22页实体只保有限目检，不冒全章或全部作品验收。
+
+## 中文栏目显示候选
+
+固定参考只有单页作品列表，未提供最新、筛选或有效搜索。候选将栏目名「Popular」及源介绍本地化为中文，作品标题仍使用官网原文；2026-11-06 官网中文列表 HTTP 200，实际新旧 WASM 对同一原体均输出5项且无下一页，数据逐字段一致。正文和气泡呈现未在本次重新验收。

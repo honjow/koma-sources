@@ -7,7 +7,7 @@ use koma_source_sdk::{
 };
 type E = &'static str;
 const MAX: usize = 1048576;
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"org.mangadex.zh-hans.koma",name:"MangaDex",version:"0.1.11",api_version:"0.2",language:"zh-Hans",author:"Koma",description:"MangaDex public simplified-Chinese chapters. Usage unknown; followedCount listing is not a usage ranking.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"org.mangadex.zh-hans.koma",name:"MangaDex",version:"0.1.12",api_version:"0.2",language:"zh-Hans",author:"Koma",description:"MangaDex 简体中文公开章节；使用情况未知，关注较多列表不代表使用排行。",content_rating:"nsfw"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -797,7 +797,79 @@ fn append_status(out:&mut [u8],n:&mut usize,r:&[u8])->Result<(),E> {
     }
     Ok(())
 }
+fn listing_scope_supported(r: &[u8]) -> bool {
+    member(r, b"hostFeatures").ok().flatten().and_then(|v| Array::new(v).ok()).map_or(false, |mut a| {
+        while let Ok(Some(v)) = a.next() { if v == br#""source_listing_filter_scope_v1""# { return true; } }
+        false
+    })
+}
+// Reference Latest is ordered chapters, not manga updatedAt. Keep the unique
+// first manga occurrence and request its metadata separately in that order.
+fn latest(r: &[u8]) -> Result<usize, E> {
+    if !listing_scope_supported(r) { return Err("unsupported listing"); }
+    let offset = request_offset(r, 100)?;
+    let url = unsafe { &mut *core::ptr::addr_of_mut!(URL) }; let mut n = 0;
+    bytes(url, &mut n, API)?; bytes(url, &mut n, b"/chapter?offset=")?; wn(url, &mut n, offset)?;
+    bytes(url, &mut n, b"&limit=100&translatedLanguage%5B%5D=zh&order%5BpublishAt%5D=desc&includeFutureUpdates=0")?;
+    bytes(url, &mut n, original_language::query(r, b"originalLanguage_zh", false))?;
+    if !content_rating::append_query(url, &mut n, r, b"contentRating_zh") { return Err("payload overflow"); }
+    for id in [b"5fed0576-8b94-4f9a-b6a7-08eecd69800d".as_slice(),b"06a9fecb-b608-4f19-b93c-7caab06b7f44",b"8d8ecf83-8d42-4f8c-add8-60963f9f28d9",b"caa63201-4a17-4b7f-95ff-ed884a2b7e60",b"319c1b10-cbd0-4f55-a46e-c4ee17e65139",b"4f1de6a2-f0c5-4ac5-bce5-02c7dbb67deb"] {
+        bytes(url, &mut n, b"&excludedGroups%5B%5D=")?; bytes(url, &mut n, id)?;
+    }
+    if !blacklist::append(url, &mut n, r, b"blockedGroups_zh", b"blockedUploader_zh") { return Err("invalid blacklist"); }
+    bytes(url, &mut n, b"&includeFuturePublishAt=0&includeEmptyPages=0")?;
+    let response = fetch(unsafe { core::slice::from_raw_parts(url.as_ptr(), n) })?;
+    if field_num(response, b"offset")? != offset || field_num(response, b"limit")? != 100 { return Err("latest pagination mismatch"); }
+    let total = field_num(response, b"total")?;
+    let mut ids = [[0u8; 36]; 100]; let mut count = 0; let mut chapters = 0;
+    let mut items = Array::new(required(response, b"data")?)?;
+    while let Some(chapter) = items.next()? {
+        chapters += 1; if chapters > 100 { return Err("latest chapter capacity"); }
+        let mut relationships = Array::new(required(chapter, b"relationships")?)?;
+        while let Some(rel) = relationships.next()? {
+            if text(rel, b"type")? == b"manga" {
+                let id = uuid(text(rel, b"id")?)?;
+                if !ids[..count].iter().any(|old| old == id) {
+                    if count == ids.len() { return Err("latest manga capacity"); }
+                    ids[count].copy_from_slice(id); count += 1;
+                }
+            }
+        }
+    }
+    if offset > total || offset.checked_add(chapters).ok_or("latest count overflow")? > total { return Err("latest pagination mismatch"); }
+    let more = offset.checked_add(100).ok_or("latest page overflow")? < total;
+    let quality = cover_quality(r)?;
+    let out = payload_buf(); let mut on = 0; bytes(out, &mut on, b"{\"items\":[")?;
+    if count > 0 {
+        let mut n = 0; bytes(url, &mut n, API)?; bytes(url, &mut n, b"/manga?includes%5B%5D=cover_art&limit=")?; wn(url, &mut n, count)?;
+        if !content_rating::append_query(url, &mut n, r, b"contentRating_zh") { return Err("payload overflow"); }
+        for id in &ids[..count] { bytes(url, &mut n, b"&ids%5B%5D=")?; bytes(url, &mut n, id)?; }
+        let manga_response = fetch(unsafe { core::slice::from_raw_parts(url.as_ptr(), n) })?;
+        let covers = first_covers(r, manga_response);
+        let data = required(manga_response, b"data")?; let mut emitted = 0;
+        for id in &ids[..count] {
+            let mut array = Array::new(data)?; let mut found = None;
+            while let Some(manga) = array.next()? {
+                if uuid(text(manga, b"id")?)? == id { if found.is_some() { return Err("duplicate manga"); } found = Some(manga); }
+            }
+            if let Some(manga) = found {
+                listing_rating(required(manga, b"attributes")?, r)?;
+                if emitted > 0 { bytes(out, &mut on, b",")?; }
+                card(out, &mut on, manga, None, quality, false, false, title_preference::prefer(r, b"preferExtensionLangTitle_zh"), &covers)?;
+                emitted += 1;
+            }
+        }
+    }
+    bytes(out, &mut on, b"],\"page\":{\"hasMore\":")?; bytes(out, &mut on, if more { b"true" } else { b"false" })?;
+    bytes(out, &mut on, b",\"nextCursor\":")?;
+    if more { let mut cursor = [0; 32]; let mut cn = 0; wn(&mut cursor, &mut cn, offset / 100 + 2)?; q(out, &mut on, &cursor[..cn])?; }
+    else { bytes(out, &mut on, b"null")?; }
+    bytes(out, &mut on, b"}}")?; Ok(on)
+}
 fn listing(r: &[u8], search: bool) -> Result<usize, E> {
+    if !search && member(args(r)?, b"listingId")?.and_then(|v| quoted(v).ok()) == Some(b"listing:latest".as_slice()) {
+        return latest(r);
+    }
     let quality = cover_quality(r)?;
     if !search {
         if let Some(v) = member(args(r)?, b"listingId")? {
@@ -1318,8 +1390,12 @@ fn run_get_pages(r: &[u8]) -> u32 {
 fn run_get_image_request(r: &[u8]) -> u32 {
     execute("get_image_request", image_request(r))
 }
-fn run_get_listings(_: &[u8]) -> u32 {
-    let data="{\"listings\":[{\"id\":\"listing:followed\",\"name\":\"关注较多\",\"kind\":\"popular\",\"supportsPaging\":true}]}".as_bytes();
+fn run_get_listings(r: &[u8]) -> u32 {
+    let data = if listing_scope_supported(r) {
+        r#"{"listings":[{"id":"listing:followed","name":"关注较多","kind":"popular","supportsPaging":true},{"id":"listing:latest","name":"最近更新","kind":"latest","supportsPaging":true,"supportsFilters":false}]}"#
+    } else {
+        r#"{"listings":[{"id":"listing:followed","name":"关注较多","kind":"popular","supportsPaging":true}]}"#
+    }.as_bytes();
     payload_buf()[..data.len()].copy_from_slice(data);
     write_success_payload("get_listings", data.len())
 }
@@ -1327,16 +1403,16 @@ fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_supported", "not supported")
 }
 fn run_get_filters(r: &[u8]) -> u32 {
-    let schema=if filter_host(r) { br#"{"filters":[{"id":"status","name":"Status","type":"multiselect","options":[{"value":"ongoing","label":"Ongoing"},{"value":"completed","label":"Completed"},{"value":"hiatus","label":"Hiatus"},{"value":"cancelled","label":"Cancelled"}]}]}"#.as_slice() } else { br#"{"filters":[]}"#.as_slice() };
+    let schema=if filter_host(r) { r#"{"filters":[{"id":"status","name":"状态","type":"multiselect","options":[{"value":"ongoing","label":"连载中"},{"value":"completed","label":"已完结"},{"value":"hiatus","label":"暂停更新"},{"value":"cancelled","label":"已取消"}]}]}"#.as_bytes() } else { br#"{"filters":[]}"#.as_slice() };
     payload_buf()[..schema.len()].copy_from_slice(schema);write_success_payload("get_filters",schema.len())
 }
 fn run_get_settings(req: &[u8]) -> u32 {
-    let data = r#"{"settings":[{"id":"thumbnailQuality_zh","name":"封面品質","kind":"select","options":[{"value":"original","label":"原圖"},{"value":".512.jpg","label":"中等"},{"value":".256.jpg","label":"低"}],"default":"original"},{"id":"dataSaverV5_zh","name":"省流量","kind":"toggle","default":"false"},{"id":"altTitlesInDesc_zh","name":"Alternative titles in description","kind":"toggle","description":"Include a manga's alternative titles at the end of its description","default":"false"},{"id":"usePort443_zh","name":"Use HTTPS port 443 only","kind":"toggle","description":"Enable to only request image servers that use port 443. This allows users with stricter firewall restrictions to access MangaDex images","default":"false"},{"id":"tryUsingFirstVolumeCover_zh","name":"Attempt to use the first volume cover as cover","kind":"toggle","description":"Existing library entries may need a manual refresh to show changed covers","default":"false"},{"id":"originalLanguage_zh","name":"Filter original languages","kind":"multiselect","description":"Only show content that was originally published in the selected languages in both latest and browse","default":[],"options":[{"value":"ja","label":"Japanese"},{"value":"zh","label":"Chinese"},{"value":"ko","label":"Korean"}]},{"id":"contentRating_zh","name":"Default content rating","kind":"multiselect","description":"Show content with the selected ratings by default","default":["safe","suggestive"],"options":[{"value":"safe","label":"Safe"},{"value":"suggestive","label":"Suggestive"},{"value":"erotica","label":"Erotica"},{"value":"pornographic","label":"Pornographic"}]},{"id":"finalChapterInDesc_zh","name":"Final chapter in description","kind":"toggle","description":"Include a manga's final chapter number at the end of its description","default":"false"},{"id":"preferExtensionLangTitle_zh","name":"Use alternative titles","kind":"toggle","description":"If there is an alternative title available which matches the extension language, it will be used","default":"true"}]}"#.as_bytes();
+    let data = r#"{"settings":[{"id":"thumbnailQuality_zh","name":"封面质量","kind":"select","options":[{"value":"original","label":"原图"},{"value":".512.jpg","label":"中等"},{"value":".256.jpg","label":"低"}],"default":"original"},{"id":"dataSaverV5_zh","name":"省流量","kind":"toggle","default":"false"},{"id":"altTitlesInDesc_zh","name":"在简介中显示其他标题","kind":"toggle","description":"在作品简介末尾显示其他标题","default":"false"},{"id":"usePort443_zh","name":"仅使用 HTTPS 443 端口","kind":"toggle","description":"仅请求使用 443 端口的图片服务器，便于受到严格防火墙限制时加载图片","default":"false"},{"id":"tryUsingFirstVolumeCover_zh","name":"尝试使用第一卷封面","kind":"toggle","description":"书架中的作品可能需要手动刷新才能显示更换后的封面","default":"false"},{"id":"originalLanguage_zh","name":"筛选原作语言","kind":"multiselect","description":"在最新和浏览中仅显示以所选语言原始发布的作品","default":[],"options":[{"value":"ja","label":"日语"},{"value":"zh","label":"中文"},{"value":"ko","label":"韩语"}]},{"id":"contentRating_zh","name":"默认内容分级","kind":"multiselect","description":"默认显示所选分级的内容","default":["safe","suggestive"],"options":[{"value":"safe","label":"全年龄"},{"value":"suggestive","label":"暗示性内容"},{"value":"erotica","label":"色情"},{"value":"pornographic","label":"露骨色情"}]},{"id":"finalChapterInDesc_zh","name":"在简介中显示最终章节","kind":"toggle","description":"在作品简介末尾显示最终章节号","default":"false"},{"id":"preferExtensionLangTitle_zh","name":"使用其他标题","kind":"toggle","description":"优先使用与书源语言相同的其他标题","default":"true"}]}"#.as_bytes();
     if blacklist::supported(req) || exclusion_host(req) {
         let out=payload_buf(); let mut n=0;
         if !write_bytes(out,&mut n,&data[..data.len()-2]) {return write_error("get_settings","internal_error","payload overflow");}
-        if exclusion_host(req) && !write_bytes(out,&mut n,br#",{"id":"includeUnavailable_zh","name":"Show unavailable chapters","kind":"toggle","default":"false"}"#) {return write_error("get_settings","internal_error","payload overflow");}
-        if blacklist::supported(req) && !write_bytes(out,&mut n,br#",{"id":"blockedGroups_zh","name":"Block groups by UUID","kind":"text","description":"Chapters from blocked groups will not show up in Latest or Manga feed. Enter as a Comma-separated list of group UUIDs","default":"","validation":{"kind":"uuid_list","message":"The text contains invalid UUIDs"}},{"id":"blockedUploader_zh","name":"Block uploader by UUID","kind":"text","description":"Chapters from blocked uploaders will not show up in Latest or Manga feed. Enter as a Comma-separated list of uploader UUIDs","default":"","validation":{"kind":"uuid_list","message":"The text contains invalid UUIDs"}}"#) { return write_error("get_settings","internal_error","payload overflow"); }
+        if exclusion_host(req) && !write_bytes(out,&mut n,r#",{"id":"includeUnavailable_zh","name":"显示不可用章节","kind":"toggle","default":"false"}"#.as_bytes()) {return write_error("get_settings","internal_error","payload overflow");}
+        if blacklist::supported(req) && !write_bytes(out,&mut n,r#",{"id":"blockedGroups_zh","name":"按 UUID 屏蔽组","kind":"text","description":"在最新和作品目录中隐藏被屏蔽组的章节；多个组 UUID 用逗号分隔","default":"","validation":{"kind":"uuid_list","message":"输入包含无效的 UUID"}},{"id":"blockedUploader_zh","name":"按 UUID 屏蔽上传者","kind":"text","description":"在最新和作品目录中隐藏被屏蔽上传者的章节；多个上传者 UUID 用逗号分隔","default":"","validation":{"kind":"uuid_list","message":"输入包含无效的 UUID"}}"#.as_bytes()) { return write_error("get_settings","internal_error","payload overflow"); }
         if !write_bytes(out,&mut n,b"]}") { return write_error("get_settings","internal_error","payload overflow"); }
         return write_success_payload("get_settings",n);
     }

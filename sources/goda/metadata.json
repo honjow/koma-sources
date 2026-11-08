@@ -5,5 +5,18 @@
     "en": "GoDa Manhua"
   },
   "homepage": "https://godamh.com/",
+  "websitePolicy": {
+    "homepageChoices": {
+      "setting": "preferredMirror",
+      "options": [
+        { "value": "https://baozimh.org", "url": "https://baozimh.org/" },
+        { "value": "https://godamh.com", "url": "https://godamh.com/" },
+        { "value": "https://m.baozimh.one", "url": "https://m.baozimh.one/" },
+        { "value": "https://bzmh.org", "url": "https://bzmh.org/" },
+        { "value": "https://g-mh.org", "url": "https://g-mh.org/" },
+        { "value": "https://m.g-mh.org", "url": "https://m.g-mh.org/" }
+      ]
+    }
+  },
   "chapterOrder": "newest_first"
 }

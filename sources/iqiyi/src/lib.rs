@@ -6,7 +6,7 @@ use koma_source_sdk::{
 };
 type E = &'static str;
 const MAX: usize = 1048576;
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.iqiyi.koma",name:"Iqiyi",version:"0.1.3",api_version:"0.2",language:"zh-Hans",author:"Koma",description:"Iqiyi Bada public metadata API; requires real host clock and entropy. Usage and per-work rating unknown.",content_rating:"safe"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.iqiyi.koma",name:"Iqiyi",version:"0.1.4",api_version:"0.2",language:"zh-Hans",author:"Koma",description:"Iqiyi Bada public metadata API; requires real host clock and entropy. Usage and per-work rating unknown.",content_rating:"safe"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -555,13 +555,30 @@ fn read(w: &[u8], e: &[u8]) -> Result<usize, E> {
     let title = required(selected, b"episodeTitle")?;
     let len = api(b"/read/pcw/1.0/read", &[(b"episodeId", e)])?;
     let d = data(len)?;
-    if field_num(d, b"authPass")? != 1 {
-        return Err("chapter permission");
+    let owns_chapter = || -> Result<bool, E> {
+        Ok(field_num(d, b"episodeOrder")? == order && required(d, b"episodeTitle")? == title)
+    };
+    match field_num(d, b"authPass")? {
+        1 if owns_chapter()? => Ok(len),
+        1 => Err("reader owner"),
+        0 if owns_chapter().unwrap_or(false) => {
+            // A successful read can still have a listed price; require the provider's explicit denial.
+            let positive_price = member(d, b"episodePrice").ok().flatten().is_some_and(|price| {
+                price.iter().all(|byte| byte.is_ascii_digit() || *byte == b'.')
+                    && price.iter().any(|byte| matches!(*byte, b'1'..=b'9'))
+            });
+            if field_num(d, b"bossStatus").ok() == Some(2)
+                && field_num(d, b"priceType").ok() == Some(1)
+                && positive_price
+                && matches!(member(d, b"content"), Ok(None | Some(b"null")))
+            {
+                Err("paid_chapter")
+            } else {
+                Err("permission_denied")
+            }
+        }
+        _ => Err("chapter permission"),
     }
-    if field_num(d, b"episodeOrder")? != order || required(d, b"episodeTitle")? != title {
-        return Err("reader owner");
-    }
-    Ok(len)
 }
 fn validate_page_data(d: &[u8]) -> Result<usize, E> {
     let mut it = Array::new(required(d, b"content")?)?;
@@ -680,6 +697,7 @@ fn image_request(r: &[u8]) -> Result<usize, E> {
 fn execute(op: &str, r: Result<usize, E>) -> u32 {
     match r {
         Ok(n) => write_success_payload(op, n),
+        Err(code @ ("paid_chapter" | "permission_denied")) => write_error(op, code, ""),
         Err(e) => write_error(op, "source_contract_error", e),
     }
 }
@@ -736,7 +754,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
-    response_buffer().write_success_parts("source_info",&[b"{\"sourceInfo\":{\"id\":\"com.iqiyi.koma\",\"name\":\"Iqiyi\",\"version\":\"0.1.3\",\"apiVersion\":\"0.2\",\"language\":\"zh-Hans\",\"author\":\"Koma\",\"contentRating\":\"safe\",\"localizedNames\":{", "\"zh-Hans\":\"爱奇艺叭嗒\",\"zh-Hant\":\"愛奇藝叭嗒\",\"en\":\"Iqiyi Bada\"".as_bytes(), b"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":false,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}"])
+    response_buffer().write_success_parts("source_info",&[b"{\"sourceInfo\":{\"id\":\"com.iqiyi.koma\",\"name\":\"Iqiyi\",\"version\":\"", SOURCE_INFO.version.as_bytes(), b"\",\"apiVersion\":\"0.2\",\"language\":\"zh-Hans\",\"author\":\"Koma\",\"contentRating\":\"safe\",\"localizedNames\":{", "\"zh-Hans\":\"爱奇艺叭嗒\",\"zh-Hant\":\"愛奇藝叭嗒\",\"en\":\"Iqiyi Bada\"".as_bytes(), b"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":false,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}"])
 }
 macro_rules! export_op {
     ($f:ident,$op:literal,$run:ident) => {

@@ -58,7 +58,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.jiuermanhua.koma",
     name: "92漫画网",
-    version: "0.1.8",
+    version: "0.1.9",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -71,7 +71,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     manga_detail: true,
     chapters: true,
     pages: true,
-    listings: false,
+    listings: true,
     manga_list: true,
     home: false,
     filters: true,
@@ -408,19 +408,29 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
 
     let url_buf = scratch_a();
     let mut c = 0usize;
-    let filters=if feature(req,b"source_filter_scope_header_v1") && feature(req,b"source_filter_fetching_v1") {json_object_member(req,b"args").and_then(|a|json_object_member(a,b"filters")).unwrap_or(b"{}")} else {b"{}"};
-    let any=CATEGORY_IDS.iter().any(|id|filtered_value(filters,id).is_some()) || filtered_value(filters,b"sort").is_some();
-    if any {
-        if !(write_bytes(url_buf,&mut c,BASE_URL) && write_bytes(url_buf,&mut c,b"/list/")) {return write_error("get_manga_list","internal_error","url overflow");}
-        let mut count=0;
-        for id in CATEGORY_IDS { if let Some(v)=filtered_value(filters,id) { if v!=b"all" { if v.is_empty() || !v.iter().all(|b|b.is_ascii_alphanumeric() || *b==b'_') {return write_error("get_manga_list","invalid_request","invalid category");} if count>0 && !write_bytes(url_buf,&mut c,b"-") {return write_error("get_manga_list","internal_error","url overflow");} if !write_bytes(url_buf,&mut c,v) {return write_error("get_manga_list","internal_error","url overflow");} count+=1; } } }
-        if !(write_bytes(url_buf,&mut c,b"-/")) {return write_error("get_manga_list","internal_error","url overflow");}
-    } else if !(write_bytes(url_buf,&mut c,BASE_URL) && write_bytes(url_buf,&mut c,b"/list/")) {return write_error("get_manga_list","internal_error","url overflow");}
-    let sort=filtered_value(filters,b"sort").unwrap_or(b"click");
-    if ![b"post".as_slice(),b"-post",b"update",b"-update",b"click",b"-click"].contains(&sort) {return write_error("get_manga_list","invalid_request","invalid sort");}
-    if !(write_bytes(url_buf,&mut c,sort) && write_bytes(url_buf,&mut c,b"/?page=") && write_usize(url_buf,&mut c,page))
-    {
-        return write_error("get_manga_list", "internal_error", "url overflow");
+    // The reference has a separate unfiltered latest feed. Older hosts retain
+    // the previously exposed two-tab behavior until they can hide its filters.
+    let listing = json_object_member(req, b"args").and_then(|a| filtered_value(a, b"listingId"));
+    let latest = feature(req, b"source_listing_filter_scope_v1") && listing == Some(b"listing:latest".as_slice());
+    if latest {
+        if !(write_bytes(url_buf, &mut c, BASE_URL) && write_bytes(url_buf, &mut c, b"/list/update/?page=") && write_usize(url_buf, &mut c, page)) {
+            return write_error("get_manga_list", "internal_error", "url overflow");
+        }
+    } else {
+        let filters=if feature(req,b"source_filter_scope_header_v1") && feature(req,b"source_filter_fetching_v1") {json_object_member(req,b"args").and_then(|a|json_object_member(a,b"filters")).unwrap_or(b"{}")} else {b"{}"};
+        let any=CATEGORY_IDS.iter().any(|id|filtered_value(filters,id).is_some()) || filtered_value(filters,b"sort").is_some();
+        if any {
+            if !(write_bytes(url_buf,&mut c,BASE_URL) && write_bytes(url_buf,&mut c,b"/list/")) {return write_error("get_manga_list","internal_error","url overflow");}
+            let mut count=0;
+            for id in CATEGORY_IDS { if let Some(v)=filtered_value(filters,id) { if v!=b"all" { if v.is_empty() || !v.iter().all(|b|b.is_ascii_alphanumeric() || *b==b'_') {return write_error("get_manga_list","invalid_request","invalid category");} if count>0 && !write_bytes(url_buf,&mut c,b"-") {return write_error("get_manga_list","internal_error","url overflow");} if !write_bytes(url_buf,&mut c,v) {return write_error("get_manga_list","internal_error","url overflow");} count+=1; } } }
+            if !(write_bytes(url_buf,&mut c,b"-/")) {return write_error("get_manga_list","internal_error","url overflow");}
+        } else if !(write_bytes(url_buf,&mut c,BASE_URL) && write_bytes(url_buf,&mut c,b"/list/")) {return write_error("get_manga_list","internal_error","url overflow");}
+        let sort=filtered_value(filters,b"sort").unwrap_or(b"click");
+        if ![b"post".as_slice(),b"-post",b"update",b"-update",b"click",b"-click"].contains(&sort) {return write_error("get_manga_list","invalid_request","invalid sort");}
+        if !(write_bytes(url_buf,&mut c,sort) && write_bytes(url_buf,&mut c,b"/?page=") && write_usize(url_buf,&mut c,page))
+        {
+            return write_error("get_manga_list", "internal_error", "url overflow");
+        }
     }
     let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), c) };
 
@@ -940,8 +950,17 @@ pub extern "C" fn koma_source_get_pages(req_ptr: u32, req_len: u32) -> u32 {
 }
 
 #[no_mangle]
-pub extern "C" fn koma_source_get_listings(_req_ptr: u32, _req_len: u32) -> u32 {
-    response_buffer().write_success("get_listings", br#"{"listings":[]}"#)
+pub extern "C" fn koma_source_get_listings(req_ptr: u32, req_len: u32) -> u32 {
+    let req = match read_request(req_ptr, req_len) {
+        Some(r) => r,
+        None => return write_error("get_listings", "invalid_request", "empty request"),
+    };
+    let payload = if feature(req, b"source_listing_filter_scope_v1") {
+        r#"{"listings":[{"id":"listing:popular","name":"热门","kind":"popular"},{"id":"listing:latest","name":"最新","kind":"latest","supportsFilters":false}]}"#.as_bytes()
+    } else {
+        r#"{"listings":[{"id":"listing:popular","name":"热门","kind":"popular"},{"id":"listing:latest","name":"最新","kind":"latest"}]}"#.as_bytes()
+    };
+    response_buffer().write_success("get_listings", payload)
 }
 
 #[no_mangle]

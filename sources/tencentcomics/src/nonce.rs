@@ -391,7 +391,14 @@ pub fn nonce(html: &[u8], out: &mut [u8]) -> Option<usize> {
             if !p.take(b"(+eval(") {
                 return None;
             }
-            let v = constant(p.quoted()?)?;
+            let expr = p.quoted()?;
+            // The exact public viewer expression folds to zero because
+            // Document.children is an HTMLCollection, even when empty.
+            let v = if expr.trim_ascii() == b"1 - !!document.children" {
+                0
+            } else {
+                constant(expr)?
+            };
             if !p.take(b")).toString()") {
                 return None;
             }

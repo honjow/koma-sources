@@ -5,7 +5,7 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.netease.onmyoji.zh.koma",
     name: "阴阳师漫画屋",
-    version: "0.1.1",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -597,6 +597,11 @@ fn chapter(raw: &[u8], idx: usize) -> R<usize> {
     let n = api_url(&mut url, raw, Some(idx), false)?;
     fetch(&url[..n])
 }
+fn write_image_headers(p: &mut [u8], c: &mut usize) -> R<()> {
+    w(p, c, b",\"headers\":{\"Referer\":")?;
+    q_text(p, c, REFERER)?;
+    w(p, c, b"}")
+}
 fn manga_write(p: &mut [u8], c: &mut usize, v: &[u8]) -> R<()> {
     let raw = id(string(v, b"id")?).map_err(|_| "parse_error")?;
     book_check(v, raw)?;
@@ -606,6 +611,8 @@ fn manga_write(p: &mut [u8], c: &mut usize, v: &[u8]) -> R<()> {
     q(p, c, string(v, b"title")?)?;
     w(p, c, b",\"cover\":{\"kind\":\"url\",\"url\":")?;
     q(p, c, image(member(v, b"cover")?)?)?;
+    // The public catalogue card already supplies the validated cover URL and its owner.
+    write_image_headers(p, c)?;
     w(p, c, b"},\"authors\":[")?;
     q(p, c, string(v, b"author_nickname")?)?;
     w(p, c, b"],\"status\":")?;
@@ -805,9 +812,8 @@ fn run_get_image_request(req: &[u8]) -> u32 {
         let mut c = 0;
         w(p, &mut c, b"{\"imageRequest\":{\"url\":")?;
         q_text(p, &mut c, &u[..k])?;
-        w(p, &mut c, b",\"headers\":{\"Referer\":")?;
-        q_text(p, &mut c, REFERER)?;
-        w(p, &mut c, b"}}}")?;
+        write_image_headers(p, &mut c)?;
+        w(p, &mut c, b"}}")?;
         Ok(c)
     }
     result("get_image_request", inner(req))

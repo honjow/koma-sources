@@ -2,7 +2,9 @@
 
 支持章节阅读序能力的宿主按站点原数组和有效 sectionSort 组织续读；锁章仍保留序号，缺少序号的章节不自动续读。
 
-源 ID `com.manhuaren.koma`，版本 0.1.7，API 0.2，要求 Koma 0.1.4 与 `source_private_session_v1`。业务请求使用站点正常游客初始化与私有会话；游客令牌不写入公开设置。未声明该宿主能力时业务操作返回 `host_feature_required`，不发送业务请求；作品和章节身份保持。
+详情保留原简介，并附同一 mangaId 的源站 `mangaHideReason` 原文。只有完整有效 JSON、明确同实体、三个真实空章节数组且原话为“抱歉,该漫画已经被屏蔽”时，目录才返回 `no_chapters`；不推断下架或付费。未知原因、缺失/错误数组、坏 JSON、归属冲突及 HTTP/权限失败不归此类。
+
+源 ID `com.manhuaren.koma`，版本 0.1.9，API 0.2，要求 Koma 0.1.4 与 `source_private_session_v1`。业务请求使用站点正常游客初始化与私有会话；游客令牌不写入公开设置。未声明该宿主能力时业务操作返回 `host_feature_required`，不发送业务请求；作品和章节身份保持。
 
 ## 237 普通安装与独立搜索（2026-10-21）
 

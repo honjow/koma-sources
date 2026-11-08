@@ -38,7 +38,7 @@ static mut SEARCH_QUERY: [u8; 16384] = [0; 16384];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.tongli.koma",
     name: "東立",
-    version: "0.1.8",
+    version: "0.1.9",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -74,16 +74,9 @@ fn parse_usize(bytes: &[u8]) -> usize {
     n
 }
 
+// App supplies args.page.cursor; the site's latest endpoint uses one-based pages.
 fn request_page(req: &[u8]) -> usize {
-    let raw = koma_source_sdk::json_utils::extract_json_number(req, b"page")
-        .or_else(|| extract_json_string(req, b"page"))
-        .map(parse_usize)
-        .unwrap_or(1);
-    if raw == 0 {
-        1
-    } else {
-        raw
-    }
+    koma_source_sdk::json_utils::request_page_number(req)
 }
 
 fn strip_prefix<'a>(bytes: &'a [u8], prefix: &[u8]) -> Option<&'a [u8]> {
@@ -456,9 +449,6 @@ where
     }
     let mut written = 0usize;
     while let Some(obj) = next() {
-        if written >= 20 {
-            break;
-        }
         if written > 0 && !write_bytes(payload, &mut c, b",") {
             return write_error(operation, "internal_error", "overflow");
         }

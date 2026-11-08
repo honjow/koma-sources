@@ -21,8 +21,13 @@ koma_source_sdk::koma_source_buffers! {
 }
 koma_source_sdk::koma_source_helpers!();
 
-// Preserve decoded query bytes independently from URL/form scratch buffers.
+// The request query must not alias URL/form scratch buffers or consume the bounded WASM stack.
 static mut SEARCH_QUERY: [u8; 8192] = [0; 8192];
+
+// Opt-in local candidate only; default builds keep the published filter surface.
+#[cfg(feature = "noyacg_filter_candidate")]
+#[path = "../filter_candidate.rs"]
+mod filter_candidate;
 
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.noyacg.koma",
@@ -31,7 +36,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "NoyAcg JSON API source.",
+    description: "",
     content_rating: "nsfw",
 };
 
@@ -43,7 +48,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     listings: true,
     manga_list: true,
     home: false,
-    filters: true,
+    filters: cfg!(feature = "noyacg_filter_candidate"),
     settings: true,
     image_request: true,
     credentials: false,
@@ -68,7 +73,7 @@ fn adult(req:&[u8])->&'static [u8] {
 fn build_headers(dst: &mut [u8], c: &mut usize, form: bool, adult: &[u8]) -> bool {
     if !(write_bytes(dst,c,br#"","headers":{"Accept":"application/json, text/plain, */*","User-Agent":"Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36","referer":"https://noymanga.com/","allow-adult":""#)
         && write_bytes(dst,c,adult) && write_bytes(dst,c,b"\"")) {return false}
-    if form && !write_bytes(dst,c,br#","Content-Type":"application/x-www-form-urlencoded""#) {return false}
+    if form && !write_bytes(dst,c,br#", "Content-Type":"application/x-www-form-urlencoded""#) {return false}
     write_bytes(dst,c,b"}")
 }
 fn build_post_form_request(dst: &mut [u8], url: &[u8], body: &[u8], adult: &[u8]) -> Option<usize> {
@@ -76,7 +81,7 @@ fn build_post_form_request(dst: &mut [u8], url: &[u8], body: &[u8], adult: &[u8]
     write_bytes(dst, &mut c, br#"{"version":1,"method":"POST","url":""#).then_some(())?;
     append_json_escaped(dst, &mut c, url).then_some(())?;
     build_headers(dst, &mut c, true, adult).then_some(())?;
-    write_bytes(dst, &mut c, br#","bodyBase64":""#).then_some(())?;
+    write_bytes(dst, &mut c, br#", "bodyBase64":""#).then_some(())?;
     append_json_escaped(dst, &mut c, body).then_some(())?;
     write_bytes(dst,&mut c,br#"","timeoutMs":15000,"responseKind":"bodyText"}"#).then_some(())?;
     Some(c)
@@ -412,18 +417,6 @@ fn build_url(path: &[u8]) -> Option<usize> {
     Some(c)
 }
 
-// Only hosts that understand operation scope may see and send the extra search filters.
-fn filter_scope_supported(req: &[u8]) -> bool {
-    json_object_member(req, b"hostFeatures").map(|v| { let v=trim_ascii(v); v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|c| *c==b',').any(|x| trim_ascii(x)==b"\"source_filter_scope_header_v1\"") }).unwrap_or(false)
-}
-fn search_filter_values<'a>(req: &'a [u8], mode: &'a [u8]) -> Option<(&'a [u8], &'a [u8], &'a [u8])> {
-    if !filter_scope_supported(req) { return Some((mode,b"",b"")); }
-    let filters=json_object_member(req,b"args").and_then(|a|json_object_member(a,b"filters"));
-    let read=|key: &[u8]| filters.and_then(|f|extract_json_string(f,key));
-    let mode=read(b"mode").unwrap_or(mode); let sort=read(b"sort").unwrap_or(b"time"); let finished=read(b"finished").unwrap_or(b"all");
-    if !matches!(mode,b"default"|b"tag"|b"author") || !matches!(sort,b"time"|b"views"|b"favorites"|b"rating") || !matches!(finished,b"all"|b"false"|b"true") { return None; }
-    Some((mode,if sort==b"time" {b""} else {sort},if finished==b"all" {b""} else {finished}))
-}
 fn run_search(req: &[u8]) -> u32 {
     // JSON escapes belong to the host request, not the search term sent to the provider.
     let args = json_object_member(req, b"args").unwrap_or(req);
@@ -439,7 +432,10 @@ fn run_search(req: &[u8]) -> u32 {
     };
     let page = request_page(req);
     let mode = extract_json_string(req, b"mode").unwrap_or(b"default");
-    let Some((mode,sort,finished)) = search_filter_values(req,mode) else { return write_error("search", "invalid_request", "invalid search filter"); };
+    #[cfg(feature = "noyacg_filter_candidate")]
+    let (mode, sort, finished) = match filter_candidate::selected(req, mode) { Some(v) => v, None => return write_error("search", "invalid_request", "invalid search filter") };
+    #[cfg(not(feature = "noyacg_filter_candidate"))]
+    let (sort, finished): (&[u8], &[u8]) = (b"", b"");
     let body = scratch_b();
     let mut bc = 0usize;
     if !(write_bytes(body, &mut bc, b"value=")
@@ -544,7 +540,6 @@ fn fetch_detail(id: &[u8], req: &[u8]) -> Result<usize, FetchError> {
     {
         return Err(FetchError::Network);
     }
-    if adult(req)==b"both" { return fetch_get(scratch_a_slice(c), None); }
     let n=koma_source_sdk::build_get_request(http_req_buf(),scratch_a_slice(c),None,&[(b"allow-adult",adult(req))]).ok_or(FetchError::Network)?;
     let len=http_request(&http_req_buf()[..n],http_out()).map_err(|_|FetchError::Network)?;
     decode_json_body(&http_out()[..len])
@@ -706,7 +701,6 @@ fn fetch_chapter(chapter_id: &[u8], req: &[u8]) -> Result<usize, FetchError> {
     {
         return Err(FetchError::Network);
     }
-    if adult(req)==b"both" { return fetch_get(scratch_a_slice(c), None); }
     let n=koma_source_sdk::build_get_request(http_req_buf(),scratch_a_slice(c),None,&[(b"allow-adult",adult(req))]).ok_or(FetchError::Network)?;
     let len=http_request(&http_req_buf()[..n],http_out()).map_err(|_|FetchError::Network)?;
     decode_json_body(&http_out()[..len])
@@ -836,20 +830,19 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     }
 }
 
-fn run_get_filters(req: &[u8]) -> u32 {
-    if filter_scope_supported(req) {
-        const FILTERS: &str = r#"{"filters":[{"id":"mode","name":"類型","kind":"select","scope":"search","default":"default","options":[{"value":"default","label":"預設"},{"value":"tag","label":"標籤"},{"value":"author","label":"作者"}]},{"id":"sort","name":"排序方式","kind":"select","scope":"search","default":"time","options":[{"value":"time","label":"時間"},{"value":"views","label":"閲讀"},{"value":"favorites","label":"收藏"},{"value":"rating","label":"評分"}]},{"id":"finished","name":"完結狀態","kind":"select","scope":"search","default":"all","options":[{"value":"all","label":"全部"},{"value":"false","label":"連載中"},{"value":"true","label":"已完結"}]}]}"#;
-        payload_buf()[..FILTERS.len()].copy_from_slice(FILTERS.as_bytes());
-        return write_success_payload("get_filters",FILTERS.len());
-    }
-    // The old capability was false: keep old hosts from exposing an inactive browse control.
-    const FILTERS: &str = "{\"filters\":[]}";
+fn run_get_filters(_req: &[u8]) -> u32 {
+    #[cfg(feature = "noyacg_filter_candidate")]
+    { return filter_candidate::write_schema(); }
+    #[cfg(not(feature = "noyacg_filter_candidate"))]
+    {
+    const FILTERS: &str = "{\"filters\":[{\"id\":\"mode\",\"name\":\"搜索模式\",\"kind\":\"select\",\"options\":[{\"value\":\"default\",\"label\":\"默认\"},{\"value\":\"tag\",\"label\":\"标签\"},{\"value\":\"author\",\"label\":\"作者\"}],\"default\":\"default\"}]}";
     let bytes = FILTERS.as_bytes();
     if bytes.len() > payload_buf().len() {
         return write_error("get_filters", "internal_error", "payload overflow");
     }
     payload_buf()[..bytes.len()].copy_from_slice(bytes);
     write_success_payload("get_filters", bytes.len())
+    }
 }
 
 fn run_get_image_request(req: &[u8]) -> u32 {
@@ -863,11 +856,9 @@ fn run_get_image_request(req: &[u8]) -> u32 {
     let mut c = 0usize;
     let ok = write_bytes(payload, &mut c, br#"{"url":""#)
         && append_json_unescaped_then_escaped(payload, &mut c, url)
-        && if adult(req)==b"both" { write_bytes(payload,&mut c,br#""}"#) } else {
-            write_bytes(payload,&mut c,br#"","headers":{"allow-adult":""#)
-                && write_bytes(payload,&mut c,adult(req))
-                && write_bytes(payload,&mut c,br#""}}"#)
-        };
+        && write_bytes(payload,&mut c,br#"","headers":{"referer":"https://beta.noyteam.online/","allow-adult":""#)
+        && write_bytes(payload,&mut c,adult(req))
+        && write_bytes(payload,&mut c,br#""}}"#);
     if !ok {
         return write_error("get_image_request", "internal_error", "payload overflow");
     }

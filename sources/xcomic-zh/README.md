@@ -37,3 +37,7 @@
 宿主声明 `source_http_batch_v1` 时，详情和目录的独立版本probe沿固定参考每批最多5个，使用原HTTP import的requests/responses合同；原单请求方法、地址、头、正文和超时保持。按输入顺序逐项检查状态、GraphQL和版本身份，全部成功后才发布原目录，保留取消、容量、语言及后续作品/章节归属检查和原排序。无该能力的旧宿主继续原逐次请求，不复用跨操作缓存，不把多个GraphQL根字段拼进一个请求。
 
 `source_detail_chapter_context_v1` permits the host to carry the non-sensitive version resolution from a successful detail request only to the immediately following chapter request in the same live transaction. The source re-fetches the work, verifies the source version, work identity, complete ordered edition IDs and every result shape, and falls back to fresh probes if the context is absent or invalid. Exact chapter recovery never uses it; no source-side cache or persistence is added.
+
+## 0.1.13 简中筛选与设置文案候选
+
+现有排序和设置的显示名、选项、说明及错误提示翻译为简体中文；字段 ID、选项值、默认值、能力门控与源处理逻辑不变。已对照本地实际 WASM 新旧 schema。另接入参考中固定的年份、最少及最多章节数、原作状态、原作语言和格式三态等有词搜索筛选；年份/章节/状态组合真实前两页各12项，语言及格式包含排除组合真实3项终态，均经 WASM 原体回放；既有浏览排序保持。空词筛选和站点动态选项仍未完成，不代表真机或发布。

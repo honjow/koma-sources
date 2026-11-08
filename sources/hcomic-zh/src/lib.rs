@@ -10,11 +10,11 @@ const MAX: usize = 1048576;
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hcomic.zh.koma",
     name: "H-Comic",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "H-Comic public Chinese metadata. NSFW source; per-book rating and usage unknown.",
+    description: "H-Comic 中文公开作品信息；含成人内容，各作品分级及使用情况未知。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
@@ -881,13 +881,25 @@ fn page_num(r: &[u8], search: bool, query: &[u8]) -> Result<usize, E> {
     }
     Ok(p)
 }
+fn listing_scope_supported(r: &[u8]) -> bool {
+    json_object_member(r, b"hostFeatures")
+        .map(trim_ascii)
+        .filter(|v| v.starts_with(b"[") && v.ends_with(b"]"))
+        .map(|v| v[1..v.len() - 1].split(|c| *c == b',')
+            .any(|item| trim_ascii(item) == br#""source_listing_filter_scope_v1""#))
+        .unwrap_or(false)
+}
 fn listing(r: &[u8], search: bool) -> Result<usize, E> {
     let a = args(r)?;
+    // Random is an independent reference feed; old hosts retain the existing
+    // latest-only schema because they cannot hide that feed's browse filters.
+    let random_listing = !search && listing_scope_supported(r)
+        && text(a, b"listingId")? == b"listing:random";
     let mut querybuf = [0; 4096];
     let query = if search {
         decoded(required(a, b"query")?, &mut querybuf)?
     } else {
-        if text(a, b"listingId")? != b"listing:latest" {
+        if !random_listing && text(a, b"listingId")? != b"listing:latest" {
             return Err("listing not supported");
         };
         b""
@@ -897,7 +909,7 @@ fn listing(r: &[u8], search: bool) -> Result<usize, E> {
     };
     // Keep the published cursor unchanged when no filters are selected. Filtered
     // cursors also bind their selection, so a later edit cannot reuse an old page.
-    let filters = match member(a, b"filters")? {
+    let filters = match if random_listing { None } else { member(a, b"filters")? } {
         None | Some(b"null") => b"{}".as_slice(),
         Some(v) if v.first() == Some(&b'{') => v,
         _ => return Err("invalid filters"),
@@ -923,20 +935,25 @@ fn listing(r: &[u8], search: bool) -> Result<usize, E> {
     let filtered = sort == b"random" || tn > 0;
     let mut identity = [0u8; 8192]; let mut idn = 0;
     bytes(&mut identity, &mut idn, query)?;
+    if random_listing { bytes(&mut identity, &mut idn, b"\x00random_listing")?; }
     if filtered { bytes(&mut identity, &mut idn, b"\x00")?; bytes(&mut identity, &mut idn, sort)?; bytes(&mut identity, &mut idn, b"\x00")?; bytes(&mut identity, &mut idn, &tagsbuf[..tn])?; }
     let identity = &identity[..idn];
     let page = page_num(r, search, identity)?;
     let mut u = [0; 32768]; let mut un = 0;
     bytes(&mut u, &mut un, WEB)?;
-    if sort == b"random" { bytes(&mut u, &mut un, b"/random")?; }
-    if search || filtered {
-        bytes(&mut u, &mut un, b"/__data.json?tag=")?;
-        form_encode(&mut u, &mut un, &tagsbuf[..tn])?;
-        bytes(&mut u, &mut un, b"&q=")?;
-        form_encode(&mut u, &mut un, query)?;
-        bytes(&mut u, &mut un, b"&page=")?;
-    } else { bytes(&mut u, &mut un, b"/__data.json?page=")?; }
-    wn(&mut u, &mut un, page)?;
+    if random_listing {
+        bytes(&mut u, &mut un, b"/random/__data.json")?;
+    } else {
+        if sort == b"random" { bytes(&mut u, &mut un, b"/random")?; }
+        if search || filtered {
+            bytes(&mut u, &mut un, b"/__data.json?tag=")?;
+            form_encode(&mut u, &mut un, &tagsbuf[..tn])?;
+            bytes(&mut u, &mut un, b"&q=")?;
+            form_encode(&mut u, &mut un, query)?;
+            bytes(&mut u, &mut un, b"&page=")?;
+        } else { bytes(&mut u, &mut un, b"/__data.json?page=")?; }
+        wn(&mut u, &mut un, page)?;
+    }
     fetch(&u[..un])?;
     let root = idx(0)?;
     let comics = refv(root, b"comics")?;
@@ -944,7 +961,7 @@ fn listing(r: &[u8], search: bool) -> Result<usize, E> {
         Some(p) => num(refv(idx(num(p)?)?, b"pages")?)?,
         None => 1,
     };
-    if total == 0 || total > 1000000 || page > total {
+    if total == 0 || total > 1000000 || (!random_listing && page > total) {
         return Err("pagination contradiction");
     };
     let mut a = Array::new(comics)?;
@@ -971,13 +988,14 @@ fn listing(r: &[u8], search: bool) -> Result<usize, E> {
         emit_work(out, &mut n, &w)?;
         count += 1;
     }
-    if count == 0 && page < total {
+    if count == 0 && (random_listing || page < total) {
         return Err("pagination no progress");
     };
     bytes(out, &mut n, b"],\"page\":{\"hasMore\":")?;
-    bytes(out, &mut n, if page < total { b"true" } else { b"false" })?;
+    let has_more = random_listing || page < total;
+    bytes(out, &mut n, if has_more { b"true" } else { b"false" })?;
     bytes(out, &mut n, b",\"nextCursor\":")?;
-    if page < total {
+    if has_more {
         bytes(out, &mut n, b"\"")?;
         bytes(out, &mut n, if search { b"search" } else { b"latest" })?;
         bytes(out, &mut n, b":")?;
@@ -1106,8 +1124,12 @@ fn run_get_pages(r: &[u8]) -> u32 {
 fn run_get_image_request(r: &[u8]) -> u32 {
     execute("get_image_request", image_request(r))
 }
-fn run_get_listings(_: &[u8]) -> u32 {
-    let data="{\"listings\":[{\"id\":\"listing:latest\",\"name\":\"最新\",\"kind\":\"latest\",\"supportsPaging\":true}]}".as_bytes();
+fn run_get_listings(r: &[u8]) -> u32 {
+    let data = if listing_scope_supported(r) {
+        r#"{"listings":[{"id":"listing:latest","name":"最新","kind":"latest","supportsPaging":true},{"id":"listing:random","name":"隨機","supportsPaging":true,"supportsFilters":false}]}"#
+    } else {
+        r#"{"listings":[{"id":"listing:latest","name":"最新","kind":"latest","supportsPaging":true}]}"#
+    }.as_bytes();
     payload_buf()[..data.len()].copy_from_slice(data);
     write_success_payload("get_listings", data.len())
 }
@@ -1142,7 +1164,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
-    let data=r#"{"sourceInfo":{"id":"com.hcomic.zh.koma","name":"H-Comic","version":"0.1.3","apiVersion":"0.2","language":"zh","author":"Koma","description":"H-Comic public Chinese metadata. NSFW source; per-book rating and usage unknown.","contentRating":"nsfw","localizedNames":{"zh-Hans":"H-Comic","zh-Hant":"H-Comic","en":"H-Comic"}},"capabilities":{"search":true,"mangaDetail":true,"chapters":true,"pages":true,"listings":true,"mangaList":true,"imageRequest":true,"home":false,"filters":true,"settings":false,"future":{"login":false,"auth":false,"process_page_image":false,"page_description":false,"base_url":false,"deeplink":false,"migration":false}}}"#.as_bytes();
+    let data=r#"{"sourceInfo":{"id":"com.hcomic.zh.koma","name":"H-Comic","version":"0.1.4","apiVersion":"0.2","language":"zh","author":"Koma","description":"H-Comic 中文公开作品信息；含成人内容，各作品分级及使用情况未知。","contentRating":"nsfw","localizedNames":{"zh-Hans":"H-Comic","zh-Hant":"H-Comic","en":"H-Comic"}},"capabilities":{"search":true,"mangaDetail":true,"chapters":true,"pages":true,"listings":true,"mangaList":true,"imageRequest":true,"home":false,"filters":true,"settings":false,"future":{"login":false,"auth":false,"process_page_image":false,"page_description":false,"base_url":false,"deeplink":false,"migration":false}}}"#.as_bytes();
     response_buffer().write_success_parts("source_info", &[data])
 }
 macro_rules! export_op {

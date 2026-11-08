@@ -5,7 +5,7 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.ncsoft.bns.zh-hant.koma",
     name: "劍靈官方繁中漫畫",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -667,7 +667,8 @@ fn book(p: &mut [u8], c: &mut usize, unit: Unit, detail: bool) -> R<()> {
         quote_route(p, c, unit, false)?;
         w(p, c, b",\"cover\":{\"kind\":\"url\",\"url\":")?;
         quote_route(p, c, unit, true)?;
-        w(p, c, b"},\"language\":\"zh-Hant\",\"authors\":")?;
+        // The catalogue determines the public cover URL without credentials.
+        w(p, c, b",\"headers\":{}},\"language\":\"zh-Hant\",\"authors\":")?;
         creators(doc, b".library-view--author > dt", "文：".as_bytes(), p, c)?;
         w(p, c, b",\"artists\":")?;
         creators(doc, b".library-view--author > dd", "圖：".as_bytes(), p, c)?;

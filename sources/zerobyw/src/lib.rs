@@ -59,7 +59,7 @@ static mut SELECT_BUF: [u8; SELECT_CAP] = [0; SELECT_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.zerobyw.koma",
     name: "Zerobyw",
-    version: "0.1.9",
+    version: "0.1.10",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -321,7 +321,13 @@ fn run_search(req: &[u8]) -> u32 {
         Ok(v) if core::str::from_utf8(v).is_ok() => trim_ascii(v),
         _ => return write_error("search", "invalid_request", "invalid query"),
     };
-    let page = extract_json_number(req, b"page").unwrap_or(b"1");
+    // App pagination is an args.page object; preserve the provider's one-based page.
+    let mut page_buf = [0u8; 24];
+    let mut page_len = 0usize;
+    if !write_usize(&mut page_buf, &mut page_len, koma_source_sdk::json_utils::request_page_number(req)) {
+        return write_error("search", "invalid_request", "invalid page");
+    }
+    let page = &page_buf[..page_len];
     let mut base_buf = [0u8; 512];
     let base = current_base_url(req, &mut base_buf);
     let mut referer_buf = [0u8; 512];

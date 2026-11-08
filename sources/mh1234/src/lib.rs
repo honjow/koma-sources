@@ -52,7 +52,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mh1234.koma",
     name: "漫画1234网",
-    version: "0.1.8",
+    version: "0.1.9",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -718,6 +718,32 @@ fn supports_reading_order(req: &[u8]) -> bool {
     }).unwrap_or(false)
 }
 
+fn verified_empty_catalogue(root: host::HtmlDescriptor, manga_id: &[u8]) -> Option<()> {
+    let owner = manga_id.strip_prefix(b"/comic/")?.strip_suffix(b".html")?;
+    let detail = OwnedDescriptor(
+        html_select(root, b"main.main > .mint-detail[data-mint-page=detail][data-comic-id]").ok()?,
+    );
+    let mut buf = [0; 128];
+    if attr_into(detail.0, b"data-comic-id", &mut buf)? != owner {
+        return None;
+    }
+    if !select_attr(detail.0, b".mint-work-actions > a[data-mint-start][href]", b"href", &mut buf)?
+        .is_empty()
+        || select_text(detail.0, b"#mintChapterPanel > .mint-chapter-heading > span", &mut buf)?
+            != "最新：待浏览".as_bytes()
+    {
+        return None;
+    }
+    let grid = OwnedDescriptor(
+        html_select(detail.0, b"#mintChapterPanel > .mint-chapter-grid[data-mint-chapters]").ok()?,
+    );
+    if let Ok(child) = html_select(grid.0, b"*") {
+        let _ = html_close(child);
+        return None;
+    }
+    text_into(grid.0, &mut buf)?.is_empty().then_some(())
+}
+
 fn run_get_chapters(req: &[u8]) -> u32 {
     let mut id_buf = [0; 1024];
     let Some(manga_id) = extract_json_string(args(req), b"mangaId")
@@ -740,6 +766,9 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     };
     let batch = match DescriptorBatch::select(document.0, b".mint-chapter-grid a") {
         Ok(b) if b.count > 0 => b,
+        Ok(_) if verified_empty_catalogue(document.0, manga_id).is_some() => {
+            return write_error("get_chapters", "no_chapters", "no public chapter entries");
+        }
         _ => {
             return write_error(
                 "get_chapters",

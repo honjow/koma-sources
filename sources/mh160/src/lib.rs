@@ -34,7 +34,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     image_request: true,
     credentials: false,
 };
-koma_source_sdk::koma_source_buffers! { payload:512*1024,http_out:2*1024*1024,body:1024*1024,http_req:4096,scratch:8192, }
+koma_source_sdk::koma_source_buffers! { payload:512*1024,http_out:2*1024*1024,body:1024*1024,http_req:16384,scratch:8192, }
 koma_source_sdk::koma_source_helpers!();
 static mut DECODED: [u8; 512 * 1024] = [0; 512 * 1024];
 // Existing host ABI, already exported by the native and development runtimes.
@@ -418,10 +418,25 @@ fn error_code(e: &str) -> &'static str {
         _ => "parse_error",
     }
 }
+// The opaque token comes only from the particular challenged Host response.
+#[derive(Copy,Clone)]
+struct ChallengeId { raw:[u8;384], len:usize }
+impl ChallengeId {
+    fn from_response(response:&[u8])->Self {
+        let mut id=Self{raw:[0;384],len:0};
+        if let Some(v)=json_object_member(response,b"challengeRequestId") {
+            if v.len()<=id.raw.len() && v.first()==Some(&b'"') && v.last()==Some(&b'"') && {let mut decoded=[0u8;384];unescape(&v[1..v.len()-1],&mut decoded).map(|x|!x.is_empty()&&x.len()<=64).unwrap_or(false)} {id.raw[..v.len()].copy_from_slice(v);id.len=v.len();}
+        } id
+    }
+}
+fn challenge_cause_enabled(r:&[u8])->bool {
+    let Some(v)=json_object_member(r,b"hostFeatures") else{return false};
+    v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|c|*c==b',').any(|x|x.trim_ascii()==br#""source_http_challenge_cause_v1""#)
+}
 #[derive(Copy, Clone)]
 enum OperationError {
     Message(&'static str),
-    Http(HttpFailure),
+    Http(HttpFailure, ChallengeId),
 }
 impl From<&'static str> for OperationError {
     fn from(message: &'static str) -> Self { Self::Message(message) }
@@ -429,9 +444,9 @@ impl From<&'static str> for OperationError {
 fn write_operation_error(op: &str, failure: OperationError) -> u32 {
     let http = match failure {
         OperationError::Message(message) => return write_error(op, error_code(message), message),
-        OperationError::Http(http) => http,
+        OperationError::Http(http, _) => http,
     };
-    let mut envelope = [0u8; 512];
+    let mut envelope = [0u8; 1024];
     let mut n = 0;
     let ok = write_bytes(&mut envelope, &mut n, br#"{"type":"response","version":1,"ok":false,"operation":""#)
         && append_json_escaped(&mut envelope, &mut n, op.as_bytes())
@@ -441,6 +456,7 @@ fn write_operation_error(op: &str, failure: OperationError) -> u32 {
         && append_json_escaped(&mut envelope, &mut n, http.message().as_bytes())
         && write_bytes(&mut envelope, &mut n, br#"","status":"#)
         && write_usize(&mut envelope, &mut n, http.status as usize)
+        && match failure { OperationError::Http(_,id) if http.code()=="challenge_required" && id.len>0 => write_bytes(&mut envelope,&mut n,br#", "challengeRequestId":"#) && write_bytes(&mut envelope,&mut n,&id.raw[..id.len]), _=>true }
         && write_bytes(&mut envelope, &mut n, br#"},"hostHints":{"network":false},"warnings":[]}"#);
     if !ok { return write_error(op, "internal_error", "error response overflow"); }
     response_buffer().write(&envelope[..n], false)
@@ -455,14 +471,14 @@ fn execute<E: Into<OperationError>>(op: &str, result: Result<usize, E>) -> u32 {
             let failure = e.into();
             let code = match failure {
                 OperationError::Message(message) => error_code(message),
-                OperationError::Http(http) => http.code(),
+                OperationError::Http(http, _) => http.code(),
             };
             diagnostic(b"operation_error", code.as_bytes());
             write_operation_error(op, failure)
         }
     }
 }
-fn fetch(base: &[u8], path: &[u8]) -> Result<usize, OperationError> {
+fn fetch(base: &[u8], path: &[u8], request:&[u8]) -> Result<usize, OperationError> {
     host::log_info(b"mh160 stage=fetch_begin");
     let mut url = [0; 8192];
     let mut n = 0;
@@ -474,6 +490,7 @@ fn fetch(base: &[u8], path: &[u8]) -> Result<usize, OperationError> {
             "network failure"
         },
     )?;
+    let len = if challenge_cause_enabled(request) {let b=http_req_buf();let mut n=len.checked_sub(1).ok_or("network failure")?;bytes(b,&mut n,br#", "wantChallengeRequestId":true}"#)?;n} else {len};
     let len = host::http_request(&http_req_buf()[..len], http_out()).map_err(|e| {
         diagnostic(
             b"http_return",
@@ -502,7 +519,7 @@ fn fetch(base: &[u8], path: &[u8]) -> Result<usize, OperationError> {
     match status {
         200..=299 => {}
         400..=599 => return Err(OperationError::Http(HttpFailure::from_host(status,
-            json_object_member(response, b"accessSignal")))),
+            json_object_member(response, b"accessSignal")), if challenge_cause_enabled(request){ChallengeId::from_response(response)}else{ChallengeId{raw:[0;384],len:0}})),
         _ => {
             let code = match extract_json_string(response, b"code") {
                 Some(b"transport_unavailable") => b"transport_unavailable".as_slice(),
@@ -522,8 +539,8 @@ fn fetch(base: &[u8], path: &[u8]) -> Result<usize, OperationError> {
     host::log_info(b"mh160 stage=body_ready");
     Ok(len)
 }
-fn fetch_doc(base: &[u8], path: &[u8]) -> Result<Node, OperationError> {
-    let n = fetch(base, path)?;
+fn fetch_doc(base: &[u8], path: &[u8], r:&[u8]) -> Result<Node, OperationError> {
+    let n = fetch(base, path, r)?;
     Node::parse(&body_buf()[..n]).map_err(OperationError::from)
 }
 fn path<'a>(href: &'a [u8]) -> Result<&'a [u8], &'static str> {
@@ -609,13 +626,13 @@ fn manga_url<'a>(id: &[u8], out: &'a mut [u8]) -> Result<&'a [u8], &'static str>
     bytes(out, &mut n, b"/")?;
     Ok(&out[..n])
 }
-fn manga_doc(id: &[u8]) -> Result<Node, OperationError> {
+fn manga_doc(id: &[u8], r:&[u8]) -> Result<Node, OperationError> {
     let mut out = [0; 1024];
     let mut n = 0;
     bytes(&mut out, &mut n, b"/kanmanhua/")?;
     bytes(&mut out, &mut n, id)?;
     bytes(&mut out, &mut n, b"/")?;
-    fetch_doc(BASE, &out[..n])
+    fetch_doc(BASE, &out[..n],r)
 }
 // The reference category is browse-only; an unset selection keeps each listing's original URL.
 fn supports_browse_filters(r: &[u8]) -> bool {
@@ -654,7 +671,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, OperationError> {
             return Err("invalid page cursor".into());
         }
     }
-    let root = fetch_doc(if search { BASE } else { MOBILE }, &out[..n])?;
+    let root = fetch_doc(if search { BASE } else { MOBILE }, &out[..n],r)?;
     let nodes = if search {
         let _container = root.select(b"ul.mh-search-list")?;
         Nodes::get(&root, b"ul.mh-search-list > li")?
@@ -732,7 +749,7 @@ fn first(root: &Node, selectors: &[&[u8]]) -> Result<Node, &'static str> {
 }
 fn detail(r: &[u8]) -> Result<usize, OperationError> {
     let id = manga_id(r)?;
-    let root = manga_doc(id)?;
+    let root = manga_doc(id,r)?;
     let title_node = first(
         &root,
         &[b".mh-date-info-name h4 a", b".txtItme.h1", b"title"],
@@ -839,7 +856,7 @@ fn write_chapter_number(b: &mut [u8], n: &mut usize, title: &[u8]) -> bool {
 
 fn chapters(r: &[u8]) -> Result<usize, OperationError> {
     let id = manga_id(r)?;
-    let root = manga_doc(id)?;
+    let root = manga_doc(id,r)?;
     let nodes = Nodes::get(
         &root,
         b"ul[id^=mh-chapter-list-ol] li a, ul[id^=chapterList_ul] li a",
@@ -1022,7 +1039,7 @@ fn page_url<'a>(p: &[u8], pid: usize, out: &'a mut [u8]) -> Result<&'a [u8], &'s
 }
 fn pages(r: &[u8]) -> Result<usize, OperationError> {
     let path = chapter_path(r)?;
-    let len = fetch(BASE, path)?;
+    let len = fetch(BASE, path,r)?;
     let html = unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), len) };
     let encoded = literal(html, b"qTcms_S_m_murl_e")?;
     let pid = number(literal(html, b"qTcms_S_p_id")?)

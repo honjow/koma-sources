@@ -31,3 +31,7 @@
 ## 0.1.6 real WebP thumbnails and explicit CDN host
 
 The Pages count reads only the unique page-count field, without consuming unrelated long tag text. WebP and PNG thumbnails are accepted only when the validated same-work reader declares the corresponding original format and matching media identity, count, order and dimensions. The observed supercdn.site and cdn.supercdn.site hosts must agree across cover, thumbnails, reader declaration and original URL; no other host is accepted. Existing supercdn page IDs are unchanged; the explicit cdn marker in new page IDs is checked again by image_request with the full work route.
+
+## 最新与中文显示候选
+
+固定参考以 `sort=newest` 提供独立中文最新；候选仅在 Host 声明 `source_listing_filter_scope_v1` 时显示此栏目并声明不接受浏览筛选，旧宿主仍只显示热门。原热门及其显式筛选保持，栏目、设置、排除标签、排序及完整标题固定文案本地化。2026-11-06 官网最新第1/2页 HTTP 200，实际 WASM 分别24/24项并推进游标2→3；热门筛选和具名详情短/长标题在同一原体与正式版一致，唯完整标题固定标注译为中文。参考随机和需登录收藏尚未实现，不能称整源对齐；Native和发布未验。

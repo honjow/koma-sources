@@ -8,7 +8,7 @@ const BASE: &[u8] = b"https://www.manhuagui.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.manhuagui.koma",
     name: "Manhuagui",
-    version: "0.1.7",
+    version: "0.1.8",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -24,7 +24,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     manga_list: true,
     image_request: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: true,
     credentials: false,
 };
@@ -645,6 +645,13 @@ fn image_url<'a>(node: &Node, out: &'a mut [u8]) -> Result<&'a [u8], &'static st
         absolute(node.attr(b"data-src", &mut a)?, out)
     }
 }
+// Browse filters must not alter text search or the selected listing's default sort.
+fn filters_enabled(r: &[u8]) -> bool {
+    json_object_member(r, b"hostFeatures").map(trim_ascii).map_or(false, |f| f.starts_with(b"[") && f.ends_with(b"]") && f[1..f.len()-1].split(|b| *b == b',').any(|v| trim_ascii(v)==b"\"source_filter_scope_header_v1\""))
+}
+fn filter_value<'a>(f: &'a [u8], key: &[u8]) -> Option<&'a [u8]> {
+    json_object_member(f,key).and_then(|v| v.strip_prefix(b"\"")?.strip_suffix(b"\""))
+}
 fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
     let p = page(r)?;
     if p > 1_000_000 {
@@ -665,33 +672,46 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
         };
         bytes(&mut route, &mut len, b"_p")?
     } else {
-        bytes(
-            &mut route,
-            &mut len,
-            match string(args(r), b"listingId").unwrap_or(b"popular") {
-                b"popular" => b"/list/view_p",
-                b"latest" => b"/list/update_p",
-                _ => return Err("unknown listing"),
-            },
-        )?
+        let listing = string(args(r), b"listingId").unwrap_or(b"popular");
+        let default_sort = match listing { b"popular" => b"view".as_slice(), b"latest" => b"update".as_slice(), _ => return Err("unknown listing") };
+        let f = if filters_enabled(r) { json_object_member(args(r),b"filters").unwrap_or(b"{}") } else { b"{}" };
+        let sort = filter_value(f,b"sort").unwrap_or(default_sort);
+        if ![b"view".as_slice(),b"index",b"update",b"rate",b"rank_",b"rank_week",b"rank_month",b"rank_total"].contains(&sort) { return Err("invalid sort"); }
+        let mut parts=[0u8;1024]; let mut pn=0;
+        for key in [b"locale".as_slice(),b"genre",b"reader",b"year",b"letter",b"status"] {
+            if let Some(v)=filter_value(f,key) { if !v.is_empty() && v != b"all" { if !v.iter().all(|c| c.is_ascii_alphanumeric() || *c==b'-') { return Err("invalid filter"); } if pn>0 { bytes(&mut parts,&mut pn,b"_")?; } bytes(&mut parts,&mut pn,v)?; } }
+        }
+        if let Some(rank)=sort.strip_prefix(b"rank_") {
+            if p!=1 { return Err("invalid rank cursor"); }
+            bytes(&mut route,&mut len,b"/rank/")?;
+            if pn>0 {bytes(&mut route,&mut len,&parts[..pn])?; if !rank.is_empty(){bytes(&mut route,&mut len,b"_")?;}}
+            if !rank.is_empty(){bytes(&mut route,&mut len,rank)?;}
+            if pn>0 || !rank.is_empty(){bytes(&mut route,&mut len,b".html")?;}
+        } else {
+            bytes(&mut route,&mut len,b"/list/")?;
+            if pn>0 {bytes(&mut route,&mut len,&parts[..pn])?;bytes(&mut route,&mut len,b"/")?;}
+            bytes(&mut route,&mut len,sort)?;
+            bytes(&mut route,&mut len,b"_p")?;
+        }
     }
-    if !write_usize(&mut route, &mut len, p) {
-        return Err("page overflow");
-    };
-    bytes(&mut route, &mut len, b".html")?;
+    let is_rank = !search && route[..len].starts_with(b"/rank/");
+    if !is_rank {
+        if !write_usize(&mut route, &mut len, p) { return Err("page overflow"); }
+        bytes(&mut route, &mut len, b".html")?;
+    }
     let root = fetch_doc(&route[..len])?;
-    let selector = if search {
+    let selector = if is_rank { b"td.rank-title".as_slice() } else if search {
         b"div.book-result > ul > li".as_slice()
     } else {
         b"ul#contList > li"
     };
-    let _owner = root.select(if search {
+    let _owner = root.select(if is_rank { b"table".as_slice() } else if search {
         b"div.book-result".as_slice()
     } else {
         b"ul#contList"
     })?;
     let cards = Nodes::get(&root, selector)?;
-    let next = root.select(b"span.current + a").ok();
+    let next = if is_rank { None } else { root.select(b"span.current + a").ok() };
     if cards.n == 0 && next.is_some() {
         return Err("empty page has next cursor");
     }
@@ -728,7 +748,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
     bytes(b, &mut n, b"{\"items\":[")?;
     for i in 0..cards.n {
         let card = selected(&cards, i);
-        let a = card.select(if search {
+        let a = card.select(if is_rank { b"a".as_slice() } else if search {
             b"div.book-detail dl > dt > a".as_slice()
         } else {
             b"a.bcover"
@@ -736,17 +756,15 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
         let mut h = [0; 8192];
         let id = href_id(a.attr(b"href", &mut h)?)?;
         let mut text = [0; 16384];
-        let title = a.attr(b"title", &mut text)?;
+        let title = if is_rank { a.text(&mut text)? } else { a.attr(b"title", &mut text)? };
         if trim_ascii(title).is_empty() {
             return Err("manga title missing");
         }
-        let img = card.select(if search {
-            b"div.book-cover > a.bcover > img".as_slice()
-        } else {
-            b"a.bcover img"
-        })?;
         let mut cover = [0; 8192];
-        let cover = image_url(&img, &mut cover)?;
+        let cover_len = if is_rank { 0 } else {
+            let img = card.select(if search { b"div.book-cover > a.bcover > img".as_slice() } else { b"a.bcover img" })?;
+            image_url(&img, &mut cover)?.len()
+        };
         if i > 0 {
             bytes(b, &mut n, b",")?
         }
@@ -754,9 +772,8 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
         qbook(b, &mut n, id)?;
         bytes(b, &mut n, b",\"title\":")?;
         q(b, &mut n, title)?;
-        bytes(b, &mut n, b",\"cover\":{\"kind\":\"url\",\"url\":")?;
-        q(b, &mut n, cover)?;
-        bytes(b, &mut n, b"},\"contentRating\":\"unknown\"}")?;
+        if cover_len > 0 { bytes(b, &mut n, b",\"cover\":{\"kind\":\"url\",\"url\":")?; q(b, &mut n, &cover[..cover_len])?; bytes(b, &mut n, b"}")?; }
+        bytes(b, &mut n, b",\"contentRating\":\"unknown\"}")?;
     }
     bytes(b, &mut n, b"],\"page\":{\"nextCursor\":")?;
     if let Some(t) = target {
@@ -1276,14 +1293,16 @@ fn run_get_listings(_: &[u8]) -> u32 {
 fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_implemented", "not supported")
 }
-fn run_get_filters(_: &[u8]) -> u32 {
-    write_error("get_filters", "not_implemented", "not supported")
+fn run_get_filters(r: &[u8]) -> u32 {
+    let data = if filters_enabled(r) { r###"{"filters":[{"id":"sort","name":"排序方式","type":"select","scope":"browse","options":[{"value":"view","label":"人气最旺"},{"value":"index","label":"最新发布"},{"value":"update","label":"最新更新"},{"value":"rate","label":"评分最高"},{"value":"rank_","label":"日排行"},{"value":"rank_week","label":"周排行"},{"value":"rank_month","label":"月排行"},{"value":"rank_total","label":"总排行"}]},{"id":"locale","name":"按地区","type":"select","scope":"browse","options":[{"value":"all","label":"全部"},{"value":"japan","label":"日本"},{"value":"hongkong","label":"港台"},{"value":"other","label":"其它"},{"value":"europe","label":"欧美"},{"value":"china","label":"内地"},{"value":"korea","label":"韩国"}]},{"id":"genre","name":"按剧情","type":"select","scope":"browse","options":[{"value":"all","label":"全部"},{"value":"rexue","label":"热血"},{"value":"maoxian","label":"冒险"},{"value":"mohuan","label":"魔幻"},{"value":"shengui","label":"神鬼"},{"value":"gaoxiao","label":"搞笑"},{"value":"mengxi","label":"萌系"},{"value":"aiqing","label":"爱情"},{"value":"kehuan","label":"科幻"},{"value":"mofa","label":"魔法"},{"value":"gedou","label":"格斗"},{"value":"wuxia","label":"武侠"},{"value":"jizhan","label":"机战"},{"value":"zhanzheng","label":"战争"},{"value":"jingji","label":"竞技"},{"value":"tiyu","label":"体育"},{"value":"xiaoyuan","label":"校园"},{"value":"shenghuo","label":"生活"},{"value":"lizhi","label":"励志"},{"value":"lishi","label":"历史"},{"value":"weiniang","label":"伪娘"},{"value":"zhainan","label":"宅男"},{"value":"funv","label":"腐女"},{"value":"danmei","label":"耽美"},{"value":"baihe","label":"百合"},{"value":"hougong","label":"后宫"},{"value":"zhiyu","label":"治愈"},{"value":"meishi","label":"美食"},{"value":"tuili","label":"推理"},{"value":"xuanyi","label":"悬疑"},{"value":"kongbu","label":"恐怖"},{"value":"sige","label":"四格"},{"value":"zhichang","label":"职场"},{"value":"zhentan","label":"侦探"},{"value":"shehui","label":"社会"},{"value":"yinyue","label":"音乐"},{"value":"wudao","label":"舞蹈"},{"value":"zazhi","label":"杂志"},{"value":"heidao","label":"黑道"}]},{"id":"reader","name":"按受众","type":"select","scope":"browse","options":[{"value":"all","label":"全部"},{"value":"shaonv","label":"少女"},{"value":"shaonian","label":"少年"},{"value":"qingnian","label":"青年"},{"value":"ertong","label":"儿童"},{"value":"tongyong","label":"通用"}]},{"id":"year","name":"按年份","type":"select","scope":"browse","options":[{"value":"all","label":"全部"},{"value":"2025","label":"2025年"},{"value":"2024","label":"2024年"},{"value":"2023","label":"2023年"},{"value":"2022","label":"2022年"},{"value":"2021","label":"2021年"},{"value":"2020","label":"2020年"},{"value":"2019","label":"2019年"},{"value":"2018","label":"2018年"},{"value":"2017","label":"2017年"},{"value":"2016","label":"2016年"},{"value":"2015","label":"2015年"},{"value":"2014","label":"2014年"},{"value":"2013","label":"2013年"},{"value":"2012","label":"2012年"},{"value":"2011","label":"2011年"},{"value":"2010","label":"2010年"},{"value":"200x","label":"00年代"},{"value":"199x","label":"90年代"},{"value":"198x","label":"80年代"},{"value":"197x","label":"更早"}]},{"id":"letter","name":"按字母","type":"select","scope":"browse","options":[{"value":"all","label":"全部"},{"value":"a","label":"A"},{"value":"b","label":"B"},{"value":"c","label":"C"},{"value":"d","label":"D"},{"value":"e","label":"E"},{"value":"f","label":"F"},{"value":"g","label":"G"},{"value":"h","label":"H"},{"value":"i","label":"I"},{"value":"j","label":"J"},{"value":"k","label":"K"},{"value":"l","label":"L"},{"value":"m","label":"M"},{"value":"n","label":"N"},{"value":"o","label":"O"},{"value":"p","label":"P"},{"value":"q","label":"Q"},{"value":"r","label":"R"},{"value":"s","label":"S"},{"value":"t","label":"T"},{"value":"u","label":"U"},{"value":"v","label":"V"},{"value":"w","label":"W"},{"value":"x","label":"X"},{"value":"y","label":"Y"},{"value":"z","label":"Z"},{"value":"0-9","label":"0-9"}]},{"id":"status","name":"按进度","type":"select","scope":"browse","options":[{"value":"all","label":"全部"},{"value":"lianzai","label":"连载"},{"value":"wanjie","label":"完结"}]}]}"###.as_bytes() } else { b"{\"filters\":[]}" };
+    payload_buf()[..data.len()].copy_from_slice(data);
+    write_success_payload("get_filters",data.len())
 }
 fn run_get_settings(r: &[u8]) -> u32 {
     let features = json_object_member(r, b"hostFeatures").map(trim_ascii).unwrap_or(b"[]");
     let supported = features.starts_with(b"[") && features.ends_with(b"]") &&
         features[1..features.len() - 1].split(|b| *b == b',')
-            .any(|value| trim_ascii(value) == b"\"source_rate_limit_v1\"");
+            .any(|value| matches!(trim_ascii(value), b"\"source_rate_limit_v1\"" | b"\"source_request_limits_v1\""));
     // Only expose a setting when the calling host really consumes it across
     // metadata and image-cache misses. The two CDN hosts share one quota.
     let p = if supported { r#"{"settings":[{"id":"mainSiteRatelimitPreference","name":"主站每十秒連接數限制","kind":"select","options":[{"value":"1","label":"1"},{"value":"2","label":"2"},{"value":"3","label":"3"},{"value":"4","label":"4"},{"value":"5","label":"5"},{"value":"6","label":"6"},{"value":"7","label":"7"},{"value":"8","label":"8"},{"value":"9","label":"9"},{"value":"10","label":"10"}],"default":"10","description":"調低可減少短時間連接，主站每十秒共用此額度"},{"id":"imgCDNRatelimitPreference","name":"圖片 CDN 每秒連接數限制","kind":"select","options":[{"value":"1","label":"1"},{"value":"2","label":"2"},{"value":"3","label":"3"},{"value":"4","label":"4"},{"value":"5","label":"5"},{"value":"6","label":"6"},{"value":"7","label":"7"},{"value":"8","label":"8"},{"value":"9","label":"9"},{"value":"10","label":"10"}],"default":"4","description":"所有已知圖片 CDN 共用每秒額度；不限制本地快取命中"}]}"#.as_bytes() } else { b"{\"settings\":[]}" };

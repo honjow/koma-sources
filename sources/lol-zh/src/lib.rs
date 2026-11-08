@@ -5,7 +5,7 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.tencent.lol.zh.koma",
     name: "英雄联盟官方漫画",
-    version: "0.1.1",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -462,6 +462,12 @@ fn pages_contract(b: &Book, ch: &Chapter) -> R<()> {
     }
     Ok(())
 }
+fn write_image_headers(p: &mut [u8], c: &mut usize, referer: &[u8]) -> R<()> {
+    w(p, c, b",\"headers\":{\"Referer\":")?;
+    q(p, c, referer)?;
+    w(p, c, b"}")
+}
+
 fn book(p: &mut [u8], c: &mut usize, b: &Book, detail: bool) -> R<()> {
     let mut id = [0; 256];
     let mut n = 0;
@@ -477,6 +483,7 @@ fn book(p: &mut [u8], c: &mut usize, b: &Book, detail: bool) -> R<()> {
     q(p, c, &url[..n])?;
     w(p, c, b",\"cover\":{\"kind\":\"url\",\"url\":")?;
     q(p, c, b.cover.as_bytes())?;
+    write_image_headers(p, c, &url[..n])?;
     w(p,c,b"},\"authors\":[],\"language\":\"zh\",\"status\":\"unknown\",\"contentRating\":\"unknown\"")?;
     if detail {
         w(p, c, b",\"description\":")?;
@@ -680,9 +687,8 @@ fn run_get_image_request(req: &[u8]) -> u32 {
         let mut route = [0; 256];
         let mut len = 0;
         view(&mut route, &mut len, b, ch)?;
-        w(p, &mut c, b",\"headers\":{\"Referer\":")?;
-        q(p, &mut c, &route[..len])?;
-        w(p, &mut c, b"}}}")?;
+        write_image_headers(p, &mut c, &route[..len])?;
+        w(p, &mut c, b"}}")?;
         Ok(c)
     }
     result("get_image_request", inner(req))

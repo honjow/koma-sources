@@ -31,6 +31,16 @@ fn html_select_all(descriptor: i32, selector: &[u8], out: &mut [u8]) -> i32 {
 
 static mut SELECT_ALL_BUF: [u8; 16000] = [0; 16000];
 
+// SelectAll returns the full count but allocates at most the output capacity.
+// Release every still-owned handle when rejecting an incomplete result.
+fn release_selected(buf: &[u8], start: usize, end: usize) {
+    for i in start..end.min(buf.len()/4) {
+        let j=i*4;
+        let raw=i32::from_le_bytes([buf[j],buf[j+1],buf[j+2],buf[j+3]]);
+        if raw>=0 { let desc: host::HtmlDescriptor=unsafe {core::mem::transmute(raw)}; let _=html_close(desc); }
+    }
+}
+
 const BASE_URL: &[u8] = b"https://hanman18.com";
 koma_source_sdk::koma_source_buffers! {
     payload: 1024 * 1024,
@@ -47,7 +57,7 @@ static mut B64_BUF: [u8; B64_CAP] = [0; B64_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hanman18.koma",
     name: "HANMAN18",
-    version: "0.1.4",
+    version: "0.1.6",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -57,7 +67,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
 
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true, manga_detail: true, chapters: true, pages: true,
-    listings: false, manga_list: true, home: false, filters: false,
+    listings: true, manga_list: true, home: false, filters: false,
     settings: false, image_request: false, credentials: false,
 };
 
@@ -163,12 +173,15 @@ fn parse_manga_list(html: &[u8], op: &str, page: usize) -> u32 {
     };
     let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
     let count = html_select_all(document.0.raw(), b"div.story_item", select_buf);
+    if count < 0 { return write_error(op, "parse_error", "list selection failed"); }
+    if count > 500 { release_selected(select_buf, 0, count as usize); return write_error(op, "parse_error", "list capacity exceeded"); }
     let payload = payload_buf();
     let mut c = 0usize;
     if !write_bytes(payload, &mut c, br#"{"items":["#) {
+        release_selected(select_buf, 0, count as usize);
         return write_error(op, "internal_error", "payload overflow");
     }
-    let max_items = count.min(500) as usize;
+    let max_items = count as usize;
     let mut written = 0usize;
     for i in 0..max_items {
         let offset = i * 4;
@@ -206,12 +219,17 @@ fn parse_manga_list(html: &[u8], op: &str, page: usize) -> u32 {
             }
         }
         if let (Some(title), Some(href)) = (title_text, manga_href) {
+            // Host reports copied bytes; a full buffer could be truncated.
+            if title.is_empty() || title.len() >= 512 || href.len() >= 512 || cover_url.len() >= 1024 {
+                let _=html_close(item_desc); release_selected(select_buf,i+1,max_items);
+                return write_error(op,"parse_error","incomplete list field");
+            }
             let path = match path_from_href(href) {
                 Some(p) => p,
                 None => { let _ = html_close(item_desc); continue; }
             };
             if written > 0 {
-                if !write_bytes(payload, &mut c, b",") { let _ = html_close(item_desc); break; }
+                if !write_bytes(payload, &mut c, b",") { let _ = html_close(item_desc); release_selected(select_buf, i+1, max_items); return write_error(op, "internal_error", "payload overflow"); }
             }
             let ok = write_bytes(payload, &mut c, br#"{"id":"manga:"#)
                 && append_json_escaped(payload, &mut c, path)
@@ -220,11 +238,12 @@ fn parse_manga_list(html: &[u8], op: &str, page: usize) -> u32 {
                 && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":""#)
                 && append_json_escaped(payload, &mut c, cover_url)
                 && write_bytes(payload, &mut c, br#""},"authors":[],"status":"unknown","contentRating":"nsfw","description":"","sourceTags":["hanman18"]}"#);
-            if !ok { let _ = html_close(item_desc); break; }
+            if !ok { let _ = html_close(item_desc); release_selected(select_buf, i+1, max_items); return write_error(op, "internal_error", "payload overflow"); }
             written += 1;
         }
         let _ = html_close(item_desc);
     }
+    if written != max_items { return write_error(op, "parse_error", "incomplete list item"); }
     // A provider rel=next link, not a nonempty page, proves continuation.
     let has_more = match html_select(document.0, b"a[rel=next]") {
         Ok(next) => { let _owned = OwnedDescriptor(next); true },
@@ -275,14 +294,28 @@ fn run_search(req: &[u8]) -> u32 {
     parse_manga_list(html, "search", page)
 }
 
+// Keep the original one-listing behavior on older hosts; the scoped Host can
+// expose the fixed reference's independent unfiltered latest feed.
+fn listing_scope_supported(req: &[u8]) -> bool {
+    let Some(v) = json_object_member(req,b"hostFeatures").map(|x| x.trim_ascii()) else {return false;};
+    v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|c|*c==b',').any(|v|v.trim_ascii()==br#""source_listing_filter_scope_v1""#)
+}
 fn run_get_manga_list(req: &[u8]) -> u32 {
     let page = match request_page(req) { Some(v) => v, None => return write_error("get_manga_list", "invalid_request", "invalid page cursor") };
+    let latest = if listing_scope_supported(req) {
+        let a=json_object_member(req,b"args").unwrap_or(req);
+        match json_object_member(a,b"listingId").map(|v|v.trim_ascii()) {
+            None | Some(br#""popular""#) | Some(br#""listing:popular""#) => false,
+            Some(br#""latest""#) | Some(br#""listing:latest""#) => true,
+            _ => return write_error("get_manga_list", "invalid_request", "unknown listing"),
+        }
+    } else { false };
     let url_buf = scratch_a();
     let mut url_cursor = 0usize;
     if !(write_bytes(url_buf, &mut url_cursor, BASE_URL)
         && write_bytes(url_buf, &mut url_cursor, b"/list-manga/")
         && write_usize(url_buf, &mut url_cursor, page)
-        && write_bytes(url_buf, &mut url_cursor, b"?order_by=views"))
+        && (latest || write_bytes(url_buf, &mut url_cursor, b"?order_by=views")))
     {
         return write_error("get_manga_list", "internal_error", "url overflow");
     }
@@ -457,10 +490,13 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
     let count = html_select_all(chapter_box.raw(), b"a.chapter_num", select_buf);
     let _ = html_close(chapter_box);
-    let total = count.min(2000) as usize;
+    if count < 0 { return write_error("get_chapters", "parse_error", "chapter selection failed"); }
+    if count > 2000 { release_selected(select_buf, 0, count as usize); return write_error("get_chapters", "parse_error", "chapter capacity exceeded"); }
+    let total = count as usize;
     let payload = payload_buf();
     let mut c = 0usize;
     if !write_bytes(payload, &mut c, br#"{"items":["#) {
+        release_selected(select_buf, 0, total);
         return write_error("get_chapters", "internal_error", "payload overflow");
     }
     let mut written = 0usize;
@@ -480,9 +516,13 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         let href = attr_into(a_desc, b"href", &mut href_buf);
         let _ = html_close(a_desc);
         if let (Some(name), Some(href_val)) = (name, href) {
+            if name.is_empty() || name.len() >= 512 || href_val.len() >= 512 {
+                release_selected(select_buf,0,i);
+                return write_error("get_chapters","parse_error","incomplete chapter field");
+            }
             let chapter_path = path_from_href(href_val).unwrap_or(href_val);
             if written > 0 {
-                if !write_bytes(payload, &mut c, b",") { break; }
+                if !write_bytes(payload, &mut c, b",") { release_selected(select_buf, 0, i); return write_error("get_chapters", "internal_error", "payload overflow"); }
             }
             let ok = write_bytes(payload, &mut c, br#"{"id":"chapter:"#)
                 && append_json_escaped(payload, &mut c, path)
@@ -498,10 +538,11 @@ fn run_get_chapters(req: &[u8]) -> u32 {
                     None => write_bytes(payload, &mut c, b"null"),
                 }
                 && write_bytes(payload, &mut c, br#","volumeNumber":null,"language":"zh","publishedAt":null,"updatedAt":null,"pageCount":null}"#);
-            if !ok { break; }
+            if !ok { release_selected(select_buf, 0, i); return write_error("get_chapters", "internal_error", "payload overflow"); }
             written += 1;
         }
     }
+    if written != total { return write_error("get_chapters", "parse_error", "incomplete chapter item"); }
     if !write_bytes(payload, &mut c, br#"],"page":{"nextCursor":null,"hasMore":false}}"#) {
         return write_error("get_chapters", "internal_error", "payload overflow");
     }
@@ -564,6 +605,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
         else if html[array_end] == b']' { depth -= 1; }
         array_end += 1;
     }
+    if depth != 0 { return write_error("get_pages", "parse_error", "unclosed page array"); }
     let array_data = &html[array_start..array_end];
 
     // Parse the JSON array of base64 strings manually
@@ -578,61 +620,48 @@ fn run_get_pages(req: &[u8]) -> u32 {
     }
 
     let mut page_idx = 0usize;
-    let mut pos = 1; // skip opening [
-    while pos < array_data.len() {
-        // Find opening quote
-        while pos < array_data.len() && array_data[pos] != b'"' { pos += 1; }
-        if pos >= array_data.len() { break; }
-        pos += 1; // skip quote
+    let mut pos = 1usize;
+    loop {
+        while pos < array_data.len() && array_data[pos].is_ascii_whitespace() { pos += 1; }
+        if array_data.get(pos) == Some(&b']') { break; }
+        if array_data.get(pos) != Some(&b'"') { return write_error("get_pages", "parse_error", "invalid page array"); }
+        pos += 1;
         let val_start = pos;
-        // Find closing quote (handle escaped quotes)
-        while pos < array_data.len() {
-            if array_data[pos] == b'"' { break; }
-            pos += 1;
+        while pos < array_data.len() && array_data[pos] != b'"' { pos += 1; }
+        if pos >= array_data.len() { return write_error("get_pages", "parse_error", "unclosed page value"); }
+        let b64_str = &array_data[val_start..pos]; pos += 1;
+        if b64_str.is_empty() { return write_error("get_pages", "parse_error", "empty page value"); }
+        // Android's Base64.DEFAULT accepts whitespace and omitted padding, but
+        // a misplaced/overlong padding marker is not a valid page value.
+        let mut symbols=0usize; let mut padding=0usize;
+        for &ch in b64_str {
+            if ch.is_ascii_whitespace() { continue; }
+            if ch==b'=' { padding+=1; if padding>2 {return write_error("get_pages","parse_error","invalid page encoding");} }
+            else { if padding>0 || ch as usize>=B64.len() || B64[ch as usize]<0 {return write_error("get_pages","parse_error","invalid page encoding");} symbols+=1; }
         }
-        if pos >= array_data.len() { break; }
-        let b64_str = &array_data[val_start..pos];
-        pos += 1; // skip closing quote
-
-        if b64_str.is_empty() { continue; }
-
-        // Decode base64 into B64_BUF
-        let b64_out = b64_buf();
-        let decoded_len = match base64_decode(b64_str, b64_out) {
-            Some(n) => n,
-            None => continue,
-        };
-        let decoded = &b64_out[..decoded_len];
-
-        // If URL starts with /, prepend base URL
-        let img_url: &[u8] = if !decoded.is_empty() && decoded[0] == b'/' {
-            // Write full URL to scratch_b
-            let sb = scratch_b();
-            let mut sb_c = 0usize;
-            if write_bytes(sb, &mut sb_c, BASE_URL)
-                && write_bytes(sb, &mut sb_c, decoded)
-            {
-                unsafe { core::slice::from_raw_parts(SCRATCH_B.as_ptr(), sb_c) }
-            } else {
-                decoded
-            }
-        } else {
-            decoded
-        };
-
-        if page_idx > 0 {
-            if !write_bytes(payload, &mut c, b",") { break; }
+        if symbols==0 || symbols%4==1 || (padding>0 && ((symbols+padding)%4!=0 || (symbols%4==2 && padding!=2) || (symbols%4==3 && padding!=1) || symbols%4==0)) {
+            return write_error("get_pages","parse_error","invalid page encoding");
         }
-        let page_ok = write_bytes(payload, &mut c, br#"{"id":"page:"#)
-            && write_usize(payload, &mut c, page_idx)
-            && write_bytes(payload, &mut c, br#"","index":""#)
-            && write_usize(payload, &mut c, page_idx)
-            && write_bytes(payload, &mut c, br#"","image":{"kind":"url","url":""#)
-            && append_json_escaped(payload, &mut c, img_url)
-            && write_bytes(payload, &mut c, br#""}}"#);
-        if !page_ok { break; }
-        page_idx += 1;
+        let b64_out=b64_buf();
+        let decoded_len=match base64_decode(b64_str,b64_out) {Some(v) if v>0=>v,_=>return write_error("get_pages","parse_error","invalid page encoding")};
+        let decoded=&b64_out[..decoded_len];
+        if core::str::from_utf8(decoded).is_err() {return write_error("get_pages","parse_error","invalid page URL");}
+        let img_url: &[u8] = if decoded[0]==b'/' {
+            let sb=scratch_b();let mut sb_c=0usize;
+            if !(write_bytes(sb,&mut sb_c,BASE_URL) && write_bytes(sb,&mut sb_c,decoded)) {return write_error("get_pages","internal_error","payload overflow");}
+            unsafe {core::slice::from_raw_parts(SCRATCH_B.as_ptr(),sb_c)}
+        } else {decoded};
+        if page_idx>0 && !write_bytes(payload,&mut c,b",") {return write_error("get_pages","internal_error","payload overflow");}
+        let page_ok=write_bytes(payload,&mut c,br#"{"id":"page:"#) && write_usize(payload,&mut c,page_idx)
+            && write_bytes(payload,&mut c,br#"","index":""#) && write_usize(payload,&mut c,page_idx)
+            && write_bytes(payload,&mut c,br#"","image":{"kind":"url","url":""#)
+            && append_json_escaped(payload,&mut c,img_url) && write_bytes(payload,&mut c,br#""}}"#);
+        if !page_ok {return write_error("get_pages","internal_error","payload overflow");}
+        page_idx+=1;
+        while pos<array_data.len() && array_data[pos].is_ascii_whitespace() {pos+=1;}
+        match array_data.get(pos) {Some(b',')=>pos+=1,Some(b']')=>break,_=>return write_error("get_pages","parse_error","invalid page separator")}
     }
+    if page_idx==0 {return write_error("get_pages","parse_error","empty page array");}
 
     if !write_bytes(payload, &mut c, b"]}") {
         return write_error("get_pages", "internal_error", "payload overflow");
@@ -707,8 +736,11 @@ pub extern "C" fn koma_source_get_manga_list(req_ptr: u32, req_len: u32) -> u32 
 }
 
 #[no_mangle]
-pub extern "C" fn koma_source_get_listings(_req_ptr: u32, _req_len: u32) -> u32 {
-    response_buffer().write_success("get_listings", br#"{"listings":[]}"#)
+pub extern "C" fn koma_source_get_listings(req_ptr: u32, req_len: u32) -> u32 {
+    let req=match read_request(req_ptr,req_len) {Some(v)=>v,None=>return write_error("get_listings","invalid_request","empty request")};
+    let body = if listing_scope_supported(req) { r#"{"listings":[{"id":"popular","name":"热门","kind":"popular","supportsPaging":true},{"id":"latest","name":"最新","kind":"latest","supportsPaging":true,"supportsFilters":false}]}"#.as_bytes() }
+        else { br#"{"listings":[]}"#.as_slice() };
+    response_buffer().write_success("get_listings", body)
 }
 
 #[no_mangle]

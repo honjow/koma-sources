@@ -8,8 +8,8 @@ use koma_source_sdk::{
 };
 const BASE: &[u8] = b"https://baozimh.org";
 const MIRRORS: [&[u8]; 6] = [BASE, b"https://godamh.com", b"https://m.baozimh.one", b"https://bzmh.org", b"https://g-mh.org", b"https://m.g-mh.org"];
-// This API mirror choice does not change the separately declared godamh.com homepage.
-// Unknown values preserve the original API origin and never expand permitted hosts.
+// The declared homepage choices follow this mirror. Unknown values preserve the
+// original API origin and never expand permitted hosts.
 fn selected_base(r: &[u8]) -> &'static [u8] {
     let chosen = json_object_member(r, b"settings").and_then(|v| extract_json_string(v, b"preferredMirror"));
     MIRRORS.iter().copied().find(|v| Some(*v) == chosen).unwrap_or(BASE)
@@ -17,7 +17,7 @@ fn selected_base(r: &[u8]) -> &'static [u8] {
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "org.goda.koma",
     name: "GoDa漫画",
-    version: "0.1.5",
+    version: "0.1.6",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -404,6 +404,8 @@ fn diagnostic(stage: &[u8], code: &[u8]) {
         host::log_info(&out[..n]);
     }
 }
+const REMOVED_CATALOGUE: &str = "源站已标示该作品章节下架";
+
 fn code(e: &str) -> &'static str {
     match e {
         "permission denied" => "permission_denied",
@@ -424,6 +426,21 @@ fn code(e: &str) -> &'static str {
         _ => "parse_error",
     }
 }
+fn write_removed_catalogue(op: &str) -> u32 {
+    let out = payload_buf();
+    let mut n = 0;
+    // The fallback keeps existing hosts on their generic not-found path.
+    if !write_bytes(out, &mut n, br#"{"type":"response","version":1,"ok":false,"operation":"#)
+        || q(out, &mut n, op.as_bytes()).is_err()
+        || !write_bytes(out, &mut n, br#","error":{"code":"content_removed","message":"#)
+        || q(out, &mut n, REMOVED_CATALOGUE.as_bytes()).is_err()
+        || !write_bytes(out, &mut n, br#"},"reasonCode":"not_found","hostHints":{"network":false},"warnings":[]}"#)
+    {
+        return 0;
+    }
+    response_buffer().write(payload_slice(n), false)
+}
+
 fn execute(op: &str, r: Result<usize, &'static str>) -> u32 {
     match r {
         Ok(n) => {
@@ -433,6 +450,10 @@ fn execute(op: &str, r: Result<usize, &'static str>) -> u32 {
             }
             diagnostic(b"operation_ok", op.as_bytes());
             write_success_payload(op, n)
+        }
+        Err(REMOVED_CATALOGUE) => {
+            diagnostic(b"operation_error", b"content_removed");
+            write_removed_catalogue(op)
         }
         Err(e) => {
             let c = code(e);
@@ -735,6 +756,28 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
     append_paging(out, &mut n, has, pg)?;
     Ok(n)
 }
+// This exact marker is on the manga's detail page, not a single chapter.
+// Reference GoDaManhua.getMangaId also rejects the removed catalogue. Never
+// guess data-mid, return an empty complete catalogue, or probe another mirror.
+fn chapter_container(root: &Node) -> Result<Node, &'static str> {
+    match root.select(b"#mangachapters") {
+        Ok(node) => Ok(node),
+        Err(original) => {
+            if let Ok(statuses) = Nodes::get(root, b"main h1 span") {
+                if statuses.n == 1 {
+                    let status = selected(&statuses, 0);
+                    let mut text = [0; 128];
+                    if let Ok(value) = status.text(&mut text) {
+                        if value == "章節下架".as_bytes() {
+                            return Err(REMOVED_CATALOGUE);
+                        }
+                    }
+                }
+            }
+            Err(original)
+        }
+    }
+}
 fn detail(r: &[u8]) -> Result<usize, &'static str> {
     let (id, s) = manga(r)?;
     let mut pb = [0; 2048];
@@ -770,7 +813,7 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
     let desc = info.select(b"p:nth-child(5)")?;
     let mut db = [0; 32768];
     let description = desc.text(&mut db)?;
-    let mid = root.select(b"#mangachapters")?;
+    let mid = chapter_container(&root)?;
     let mut mb = [0; 64];
     let mid = mid.attr(b"data-mid", &mut mb)?;
     number(mid).ok_or("invalid manga id")?;
@@ -875,7 +918,7 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
     let (id, s) = manga(r)?;
     let mut pb = [0; 2048];
     let root = fetch(selected_base(r), path(s, &mut pb)?)?;
-    let node = root.select(b"#mangachapters")?;
+    let node = chapter_container(&root)?;
     let mut mb = [0; 64];
     let mid = node.attr(b"data-mid", &mut mb)?;
     number(mid).ok_or("invalid manga id")?;
@@ -1068,9 +1111,14 @@ fn pages(r: &[u8]) -> Result<usize, &'static str> {
         return Err("manga slug mismatch");
     };
     let imgs = member(info, b"images")?;
-    let mut encoded = [0; 32768];
-    let s = decoded(imgs, b"images", &mut encoded)?;
-    let a = decode_images(s)?;
+    let a = {
+        // Reuse the existing bounded 1MiB payload as temporary input storage.
+        // decode_images consumes it into separate REORDER/DECODED buffers;
+        // only DECODED remains borrowed when the payload is reused below.
+        let encoded = payload_buf();
+        let s = decoded(imgs, b"images", encoded)?;
+        decode_images(s)?
+    };
     let mut spans = [(0, 0); 2048];
     let count = array_spans(a, &mut spans)?;
     if count == 0 {

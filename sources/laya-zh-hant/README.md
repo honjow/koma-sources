@@ -50,3 +50,7 @@ Root在197觀察0.1.0封面與首正文原圖下載為HTTP500/537字節；目錄
 
 
 2026-10-22 单一封面后继：旧21:19原图/层级确认第三排左格仅在屏幕下缘，标题和MID未进入可见范围；不能只凭位置断言其历史身份。当前一次正常Host列表首六题名/顺序与原图相同，当前第三排左明确为《不專業演員》`laya:zh-hant:comic:ch-0007.jpg`，cover原URI为`https://www.laya.url.tw/comic/data/ch-0007.jpg`，实际imageRequest计划保原UA/Referer。237现装012普通精選列表→一次滚动，同题名与绿发演员/手术场景封面完整可见，Root亲看接受当前这一格；未点作品/正文/刷新或重试，其他封面不扩验。旧占位/500及未绑定错误码原因仍未知，不改App/源。最终原Browse顶部55启用、完整registry相同、10000ms/AWAKE恢复并release940071d0。原件：Koma `.hvigor/outputs/user-flow-audit/laya012-current-cover-list-envelope-host.{json,stderr.log}`、`laya012-current-cover7-plan-host.{json,stderr.log}`；设备原分区`category-membership/laya012-cover7-slot237-001/{list-initial,cover7-visible,browse-final}.png`及`laya012-cover7-restored237-001/run-metadata.json`。最初CLI缺args在本地拒绝、零HTTP，独立保留于`laya012-current-cover-list-host.*`，不算站点失败。
+
+## 公開封面請求（0.1.3）
+
+支持 source_public_cover_user_agent_v1 的宿主在藝廊瀏覽和詳情直接收到由既有原目錄驗證的同一圖片 URI、原藝廊 Referer 和 User-Agent。舊宿主和已有記錄保留 get_image_request 原身份與目錄驗證；正文仍走原路徑。保持原分批、同題不同圖的身份與每則單圖閱讀。

@@ -5,7 +5,7 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.tencent.honorofkings.zh.koma",
     name: "王者荣耀世界观漫画",
-    version: "0.1.1",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -655,6 +655,12 @@ fn uri(raw: &[u8], out: &mut [u8]) -> R<usize> {
     w(out, &mut c, u)?;
     Ok(c)
 }
+fn write_image_headers(p: &mut [u8], c: &mut usize) -> R<()> {
+    w(p, c, b",\"headers\":{\"Referer\":")?;
+    q_text(p, c, REFERER)?;
+    w(p, c, b"}")
+}
+
 fn manga_write(p: &mut [u8], c: &mut usize, k: &[u8], v: &[u8]) -> R<()> {
     let s = slug(string(v, b"btpy_6556")?).map_err(|_| "parse_error")?;
     let expected = if k == b"dp" {
@@ -690,6 +696,8 @@ fn manga_write(p: &mut [u8], c: &mut usize, k: &[u8], v: &[u8]) -> R<()> {
     let mut u = [0; 2048];
     let n = uri(string(v, b"fmlz_2740")?, &mut u)?;
     q_text(p, c, &u[..n])?;
+    // The public catalogue already provides this work's exact cover URL.
+    write_image_headers(p, c)?;
     w(p, c, b"},\"tags\":[")?;
     q(p, c, string(v, b"mhlx_7846")?)?;
     w(p, c, b"],\"url\":")?;
@@ -809,9 +817,8 @@ fn run_get_image_request(req: &[u8]) -> u32 {
         let mut c = 0;
         w(p, &mut c, b"{\"imageRequest\":{\"url\":")?;
         q_text(p, &mut c, &expected[..n])?;
-        w(p, &mut c, b",\"headers\":{\"Referer\":")?;
-        q_text(p, &mut c, REFERER)?;
-        w(p, &mut c, b"}}}")?;
+        write_image_headers(p, &mut c)?;
+        w(p, &mut c, b"}}")?;
         Ok(c)
     }
     result("get_image_request", inner(req))

@@ -6,6 +6,9 @@ edition = "2021"
 [lib]
 crate-type = ["cdylib"]
 
+[features]
+noyacg_filter_candidate = []
+
 [dependencies]
 koma_source_sdk = { path = "../../sdk" }
 

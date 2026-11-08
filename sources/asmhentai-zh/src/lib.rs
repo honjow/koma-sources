@@ -10,7 +10,7 @@ type E = &'static str;
 type R<T> = Result<T, E>;
 const MAX: usize = 1048576;
 const WEB: &[u8] = b"https://asmhentai.com";
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.asmhentai.zh.koma",name:"AsmHentai",version:"0.1.5",api_version:"0.2",language:"zh",author:"Koma",description:"AsmHentai provider Chinese catalogue; per-work rating and usage unknown. Anonymous published metadata only.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.asmhentai.zh.koma",name:"AsmHentai",version:"0.1.6",api_version:"0.2",language:"zh",author:"Koma",description:"AsmHentai provider Chinese catalogue; per-work rating and usage unknown. Anonymous published metadata only.",content_rating:"nsfw"};
 #[allow(dead_code)]
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
@@ -718,12 +718,18 @@ fn list(r: &[u8], search: bool) -> R<usize> {
     if search && trim_ascii(query).is_empty() {
         return Err("empty query");
     };
-    if !search && text(args(r)?, b"listingId")? != b"listing:popular" {
-        return Err("listing identity");
-    };
+    let listing_latest = if !search {
+        match text(args(r)?, b"listingId")? {
+            b"listing:popular" => false,
+            b"listing:latest" => true,
+            _ => return Err("listing identity"),
+        }
+    } else { false };
     let mut names=[0u8;4096];let mut slug=[0u8;512];let (tag_count,names_len,slug_len)=tag_list(r,&mut names,&mut slug)?;
     let f=if filters_supported(r){member(args(r)?,b"filters")?.unwrap_or(b"{}")}else{b"{}"};
-    let latest=if !search {member(f,b"sort")?.and_then(|v|quoted(v).ok())==Some(b"latest".as_slice())} else {false};
+    // The explicit latest tab stays recent when the filter schema supplies
+    // its popular default. Popular still honors a selected latest sort.
+    let latest=if !search {listing_latest || member(f,b"sort")?.and_then(|v|quoted(v).ok())==Some(b"latest".as_slice())} else {false};
     let mut effective=[0u8;8192];let mut key_len=0;
     bytes(&mut effective,&mut key_len,query)?;
     if tag_count>0 || latest {bytes(&mut effective,&mut key_len,b"|asm-filter|")?;bytes(&mut effective,&mut key_len,if latest{b"latest"}else{b"popular"})?;bytes(&mut effective,&mut key_len,b"|")?;bytes(&mut effective,&mut key_len,&slug[..slug_len])?;bytes(&mut effective,&mut key_len,b"|")?;bytes(&mut effective,&mut key_len,&names[..names_len])?;}
@@ -1136,7 +1142,7 @@ fn run_get_image_request(r: &[u8]) -> u32 {
     execute("get_image_request", image_request(r))
 }
 fn run_get_listings(_: &[u8]) -> u32 {
-    let s="{\"listings\":[{\"id\":\"listing:popular\",\"name\":\"中文人气\",\"kind\":\"popular\",\"supportsPaging\":true}]}".as_bytes();
+    let s="{\"listings\":[{\"id\":\"listing:popular\",\"name\":\"中文人气\",\"kind\":\"popular\",\"supportsPaging\":true},{\"id\":\"listing:latest\",\"name\":\"最近更新\",\"kind\":\"latest\",\"supportsPaging\":true}]}".as_bytes();
     payload_buf()[..s.len()].copy_from_slice(s);
     write_success_payload("get_listings", s.len())
 }

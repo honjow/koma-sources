@@ -1,4 +1,4 @@
-# 菇菇官方四格漫畫 · 繁中 0.1.0
+# 菇菇官方四格漫畫 · 繁中 0.1.2
 
 Source ID `com.beeworks.namepara.zh-hant.koma`, API0.2, minAppVersion0.1.1. One official Traditional Chinese collection, MID `namepara:zh-hant:four-panel`, https://namepara.com/zh/info/comic/ . Source usage and per-work content rating are unknown; manifest nsfw=false. This official Chinese source is not claimed to be an entity in Keiyoushi. Current index.pb SHA e26c3c6bf077e4bbdaa389fdb7f14020ec8297a45aec412b6934ac10e537dce3 is unchanged from the retained formal103 disposition set.
 
@@ -6,7 +6,7 @@ MangaToon (Limited) Chinese entity5676233752760414531 is an existing retained ca
 
 ## Real archive, identity and continuation boundaries
 
-The official archive declares four pages. The source fetches page1, reads its actual `e-pagenation-indicator`, requires every later index_N.html href to have been explicitly declared on that first page, then fetches each declared page once (cap32). It checks canonical category owner, Chinese title and each page's current/total indicator. It includes only actual comic article cards with that category chip and exact `/zh/info/comic/<six digits>_<six digits>.html` identity, excluding the pinned APP/news item.
+The official archive declares four pages. The source fetches page1, reads its actual `e-pagenation-indicator`, requires every later index_N.html href to have been explicitly declared on that first page, then fetches each declared page once (cap32). The source uses the existing `source_http_batch_v1` Host feature to request independent later pages in groups of up to three. The first request must still establish the archive, and response pages are validated and consumed in their original order. Hosts without this feature retain the existing individual requests. A failed group is never retried implicitly or used as a partial archive. It checks canonical category owner, Chinese title and each page's current/total indicator. It includes only actual comic article cards with that category chip and exact `/zh/info/comic/<six digits>_<six digits>.html` identity, excluding the pinned APP/news item.
 
 Four raw pages contain35 comic cards and34 unique article URLs. Two cards both point at `251107_100000` with the same displayed publish date but different thumbnails; source keeps the first actual identity and does not invent another article. Duplicate identity with conflicting date fails closed. Chapter order stays the first-occurrence website archive order, without sorting or inferred numbering.
 

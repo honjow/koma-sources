@@ -121,24 +121,30 @@ pub struct Record {
     pub part: u8,
     pub codes: [u8; 40],
 }
-pub fn decode(
+pub fn decode(html:&[u8],comic:usize,chapter:usize,requested_part:Option<u8>)->Option<Record> {
+    decode_mode(html,comic,chapter,requested_part,false)
+}
+pub fn decode_site(html:&[u8],comic:usize,chapter:usize,requested_part:Option<u8>)->Option<Record> {
+    decode_mode(html,comic,chapter,requested_part,true)
+}
+fn decode_mode(
     html: &[u8],
     comic: usize,
     chapter: usize,
     requested_part: Option<u8>,
+    site_reader: bool,
 ) -> Option<Record> {
     if comic == 0 || comic > 999999999 || chapter > 8051 {
         return None;
     }
     let html = core::str::from_utf8(html).ok()?;
-    let marker = "$(\"#comics-pics\").html(xx)";
+    let marker = if site_reader { ".src=unescape(" } else { "$(\"#comics-pics\").html(xx)" };
     let mark = html.find(marker)?;
-    if html[mark + marker.len()..].contains(marker) {
-        return None;
-    }
+    if html[mark + marker.len()..].contains(marker) { return None; }
     let start = html[..mark].rfind("<script")?;
     let open = html[start..mark].find('>')? + start + 1;
-    let script = &html[open..mark];
+    let end = if site_reader { mark + html[mark..].find("</script>")? } else { mark };
+    let script = &html[open..end];
     if script.len() > 131072 {
         return None;
     }
@@ -281,7 +287,7 @@ pub fn decode(
     if !p.take("==ch") {
         return None;
     }
-    let render = script.find("for(var j=1;j<=ps;j++)")?;
+    let render = if site_reader {script.find(".src=unescape(")?} else {script.find("for(var j=1;j<=ps;j++)")?};
     let rendering = &script[render..];
     let server_end = rendering.find(", 0, 1)")?;
     let server_start = rendering[..server_end].rfind('(')?;
@@ -290,7 +296,7 @@ pub fn decode(
     if !before.ends_with(helper) {
         return None;
     }
-    let code_end = rendering.find(",mm(j),3)")?;
+    let code_end = rendering.find(if site_reader {",mm(pg),3)"} else {",mm(j),3)"})?;
     let code_start = rendering[..code_end].rfind('(')?;
     let code_name = rendering[code_start + 1..code_end].trim();
     if !rendering[..code_start].ends_with(helper) {
@@ -302,6 +308,16 @@ pub fn decode(
     let mut q = Cursor::new(&rendering[part_end + 9..]);
     if q.ident()? != part_name {
         return None;
+    }
+    if site_reader {
+        // Only the observed site-view expression binds its public image path to
+        // the independently checked comic, chapter, server and page roles.
+        let expression = &rendering[..rendering.find(");")?];
+        if !expression.contains("+ti+") || !expression.contains("+nn(pg)+") { return None; }
+        if !expression.match_indices(chapter_name).any(|(i,_)| i>0 && expression.as_bytes()[i-1]==b'+' && expression.as_bytes().get(i+chapter_name.len())==Some(&b'+')) { return None; }
+        let second_end=expression.find(",1,1)")?;
+        let second_start=expression[..second_end].rfind('(')?;
+        if expression[second_start+1..second_end].trim()!=server_name || !expression[..second_start].ends_with(helper) { return None; }
     }
     let page = find_field(&fields, page_name)?;
     let server = find_field(&fields, server_name)?;

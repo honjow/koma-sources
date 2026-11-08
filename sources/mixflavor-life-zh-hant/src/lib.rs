@@ -3,7 +3,7 @@ use koma_source_sdk::json_utils::*;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO:SourceInfo=SourceInfo{
- id:"com.mixflavor.life.zh-hant.koma",name:"綜合口味・生活小漫畫",version:"0.1.3",api_version:"0.2",language:"zh-Hant",author:"Koma",
+ id:"com.mixflavor.life.zh-hant.koma",name:"綜合口味・生活小漫畫",version:"0.1.4",api_version:"0.2",language:"zh-Hant",author:"Koma",
  description:"綜合口味作者網站的生活小漫畫，依原分類分頁瀏覽，不收錄同時標為開箱心得或食的文章。每篇獨立閱讀，作品評級尚未確認。",content_rating:"unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
@@ -1089,7 +1089,17 @@ fn article() -> R<()> {
     let close = host::html_close(doc).map_err(|_| "html_error");
     r.and(close)
 }
-fn write_book(p: &mut [u8], c: &mut usize, full: bool) -> R<()> {
+fn public_cover_headers_supported(req: &[u8]) -> bool {
+    koma_source_sdk::source_protocol::feature(req, b"source_public_cover_user_agent_v1")
+}
+
+fn write_image_headers(p: &mut [u8], c: &mut usize, referer: &[u8]) -> R<()> {
+    w(p, c, b",\"headers\":{\"User-Agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0\",\"Referer\":")?;
+    q(p, c, referer)?;
+    w(p, c, b"}")
+}
+
+fn write_book(p: &mut [u8], c: &mut usize, full: bool, public_cover: bool) -> R<()> {
     w(p, c, b"{\"id\":\"")?;
     ident(p, c, MID)?;
     w(p, c, b"\",\"title\":")?;
@@ -1100,6 +1110,10 @@ fn write_book(p: &mut [u8], c: &mut usize, full: bool) -> R<()> {
     q(p, c, &u[..n])?;
     w(p, c, b",\"cover\":{\"kind\":\"url\",\"url\":")?;
     q(p, c, unsafe { &COVER[..CL] })?;
+    // Card and article parsing already establish the public cover's owning post.
+    if public_cover {
+        write_image_headers(p, c, &u[..n])?;
+    }
     w(p, c, b"},\"language\":\"zh-Hant\",\"authors\":[")?;
     q(p, c, "綜合口味".as_bytes())?;
     w(
@@ -1362,7 +1376,7 @@ fn run_get_listings(_req: &[u8]) -> u32 {
     payload_buf()[..b.len()].copy_from_slice(b);
     write_success_payload("get_listings", b.len())
 }
-fn list(req: &[u8], searching: bool) -> R<usize> {
+fn list(req: &[u8], searching: bool, public_cover: bool) -> R<usize> {
         let mut u = [0; 2048];
         let mut query = [0; 512];
         let (ul, pn, ql, base_len) = if searching {
@@ -1478,7 +1492,7 @@ fn list(req: &[u8], searching: bool) -> R<usize> {
                     if kept > 0 {
                         w(p, &mut c, b",")?;
                     }
-                    write_book(p, &mut c, false)?;
+                    write_book(p, &mut c, false, public_cover)?;
                     kept += 1;
                     Ok(())
                 })();
@@ -1519,19 +1533,21 @@ fn list(req: &[u8], searching: bool) -> R<usize> {
             (Err(e), _) | (_, Err(e)) => Err(e),
         }
 }
-fn run_get_manga_list(req: &[u8]) -> u32 { result("get_manga_list", list(req, false)) }
-fn run_get_manga(req: &[u8]) -> u32 {
-    fn inner(req: &[u8]) -> R<usize> {
+fn run_get_manga_list(req: &[u8], public_cover: bool) -> u32 {
+    result("get_manga_list", list(req, false, public_cover))
+}
+fn run_get_manga(req: &[u8], public_cover: bool) -> u32 {
+    fn inner(req: &[u8], public_cover: bool) -> R<usize> {
         request_work(req, b"mangaId", MID)?;
         article()?;
         let p = payload_buf();
         let mut c = 0;
         w(p, &mut c, b"{\"manga\":")?;
-        write_book(p, &mut c, true)?;
+        write_book(p, &mut c, true, public_cover)?;
         w(p, &mut c, b"}")?;
         Ok(c)
     }
-    result("get_manga", inner(req))
+    result("get_manga", inner(req, public_cover))
 }
 fn run_get_chapters(req: &[u8]) -> u32 {
     fn inner(req: &[u8]) -> R<usize> {
@@ -1644,16 +1660,17 @@ fn run_get_image_request(req: &[u8]) -> u32 {
         let mut c = 0;
         w(p, &mut c, b"{\"imageRequest\":{\"url\":")?;
         q(p, &mut c, u)?;
-        w(p,&mut c,b",\"headers\":{\"User-Agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0\",\"Referer\":")?;
         let mut u = [0; 512];
         let l = uri(&mut u)?;
-        q(p, &mut c, &u[..l])?;
-        w(p, &mut c, b"}}}")?;
+        write_image_headers(p, &mut c, &u[..l])?;
+        w(p, &mut c, b"}}")?;
         Ok(c)
     }
     result("get_image_request", inner(req))
 }
-fn run_search(req: &[u8]) -> u32 { result("search", list(req, true)) }
+fn run_search(req: &[u8], public_cover: bool) -> u32 {
+    result("search", list(req, true, public_cover))
+}
 fn run_get_home(_req: &[u8]) -> u32 {
     write_error("get_home", "not_implemented", "")
 }
@@ -1699,7 +1716,7 @@ pub extern "C" fn koma_source_free(ptr: u32) {
     response_buffer().free(ptr)
 }
 macro_rules! export_op {
-    ($f:ident,$op:literal,$run:ident) => {
+    ($f:ident, $op:literal, $run:ident $(, $request_context:ident)?) => {
         #[no_mangle]
         pub extern "C" fn $f(ptr: u32, len: u32) -> u32 {
             let req = match checked_request(ptr, len) {
@@ -1716,19 +1733,20 @@ macro_rules! export_op {
             if string(req, b"operation").ok() != Some($op.as_bytes()) {
                 return write_error($op, "invalid_request", "operation mismatch");
             }
-            $run(args)
+            $run(args $(, $request_context(req))?)
         }
     };
 }
-export_op!(koma_source_search, "search", run_search);
-export_op!(koma_source_get_manga, "get_manga", run_get_manga);
+export_op!(koma_source_search, "search", run_search, public_cover_headers_supported);
+export_op!(koma_source_get_manga, "get_manga", run_get_manga, public_cover_headers_supported);
 export_op!(koma_source_get_chapters, "get_chapters", run_get_chapters);
 export_op!(koma_source_get_pages, "get_pages", run_get_pages);
 export_op!(koma_source_get_listings, "get_listings", run_get_listings);
 export_op!(
     koma_source_get_manga_list,
     "get_manga_list",
-    run_get_manga_list
+    run_get_manga_list,
+    public_cover_headers_supported
 );
 export_op!(koma_source_get_home, "get_home", run_get_home);
 export_op!(koma_source_get_filters, "get_filters", run_get_filters);

@@ -10,12 +10,12 @@ const BASE: &[u8] = b"https://globalcomix.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.globalcomix.zh-hans.koma",
     name: "GlobalComix",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
     description:
-        "GlobalComix Chinese public JSON; upstream MIXED; public catalogue settings, explicit free pages only. Usage unknown.",
+        "GlobalComix 中文公开漫画，可浏览目录和免费页面。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
@@ -1114,9 +1114,9 @@ fn run_get_settings(r: &[u8]) -> u32 {
     let out = payload_buf();
     let mut n = 0;
     let result = (|| -> Result<usize, &'static str> {
-        bytes(out,&mut n,br#"{"settings":[{"id":"dataSaver_cn","name":"Data saver","kind":"toggle","description":"Enables smaller, more compressed images","default":"false"}"#)?;
+        bytes(out,&mut n,r#"{"settings":[{"id":"dataSaver_cn","name":"节省流量","kind":"toggle","description":"使用体积更小、压缩程度更高的图片","default":"false"}"#.as_bytes())?;
         if exclusions_supported(r) {
-            bytes(out,&mut n,br#",{"id":"showLockedChapters_cn","name":"Show chapters with pay-walled pages","kind":"toggle","description":"Display chapters that require an account with a premium subscription","default":"true"}"#)?;
+            bytes(out,&mut n,r#",{"id":"showLockedChapters_cn","name":"显示付费章节","kind":"toggle","description":"显示需要高级会员账号的章节","default":"true"}"#.as_bytes())?;
         }
         bytes(out, &mut n, b"]}")?;
         Ok(n)

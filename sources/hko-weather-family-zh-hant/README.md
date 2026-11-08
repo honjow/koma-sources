@@ -40,3 +40,7 @@ Host成本：get_listings0，browse每頁2 metadata GET，詳情／章／頁各1
 普通精選六期列表→第81期 (2021年4月) →一章→開始閱讀，頁計數11。首批1/11與2/11原圖仍是「圖片解碼中」，保留而不當成功；同回執21:42:32/37才分別記錄page1/page2的display_ready/display_complete。後續沒有點重試，等待當前「圖片解碼中」消失後親看兩個不同完整原圖：1/11為太陽與紫色角色、繁中「美麗嘅清風…天係藍色的」；2/11加入雲角色及繁中「雲是白色的」。正常2→1→2後自然Back，詳情出現「繼續閱讀」。當前詳情未顯示章頁文字，沒有把它冒作第2/11的持久資料讀回。此結果只閉同源012第81期兩頁普通顯示/翻頁與返回；其餘9圖、下載、cold、完整六期及無快取首取不據此通過。同會話早前transport/ReaderImage2300028仍獨立保留，不由後來顯示成功抹去或猜原因。
 
 原件在Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/hko012-import237-001/`：`import-actions.json`、`issue81-reader-actions.json`、`issue81-visible-actions.json`、`return-actions.json`及原圖；成功終態為 `issue81-page1-terminal.png`、`issue81-page2-terminal.png`，初始 `issue81-page1.png`/`issue81-page2.png`仍只記等待畫面。原日誌在旁列 `hko012-issue81-reader-log-restored237-001/run-metadata.json`。最終Browse末端、54啟用畫面及HKO012行已保留，本輪唯一傳入產品包已刪/test不存在；`hko012-session-restored237-001`明確讀回AWAKE/OverrideTimeout10000ms後釋放94a5ac1f。未修改源業務/版本/圖標、App或用其他設備，全部本輪artifact雜湊關閉。
+
+## 獨立期刊請求與公開封面（0.1.3）
+
+支持 source_http_batch_v1 的宿主並行取得一頁的兩個獨立期刊原 URL，仍按原站順序逐項驗證、解析與輸出。未聲明能力沿舊逐項請求。支持 source_public_cover_user_agent_v1 的宿主直接消費每期已驗證的首圖、文章 Referer 與原 User-Agent；舊封面及正文圖片計畫保持原校驗。保留六期範圍、兩期一頁、原標題/ID、失敗原類型及正文圖序。

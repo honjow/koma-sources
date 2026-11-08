@@ -20,6 +20,9 @@ const EMPTY: Binding<'static> = Binding {
     value: b"",
 };
 const MAX_BINDINGS: usize = 4096;
+// At most half full, bounded probes, and exact byte comparison preserve the
+// duplicate/unknown-name contract while avoiding quadratic linear searches.
+const BINDING_INDEX_SIZE: usize = MAX_BINDINGS * 2;
 const MAX_DEPTH: usize = 32;
 #[derive(Clone, Copy)]
 struct Record<'a> {
@@ -37,8 +40,33 @@ const EMPTY_RECORD: Record<'static> = Record {
 const MAX_RECORDS: usize = 256;
 // Candidate WASM linear stack is 256KiB: tables are module storage, never recursive stack arrays.
 static mut BINDINGS: [Binding<'static>; MAX_BINDINGS] = [EMPTY; MAX_BINDINGS];
+static mut BINDING_INDEX: [u16; BINDING_INDEX_SIZE] = [0; BINDING_INDEX_SIZE];
 static mut RECORDS: [Record<'static>; MAX_RECORDS] = [EMPTY_RECORD; MAX_RECORDS];
 
+fn binding_slot(name: &[u8]) -> usize {
+    let mut hash = 2166136261u32;
+    for &byte in name { hash = (hash ^ byte as u32).wrapping_mul(16777619); }
+    (hash as usize) & (BINDING_INDEX_SIZE - 1)
+}
+fn binding_index(bindings: &[Binding<'_>], slots: &[u16], name: &[u8]) -> Option<usize> {
+    let mut at = binding_slot(name);
+    for _ in 0..BINDING_INDEX_SIZE {
+        let entry = slots[at];
+        if entry == 0 { return None; }
+        let i = entry as usize - 1;
+        if bindings.get(i).map(|b| b.name) == Some(name) { return Some(i); }
+        at = (at + 1) & (BINDING_INDEX_SIZE - 1);
+    }
+    None
+}
+fn insert_binding(slots: &mut [u16], name: &[u8], index: usize) -> Result<(), Error> {
+    let mut at = binding_slot(name);
+    for _ in 0..BINDING_INDEX_SIZE {
+        if slots[at] == 0 { slots[at] = (index + 1) as u16; return Ok(()); }
+        at = (at + 1) & (BINDING_INDEX_SIZE - 1);
+    }
+    Err(Error::Limit)
+}
 fn json_number(value: &[u8]) -> bool {
     let mut p = 0;
     if value.get(p) == Some(&b'-') {
@@ -181,6 +209,7 @@ fn value_end(s: &[u8], p: &mut usize, depth: usize) -> Result<(), Error> {
 }
 struct Decoder<'a, 'b> {
     bindings: &'a [Binding<'a>],
+    binding_index: &'a [u16],
     records: &'a [Record<'a>],
     out: &'b mut [u8],
     count: usize,
@@ -289,11 +318,8 @@ impl Decoder<'_, '_> {
                 if json_number(value) {
                     return self.put(value);
                 }
-                let binding = self
-                    .bindings
-                    .iter()
-                    .find(|b| b.name == value)
-                    .ok_or(Error::Syntax)?;
+                let binding = &self.bindings[binding_index(self.bindings, self.binding_index, value)
+                    .ok_or(Error::Syntax)?];
                 if self.records.iter().any(|r| r.target == value) {
                     let declared =
                         if binding.value.starts_with(b"Array(") && binding.value.ends_with(b")") {
@@ -374,6 +400,8 @@ pub fn decode(html: &'static [u8], out: &mut [u8]) -> Result<usize, Error> {
     let mut p = 0;
     let bindings = unsafe { &mut *core::ptr::addr_of_mut!(BINDINGS) };
     let records = unsafe { &mut *core::ptr::addr_of_mut!(RECORDS) };
+    let slots = unsafe { &mut *core::ptr::addr_of_mut!(BINDING_INDEX) };
+    slots.fill(0);
     let mut n = 0;
     let mut nr = 0;
     loop {
@@ -392,10 +420,12 @@ pub fn decode(html: &'static [u8], out: &mut [u8]) -> Result<usize, Error> {
         if begin == p {
             return Err(Error::Syntax);
         }
-        if bindings[..n].iter().any(|b| b.name == &s[begin..p]) {
+        let name = &s[begin..p];
+        if binding_index(&bindings[..n], slots, name).is_some() {
             return Err(Error::Syntax);
         }
-        bindings[n].name = &s[begin..p];
+        bindings[n].name = name;
+        insert_binding(slots, name, n)?;
         n += 1;
         ws(s, &mut p);
         match s.get(p) {
@@ -423,7 +453,7 @@ pub fn decode(html: &'static [u8], out: &mut [u8]) -> Result<usize, Error> {
             p += 1;
         }
         let target = &s[begin..p];
-        if target.is_empty() || !bindings[..n].iter().any(|b| b.name == target) {
+        if target.is_empty() || binding_index(&bindings[..n], slots, target).is_none() {
             return Err(Error::Syntax);
         }
         let array = s.get(p) == Some(&b'[');
@@ -501,6 +531,7 @@ pub fn decode(html: &'static [u8], out: &mut [u8]) -> Result<usize, Error> {
     }
     let mut d = Decoder {
         bindings: &bindings[..n],
+        binding_index: slots,
         records: &records[..nr],
         out,
         count: 0,
@@ -536,6 +567,24 @@ pub fn decode(html: &'static [u8], out: &mut [u8]) -> Result<usize, Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn colliding_binding_names_remain_distinct_and_duplicate_names_fail() {
+        assert_eq!(binding_slot(b"x218"), binding_slot(b"x500"));
+        let mut out = [0u8; 128];
+        let input = br#"window.__NUXT__=(function(x218,x500){return {a:x218,b:x500}}("one","two"));"#;
+        let n = decode(input, &mut out).unwrap();
+        assert_eq!(&out[..n], br#"{"a":"one","b":"two"}"#);
+        let duplicate = br#"window.__NUXT__=(function(x218,x218){return {a:x218}}(1,2));"#;
+        assert_eq!(decode(duplicate, &mut out), Err(Error::Syntax));
+    }
+    #[test]
+    fn binding_index_does_not_survive_between_decodes() {
+        let mut out = [0u8; 128];
+        let first = br#"window.__NUXT__=(function(x218){return {a:x218}}(1));"#;
+        assert!(decode(first, &mut out).is_ok());
+        let unknown = br#"window.__NUXT__=(function(x500){return {a:x218}}(1));"#;
+        assert_eq!(decode(unknown, &mut out), Err(Error::Syntax));
+    }
     #[test]
     fn rejects_non_json_number_spellings() {
         for value in [b"+1".as_slice(), b"01", b"1.", b".1", b"1e", b"-01"] {

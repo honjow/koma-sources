@@ -2,6 +2,7 @@
 
 extern crate koma_source_sdk;
 mod private_session;
+mod source_hide_reason;
 
 use koma_source_sdk::host::{self, http_request, log_info};
 use koma_source_sdk::json_utils::{
@@ -39,7 +40,7 @@ static mut AUTH_TOKEN_LEN: usize = 0;
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.manhuaren.koma",
     name: "漫画人",
-    version: "0.1.8",
+    version: "0.1.9",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -1004,11 +1005,17 @@ fn write_manga_items_from_array(
 
 fn run_search(req: &[u8]) -> u32 {
     if !private_session::enabled(req) { return write_error("search", "not_implemented", "host_feature_required"); }
-    let raw = extract_json_string(req, b"query").unwrap_or(b"");
-    let decoded = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
-    let query = match koma_source_sdk::plain_text::decode_json_content(raw, decoded) {
-        Ok(v) => v,
-        Err(_) => return write_error("search", "invalid_request", "invalid query"),
+    let args = json_object_member(req, b"args").unwrap_or(req);
+    let raw = match json_object_member(args, b"query") {
+        None => b"".as_slice(),
+        Some(v) if v.len() >= 2 && v[0] == b'"' && v[v.len() - 1] == b'"' => &v[1..v.len() - 1],
+        Some(_) => return write_error("search", "invalid_request", "invalid query"),
+    };
+    // Signing and URL encoding must both consume the user's decoded term.
+    let output = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
+    let query = match koma_source_sdk::plain_text::decode_json_content(raw, output) {
+        Ok(v) if core::str::from_utf8(v).is_ok() => v,
+        _ => return write_error("search", "invalid_request", "invalid query"),
     };
     let page = request_page_number(req);
     let start = (page - 1) * PAGE_SIZE;
@@ -1133,6 +1140,13 @@ fn run_get_manga(req: &[u8]) -> u32 {
             br#"","alternateTitles":[],"description":""#,
         )
         && append_json_unescaped_then_escaped(payload, &mut c, desc)
+        && if let Some(reason) = source_hide_reason::detail(api_json, id) {
+            (desc.is_empty() || write_bytes(payload, &mut c, br#"\n\n"#))
+                && write_bytes(payload, &mut c, "源站提示：".as_bytes())
+                && append_json_unescaped_then_escaped(payload, &mut c, reason.raw)
+        } else {
+            true
+        }
         && write_bytes(payload, &mut c, br#"","cover":"#)
         && if cover.is_empty() {
             write_bytes(payload, &mut c, br#"{"kind":"none"}"#)
@@ -1285,6 +1299,11 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             "source_error",
             "服务器返回错误",
         );
+    }
+    if source_hide_reason::detail(api_json, id)
+        .map_or(false, |reason| reason.confirmed_blocked_empty)
+    {
+        return write_error("get_chapters", "no_chapters", "抱歉,该漫画已经被屏蔽");
     }
     let payload = payload_buf();
     let mut c = 0usize;

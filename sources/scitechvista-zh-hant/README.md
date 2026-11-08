@@ -1,4 +1,4 @@
-# 科技大觀園・科普漫畫大賽 0.1.0
+# 科技大觀園・科普漫畫大賽 0.1.2
 
 來源為 `https://scitechvista.nat.gov.tw/Student/Article/C010002/new`。科技大觀園資源頁實際連至「科普漫畫大賽」；這是官方平台刊載學生與其他作者的參賽作品，不是宣稱政府創作全部漫畫。SourceInfo.author 的 Koma 指源開發者。逐作作者按原欄位保留；學校／組別與原刊登日期保留於作品說明，不推斷缺失作者、民國日期的時區或發佈時間。正式評級、使用率未知。
 
@@ -12,7 +12,7 @@
 
 ## 正文、身份與圖片請求
 
-從當前真目錄找到作品後，只GET原 `/Article/C010002/detail?ID=UUID`。詳情主要h2、Author、Division、原日期需與目錄相符，head og:title及JSON-LD mainEntityOfPage.@id須與本作品匹配。保留空學校／組別，不把「社會組」冒充學校，也不把作者併成平台名。日期只有原日精度，放在說明原字串，不填造epoch時間。
+從當前真目錄找到作品後，只GET原 `/Article/C010002/detail?ID=UUID`。詳情主要h2、首行Author與Division、原日期需與目錄相符，head og:title、JSON-LD Article及mainEntityOfPage.@id須與本作品匹配。僅接受原metadata父層下1–2個Article-AuthorRow，每行各有且只有一個直接Author與Division；第一對仍逐字匹配目錄，空學校欄位保留。Article.author必須與DOM行數完全相同（1或2個Person），姓名與Organization affiliation逐行匹配DOM原值；原空學校行可對應缺省affiliation，不補學校或忽略JSON中多出的作者；額外行不忽略、不從缺失的列表第二作者反推作品錯配。作品輸出繼續使用列表第一作者／學校，不因兼容額外行改動既有主作者顯示。保留空學校／組別，不把「社會組」冒充學校，也不把作者併成平台名。日期只有原日精度，放在說明原字串，不填造epoch時間。
 
 正文僅取 `#block > .DetailContent > span.templateLongText.kf-det-content` 唯一主要樣版；推薦文章、側邊欄、活動banner、footer與分享圖不在此樹。按主要樣版內所有真img[src]的DOM順序輸出1–64個完整原圖，chapter.pageCount取實際數量，不把首篇一張強推其餘27都一張。缺src、無圖、重複URI、超量、跨站、越目錄、query或不支持的圖片路徑均失敗。當前已核正文為 `/FileDownload/Article/數字.jpg`；同一目錄的數字檔名且副檔名jpg/JPG/jpeg/png/PNG/gif僅在真DOM聲明時可被動取出，不合成檔名或把其他27篇格式當已驗收。其餘結構變化顯式拒絕。
 
@@ -49,3 +49,7 @@
 覆盖安装仅增加响应头/终态诊断的App包后，从普通历史重开同一首篇一次，未点击重试或改变源、请求、超时、容量、缓存逻辑及阅读样式。本次持久日志同一request操作明确：响应声明28793918字节，17.145秒后HTTP200、实际收到28793918字节；完整纵向四格繁中原图及灰/紫/红/绿区域实际显示，1/1页，无加载层。自然Back回历史，同作品pageIndex=0/totalPages=1/completed=true。此后继关闭这一次28.8MB CMYK首图的普通传输与Native显示缺口，不冒色彩校准、其余作品、下载/cold或首轮超时原因已修复。
 
 原件为同237场景`scitech011-headerdiag237-terminal-001/screen.png`、`scitech011-headerdiag237-return-001/{business-log.txt,reader.json}`及`scitech011-headerdiag237-final-restored-001`（登记）及`scitech011-headerdiag237-anchor-restored-001`（完整喵趣锚点）；最终62项登记完整保持，普通Browse喵趣分组、10000ms/AWAKE恢复，本次两临时文件已清、租约释放。前段首轮2300028独立保留；本次不补改超时或响应容量参数。
+
+## 雙作者詳情（0.1.2）
+
+真實作品cfa48f76-47ea-4f03-ad45-e434784795eb《AHCOO！這個是光噴嚏！》與47ac4e8e-72af-4de7-b68e-3d2df0f1c23e《颱風騎士團》各有兩對作者/學校，JSON-LD亦逐對聲明。原詳情對全部Author/Division要求唯一，因而把這兩篇HTTP200原文誤判parse_error。修復只兼容以上已見1–2行結構，不猜nth-child位置、不合併或丟棄作者行；列表、單章、主作者/學校與完整原圖順序保持原合同。兩篇原正文分別1張與6張，不把四格切頁或按最大圖號補圖。

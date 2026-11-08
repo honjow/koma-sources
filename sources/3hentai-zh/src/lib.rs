@@ -12,7 +12,7 @@ const WEB: &[u8] = b"https://3hentai.net";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hentai3.zh.koma",
     name: "3Hentai",
-    version: "0.1.6",
+    version: "0.1.7",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -664,13 +664,11 @@ fn emit_work(out: &mut [u8], n: &mut usize, id: &[u8], t: &[u8], c: &[u8], req: 
     q(out, n, c)?;
     bytes(out, n, b"},\"contentRating\":\"unknown\"}")
 }
-fn cursor_page(s: &[u8]) -> R<usize> {
+fn cursor_page(s: &[u8], latest: bool) -> R<usize> {
     let v = s
         .strip_prefix(b"https://3hentai.net/language/chinese/")
         .ok_or("listing cursor owner")?;
-    let v = v
-        .strip_suffix(b"?sort=popular")
-        .ok_or("listing cursor sort")?;
+    let v = if latest { v } else { v.strip_suffix(b"?sort=popular").ok_or("listing cursor sort")? };
     let n = number(v).ok_or("listing cursor page")?;
     if n < 2 || n > 10000 || v[0] == b'0' {
         return Err("listing cursor range");
@@ -748,25 +746,23 @@ fn validate_filter_next(href: &[u8], encoded_query: &[u8], sort: &[u8], page: us
 
 fn listing(r: &[u8]) -> R<usize> {
     let a = args(r)?;
-    if text(a, b"listingId")? != b"listing:popular" {
-        return Err("unsupported listing");
-    };
+    let latest = match text(a, b"listingId")? { b"listing:popular" => false, b"listing:latest" => true, _ => return Err("unsupported listing") };
     let mut terms = [0; 8192];
     let (length, sort) = filter_terms(a, &mut terms)?;
-    if length > 0 || sort.is_some() { return search_inner(r, true); }
+    if !latest && (length > 0 || sort.is_some()) { return search_inner(r, true); }
     let mut u = [0u8; 2048];
     let mut current = 1;
     let uri = if let Some(p) = member(a, b"page")? {
         match member(p, b"cursor")? {
             Some(v) if v != b"null" => {
                 let s = uq(v, &mut u)?;
-                current = cursor_page(s)?;
+                current = cursor_page(s, latest)?;
                 s
             }
-            _ => b"https://3hentai.net/language/chinese/?sort=popular",
+            _ => if latest { b"https://3hentai.net/language/chinese/1".as_slice() } else { b"https://3hentai.net/language/chinese/?sort=popular" },
         }
     } else {
-        b"https://3hentai.net/language/chinese/?sort=popular"
+        if latest { b"https://3hentai.net/language/chinese/1".as_slice() } else { b"https://3hentai.net/language/chinese/?sort=popular" }
     };
     let d = fetch(uri)?;
     let cards = All::new(d.0, b"a[href*='/d/']")?;
@@ -777,7 +773,7 @@ fn listing(r: &[u8]) -> R<usize> {
     let mut nb = [0u8; 2048];
     let nxt = if next.len == 1 {
         let s = attr(next.at(0), b"href", &mut nb)?;
-        if cursor_page(s)? != current.checked_add(1).ok_or("page overflow")? {
+        if cursor_page(s, latest)? != current.checked_add(1).ok_or("page overflow")? {
             return Err("listing next discontinuity");
         }
         if cards.len == 0 {
@@ -1195,8 +1191,19 @@ fn run_get_pages(r: &[u8]) -> u32 {
 fn run_get_image_request(r: &[u8]) -> u32 {
     execute("get_image_request", image_request(r))
 }
-fn run_get_listings(_: &[u8]) -> u32 {
-    response_buffer().write_success("get_listings",b"{\"listings\":[{\"id\":\"listing:popular\",\"name\":\"Popular (Chinese)\",\"supportsPaging\":true}]}")
+fn listing_filter_scope_host(r: &[u8]) -> bool {
+    json_object_member(r, b"hostFeatures").map(|v| {
+        let v = trim_ascii(v);
+        v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|c| *c == b',').any(|x| trim_ascii(x) == br#""source_listing_filter_scope_v1""#)
+    }).unwrap_or(false)
+}
+fn run_get_listings(r: &[u8]) -> u32 {
+    let data = if listing_filter_scope_host(r) {
+        r#"{"listings":[{"id":"listing:popular","name":"热门","supportsPaging":true},{"id":"listing:latest","name":"最新","supportsPaging":true,"supportsFilters":false}]}"#
+    } else {
+        r#"{"listings":[{"id":"listing:popular","name":"热门","supportsPaging":true}]}"#
+    };
+    response_buffer().write_success("get_listings", data.as_bytes())
 }
 fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_implemented", "unsupported")
@@ -1204,14 +1211,14 @@ fn run_get_home(_: &[u8]) -> u32 {
 fn run_get_filters(_: &[u8]) -> u32 {
     // Browse and search have different established sorts; an absent choice
     // preserves those routes, while explicit Recent maps to the empty sort.
-    response_buffer().write_success("get_filters", br#"{"filters":[
-      {"id":"sort","name":"Sort by","type":"select","options":[{"value":"recent","label":"Recent"},{"value":"popular","label":"Popular: All Time"},{"value":"popular-7d","label":"Popular: Week"},{"value":"popular-24h","label":"Popular: Today"}]},
-      {"id":"tags","name":"Tags","type":"text"},{"id":"male_tags","name":"Male Tags","type":"text"},{"id":"female_tags","name":"Female Tags","type":"text"},
-      {"id":"series","name":"Series","type":"text"},{"id":"characters","name":"Characters","type":"text"},{"id":"artists","name":"Artists","type":"text"},
-      {"id":"groups","name":"Groups","type":"text"},{"id":"languages","name":"Languages","type":"text"},{"id":"pages","name":"Pages","type":"text"}]}"#)
+    response_buffer().write_success("get_filters", r#"{"filters":[
+      {"id":"sort","name":"排序","type":"select","options":[{"value":"recent","label":"最新"},{"value":"popular","label":"总热门"},{"value":"popular-7d","label":"本周热门"},{"value":"popular-24h","label":"今日热门"}]},
+      {"id":"tags","name":"标签","type":"text"},{"id":"male_tags","name":"男性标签","type":"text"},{"id":"female_tags","name":"女性标签","type":"text"},
+      {"id":"series","name":"系列","type":"text"},{"id":"characters","name":"角色","type":"text"},{"id":"artists","name":"作者","type":"text"},
+      {"id":"groups","name":"社团","type":"text"},{"id":"languages","name":"语言","type":"text"},{"id":"pages","name":"页数","type":"text"}]}"#.as_bytes())
 }
 fn run_get_settings(_: &[u8]) -> u32 {
-    response_buffer().write_success("get_settings", br#"{"settings":[{"id":"full_title","name":"Display full title","kind":"toggle","default":"true"}]}"#)
+    response_buffer().write_success("get_settings", r#"{"settings":[{"id":"full_title","name":"显示完整标题","kind":"toggle","default":"true"}]}"#.as_bytes())
 }
 fn checked_request(ptr: u32, len: u32) -> Option<&'static [u8]> {
     let cap = core::arch::wasm32::memory_size::<0>().checked_mul(65536)?;
@@ -1232,7 +1239,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
-    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.hentai3.zh.koma\",\"name\":\"3Hentai\",\"version\":\"0.1.6\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"3Hentai（中文）\",\"zh-Hant\":\"3Hentai（中文）\",\"en\":\"3Hentai (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":true,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
+    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.hentai3.zh.koma\",\"name\":\"3Hentai\",\"version\":\"0.1.7\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"3Hentai（中文）\",\"zh-Hant\":\"3Hentai（中文）\",\"en\":\"3Hentai (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":true,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
 }
 macro_rules! export_op {
     ($f:ident,$op:literal,$run:ident) => {

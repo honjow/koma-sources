@@ -35,6 +35,9 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
 };
 koma_source_sdk::koma_source_buffers! {payload:384*1024,http_out:1024*1024,body:512*1024,http_req:256*1024,scratch:16*1024,}
 koma_source_sdk::koma_source_helpers!();
+// Request-local search decoding has its own buffer: scratch_a/b hold the
+// final URL and path, and the WAMR execution stack is bounded.
+static mut SEARCH_QUERY: [u8; 16384] = [0; 16384];
 static mut CHAPTER_IDS: [[u8; 24]; 4096] = [[0; 24]; 4096];
 static mut ORIGINAL: [u8; 384 * 1024] = [0; 384 * 1024];
 static mut FORM: [u8; 192 * 1024] = [0; 192 * 1024];
@@ -208,13 +211,18 @@ fn page_end(op: &str, n: &mut usize, next: Option<&[u8]>) -> u32 {
     }
     write_success_payload(op, *n)
 }
-// Decode search terms separately from request scratch and the bounded WASM stack.
-static mut SEARCH_QUERY: [u8; 16384] = [0; 16384];
 fn run_search(req: &[u8]) -> u32 {
-    let q = extract_json_string(req, b"query").unwrap_or(b"");
+    // Host sends JSON strings; decode before trimming/URL encoding so quotes,
+    // backslashes and Unicode escapes reach the provider as the user's query.
+    let args = json_object_member(req, b"args").unwrap_or(req);
+    let raw = match json_object_member(args, b"query") {
+        None => b"".as_slice(),
+        Some(v) if v.len() >= 2 && v[0] == b'"' && v[v.len() - 1] == b'"' => &v[1..v.len()-1],
+        Some(_) => return write_error("search", "invalid_request", "invalid query"),
+    };
     let decoded = unsafe { &mut *core::ptr::addr_of_mut!(SEARCH_QUERY) };
-    let q = match koma_source_sdk::plain_text::decode_json_content(q, decoded) {
-        Ok(v) => v,
+    let q = match koma_source_sdk::plain_text::decode_json_content(raw, decoded).and_then(|v| core::str::from_utf8(v).map_err(|_| "invalid UTF8")) {
+        Ok(v) => v.trim().as_bytes(),
         Err(_) => return write_error("search", "invalid_request", "invalid query"),
     };
     if q.is_empty() {
@@ -232,7 +240,10 @@ fn run_search(req: &[u8]) -> u32 {
         return write_error("search", "invalid_request", "query too long");
     }
     let p = unsafe { core::slice::from_raw_parts(b.as_ptr(), n) };
-    let j = match fetch(url(p).unwrap(), None) {
+    let Some(search_url) = url(p) else {
+        return write_error("search", "invalid_request", "query too long");
+    };
+    let j = match fetch(search_url, None) {
         Ok(j) => j,
         Err(e) => return error("search", e),
     };

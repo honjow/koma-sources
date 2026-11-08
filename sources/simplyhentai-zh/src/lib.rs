@@ -429,7 +429,8 @@ fn emit_list(len: usize, page: usize, wrapped: bool) -> Result<usize, E> {
 }
 fn listing(r: &[u8]) -> Result<usize, E> {
     let a = args(r)?;
-    if text(a, b"listingId")? != b"listing:chinese" {
+    let listing = text(a, b"listingId")?;
+    if listing != b"listing:chinese" && listing != b"listing:latest" {
         return Err("listing identity");
     }
     let page = input_page(a)?;
@@ -441,8 +442,20 @@ fn listing(r: &[u8]) -> Result<usize, E> {
         b"https://api.simply-hentai.com/v3/tag/chinese?type=language&page=",
     )?;
     wn(&mut u, &mut un, page)?;
+    if listing == b"listing:latest" {
+        // The reference uses the same Chinese-language endpoint and response,
+        // with newest ordering. HTTP/challenge failures remain unchanged.
+        bytes(&mut u, &mut un, b"&sort=newest")?;
+    }
     let len = fetch(&u[..un])?;
     emit_list(len, page, false)
+}
+fn filter_search_supported(r: &[u8]) -> bool {
+    let Some(features) = json_object_member(r, b"hostFeatures").map(trim_ascii) else { return false; };
+    if !features.starts_with(b"[") || !features.ends_with(b"]") { return false; }
+    let has = |name: &[u8]| features[1..features.len()-1].split(|v| *v == b',')
+        .any(|v| trim_ascii(v) == name);
+    has(br#""source_filter_scope_header_v1""#) && has(br#""source_filter_search_without_query_v1""#)
 }
 fn search(r: &[u8]) -> Result<usize, E> {
     let a = args(r)?;
@@ -468,6 +481,40 @@ fn search(r: &[u8]) -> Result<usize, E> {
     // ordinary Chinese listings do not consume this search-only preference.
     enc(&mut url, &mut n, blacklist)?;
     bytes(&mut url, &mut n, b"&filter%5Blanguage%5D%5B0%5D=Chinese&sort=")?;
+    let filters = if filter_search_supported(r) { member(a, b"filters")?.unwrap_or(b"{}") } else { b"{}" };
+    let mut value = [0u8; 16384];
+    if let Some(sort) = member(filters, b"sort")? {
+        if sort != b"null" {
+            let sort = unescape(quoted(sort)?, &mut value)?;
+            if ![b"".as_slice(), b"upload-date", b"popularity"].contains(&sort) { return Err("invalid sort"); }
+            enc(&mut url, &mut n, sort)?;
+        }
+    }
+    if let Some(series) = member(filters, b"series")? {
+        if series != b"null" {
+            let series = unescape(quoted(series)?, &mut value)?;
+            if !trim_ascii(series).is_empty() {
+                bytes(&mut url, &mut n, b"&filter%5Bseries_title%5D%5B0%5D=")?;
+                enc(&mut url, &mut n, series)?;
+            }
+        }
+    }
+    for (id, field) in [(b"tags".as_slice(), b"tags".as_slice()), (b"artists", b"artists"),
+        (b"translators", b"translators"), (b"characters", b"characters")] {
+        if let Some(raw) = member(filters, id)? {
+            if raw == b"null" { continue; }
+            let text = unescape(quoted(raw)?, &mut value)?;
+            if trim_ascii(text).is_empty() { continue; }
+            for (index, part) in text.split(|v| *v == b',').enumerate() {
+                bytes(&mut url, &mut n, b"&filter%5B")?;
+                bytes(&mut url, &mut n, field)?;
+                bytes(&mut url, &mut n, b"%5D%5B")?;
+                wn(&mut url, &mut n, index)?;
+                bytes(&mut url, &mut n, b"%5D=")?;
+                enc(&mut url, &mut n, trim_ascii(part))?;
+            }
+        }
+    }
     let len = fetch(&url[..n])?;
     emit_list(len, page, true)
 }
@@ -713,15 +760,19 @@ fn run_get_image_request(r: &[u8]) -> u32 {
     execute("get_image_request", image_request(r))
 }
 fn run_get_listings(_: &[u8]) -> u32 {
-    let s="{\"listings\":[{\"id\":\"listing:chinese\",\"name\":\"中文列表\",\"kind\":\"popular\",\"supportsPaging\":true}]}".as_bytes();
+    let s="{\"listings\":[{\"id\":\"listing:chinese\",\"name\":\"中文列表\",\"kind\":\"popular\",\"supportsPaging\":true},{\"id\":\"listing:latest\",\"name\":\"最新\",\"kind\":\"latest\",\"supportsPaging\":true}]}".as_bytes();
     payload_buf()[..s.len()].copy_from_slice(s);
     write_success_payload("get_listings", s.len())
 }
 fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_supported", "not supported")
 }
-fn run_get_filters(_: &[u8]) -> u32 {
-    write_error("get_filters", "not_supported", "not supported")
+fn run_get_filters(r: &[u8]) -> u32 {
+    let data = if filter_search_supported(r) {
+        r#"{"useSearchForFilters":true,"filters":[{"id":"sort","name":"排序","type":"select","scope":"search","default":"","options":[{"value":"","label":"相关性"},{"value":"upload-date","label":"上传日期"},{"value":"popularity","label":"人气"}]},{"id":"series","name":"系列","type":"text","scope":"search"},{"id":"tags","name":"标签（逗号分隔）","type":"text","scope":"search"},{"id":"artists","name":"作者（逗号分隔）","type":"text","scope":"search"},{"id":"translators","name":"翻译者（逗号分隔）","type":"text","scope":"search"},{"id":"characters","name":"角色（逗号分隔）","type":"text","scope":"search"}]}"#.as_bytes()
+    } else { br#"{"filters":[]}"#.as_slice() };
+    payload_buf()[..data.len()].copy_from_slice(data);
+    write_success_payload("get_filters", data.len())
 }
 fn run_get_settings(_: &[u8]) -> u32 {
     let schema = br#"{"settings":[{"id":"blacklist","name":"Blacklist","kind":"string","description":"Separate multiple tags with commas (,)","default":""}]}"#;
@@ -729,7 +780,7 @@ fn run_get_settings(_: &[u8]) -> u32 {
     write_success_payload("get_settings", schema.len())
 }
 
-const INFO_JSON: &str = r#"{"sourceInfo":{"id":"com.simplyhentai.zh.koma","name":"Simply Hentai","version":"0.1.4","apiVersion":"0.2","language":"zh","author":"Koma","contentRating":"nsfw","description":"Chinese language metadata listing; NSFW source; per-work rating and usage unknown.","localizedNames":{"zh-Hans":"Simply Hentai（中文）","zh-Hant":"Simply Hentai（中文）","en":"Simply Hentai (Chinese)"}},"capabilities":{"search":true,"mangaDetail":true,"chapters":true,"pages":true,"listings":true,"mangaList":true,"imageRequest":true,"home":false,"filters":false,"settings":true,"future":{"login":false,"auth":false,"process_page_image":false,"page_description":false,"base_url":false,"deeplink":false,"migration":false}}}"#;
+const INFO_JSON: &str = r#"{"sourceInfo":{"id":"com.simplyhentai.zh.koma","name":"Simply Hentai","version":"0.1.5","apiVersion":"0.2","language":"zh","author":"Koma","contentRating":"nsfw","description":"Chinese language metadata listing; NSFW source; per-work rating and usage unknown.","localizedNames":{"zh-Hans":"Simply Hentai（中文）","zh-Hant":"Simply Hentai（中文）","en":"Simply Hentai (Chinese)"}},"capabilities":{"search":true,"mangaDetail":true,"chapters":true,"pages":true,"listings":true,"mangaList":true,"imageRequest":true,"home":false,"filters":true,"settings":true,"future":{"login":false,"auth":false,"process_page_image":false,"page_description":false,"base_url":false,"deeplink":false,"migration":false}}}"#;
 // Source-local ABI gate; SDK remains byte-identical. Check before helper forms a slice.
 fn checked_request(ptr: u32, len: u32) -> Option<&'static [u8]> {
     let cap = core::arch::wasm32::memory_size::<0>().checked_mul(65536)?;

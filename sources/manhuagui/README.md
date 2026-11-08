@@ -1,10 +1,10 @@
-# 漫画柜 / Manhuagui 0.1.7
+# 漫画柜 / Manhuagui 0.1.8
 
 源 ID `com.manhuagui.koma`，语言 `zh`，NSFW 标记保持。生产主站固定 `https://www.manhuagui.com`，没有 `settings.baseUrl` 或自由镜像。当前图标是用户已采用的满幅桌面快捷方式身份衍生图，不新增底板、阴影或圆角；具体素材依据见 [ASSET_SOURCES.md](ASSET_SOURCES.md)。
 
 支持普通公开热门/最新分页、文字搜索、详情、目录、固定 Base64-LZ/radix62 图片元数据解析与原图片请求。保既有 Chrome 140、Accept-Language、Referer 和 Origin。HTTP 失败、网络超时、损坏/截断、容量及未知打包形式明确失败，不重试或换 UA 制造成功。
 
-不提供 home、filters、credentials、deeplink、成人隐藏 VIEWSTATE、登录检查/投票副作用、任意 JavaScript 或图片字节解密。限速设置不改变这些访问边界，也不预先同意年龄门或操作 Cookie。
+不提供 home、credentials、deeplink、成人隐藏 VIEWSTATE、登录检查/投票副作用、任意 JavaScript 或图片字节解密。限速设置不改变这些访问边界，也不预先同意年龄门或操作 Cookie。
 
 ## 设置与宿主合同
 
@@ -18,3 +18,9 @@ Host 的普通 HTTP、封面和 Reader 图片快取 miss 共用同一进程 owne
 ## 实现来源
 
 Source-only ordinary public HTML adapter for https://www.manhuagui.com, based on Keiyoushi extensions-source commit 10f06eb833af5990bc5470c84c5e93edc159ad4e (Apache-2.0). LZ-string algorithm attribution: Keiyoushi LZString (Apache-2.0), with an independent algorithm check against pieroxy/lz-string 1.5.0 (reference file licensed WTFPL v2); bounded source-local implementation.
+
+搜索筛选仅用于目录：沿参考提供排序、地区、剧情、受众、年份、字母与进度；未选择排序保留当前热门或最新原路由。排行仅输出网站真实标题和链接，不推断封面或分页；文字搜索不消费目录筛选。旧宿主不显示新筛选。
+
+## 正文静态字典的进制
+
+网页的固定六参数字典编码函数已实际返回42、51、52、61及62进制。按函数字面参数在2–62范围内解码词典索引，数字必须小于该进制；原有字典数量、文本容量、文件路径、查询参数和允许域名检查保持。不执行站点JavaScript，非法进制与未知语法继续失败。

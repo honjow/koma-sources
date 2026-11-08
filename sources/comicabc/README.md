@@ -116,3 +116,9 @@ The new icon-only candidate uses the genuine local resource documented in ASSET_
 经普通“重置”恢复全部/默认话数降序；仅为恢复原进度重开159话，未翻页，Back详情及普通历史均为原159话2/29，不计新增159话验收。最后Browse55、完整registry与本轮前相同，原10000ms/AWAKE读回并释放dfc078d6；无传包、下载、私有状态写回或受拒请求重试。
 
 原件：Koma `.hvigor/outputs/user-flow-audit/comicabc010-9154-{ch1-pages,detail}-host.{json,stderr.log}`；既有设备分区`device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/comicabc010-9154-body237-001/`的`chapter1-first.png`（实际P2）、`chapter1-page1.png`、`chapter1-page1-chrome.png`、`chapter1-progress-return.png`、`original159-progress-restored.png`、`history-final.png`及`browse-final.png`；日志`comicabc010-9154-current-log237-001/run-metadata.json`，恢复`comicabc010-9154-restored237-001/run-metadata.json`。
+
+## 站内阅读入口候选
+
+2026-11-06 两部官网作品的原参考阅读域返回 HTTP 200 的《玩桌遊》网页，不含漫画数据。官网自身 `comicview.js` 的 CKVP 阅读偏好分支明确提供 `/view/{id}.html?ch={chapter}`；候选仅在原域返回已确认的该桌游页面时回退，其他 HTTP 错误、挑战和未知结构仍直接失败，原参考阅读页可解析时保持原路径。站内脚本按已观察的47字节记录及图片表达式静态校验作品、章节、服务器、页码角色，不执行 JavaScript。
+
+真实站内页经 WASM 回放：《入間同學入魔了》第1、2話分别44、30页，《無良公會》第1話37页。两部第1話首末生成图按既有 Referer 下载均 HTTP 200 且为 JPEG；我亲审两张首图分别为入間封面与無良公會正文，未将其他全部图片称已核。受控构造的旧参考渲染形状，新旧 WASM 输出完全相同；未知外站页不回退，错作品及改变图片表达式均拒绝。Native 普通路径和正式发布仍待验收。

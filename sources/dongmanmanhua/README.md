@@ -28,3 +28,7 @@ Current production build: `bash build.sh --source dongmanmanhua` from the canoni
 237 VDE-AL00展开竖屏1320×2120，Root指定Hvigor签名Debug16289681B/23:30:52普通覆盖安装明确成功，未清数据；系统本地picker014→015普通更新后，服务54包、Browse54启用与咚漫015可见，Browse/Manager原紫色标识均亲看。沿原每日连载首项1954《如出一辙的女儿》进入详情，两网页菜单出现；只打开WebView，加载完成后为准确作品网页，真实banner、YIDAHM、评分9.83、简介及章列表可见，同时保留站点青少年模式说明弹层，未点击其按钮。自然Back仍11/11章及“第1话·第2/176页”，再回原列表/Browse。未打开正文/外部浏览器、未刷新/登录或新增下载；未导出全库，不能声称全书籍逐项校验。只本次传包已清理并读回不存在，最终10000ms/AWAKE，租约释放。
 
 原图/回执沿Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/` 的`dongman015-detail237-001/{manager-icon,browse-icon54,services54,detail-before}.png`、`dongman015-webview237-001/{both-web-actions,webview-workpage,detail-returned,browse-restored}.png`及`dongman015-webview-postflight237-001/run-metadata.json`；普通导入成功原图在`dongman015-import237-001/import-success.png`。导入后脚本误在索引弹层找服务行，已自然返回纠正，未重导；原工具失败保留，不计产品故障。
+
+## 0.1.6 候选：最新与日程去重
+
+固定参考 949dea 的独立最近更新读取公开连载日程并按本地星期筛选；仅在宿主声明 source_private_session_v1 时展示，旧宿主保持原单栏。两个日程列表按参考 URL 去重，保留首次出现、作品 ID 和次序。现有 0.1.5 具名真机证据仍只属于当时版本；本候选仅完成本地真实网页原体重放，尚未真机验收或发布。
