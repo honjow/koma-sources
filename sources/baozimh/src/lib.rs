@@ -105,7 +105,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "online.baozimh.koma",
     name: "包子漫畫 (Baozimh)",
-    version: "0.1.16",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -597,7 +597,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
 // Older hosts must keep the original identity and never expose this option.
 fn chapter_identity_feature(req: &[u8]) -> bool {
     json_object_member(req, b"hostFeatures").map(|v| v.starts_with(b"[") && v.ends_with(b"]") &&
-        v[1..v.len()-1].split(|c| *c == b',').any(|x| x.trim_ascii() == br#""source_baozi_chapter_identity_v1""#)).unwrap_or(false)
+        v[1..v.len()-1].split(|c| *c == b',').any(|x| x.trim_ascii() == br#""source_baozi_chapter_identity_v1""# || x.trim_ascii() == br#""source_chapter_identity_v1""#)).unwrap_or(false)
 }
 
 // Kotlin Char.isDigit tests individual UTF-16 units, not supplementary code points.

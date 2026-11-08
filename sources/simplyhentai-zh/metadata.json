@@ -4,5 +4,13 @@
     "zh-Hant": "Simply Hentai（中文）",
     "en": "Simply Hentai (Chinese)"
   },
-  "homepage": "https://www.simply-hentai.com/"
+  "homepage": "https://www.simply-hentai.com/",
+  "websitePolicy": {
+    "httpProfiles": [
+      {
+        "origin": "https://api.simply-hentai.com",
+        "profile": "firefox133"
+      }
+    ]
+  }
 }

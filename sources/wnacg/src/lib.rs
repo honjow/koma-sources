@@ -31,7 +31,7 @@ const LOGIN_HINT: &str = "内容不存在或需要登录，请在原网页登录
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.wnacg.koma",
     name: "紳士漫畫",
-    version: "0.1.1",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
     author: "Koma",

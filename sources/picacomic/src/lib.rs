@@ -26,7 +26,7 @@ const HMAC_KEY: &str = r#"~d}$Q7$eIni=V)9\RK/P.RM4;9[7|@/CA}b~OW!3?EV`:<>M7pddUB
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.picacomic.koma",
     name: "哔咔漫画",
-    version: "0.1.1",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -132,7 +132,10 @@ impl Options {
         })
     }
     fn require_transport(&self, request: &[u8]) -> R<()> {
-        if self.channel == "2" && !protocol::feature(request, b"source_dns_pica_channel_v1") {
+        if self.channel == "2"
+            && !protocol::feature(request, b"source_dns_pica_channel_v1")
+            && !protocol::feature(request, b"source_dns_bootstrap_v1")
+        {
             return Err(E {
                 code: "unsupported",
                 message: "当前应用尚不支持分流2所需的DNS与原证书主机能力。请等待对应应用更新，或在书源设置选择分流1。".to_string(),
@@ -143,7 +146,7 @@ impl Options {
     fn transport(&mut self, request: &[u8]) -> R<()> {
         self.require_transport(request)?;
         if self.channel == "2" && self.dns_override.is_none() {
-            self.dns_override = Some(initialize_channel()?);
+            self.dns_override = Some(initialize_channel(protocol::feature(request, b"source_dns_bootstrap_v1"))?);
         }
         Ok(())
     }
@@ -153,13 +156,17 @@ impl Options {
         }
     }
 }
-fn initialize_channel() -> R<Value> {
+fn initialize_channel(declared: bool) -> R<Value> {
     if host::check_cancel() {
         return Err("cancelled".into());
     }
     // The Host chooses the committed init URL and public headers. This proof
     // is used only in the current operation's descriptors and is never saved.
-    let request = br#"{"type":"pica_channel_init","version":1}"#;
+    let request: &[u8] = if declared {
+        br#"{"type":"source_dns_bootstrap","version":1}"#
+    } else {
+        br#"{"type":"pica_channel_init","version":1}"#
+    };
     let n = host::http_request(request, http_out()).map_err(|_| E::from("network_error"))?;
     let response = &http_out()[..n];
     if host::check_cancel() {
@@ -189,7 +196,8 @@ fn initialize_channel() -> R<Value> {
     let kind = protocol::direct(proof, b"kind").map_err(|_| E::from("parse_error"))?;
     let raw_proof = protocol::direct(proof, b"proof").map_err(|_| E::from("parse_error"))?;
     let value: Value = serde_json::from_slice(proof).map_err(|_| E::from("parse_error"))?;
-    if kind != Some(b"\"pica_channel_v1\"")
+    let expected_kind: &[u8] = if declared { b"\"dns_bootstrap_v1\"" } else { b"\"pica_channel_v1\"" };
+    if kind != Some(expected_kind)
         || raw_proof.is_none()
         || !value.as_object().is_some_and(|map| map.len() == 2)
         || !value["proof"]

@@ -14,7 +14,7 @@ const BASE_URL: &[u8] = b"https://www.mangabz.com";
 const XM_URL: &[u8] = b"https://xmanhua.com";
 const YY_URL: &[u8] = b"https://yymanhua.com";
 fn mirror_supported(req: &[u8]) -> bool {
-    json_object_member(req,b"hostFeatures").map(|v| v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|b|*b==b',').any(|v|v.trim_ascii()==br#""mangabz_mirror_session_v1""#)).unwrap_or(false)
+    json_object_member(req,b"hostFeatures").map(|v| v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|b|*b==b',').any(|v|v.trim_ascii()==br#""mangabz_mirror_session_v1""# || v.trim_ascii() == br#""source_homepage_choices_v1""#)).unwrap_or(false)
 }
 fn mirror_origin(req: &[u8]) -> &'static [u8] {
     if !mirror_supported(req) { return BASE_URL; }
@@ -42,7 +42,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mangabz.koma",
     name: "Mangabz",
-    version: "0.1.11",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -73,7 +73,7 @@ fn language_supported(req: &[u8]) -> bool {
     json_object_member(req, b"hostFeatures").map(|v| {
         let v = v.trim_ascii();
         v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|b| *b == b',')
-            .any(|v| v.trim_ascii() == br#""mangabz_language_cookie_v1""#)
+            .any(|v| v.trim_ascii() == br#""mangabz_language_cookie_v1""# || v.trim_ascii() == br#""source_public_cookie_override_v1""#)
     }).unwrap_or(false)
 }
 fn language_cookie(req: &[u8]) -> Option<&'static [u8]> {

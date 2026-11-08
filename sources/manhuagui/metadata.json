@@ -4,5 +4,32 @@
     "zh-Hant": "漫畫櫃",
     "en": "Manhuagui"
   },
-  "homepage": "https://www.manhuagui.com/"
+  "homepage": "https://www.manhuagui.com/",
+  "requestLimits": [
+    {
+      "group": "main",
+      "permits": 10,
+      "periodMs": 10000,
+      "hosts": [
+        "www.manhuagui.com"
+      ],
+      "setting": {
+        "key": "mainSiteRatelimitPreference",
+        "maxPermits": 10
+      }
+    },
+    {
+      "group": "images",
+      "permits": 4,
+      "periodMs": 1000,
+      "hosts": [
+        "i.hamreus.com",
+        "cf.hamreus.com"
+      ],
+      "setting": {
+        "key": "imgCDNRatelimitPreference",
+        "maxPermits": 10
+      }
+    }
+  ]
 }

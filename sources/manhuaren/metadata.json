@@ -4,5 +4,9 @@
     "zh-Hant": "漫畫人",
     "en": "Manhuaren"
   },
-  "homepage": "https://www.manhuaren.com/"
+  "homepage": "https://www.manhuaren.com/",
+  "websitePolicy": {
+    "preserveRouteCover": true,
+    "routeCoverPlaceholderSuffix": "/nopic.jpg"
+  }
 }

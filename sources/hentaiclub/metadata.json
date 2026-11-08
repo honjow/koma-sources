@@ -1,1 +1,14 @@
-{"homepage":"https://www.hentaiclub.net","chapterOrder":"newest_first"}
+{
+  "homepage": "https://www.hentaiclub.net",
+  "chapterOrder": "newest_first",
+  "requestLimits": [
+    {
+      "group": "main",
+      "permits": 2,
+      "periodMs": 1000,
+      "hosts": [
+        "www.hentaiclub.net"
+      ]
+    }
+  ]
+}

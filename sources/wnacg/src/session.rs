@@ -161,11 +161,15 @@ impl Context {
             b"source_private_session_v1".as_slice(),
             b"source_private_session_process_v1",
             b"source_private_session_replace_v1",
-            b"source_rate_limit_wnacg_v1",
         ] {
             if !protocol::feature(r, f) {
                 return Err("unsupported".into());
             }
+        }
+        if !protocol::feature(r, b"source_rate_limit_wnacg_v1")
+            && !protocol::feature(r, b"source_request_limits_v1")
+        {
+            return Err("unsupported".into());
         }
         let token = token(v)?;
         let process = rpc(json!({"op":"process_scope"}))?;

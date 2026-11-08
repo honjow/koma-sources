@@ -14,7 +14,7 @@ const BASE: &[u8] = b"https://buondua.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.buondua.koma",
     name: "Buon Dua",
-    version: "0.1.0",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "all",
     author: "Koma",
@@ -662,7 +662,8 @@ fn run_search(r: &[u8]) -> u32 {
     if let Err(c) = protocol::request(r) {
         return write_error("search", c, "invalid request");
     }
-    if !protocol::feature(r, b"source_rate_limit_buondua_v1") {
+    if !protocol::feature(r, b"source_rate_limit_buondua_v1")
+        && !protocol::feature(r, b"source_request_limits_v1") {
         return write_error(
             "search",
             "host_feature_required",
@@ -675,7 +676,8 @@ fn run_get_manga_list(r: &[u8]) -> u32 {
     if let Err(c) = protocol::request(r) {
         return write_error("get_manga_list", c, "invalid request");
     }
-    if !protocol::feature(r, b"source_rate_limit_buondua_v1") {
+    if !protocol::feature(r, b"source_rate_limit_buondua_v1")
+        && !protocol::feature(r, b"source_request_limits_v1") {
         return write_error(
             "get_manga_list",
             "host_feature_required",
@@ -688,7 +690,8 @@ fn run_get_manga(r: &[u8]) -> u32 {
     if let Err(c) = protocol::request(r) {
         return write_error("get_manga", c, "invalid request");
     }
-    if !protocol::feature(r, b"source_rate_limit_buondua_v1") {
+    if !protocol::feature(r, b"source_rate_limit_buondua_v1")
+        && !protocol::feature(r, b"source_request_limits_v1") {
         return write_error(
             "get_manga",
             "host_feature_required",
@@ -701,7 +704,8 @@ fn run_get_chapters(r: &[u8]) -> u32 {
     if let Err(c) = protocol::request(r) {
         return write_error("get_chapters", c, "invalid request");
     }
-    if !protocol::feature(r, b"source_rate_limit_buondua_v1") {
+    if !protocol::feature(r, b"source_rate_limit_buondua_v1")
+        && !protocol::feature(r, b"source_request_limits_v1") {
         return write_error(
             "get_chapters",
             "host_feature_required",
@@ -714,7 +718,8 @@ fn run_get_pages(r: &[u8]) -> u32 {
     if let Err(c) = protocol::request(r) {
         return write_error("get_pages", c, "invalid request");
     }
-    if !protocol::feature(r, b"source_rate_limit_buondua_v1") {
+    if !protocol::feature(r, b"source_rate_limit_buondua_v1")
+        && !protocol::feature(r, b"source_request_limits_v1") {
         return write_error(
             "get_pages",
             "host_feature_required",

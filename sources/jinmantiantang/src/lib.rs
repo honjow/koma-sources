@@ -24,7 +24,7 @@ static ALLOCATOR: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.jmcomic.koma",
     name: "禁漫天堂",
-    version: "0.1.1",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -209,7 +209,8 @@ struct Context {
 }
 impl Context {
     fn new(r: &[u8], input: &Value) -> R<Self> {
-        if !protocol::feature(r, b"source_rate_limit_jm_v1") {
+        if !protocol::feature(r, b"source_rate_limit_jm_v1")
+        && !protocol::feature(r, b"source_request_limits_v1") {
             return Err("host_feature_required".into());
         }
         if !protocol::feature(r, b"source_private_session_v1") {

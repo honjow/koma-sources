@@ -573,7 +573,7 @@ pub fn dispatch(op: &str, r: &[u8], v: &Value) -> R<Value> {
     let cx = Context::new(
         v,
         op == "get_settings" && protocol::feature(r, b"source_settings_context_v1"),
-        protocol::feature(r, b"source_http_copymanga_api_v1"),
+        protocol::feature(r, b"source_http_copymanga_api_v1") || protocol::feature(r, b"source_http_profiles_v1"),
         protocol::feature(r, b"source_public_cover_client_headers_v1"),
     )?;
     match op {

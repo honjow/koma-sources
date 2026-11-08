@@ -22,7 +22,7 @@ const UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/2010
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hentaiclub.koma",
     name: "绅士会所",
-    version: "0.1.2",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -165,7 +165,8 @@ fn work(input: &Value, key: &str, prefix: &str) -> R<String> {
     Ok(normalized)
 }
 fn rate(r: &[u8]) -> R<()> {
-    if protocol::feature(r, b"source_rate_limit_hentaiclub_v1") {
+    if protocol::feature(r, b"source_rate_limit_hentaiclub_v1")
+        || protocol::feature(r, b"source_request_limits_v1") {
         Ok(())
     } else {
         Err("unsupported")

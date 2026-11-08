@@ -64,7 +64,7 @@ mangadex-zh-hant|mangadex-zh-hant|true|0.1.0
 mangadex-zh-hans|mangadex-zh-hans|true|0.1.0
 tipo-ipmini-zh-hant|tipo-ipmini-zh-hant|false|0.1.1
 webtoons-zh-hant|webtoons_zh_hant|false|0.1.0
-simplyhentai-zh|simplyhentai-zh|true|0.1.1
+simplyhentai-zh|simplyhentai-zh|true|1.0.0
 cartoon18-zh|cartoon18-zh|true|0.1.0
 hko-weather-family-zh-hant|hko-weather-family-zh-hant|false|0.1.1
 scitechvista-zh-hant|scitechvista-zh-hant|false|0.1.1
@@ -107,7 +107,7 @@ comicabc|comicabc|false|0.1.0
 zerobyw|zerobyw|true|0.1.0
 manhuashe|manhuashe|true|0.1.0
 dongmanmanhua|dongmanmanhua|false|0.1.0
-manhuawu|manhuawu|false|0.1.0
+manhuawu|manhuawu|false|1.0.0
 iqiyi|iqiyi|false|0.1.4
 jiuermanhua|jiuermanhua|true|0.1.0
 zazhimi|zazhimi|false|0.1.0

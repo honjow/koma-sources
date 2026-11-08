@@ -19,7 +19,7 @@ const CHROME_BRANDS: &[u8] = br#""Google Chrome";v="149", "Chromium";v="149", "N
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "net.bilimanga.koma",
     name: "嗶哩漫畫",
-    version: "0.1.1",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -259,7 +259,8 @@ fn fetch(p: &[u8]) -> R<Node> {
     parse_document(&body_buf()[..size])
 }
 fn require_request_policy(r: &[u8]) -> R<()> {
-    if protocol::feature(r, b"source_rate_limit_bilimanga_v1") {
+    if protocol::feature(r, b"source_rate_limit_bilimanga_v1")
+        || protocol::feature(r, b"source_request_limits_v1") {
         Ok(())
     } else {
         Err("unsupported_source_rate_limit")
@@ -648,7 +649,8 @@ fn bootstrap_guest<'a>(css: &'a mut [u8], js: &'a mut [u8]) -> R<(&'a [u8], &'a 
 }
 
 fn keyword_search(r: &[u8], query: &[u8]) -> R<usize> {
-    if !protocol::feature(r, b"source_bilimanga_guest_search_v1") || !protocol::feature(r, b"source_http_batch_v1") {
+    if (!protocol::feature(r, b"source_bilimanga_guest_search_v1")
+        && !protocol::feature(r, b"source_anonymous_http_v1")) || !protocol::feature(r, b"source_http_batch_v1") {
         return Err("unsupported_search_session");
     }
     let mut route = [0; 6144];

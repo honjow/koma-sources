@@ -1,1 +1,53 @@
-{"localizedNames":{"zh-Hans":"MangaBz","zh-Hant":"MangaBz","en":"MangaBz"},"homepage":"https://www.mangabz.com"}
+{
+  "localizedNames": {
+    "zh-Hans": "MangaBz",
+    "zh-Hant": "MangaBz",
+    "en": "MangaBz"
+  },
+  "homepage": "https://www.mangabz.com",
+  "websitePolicy": {
+    "homepageChoices": {
+      "setting": "preferredMirror",
+      "options": [
+        {
+          "value": "https://www.mangabz.com",
+          "url": "https://www.mangabz.com"
+        },
+        {
+          "value": "https://xmanhua.com",
+          "url": "https://xmanhua.com"
+        },
+        {
+          "value": "https://yymanhua.com",
+          "url": "https://yymanhua.com"
+        }
+      ]
+    },
+    "publicCookieOverrides": [
+      {
+        "origin": "https://www.mangabz.com",
+        "name": "mangabz_lang",
+        "values": [
+          "1",
+          "2"
+        ]
+      },
+      {
+        "origin": "https://xmanhua.com",
+        "name": "xmanhua_lang",
+        "values": [
+          "1",
+          "2"
+        ]
+      },
+      {
+        "origin": "https://yymanhua.com",
+        "name": "yymanhua_lang",
+        "values": [
+          "1",
+          "2"
+        ]
+      }
+    ]
+  }
+}

@@ -1,1 +1,26 @@
-{"homepage":"https://www.wnacg.buzz","chapterOrder":"newest_first","authentication":{"kind":"web","loginUrl":"https://www.wnacg.buzz/users-login.html","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0"}}
+{
+  "homepage": "https://www.wnacg.buzz",
+  "chapterOrder": "newest_first",
+  "authentication": {
+    "kind": "web",
+    "loginUrl": "https://www.wnacg.buzz/users-login.html",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0"
+  },
+  "requestLimits": [
+    {
+      "group": "mirrors",
+      "permits": 50,
+      "periodMs": 60000,
+      "firstLabels": [
+        {
+          "prefix": "wnacg"
+        },
+        {
+          "prefix": "wn",
+          "decimalSuffix": true
+        }
+      ],
+      "oncePerRequest": true
+    }
+  ]
+}

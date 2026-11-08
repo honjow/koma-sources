@@ -1,1 +1,20 @@
-{"homepage":"https://18comic.vip","chapterOrder":"newest_first","requiredImageDecodes":["jm_stripes_v1"]}
+{
+  "homepage": "https://18comic.vip",
+  "chapterOrder": "newest_first",
+  "requiredImageDecodes": [
+    "jm_stripes_v1"
+  ],
+  "requestLimits": [
+    {
+      "group": "api",
+      "permits": 3,
+      "periodMs": 2000,
+      "requestHeaders": [
+        "token",
+        "tokenparam"
+      ],
+      "perOrigin": true,
+      "oncePerRequest": true
+    }
+  ]
+}
