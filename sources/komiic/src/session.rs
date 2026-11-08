@@ -412,6 +412,9 @@ fn graphql_result(response: Value) -> Result<&'static [u8]> {
     if let Some(errors) = json_object_member(body, b"errors") {
         let errors: Vec<Value> = serde_json::from_slice(errors).map_err(|_| FetchError::Graphql)?;
         if !errors.is_empty() {
+            if errors.iter().any(super::image_quota_error) {
+                return Err(FetchError::ImageQuotaExhausted);
+            }
             let expired = errors.iter().any(|error| {
                 matches!(
                     error["message"].as_str(),

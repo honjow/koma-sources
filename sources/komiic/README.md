@@ -51,3 +51,7 @@ HTTP 成功且本次响应带新有效 `komiic-access-token` 后，用同域 Gra
 
 官网游客 `getImageLimit` 返回 limit、usage 和 resetInSeconds，额度由站点决定。常规正文
 不为每页再查额度，明确 HTTP 429 仍走现有请求限流提示。
+
+0.1.17 的正文额度修复最低需要 Koma 1.3.0。取票保留 GraphQL `QUOTA_EXCEEDED`，
+原图 HTTP 402 显示为额度耗尽，HTTP 429 仍表示请求限流。两条路径都沿现有读取流程，
+每页无需额外查额度。

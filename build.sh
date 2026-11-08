@@ -101,7 +101,7 @@ happymh|happymh|false|0.1.0
 manhuagui|manhuagui|true|0.1.0
 terrahistoricus|terrahistoricus|false|0.1.0
 noyacg|noyacg|true|0.1.0
-komiic|komiic|true|1.2.1
+komiic|komiic|true|1.3.0
 dm5|dm5|true|0.1.0
 comicabc|comicabc|false|0.1.0
 zerobyw|zerobyw|true|0.1.0

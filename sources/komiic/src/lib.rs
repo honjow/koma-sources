@@ -50,7 +50,7 @@ static mut SEARCH_QUERY: [u8; GQL_BODY_CAP] = [0; GQL_BODY_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.komiic.koma",
     name: "Komiic",
-    version: "0.1.16",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -145,6 +145,7 @@ enum FetchError {
     Network,
     NotFound,
     RateLimit,
+    ImageQuotaExhausted,
     ClientError,
     ServerError,
     Graphql,
@@ -158,6 +159,7 @@ fn fetch_error_code(e: FetchError) -> (&'static str, &'static str) {
         FetchError::Network => ("network_error", "connection or timeout failure"),
         FetchError::NotFound => ("not_found", "resource not found"),
         FetchError::RateLimit => ("rate_limited", "rate limited by server"),
+        FetchError::ImageQuotaExhausted => ("image_quota_exhausted", "daily image quota exhausted"),
         FetchError::ClientError => ("client_error", "client error (4xx)"),
         FetchError::ServerError => ("server_error", "server error (5xx)"),
         FetchError::Graphql => ("graphql_error", "graphql error response"),
@@ -165,6 +167,11 @@ fn fetch_error_code(e: FetchError) -> (&'static str, &'static str) {
         FetchError::StaleSession => ("network_error", "account session changed"),
         FetchError::Cancelled => ("cancelled", "source request cancelled"),
     }
+}
+
+fn image_quota_error(error: &serde_json::Value) -> bool {
+    error["path"][0].as_str() == Some("getImageTicket")
+        && error["extensions"]["code"].as_str() == Some("QUOTA_EXCEEDED")
 }
 
 fn post_graphql(req: &[u8], body: &[u8]) -> Result<&'static [u8], FetchError> {
@@ -221,6 +228,15 @@ fn post_graphql_with_session(req: &[u8], body: &[u8], image_ticket: bool) -> Res
 
     let len = decode_body_text(resp).ok_or(FetchError::Network)?;
     let body = json_slice(len);
+    if image_ticket {
+        if let Some(errors) = json_object_member(body, b"errors") {
+            if let Ok(items) = serde_json::from_slice::<alloc::vec::Vec<serde_json::Value>>(errors) {
+                if items.iter().any(image_quota_error) {
+                    return Err(FetchError::ImageQuotaExhausted);
+                }
+            }
+        }
+    }
     if contains_bytes(body, br#""errors":["#) || contains_bytes(body, br#""errors":[{"#) {
         return Err(FetchError::Graphql);
     }
@@ -828,7 +844,13 @@ fn run_get_image_request(req: &[u8]) -> u32 {
         let api_json = match post_graphql_with_session(req, &gql_body_buf()[..body_len], true) {
             Ok(v) => v,
             Err(e) => {
-                let (code, message) = fetch_error_code(e);
+                let (code, message) = if matches!(e, FetchError::ImageQuotaExhausted)
+                    && !koma_source_sdk::source_protocol::feature(req, b"source_image_response_errors_v1")
+                {
+                    ("rate_limited", "daily image quota exhausted")
+                } else {
+                    fetch_error_code(e)
+                };
                 return write_error("get_image_request", code, message);
             }
         };
@@ -858,7 +880,12 @@ fn run_get_image_request(req: &[u8]) -> u32 {
             && append_json_escaped(payload, &mut c, image_path)
             && write_bytes(payload, &mut c, br#"","headers":{"X-Image-Ticket":""#)
             && append_json_unescaped_then_escaped(payload, &mut c, ticket)
-            && write_bytes(payload, &mut c, br#""}}"#)
+            && write_bytes(payload, &mut c, br#""}"#)
+            // The website's ticketed image GET distinguishes daily quota (402)
+            // from temporary CDN rate limiting (429). The host sends that GET.
+            && (!koma_source_sdk::source_protocol::feature(req, b"source_image_response_errors_v1")
+                || write_bytes(payload, &mut c, br#","responseErrors":{"402":"image_quota_exhausted","429":"rate_limited"}"#))
+            && write_bytes(payload, &mut c, b"}")
     } else {
         // Covers and unrelated URLs retain the existing request contract.
         write_bytes(payload, &mut c, br#"{"url":""#)
