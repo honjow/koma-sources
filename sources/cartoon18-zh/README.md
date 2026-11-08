@@ -14,7 +14,7 @@ Koma既有 `c18:zh:`、`c18ch:zh:`、`c18pg:zh:` ID不含界面语言路径，�
 
 原请求头、15秒HTTP预算、Cookie/账户边界、AVIF图片精确主机/路径/query校验及全部容量限制保持。页表保命名作品成员、章节canonical/作品回链、data-seq顺序、去重及完整性校验；图片请求仍对实际归属封面或页逐项比对，不猜图URL。不把语言开关当图片文字翻译。
 
-使用 `bash build.sh --source cartoon18-zh`。独立实现及Apache-2.0归属见NOTICE.md，图标来源见ASSET_SOURCES.md；语言偏好依据Keiyoushi固定tree `949dea252eb8e867b7b40834a26e13088764ff55` 的Cartoon18.kt。能力、真实WASM HTTP、图片URL描述与Native像素各按具名证据区分，不据接口成功扩大为所有作品可读。
+使用 `bash build.sh --source cartoon18-zh`。独立实现及Apache-2.0归属见NOTICE.md，图标出处同见 NOTICE.md；语言偏好依据Keiyoushi固定tree `949dea252eb8e867b7b40834a26e13088764ff55` 的Cartoon18.kt。能力、真实WASM HTTP、图片URL描述与Native像素各按具名证据区分，不据接口成功扩大为所有作品可读。
 
 ## 参考功能与调用链
 
@@ -22,4 +22,4 @@ Koma既有 `c18:zh:`、`c18ch:zh:`、`c18pg:zh:` ID不含界面语言路径，�
 
 Koma get_listings/get_manga_list 分别承载独立热门和最新，search 承载文本及筛选查询。仅同时声明 source_filter_scope_header_v1、source_filter_fetching_v1、source_filter_search_without_query_v1 的宿主可收到 useSearchForFilters 和 search 作用域筛选，基础及动态响应均声明，旧宿主返回原空筛选。热门/最新不消费筛选，保持 hits/created；筛选 search 允许空词，用户非空词优先，空词可用关键词；未选排序沿参考 score。游标绑定关键词、栏目、排序和语言，失败不能转向其他上下文。站点默认封面仅允许确切的 imgdef/node.avif；其它封面仍依原精确检查。
 
-此为未发布工作区候选：简繁分类、首屏和分页等价已本地回放，实际普通筛选界面、连续滚动及旧宿主设备行为尚未验证；并非全功能验收。
+已用真实简繁网页对照本地 WASM 的筛选、分页和旧热门兼容。237 在 Koma 1.2.0 验证了从热门切最近更新、空词选择推荐、滚动到下一页和重置回最近更新；旧宿主兼容以本地回放为准。

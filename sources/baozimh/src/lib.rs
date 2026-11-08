@@ -108,7 +108,7 @@ static mut SEARCH_QUERY: [u8; 1024] = [0; 1024];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "online.baozimh.koma",
     name: "包子漫畫 (Baozimh)",
-    version: "0.1.13",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",

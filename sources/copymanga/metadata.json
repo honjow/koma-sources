@@ -36,5 +36,9 @@
         "pathPrefix": "/api/v3/"
       }
     ]
+  },
+  "wasmBuild": {
+    "optimizeForSize": true,
+    "maxBytes": 1048576
   }
 }

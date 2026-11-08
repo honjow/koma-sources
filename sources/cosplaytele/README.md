@@ -49,9 +49,12 @@ ran through real CLI/WASM HTTP. Frozen replay separately checks popular order,
 full page tables, dynamic categories, owner mismatch, duplicate positions,
 401/403/404/429/500/transport errors, no-images and subsequent recovery.
 
-These are local results, not proof every gallery works or 237 has passed.
+The local denominator does not prove every gallery works. On device 237 (PuraX),
+Root verified Robin 1/62 and 62/62 and Evanescia 1/99 and 99/99 through
+ordinary import, URL search, details and Gallery reading. Original data and
+settings were restored after each transaction.
 Detailed evidence: Koma .hvigor/outputs/source-coverage-20261105/new-source-ports/.
-No package/index has been published by this task.
+Public distribution is tracked by the source release pipeline.
 
 Review corrections: opt-in SDK source_protocol validates direct request fields,
 duplicate identities and JSON string escapes before any HTTP. Quoted/Unicode
@@ -77,4 +80,6 @@ available article intact without a wrong cover; cancellation still propagates.
 Primary HTML failures remain failures. Chapters and all page URLs/IDs are
 unchanged. Four real declared metadata/image cases across existing strata and
 12–126-photo albums were checked; 55/3204 frozen chapter/page responses are
-exactly equal to V2. V3 is frozen separately and awaits Root's cover UI check.
+exactly equal to V2. V3 was separately imported on device 237; Root visually confirmed the real
+featured covers on both named details, retaining their one-chapter directories
+and original bookmark state. Test data, preferences and power were restored.

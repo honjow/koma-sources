@@ -5,5 +5,10 @@
   },
   "homepage": "https://www.mh160mh.com",
   "chapterOrder": "newest_first",
-  "websitePolicy": {"mobileWebAndroidAgentOrigins": ["https://www.mh160mh.com", "https://m.mh160mh.com"]}
+  "websitePolicy": {
+    "mobileWebAndroidAgentOrigins": [
+      "https://www.mh160mh.com",
+      "https://m.mh160mh.com"
+    ]
+  }
 }

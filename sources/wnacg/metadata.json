@@ -1,14 +1,5 @@
 {
   "homepage": "https://www.wnacg.buzz",
-  "websitePolicy": {
-    "homepageChoices": {
-      "setting": "preferred_mirror",
-      "options": [
-        { "value": "0", "url": "https://www.wnacg.buzz" },
-        { "value": "u:https://www.wnacg.site", "url": "https://www.wnacg.site" }
-      ]
-    }
-  },
   "chapterOrder": "newest_first",
   "authentication": {
     "kind": "web",
@@ -32,5 +23,23 @@
       "oncePerRequest": true
     }
   ],
-  "wasmBuild": {"optimizeForSize": true, "maxBytes": 1048576}
+  "websitePolicy": {
+    "homepageChoices": {
+      "setting": "preferred_mirror",
+      "options": [
+        {
+          "value": "0",
+          "url": "https://www.wnacg.buzz"
+        },
+        {
+          "value": "u:https://www.wnacg.site",
+          "url": "https://www.wnacg.site"
+        }
+      ]
+    }
+  },
+  "wasmBuild": {
+    "optimizeForSize": true,
+    "maxBytes": 1048576
+  }
 }

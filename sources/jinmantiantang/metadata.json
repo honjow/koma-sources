@@ -1,16 +1,5 @@
 {
   "homepage": "https://18comic.vip",
-  "websitePolicy": {
-    "homepageChoices": {
-      "setting": "preferred_mirror",
-      "options": [
-        { "value": "0", "url": "https://18comic.vip/" },
-        { "value": "1", "url": "https://18comic.ink/" },
-        { "value": "2", "url": "https://jmcomic-zzz.one/" },
-        { "value": "3", "url": "https://jmcomic-zzz.org/" }
-      ]
-    }
-  },
   "chapterOrder": "newest_first",
   "requiredImageDecodes": [
     "jm_stripes_v1"
@@ -27,5 +16,28 @@
       "perOrigin": true,
       "oncePerRequest": true
     }
-  ]
+  ],
+  "websitePolicy": {
+    "homepageChoices": {
+      "setting": "preferred_mirror",
+      "options": [
+        {
+          "value": "0",
+          "url": "https://18comic.vip/"
+        },
+        {
+          "value": "1",
+          "url": "https://18comic.ink/"
+        },
+        {
+          "value": "2",
+          "url": "https://jmcomic-zzz.one/"
+        },
+        {
+          "value": "3",
+          "url": "https://jmcomic-zzz.org/"
+        }
+      ]
+    }
+  }
 }

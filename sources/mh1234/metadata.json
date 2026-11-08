@@ -6,5 +6,18 @@
   },
   "homepage": "https://m.wmh1234.com",
   "chapterOrder": "oldest_first",
-  "websitePolicy": {"chapterIdentity": {"workPrefix": "/comic/", "workSuffix": ".html", "chapterPrefix": "/comic/", "chapterSeparator": "/", "chapterSuffix": ".html", "encodedLegacy": {"prefix": "/go/", "separator": "-", "hexSuffixLength": 10}}}
+  "websitePolicy": {
+    "chapterIdentity": {
+      "workPrefix": "/comic/",
+      "workSuffix": ".html",
+      "chapterPrefix": "/comic/",
+      "chapterSeparator": "/",
+      "chapterSuffix": ".html",
+      "encodedLegacy": {
+        "prefix": "/go/",
+        "separator": "-",
+        "hexSuffixLength": 10
+      }
+    }
+  }
 }

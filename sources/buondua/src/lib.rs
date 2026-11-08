@@ -14,7 +14,7 @@ const BASE: &[u8] = b"https://buondua.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.buondua.koma",
     name: "Buon Dua",
-    version: "0.1.0",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "all",
     author: "Koma",

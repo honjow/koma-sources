@@ -5,5 +5,8 @@
     "en": "Manhuaren"
   },
   "homepage": "https://www.manhuaren.com/",
-  "websitePolicy": {"preserveRouteCover": true, "routeCoverPlaceholderSuffix": "/nopic.jpg"}
+  "websitePolicy": {
+    "preserveRouteCover": true,
+    "routeCoverPlaceholderSuffix": "/nopic.jpg"
+  }
 }

@@ -23,7 +23,7 @@ static ALLOCATOR: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: SOURCE_ID,
     name: NAME,
-    version: "0.1.1",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "all",
     author: "Koma",
@@ -456,7 +456,8 @@ fn finish(op: &str, value: R<Value>) -> u32 {
 fn network_request(r: &[u8]) -> R<()> {
     protocol::request(r)?;
     if !KIUTAKU && !protocol::feature(r, b"source_rate_limit_xiutaku_v1")
-        && !protocol::feature(r, b"source_request_limits_v1") {
+        && !protocol::feature(r, b"source_request_limits_v1")
+    {
         return Err("host_feature_required");
     }
     Ok(())

@@ -16,6 +16,8 @@
 
 已缓存的两种镜像页描述仍按原 kid 取票据。.com 保留 img.komiic.com；.cc 保留服务端路径，使用同镜像 img.komiic.cc，失败不回退。封面 URL 不受正文 CDN 规则影响。
 
+搜索查询按请求 JSON 字符串解码后再编码进 GraphQL，保留实际引号及反斜线；空查询、分页、镜像选择及原请求合同不变。
+
 ## 浏览及筛选
 
 浏览参考固定 keiyoushi/extensions-source `4591fbc9bb571ad03aaea0f7428f403350e90e` 的 `src/zh/komiic/.../{Komiic,Queries,Payload,Filters}.kt`。`get_listings` 对应参考热门与最近更新入口，`get_manga_list` 读取宿主 `args.page.cursor`；热门与最近更新分别沿参考的 MONTH_VIEWS / DATE_UPDATED，站端每页30项；宿主分页游标绑定站端页号，不把宿主20项提示当站端偏移。类型采用官网 allCategory 动态读取，多类型为同时包含；排序、状态及色气程度沿参考。非空关键词搜索不消费浏览筛选；旧宿主缺少筛选作用域及动态加载能力时不暴露筛选。原作品、章节、镜像及搜索合同不变。

@@ -45,7 +45,7 @@ static mut SEARCH_QUERY: [u8; 8192] = [0; 8192];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mangabz.koma",
     name: "Mangabz",
-    version: "0.1.12",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
     author: "Koma",

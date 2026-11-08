@@ -1183,7 +1183,7 @@ dependencies = [
 
 [[package]]
 name = "koma_baozimh_source"
-version = "0.1.14"
+version = "0.1.19"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1191,6 +1191,13 @@ dependencies = [
 [[package]]
 name = "koma_bh3_source"
 version = "0.1.2"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_bilimanga_source"
+version = "0.1.3"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1211,7 +1218,7 @@ dependencies = [
 
 [[package]]
 name = "koma_buondua_source"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1242,6 +1249,19 @@ name = "koma_comicfury_zh_source"
 version = "0.1.8"
 dependencies = [
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_copymanga_source"
+version = "0.1.5"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "percent-encoding",
+ "regex",
+ "serde",
+ "serde_json",
+ "url",
 ]
 
 [[package]]
@@ -1323,7 +1343,7 @@ dependencies = [
 
 [[package]]
 name = "koma_guazimanhua_source"
-version = "0.1.5"
+version = "0.1.7"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1355,6 +1375,16 @@ version = "0.1.7"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_hentaiclub_source"
+version = "0.1.4"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
 ]
 
 [[package]]
@@ -1411,6 +1441,18 @@ name = "koma_iqiyi_source"
 version = "0.1.4"
 dependencies = [
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_jinmantiantang_source"
+version = "0.1.3"
+dependencies = [
+ "aes",
+ "base64 0.22.1",
+ "dlmalloc",
+ "koma_source_sdk",
+ "md-5",
+ "serde_json",
 ]
 
 [[package]]
@@ -1484,7 +1526,7 @@ dependencies = [
 
 [[package]]
 name = "koma_mangabz_source"
-version = "0.1.12"
+version = "0.1.14"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1533,14 +1575,14 @@ dependencies = [
 
 [[package]]
 name = "koma_manhuagui_source"
-version = "0.1.8"
+version = "0.1.11"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_manhuaren_source"
-version = "0.1.9"
+version = "0.1.11"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1554,28 +1596,28 @@ dependencies = [
 
 [[package]]
 name = "koma_manhuawu_source"
-version = "0.1.8"
+version = "0.1.10"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_mh1234_source"
-version = "0.1.9"
+version = "0.1.11"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_mh160_source"
-version = "0.1.8"
+version = "0.1.10"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_miaoqu_source"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1673,7 +1715,7 @@ dependencies = [
 
 [[package]]
 name = "koma_picacomic_source"
-version = "0.1.1"
+version = "0.1.3"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1706,7 +1748,7 @@ dependencies = [
 
 [[package]]
 name = "koma_simplyhentai_zh_source"
-version = "0.1.5"
+version = "0.1.7"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1760,6 +1802,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_utifa_source"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "dlmalloc",
+ "koma_source_sdk",
+ "miniz_oxide",
+ "serde_json",
+ "sha2",
+ "url",
+]
+
+[[package]]
 name = "koma_webtoons_source"
 version = "0.1.9"
 dependencies = [
@@ -1782,7 +1837,7 @@ dependencies = [
 
 [[package]]
 name = "koma_wnacg_source"
-version = "0.1.1"
+version = "0.1.3"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1814,7 +1869,7 @@ dependencies = [
 
 [[package]]
 name = "koma_xiutaku_source"
-version = "0.1.1"
+version = "0.1.3"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1949,6 +2004,16 @@ name = "matchit"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
+
+[[package]]
+name = "md-5"
+version = "0.10.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d89e7ee0cfbedfc4da3340218492196241d89eefb6dab27de5df917a6d2e78cf"
+dependencies = [
+ "cfg-if",
+ "digest",
+]
 
 [[package]]
 name = "memchr"

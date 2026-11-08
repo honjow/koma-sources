@@ -19,7 +19,7 @@ const CHROME_BRANDS: &[u8] = br#""Google Chrome";v="149", "Chromium";v="149", "N
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "net.bilimanga.koma",
     name: "嗶哩漫畫",
-    version: "0.1.1",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
     author: "Koma",

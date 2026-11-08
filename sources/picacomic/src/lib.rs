@@ -26,7 +26,7 @@ const HMAC_KEY: &str = r#"~d}$Q7$eIni=V)9\RK/P.RM4;9[7|@/CA}b~OW!3?EV`:<>M7pddUB
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.picacomic.koma",
     name: "哔咔漫画",
-    version: "0.1.1",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -309,13 +309,7 @@ fn genres(comic: &Value) -> R<Vec<String>> {
         })
         .collect()
 }
-fn is_pica_image_host(url: &Url) -> bool {
-    url.host_str().is_some_and(|host| host == "picacomic.com" || host.ends_with(".picacomic.com"))
-}
-fn image_headers() -> Value {
-    json!({"Referer":format!("{}/",BASE)})
-}
-fn manga(comic: &Value, public_covers: bool, channel: &str) -> R<Value> {
+fn manga(comic: &Value) -> R<Value> {
     let raw = field(comic, "_id")?;
     if raw.is_empty() {
         return Err("parse_error".into());
@@ -330,11 +324,7 @@ fn manga(comic: &Value, public_covers: bool, channel: &str) -> R<Value> {
     let finished = comic["finished"]
         .as_bool()
         .ok_or_else(|| E::from("parse_error"))?;
-    let cover_uri = image_url(&comic["thumb"])?;
-    let mut item = json!({"id":format!("picacomic:{}",mid),"title":field(comic,"title")?,"cover":{"kind":"url","url":cover_uri},"contentRating":"nsfw","status":if finished{"completed"}else{"ongoing"},"tags":tags,"links":[{"kind":"source","url":format!("{}/comic/{}",BASE,mid)}]});
-    if public_covers && (channel != "2" || Url::parse(&cover_uri).is_ok_and(|url| !is_pica_image_host(&url))) {
-        item["cover"]["headers"] = image_headers();
-    }
+    let mut item = json!({"id":format!("picacomic:{}",mid),"title":field(comic,"title")?,"cover":{"kind":"url","url":image_url(&comic["thumb"])?},"contentRating":"nsfw","status":if finished{"completed"}else{"ongoing"},"tags":tags,"links":[{"kind":"source","url":format!("{}/comic/{}",BASE,mid)}]});
     for (wire, key) in [("author", "authors"), ("artist", "artists")] {
         match comic.get(wire) {
             None | Some(Value::Null) => {}
@@ -361,8 +351,7 @@ fn detail(r: &[u8], v: &Value, mid: &str) -> R<Value> {
     if encoded(field(&body["data"]["comic"], "_id")?) != mid {
         return Err("parse_error".into());
     }
-    let options = Options::new(v)?;
-    manga(&body["data"]["comic"], protocol::feature(r, b"source_public_cover_client_headers_v1"), &options.channel)
+    manga(&body["data"]["comic"])
 }
 fn page(v: &Value) -> R<u32> {
     let raw = &v["args"]["page"]["cursor"];
@@ -479,12 +468,11 @@ fn list(r: &[u8], v: &Value, search: bool) -> R<Value> {
         (array(comics, "docs")?, actual < total)
     };
     let mut items = Vec::new();
-    let public_covers = protocol::feature(r, b"source_public_cover_client_headers_v1");
     for c in docs {
         if genres(c)?.iter().any(|t| options.blocked.contains(t)) {
             continue;
         }
-        items.push(manga(c, public_covers, &options.channel)?)
+        items.push(manga(c)?)
     }
     Ok(
         json!({"items":items,"page":{"hasMore":more,"nextCursor":if more{Some(page.checked_add(1).ok_or_else(||E::from("invalid_request"))?.to_string())}else{None}}}),
@@ -689,8 +677,10 @@ fn image_request(r: &[u8], v: &Value) -> R<Value> {
     }
     // The Host contract scopes the DNS override to picacomic.com and its true
     // subdomains. Other opaque image CDNs keep the existing system DNS path.
-    let mut descriptor = json!({"url":raw,"headers":image_headers()});
-    if is_pica_image_host(&u) {
+    let mut descriptor = json!({"url":raw,"headers":{"Referer":format!("{}/",BASE)}});
+    if u.host_str()
+        .is_some_and(|host| host == "picacomic.com" || host.ends_with(".picacomic.com"))
+    {
         let mut options = Options::new(v)?;
         if options.channel == "2" {
             options.require_transport(r)?;

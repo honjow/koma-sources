@@ -1,4 +1,4 @@
-# 喵趣漫画 — independent Koma source 0.1.5
+# 喵趣漫画 — independent Koma source 0.1.6
 
 Stable source ID: `com.miaoqu.koma`; Chinese canonical name: 喵趣漫画. The user explicitly chose 喵趣 to match the retained icon and Mihon source name; website title variants do not override that choice. Localized labels are optional presentation metadata. Actual usage: unknown. Upstream SAFE (protobuf 1 and Gradle SAFE), individual works unknown. This source shares the SixMH catalogue but has independent host and slug identities; no aliases, migration or merging.
 

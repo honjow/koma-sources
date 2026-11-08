@@ -1,6 +1,6 @@
 [package]
 name = "koma_hentaiclub_source"
-version = "0.1.2"
+version = "0.1.4"
 edition = "2021"
 [lib]
 crate-type = ["cdylib"]
@@ -9,8 +9,3 @@ koma_source_sdk = { path = "../../sdk" }
 dlmalloc = { version = "=0.2.14", features = ["global"] }
 serde_json = { version = "=1.0.150", default-features = false, features = ["alloc"] }
 url = { version = "=2.5.8", default-features = false }
-[workspace]
-[profile.release]
-panic = "abort"
-lto = true
-opt-level = "z"

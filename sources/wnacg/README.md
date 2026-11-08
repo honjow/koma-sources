@@ -87,3 +87,5 @@ Review correction: internal V1 used uploadTime, which the actual Host chapter pa
 The production workspace retains this source’s original size-optimized release profile; packaging rejects a WASM over the Host’s 1 MiB limit.
 
 封面请求沿上游桌面 User-Agent 和当前镜像 Referer；宿主以作品 ID 作为 pageId 时，书源只在本地校验已观察到的 WN 缩略图 CDN 与路径，并在给出作品网址时核对作品 ID，不为每张封面重复请求详情。合集封面路径可能属于子相册，不能据此假设它等于合集 ID。正文图片仍使用原章节身份校验。
+
+0.1.1: when the Host advertises `source_public_cover_user_agent_v1`, the catalogue carries its already selected mirror Referer and the original User-Agent alongside each approved public cover URL. The Host schedules the downloads. An older Host still uses the original image resolver.

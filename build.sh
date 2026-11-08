@@ -122,7 +122,12 @@ lol-zh|lol-zh|false|0.1.1
 honorofkings-zh|honorofkings-zh|false|0.1.1
 pgr-zh|pgr-zh|false|0.1.1
 picacomic|picacomic|true|1.2.0
+copymanga|copymanga|true|1.2.0
 wnacg|wnacg|true|1.2.0
+hentaiclub|hentaiclub|true|1.2.0
+bilimanga|bilimanga|true|1.2.1
+jinmantiantang|jinmantiantang|true|1.2.1
+utifa|utifa|true|1.2.0
 mangapluscreators-en|mangapluscreators-en|false|0.1.1
 '
 

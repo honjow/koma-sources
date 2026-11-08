@@ -780,7 +780,7 @@ fn run_get_settings(_: &[u8]) -> u32 {
     write_success_payload("get_settings", schema.len())
 }
 
-const INFO_JSON: &str = r#"{"sourceInfo":{"id":"com.simplyhentai.zh.koma","name":"Simply Hentai","version":"0.1.5","apiVersion":"0.2","language":"zh","author":"Koma","contentRating":"nsfw","description":"Chinese language metadata listing; NSFW source; per-work rating and usage unknown.","localizedNames":{"zh-Hans":"Simply Hentai（中文）","zh-Hant":"Simply Hentai（中文）","en":"Simply Hentai (Chinese)"}},"capabilities":{"search":true,"mangaDetail":true,"chapters":true,"pages":true,"listings":true,"mangaList":true,"imageRequest":true,"home":false,"filters":true,"settings":true,"future":{"login":false,"auth":false,"process_page_image":false,"page_description":false,"base_url":false,"deeplink":false,"migration":false}}}"#;
+const INFO_JSON: &str = r#"{"sourceInfo":{"id":"com.simplyhentai.zh.koma","name":"Simply Hentai","version":"0.1.7","apiVersion":"0.2","language":"zh","author":"Koma","contentRating":"nsfw","description":"Chinese language metadata listing; NSFW source; per-work rating and usage unknown.","localizedNames":{"zh-Hans":"Simply Hentai（中文）","zh-Hant":"Simply Hentai（中文）","en":"Simply Hentai (Chinese)"}},"capabilities":{"search":true,"mangaDetail":true,"chapters":true,"pages":true,"listings":true,"mangaList":true,"imageRequest":true,"home":false,"filters":true,"settings":true,"future":{"login":false,"auth":false,"process_page_image":false,"page_description":false,"base_url":false,"deeplink":false,"migration":false}}}"#;
 // Source-local ABI gate; SDK remains byte-identical. Check before helper forms a slice.
 fn checked_request(ptr: u32, len: u32) -> Option<&'static [u8]> {
     let cap = core::arch::wasm32::memory_size::<0>().checked_mul(65536)?;

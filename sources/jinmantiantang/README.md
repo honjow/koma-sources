@@ -1,23 +1,15 @@
-# 禁漫天堂 JM（未发布候选）
+# 禁漫天堂 JM
 
-独立 ID `com.jmcomic.koma`，不是 `com.hanman18.koma`，不迁移或改写后者历史。
-本源独立 workspace，不加入生产 members/build registry/index。
+书源 ID `com.jmcomic.koma` 对应 `https://18comic.vip`，与 HANMAN18 分开。参考用户指定 Keiyoushi 索引中的 source `6286738698187452081`，扩展版本 1.6.64。行为参考和图标均固定在 [Keiyoushi `de743aed` 的 `zh/jinmantiantang`](https://github.com/keiyoushi/extensions-source/tree/de743aed846da53e00c45ab26ee0e77f7bb4355b/src/zh/jinmantiantang)。最低 Koma 版本为 1.2.1。
 
-采用用户指定 `keiyoushi/extensions/repo/index.pb` 中 source `6286738698187452081`（禁漫天堂、zh、18comic.vip），扩展 `1.6.64`。
-参考固定为 Keiyoushi extensions-source `de743aed846da53e00c45ab26ee0e77f7bb4355b` 的完整 5 Kotlin 文件和 build.gradle；相关 core HTTP/browser headers、限速、加解密也固定于同一提交。许可证全文和原图标来源随源码保留。
+| 行为 | 上游与 Koma 实现 |
+| --- | --- |
+| 匿名列表与检索 | `Jinmantiantang.getPopularManga`、`getLatestUpdates`、`getSearchManga` 对应 `get_manga_list`、`search`。保留热门、最新、ID 和地址直达、文字、分类及标签搜索、原分页。动态分类和标签由 `get_filters` 读取实际 API。 |
+| 作品与章节 | `fetchMangaUpdate` 对应 `get_manga`、`get_chapters`。保留原标题实体处理、详情字段、分集标题和顺序。章 ID 包含作品与章节原始身份。正文先验证所属目录，页 ID 使用原始位置，重复位置照常保留。 |
+| 正文图片 | `ScrambledImageInterceptor` 的原条带算法映射为必需 `jm_stripes_v1`。包声明、`get_pages` 和 `get_image_request` 一起交给 Koma。正式 App 在可选图片处理前按行数还原，真实 GIF 依实际字节透传。封面有独立作品校验，无解扰提示。 |
+| 镜像与限流 | 匿名 API 从上游服务目录取主机。Koma 的每次 WASM 实例复用已有私有会话保存非敏感主机，网络失败按代失效。专属限流按 API origin 共用 3 次/2 秒，普通封面和图片请求不计入 API 窗口。 |
+| 账号范围 | 原参考 `/login` 以 multipart 登录，随后同时使用 AVS Cookie 与 JWT。收藏夹及自动或立即签到仍在原站登录使用。Koma 1.2.0 提供私有凭据存储和单一精确 API origin 的授权。JM 的动态 API origin 与响应 AVS Cookie 需要另外支持。现包提供匿名浏览和阅读。 |
 
-匿名 API 的热门、最新、ID/URL/文字/筛选搜索、动态分类和标签、详情、完整分集、原始页表均在源内实现；HTTP 传输和 HTTP200正文传输失败先保留宿主错误，再解析 API。原 API 的未知作品空数组与明确已移除章节空数组分别返回作品/章节不可用；未知格式和数据库服务明文错误不猜成下架、付费或登录。
+请求需要 `source_rate_limit_jm_v1`。需解扰的图片需要 `source_required_image_decode_jm_stripes_v1`。缺少能力时返回明确提示。匿名 API 的传输失败、原站拒绝和已移除作品或章节分别处理。
 
-标题只做参考 Parser.unescapeEntities 的实体解码，保字面标签和连续空白；原 description 的作品/人物列表、连载标识、作者、目录原序及单章节规则保留。多分集按参考逐项标题后逆序；章 ID 包含作品和章节的原始身份，页 ID 加原始位置，重复图片位置不合并；get_pages 重新核完整所属目录，不猜 CID。get_image_request严格核已发PID的album/chapter/index格式与真实URI的/media/photos/chapter/归属，坏PID或跨章URI无HTTP拒绝，不限制CDN主机。
-
-必要宿主适配及仍未完成的边界：
-
-- WASM 每操作独立实例，使用既有 source_private_session_v1 的安全时钟签名；候选暂在该缓存保存非敏感 apiHost，网络传输失败按代失效。参考 apiHost 仅进程内 volatile；候选跨 App 重启保留直到失败的差异已由 Root 允许为必要适配，未称完全同生命周期。
-- API 普通请求使用 SDK 已采用的固定 Firefox121 UA，并保参考的所选镜像 Referer、跨站 XHR Origin/Fetch 字段。参考 Android 的全局 UA、语言和 HTTP 线序由它的宿主提供；未假称字节级相同。没有账号、Cookie 或权限切换取通。
-- 包必须声明 `requiredImageDecodes:["jm_stripes_v1"]`，由标准metadata/registry/安装身份透传，避免旧raw缓存缺Page hint后漏掉必需解扰；这与每页hint/专属feature双门控并存。V3仅新增此包声明，同V2 WASM，不新增网络。
-- 必需图片条带还原不能借可关闭的图片插件代替。当前 Root已采用 `image.requiredImageDecode:{kind:"jm_stripes_v1",rows:N}` 与专属 feature `source_required_image_decode_jm_stripes_v1` 已定案，尚待 Host 实现；旧 Host 缺能力时整次页表失败，不回退乱码。get_image_request 也保提示。GIF 透传必须由 Host 实际字节判断，不按扩展猜；正文原字节保留，解扰派生图单独缓存。当前本地独立 Pillow 还原不是 Native/237 已验。
-- 参考 API host 3 次/2秒共享窗口；当前本地 Node 验证桥真实执行，不是单纯声明能力。Root已采用 source_rate_limit_jm_v1：仅本源HTTPS且同时有Token/Tokenparam的API请求按精确origin共用3/2000ms；server-list与图片无签名不入窗，未知新Server也受窗限制。源所有真实API上下文先要求此feature，缺失0RPC/0HTTP；Host真实实现/237仍待核，不能把旧 generic rate feature当支持。
-- 参考收藏夹、自动/立即签到需可选账号，普通浏览阅读不需登录。完整安全账号输入、AVS cookie、登录/401同代恢复和签到副作用须沿待定公共认证/普通私有 Cookie 合同实现。当前候选仅明确提示收藏需登录，未把缺私密输入藏进普通 settings；这部分尚未移植完成，不能据此发布完整源。
-- related 漫画没有当前 ABI 操作，未伪造为首页；home=false。
-
-验证事实、失败体、分层分母和候选精确 SHA 位于 Koma 本地 `new-source-ports/jm-web`，未据构建或 API 页表成功宣称 App 原生正文完成。
+本地以 73 部真实作品、4842 个目录位置和 9142 个页图位置验证匿名路径。生产解扰算法与 8 张真实条带图的独立还原结果逐像素一致。原图标和许可见 [ASSET_SOURCES.md](ASSET_SOURCES.md)、[LICENSE](LICENSE)、[NOTICE](NOTICE) 和 [THIRD_PARTY_LICENSES.txt](THIRD_PARTY_LICENSES.txt)。

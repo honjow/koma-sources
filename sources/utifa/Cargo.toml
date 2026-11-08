@@ -14,10 +14,3 @@ miniz_oxide = "=0.8.9"
 serde_json = { version = "=1.0.150", default-features = false, features = ["alloc"] }
 sha2 = { version = "=0.10.9", default-features = false }
 url = { version = "=2.5.8", default-features = false }
-
-[workspace]
-
-[profile.release]
-panic = "abort"
-lto = true
-opt-level = "z"

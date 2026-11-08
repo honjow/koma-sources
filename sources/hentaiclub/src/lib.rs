@@ -22,7 +22,7 @@ const UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/2010
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hentaiclub.koma",
     name: "绅士会所",
-    version: "0.1.2",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
     author: "Koma",
