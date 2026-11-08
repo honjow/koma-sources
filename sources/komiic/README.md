@@ -1,4 +1,4 @@
-# Komiic 0.1.15
+# Komiic 0.1.16
 
 源 ID `com.komiic.koma`，语言及 NSFW 标记保持；crate、runtime 与 package 版本对齐。普通网站为 `https://komiic.com/`，不把 API 地址冒作网页入口，也不由网页元数据授予验证或登录权限。源图标使用官网 PWA 标志及其原蓝色背景，素材依据见 [ASSET_SOURCES.md](ASSET_SOURCES.md)。
 
@@ -25,6 +25,12 @@
 列表与搜索中，官网明确的 public.komiic.com/comics/<作品封面身份>/cover.jpg 或 cover.webp 可附既有图片解析器同样的 Accept 和所选镜像 Referer，方便新宿主首次公开封面加载；URL原样保留。票据图片、其他域和未知格式继续走原解析器，不发送凭据。
 
 详情标签按官网返回顺序先保留 categories，再追加 warnings 原文，与固定参考 genre 语义一致；请求所需 warnings 缺失或格式错误时明确失败，不冒充没有警示。
+
+## 推薦分類
+
+对照官网 `/recommendations` 的 `assets/index-97tYF0_m.js`（`.com` 与 `.cc` 同版本）。书源在现有分类菜单并列读者推荐本周、本月、年度及 AI 推荐。读者榜按 `topRecommendedComics` 的 WEEK / MONTH / YEAR 请求普通漫画，保持官网排序。偏移按官网每批 30 部计算，额外取一部判断是否还有下一批，榜尾不发布游标。推荐分类不消费热门、最近更新或关键词筛选。
+
+AI 推荐通过所选镜像已有的 Komiic 登录会话调用 `personalizedSuggestions`，按官网默认请求最多 25 部并排除已读及已收藏，批量查询作品资料后按推荐顺序显示。游客提示登录；账号没有推荐时返回空结果。登录 Cookie 不进入封面或正文图片地址。保留独立首页与普通分类的原合同。
 
 ## 账号会话
 

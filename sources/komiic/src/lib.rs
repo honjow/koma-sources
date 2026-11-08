@@ -8,6 +8,7 @@ static ALLOCATOR: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
 #[path = "../strict_json.rs"]
 mod strict_json;
 mod browse;
+mod recommendations;
 mod session;
 
 use koma_source_sdk::host::{http_request, log_info};
@@ -49,7 +50,7 @@ static mut SEARCH_QUERY: [u8; GQL_BODY_CAP] = [0; GQL_BODY_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.komiic.koma",
     name: "Komiic",
-    version: "0.1.15",
+    version: "0.1.16",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -388,7 +389,9 @@ fn write_detail_tags(payload: &mut [u8], c: &mut usize, obj: &[u8]) -> bool {
     true
 }
 fn write_manga_card(payload: &mut [u8], c: &mut usize, obj: &[u8], req: &[u8]) -> bool {
-    let id = match extract_json_string(obj, b"id") {
+    // GraphQL fields can be reordered (including AI metadata serialization).
+    // A nested authors[].id must never become the work ID.
+    let id = match koma_source_sdk::source_protocol::raw_string(obj, b"id").ok().flatten() {
         Some(v) => v,
         None => return true,
     };
@@ -517,13 +520,17 @@ fn run_popular_list(operation: &str, req: &[u8]) -> u32 {
 }
 
 fn run_get_manga_list(req: &[u8]) -> u32 {
+    let args = json_object_member(req, b"args").unwrap_or(req);
+    if let Some(output) = extract_json_string(args, b"listingId").and_then(|id| recommendations::run(req, id)) {
+        return output;
+    }
     run_popular_list("get_manga_list", req)
 }
 
 fn run_get_listings(_req: &[u8]) -> u32 {
     let payload = payload_buf();
     let mut c = 0usize;
-    if !write_bytes(payload, &mut c, r#"{"listings":[{"id":"popular","name":"熱門","kind":"popular","supportsPaging":true},{"id":"latest","name":"最近更新","kind":"latest","supportsPaging":true}]}"#.as_bytes()) {
+    if !write_bytes(payload, &mut c, r#"{"listings":[{"id":"popular","name":"熱門","kind":"popular","supportsPaging":true},{"id":"latest","name":"最近更新","kind":"latest","supportsPaging":true},{"id":"reader-recommended-week","name":"讀者推薦 · 本週","supportsFilters":false},{"id":"reader-recommended-month","name":"讀者推薦 · 本月","supportsFilters":false},{"id":"reader-recommended-year","name":"讀者推薦 · 年度","supportsFilters":false},{"id":"ai-recommended","name":"AI 推薦","supportsFilters":false}]}"#.as_bytes()) {
         return write_error("get_listings", "internal_error", "overflow");
     }
     write_success_payload("get_listings", c)
