@@ -838,18 +838,6 @@ fn run_get_pages(req: &[u8]) -> u32 {
     write_success_payload("get_pages", c)
 }
 
-const DEFAULT_CDN: &[u8] = b"https://img.komiic.com/";
-const MIRROR_CDN: &[u8] = b"https://img.komiic.cc/";
-
-fn ticket_image_path(url: &[u8], is_mirror: bool) -> Option<&[u8]> {
-    // The site's ticket names the same byte path on either CDN. Keep the
-    // existing default, and resolve the explicit .cc mirror on its own CDN.
-    let path = strip_prefix(url, DEFAULT_CDN)
-        .or_else(|| is_mirror.then(|| strip_prefix(url, MIRROR_CDN)).flatten())?;
-    let safe = path.iter().all(|byte| byte.is_ascii_graphic() && !matches!(byte, b'?' | b'#' | b'\\' | b'"'));
-    safe.then_some(path)
-}
-
 fn run_get_image_request(req: &[u8]) -> u32 {
     let url = match extract_json_string(req, b"url") {
         Some(v) if !v.is_empty() => v,
@@ -881,10 +869,6 @@ fn run_get_image_request(req: &[u8]) -> u32 {
             None => return write_error("get_image_request", "parse_error", "missing image ticket result"),
         };
         let is_mirror = selected_base(req) == MIRROR;
-        let image_path = extract_json_string(record, b"url").and_then(|value| ticket_image_path(value, is_mirror));
-        let Some(image_path) = image_path else {
-            return write_error("get_image_request", "parse_error", "invalid image ticket url");
-        };
         let ticket = match extract_json_string(record, b"ticket") {
             Some(v) if !v.is_empty() && v.len() <= 4096 && v.iter().all(|byte| byte.is_ascii_graphic()) => v,
             _ => return write_error("get_image_request", "parse_error", "missing image ticket"),
@@ -892,13 +876,10 @@ fn run_get_image_request(req: &[u8]) -> u32 {
         if extract_json_string(record, b"kid") != Some(kid) {
             return write_error("get_image_request", "parse_error", "image ticket identity mismatch");
         }
-        // Keiyoushi, Hyperion and Kotatsu all request
-        // {base}/api/image/{kid} with the ticket. The .cc CDN subdomain is
-        // unreachable on some direct networks, while the mirror serves the same
-        // ticket-protected bytes on its own api/image endpoint, so only the
-        // default origin keeps the dedicated CDN host.
-        Some((if is_mirror { MIRROR_IMAGE_BASE } else { DEFAULT_CDN },
-            if is_mirror { kid } else { image_path }, ticket))
+        // Keiyoushi, Hyperion and Kotatsu never trust the ticket response URL;
+        // they request {base}/api/image/{kid} with the ticket. The provider can
+        // change its CDN host at any time, so the page URL is the stable contract.
+        Some((if is_mirror { MIRROR_IMAGE_BASE } else { IMAGE_BASE }, kid, ticket))
     } else { None };
     let payload = payload_buf();
     let mut c = 0usize;
