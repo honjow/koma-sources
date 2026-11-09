@@ -18,7 +18,7 @@ fn request_origin(r: &[u8]) -> &'static [u8] {
         _ => WEB,
     }
 }
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.mangaxiaosi.zh.koma",name:"Manga Xiao Si",version:"0.1.7",api_version:"0.2",language:"zh",author:"Koma",description:"Manga Xiao Si published finite rank and query catalogue. Per-work rating, picture availability and usage unknown.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.mangaxiaosi.zh.koma",name:"Manga Xiao Si",version:"0.1.8",api_version:"0.2",language:"zh",author:"Koma",description:"Manga Xiao Si published finite rank and query catalogue. Per-work rating, picture availability and usage unknown.",content_rating:"nsfw"};
 #[allow(dead_code)]
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
