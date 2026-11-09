@@ -11,7 +11,7 @@ RUSTFLAGS='-C link-arg=--max-memory=8388608' cargo build --manifest-path image-r
 python3 image-rules/generate_plugins.py --output /tmp/koma-image-plugin-candidate
 ```
 
-`plugin-definitions/*.json` 各描述一个插件，提供 id、version、meta、processor、parameters 与 application；`parametersFromRule` 可从现有签名定义生成参数。processor.wasm 相对定义文件，或用 `--processor id=path` 覆盖；`--definitions`、`--catalog` 和 `--output` 可指定其他位置。生成 schema 2 `image_plugins` 索引、内容寻址 JSON 包及 WASM。用户添加插件订阅后，再从目录选择安装插件；算法由外部 WASM 提供。旧 schema 1 资源作为兼容资料保留。默认目录提供“去除包子漫画横幅”插件；独立反色示例不在默认目录中。源码作者须在真实样本、空处理、取消及无关页面上验证输出；不要把构建成功当成设备验收。
+`plugin-definitions/*.json` 各描述一个插件，提供 id、version、meta、processor、parameters 与 application；`parametersFromRule` 可从现有签名定义生成参数。processor.wasm 相对定义文件，或用 `--processor id=path` 覆盖；`--definitions`、`--catalog` 和 `--output` 可指定其他位置。生成 schema 2 `image_plugins` 索引、内容寻址 JSON 包及 WASM。用户添加插件订阅后，再从目录选择安装插件；算法由外部 WASM 提供。旧 schema 1 资源作为兼容资料保留。默认目录提供“去除包子漫画横幅”和[“漫画水印清理”](watermark/README.md)；独立反色示例不在默认目录中。源码作者须在真实样本、空处理、取消及无关页面上验证输出；不要把构建成功当成设备验收。
 
 包子窄版顶部横幅优先使用完整签名。完整签名未命中时，处理器用现有签名的印刷区域确认横幅，再在模板高度内查找足够长的白色留白和紧随其后的明确正文起点。固定模板高度不作为这条路径的裁切位置。留白或正文边界不明确时保留原图。
 

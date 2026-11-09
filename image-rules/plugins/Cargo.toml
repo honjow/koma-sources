@@ -1,5 +1,5 @@
 [workspace]
-members = ["sdk", "banner", "invert"]
+members = ["sdk", "banner", "invert", "watermark"]
 resolver = "2"
 [profile.release]
 opt-level = "s"
