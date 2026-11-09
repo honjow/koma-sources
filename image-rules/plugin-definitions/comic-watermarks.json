@@ -1,9 +1,9 @@
 {
   "id": "comic-watermarks",
-  "version": 1,
+  "version": 2,
   "meta": {
     "name": "漫画水印清理",
-    "description": "识别并清理漫画页中已收录样式的水印。首版支持 DM5（横排、竖排、斜排）、拷贝漫画和集云数据在 800 像素宽页面中的已验证版式，支持白边上的叠加水印。水印压住画面时，仅在局部颜色平滑或线条可连续恢复时处理 DM5 和拷贝漫画。其余情况保留原图。",
+    "description": "识别并清理漫画页中已收录样式的水印。支持 DM5（横排、竖排、斜排）、拷贝漫画和集云数据在 800 像素宽页面两侧底角的已验证版式，可分别清理同一页的左右角及留白上的叠加水印。水印压住画面时，仅在局部颜色平滑或线条可连续恢复时处理 DM5 和拷贝漫画。其余情况保留原图。",
     "website": "https://github.com/honjow/koma-sources/tree/master/image-rules/plugins/watermark"
   },
   "processor": {

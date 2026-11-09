@@ -26,13 +26,21 @@ pub(super) struct Pair {
     pub signature_height: usize,
 }
 
+pub(super) struct Templates<'a> {
+    pub pairs: &'a [Pair],
+    pub copy: Option<&'a Pair>,
+    pub cloud: Pattern,
+    // Newly calibrated narrow left marks can cross a faint horizontal stroke.
+    // Keep the existing right-side reconstruction order for v1 matches.
+    pub prefer_fine_lines: bool,
+}
+
 pub(super) fn restore(
     corner: &mut [u8],
     width: usize,
     height: usize,
     page_width: usize,
-    pairs: &[Pair],
-    cloud: Pattern,
+    templates: Templates<'_>,
 ) -> Result<bool, ()> {
     let luminance: Vec<u8> = corner.chunks_exact(BYTES_PER_PIXEL).map(luma).collect();
     let plane = Plane {
@@ -40,11 +48,10 @@ pub(super) fn restore(
         width,
         height,
     };
-    let (copy, dm5) = pairs.split_last().ok_or(())?;
     let mut best = None;
     let mut highest = 0.0;
     let mut next = 0.0;
-    for pair in dm5 {
+    for pair in templates.pairs {
         if super::host::cancelled() {
             return Err(());
         }
@@ -60,9 +67,18 @@ pub(super) fn restore(
     let pair = match best {
         Some(pair) if highest >= 0.73 && highest - next >= 0.22 => pair,
         // A copy-only match cannot account for an overlapping DM5 mark.
-        _ if highest < 0.28 && plane.pair_signature(copy, page_width) >= 0.73 => copy,
+        _ if highest < 0.28 => {
+            let Some(copy) = templates
+                .copy
+                .filter(|p| plane.pair_signature(p, page_width) >= 0.73)
+            else {
+                return Ok(false);
+            };
+            copy
+        }
         _ => return Ok(false),
     };
+    let cloud = templates.cloud;
     let cloud_rect = cloud.rectangle();
     if cloud.page_width() == page_width
         && cloud_rect.height + cloud_rect.bottom <= height
@@ -70,7 +86,7 @@ pub(super) fn restore(
     {
         return Ok(false);
     }
-    plane.reconstruct(corner, pair)
+    plane.reconstruct(corner, pair, templates.prefer_fine_lines)
 }
 
 struct Plane<'a> {
@@ -127,11 +143,16 @@ impl Plane<'_> {
         values[4]
     }
 
-    fn reconstruct(&self, corner: &mut [u8], pair: &Pair) -> Result<bool, ()> {
+    fn reconstruct(
+        &self,
+        corner: &mut [u8],
+        pair: &Pair,
+        prefer_fine_lines: bool,
+    ) -> Result<bool, ()> {
         let rect = pair.light.rectangle();
         let (x, y) = rect.origin(self.width, self.height);
         let mask = self.mask(pair, x, y, HALO);
-        let Some(direction) = self.continuity(&mask, rect, x, y) else {
+        let Some(direction) = self.continuity(&mask, rect, x, y, prefer_fine_lines) else {
             return Ok(false);
         };
         let directions: &[(isize, isize)] = match direction {
@@ -290,6 +311,7 @@ impl Plane<'_> {
         rect: Rect,
         x: usize,
         y: usize,
+        prefer_fine_lines: bool,
     ) -> Option<Option<(isize, isize)>> {
         let mut horizontal = Gradient::default();
         let mut vertical = Gradient::default();
@@ -309,12 +331,18 @@ impl Plane<'_> {
         }
         let gx = horizontal.mean()?;
         let gy = vertical.mean()?;
-        if gx <= 3.4 && gy <= 3.4 {
-            Some(None)
-        } else if gy <= 2.0 && gx > 3.0 * gy {
+        let smooth = gx <= 3.4 && gy <= 3.4;
+        if smooth && !prefer_fine_lines {
+            return Some(None);
+        }
+        // Even a smooth region may contain one long ink stroke. Give
+        // a strong directional signal priority over isotropic smoothing.
+        if gx >= 1.0 && gy <= 2.0 && gx > 3.0 * gy {
             Some(Some(VERTICAL))
-        } else if gx <= 2.0 && gy > 3.0 * gx {
+        } else if gy >= 1.0 && gx <= 2.0 && gy > 3.0 * gx {
             Some(Some(HORIZONTAL))
+        } else if smooth {
+            Some(None)
         } else {
             None
         }
