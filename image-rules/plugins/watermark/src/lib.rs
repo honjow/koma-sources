@@ -372,6 +372,34 @@ fn prepare_corner(width: usize, height: usize, side: Side) -> Result<Option<Corn
         changed = fill_matching(&mut corner, candidates, true)?;
     }
     if !changed {
+        // Frame recovery needs to see clean rows above the left-side mark.
+        let frame_height = height.min(146).max(corner.height);
+        if frame_height > corner.height {
+            corner.height = frame_height;
+            corner.y = height - frame_height;
+            corner
+                .pixels
+                .resize(corner_width * frame_height * BYTES_PER_PIXEL, 0);
+            host::region(
+                corner.x as i32,
+                corner.y as i32,
+                corner_width as i32,
+                frame_height as i32,
+                &mut corner.pixels,
+            )?;
+            if side == Side::Left {
+                corner.reverse_rows();
+            }
+        }
+        changed = artwork::restore_panel(
+            &mut corner.pixels,
+            corner_width,
+            frame_height,
+            width,
+            templates,
+        )?;
+    }
+    if !changed {
         return Ok(None);
     }
     if side == Side::Left {

@@ -1,6 +1,8 @@
 //! Restore a narrow mark where the surrounding artwork predicts the hidden pixels.
 use super::{luma, Pattern, Rect, BYTES_PER_PIXEL};
 
+mod panel;
+
 const NEIGHBOR_LIMIT: usize = 56;
 const HALO: usize = 3;
 const VERTICAL: (isize, isize) = (0, 1);
@@ -26,6 +28,7 @@ pub(super) struct Pair {
     pub signature_height: usize,
 }
 
+#[derive(Clone, Copy)]
 pub(super) struct Templates<'a> {
     pub pairs: &'a [Pair],
     pub copy: Option<&'a Pair>,
@@ -48,45 +51,34 @@ pub(super) fn restore(
         width,
         height,
     };
-    let mut best = None;
-    let mut highest = 0.0;
-    let mut next = 0.0;
-    for pair in templates.pairs {
-        if super::host::cancelled() {
-            return Err(());
-        }
-        let score = plane.pair_signature(pair, page_width);
-        if score > highest {
-            next = highest;
-            highest = score;
-            best = Some(pair);
-        } else if score > next {
-            next = score;
-        }
-    }
-    let pair = match best {
-        Some(pair) if highest >= 0.73 && highest - next >= 0.22 => pair,
-        // A copy-only match cannot account for an overlapping DM5 mark.
-        _ if highest < 0.28 => {
-            let Some(copy) = templates
-                .copy
-                .filter(|p| plane.pair_signature(p, page_width) >= 0.73)
-            else {
-                return Ok(false);
-            };
-            copy
-        }
-        _ => return Ok(false),
+    let Some(pair) = plane.identify(page_width, &templates, 0.73)? else {
+        return Ok(false);
     };
-    let cloud = templates.cloud;
-    let cloud_rect = cloud.rectangle();
-    if cloud.page_width() == page_width
-        && cloud_rect.height + cloud_rect.bottom <= height
-        && plane.signature(cloud, None, 227, cloud_rect.height) >= 0.23
-    {
+    plane.reconstruct(corner, pair, templates.prefer_fine_lines)
+}
+
+pub(super) fn restore_panel(
+    corner: &mut [u8],
+    width: usize,
+    height: usize,
+    page_width: usize,
+    templates: Templates<'_>,
+) -> Result<bool, ()> {
+    let luminance: Vec<u8> = corner.chunks_exact(BYTES_PER_PIXEL).map(luma).collect();
+    let plane = Plane {
+        luminance: &luminance,
+        width,
+        height,
+    };
+    if !panel::may_have_frame(&plane) {
         return Ok(false);
     }
-    plane.reconstruct(corner, pair, templates.prefer_fine_lines)
+    // An intersecting frame reduces copy-logo correlation. This path also
+    // requires two proven frame edges and validates each reconstructed pixel.
+    let Some(pair) = plane.identify(page_width, &templates, 0.65)? else {
+        return Ok(false);
+    };
+    panel::repair(&plane, corner, pair)
 }
 
 struct Plane<'a> {
@@ -96,6 +88,53 @@ struct Plane<'a> {
 }
 
 impl Plane<'_> {
+    fn identify<'a>(
+        &self,
+        page_width: usize,
+        templates: &Templates<'a>,
+        minimum_copy_score: f64,
+    ) -> Result<Option<&'a Pair>, ()> {
+        let mut best = None;
+        let mut highest = 0.0;
+        let mut next = 0.0;
+        for pair in templates.pairs {
+            if super::host::cancelled() {
+                return Err(());
+            }
+            let score = self.pair_signature(pair, page_width);
+            if score > highest {
+                next = highest;
+                highest = score;
+                best = Some(pair);
+            } else if score > next {
+                next = score;
+            }
+        }
+        let pair = match best {
+            Some(pair) if highest >= 0.73 && highest - next >= 0.22 => pair,
+            // A copy-only match cannot account for an overlapping DM5 mark.
+            _ if highest < 0.28 => {
+                let Some(copy) = templates
+                    .copy
+                    .filter(|p| self.pair_signature(p, page_width) >= minimum_copy_score)
+                else {
+                    return Ok(None);
+                };
+                copy
+            }
+            _ => return Ok(None),
+        };
+        let cloud = templates.cloud;
+        let cloud_rect = cloud.rectangle();
+        if cloud.page_width() == page_width
+            && cloud_rect.height + cloud_rect.bottom <= self.height
+            && self.signature(cloud, None, 227, cloud_rect.height) >= 0.23
+        {
+            return Ok(None);
+        }
+        Ok(Some(pair))
+    }
+
     fn pair_signature(&self, pair: &Pair, page_width: usize) -> f64 {
         let rect = pair.light.rectangle();
         if pair.light.page_width() != page_width || rect.height + rect.bottom > self.height {
