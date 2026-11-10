@@ -8,7 +8,7 @@ const BASE: &[u8] = b"https://mycomic.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mycomic.koma",
     name: "MYCOMIC",
-    version: "0.1.29",
+    version: "0.1.30",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -906,7 +906,17 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
     } else {
         q(b, &mut n, b"")?;
     }
-    bytes(b, &mut n, b"}}")?;
+    // Keep the public work page on the detail response so the host can offer
+    // WebView and share actions. The source still owns the language prefix.
+    let mut work = [0; 8192];
+    let mut work_len = 0;
+    bytes(&mut work, &mut work_len, BASE)?;
+    bytes(&mut work, &mut work_len, comics_path(r))?;
+    bytes(&mut work, &mut work_len, b"/")?;
+    bytes(&mut work, &mut work_len, id)?;
+    bytes(b, &mut n, b",\"links\":[{\"kind\":\"source\",\"url\":")?;
+    q(b, &mut n, &work[..work_len])?;
+    bytes(b, &mut n, b"}]}}")?;
     Ok(n)
 }
 // Isolate only a chapters property with a strict array of JSON objects. Never evaluate x-data.
