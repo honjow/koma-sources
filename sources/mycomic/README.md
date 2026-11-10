@@ -1,6 +1,6 @@
-# MYCOMIC - 我的漫畫 0.1.5
+# MYCOMIC 0.1.8
 
-独立公开HTML适配 `com.mycomic.koma`，API0.2，主页 `https://mycomic.com`。中文内容、源级nsfw，单作品分级和用量未知；官网繁中与简中页面标题分别为“MYCOMIC - 我的漫畫”和“MYCOMIC - 我的漫画”，显示名保留完整品牌；英文保留 MYCOMIC。现红色 C 是此前保留身份的重绘图，不冒称官网原图，图标字节不变。popular、latest、search、筛选、排行、详情、目录、页描述与图像请求已实现；home/credentials不开放。不登录、不改Cookie、UA、网络或权限。
+独立公开HTML适配 `com.mycomic.koma`，API0.2，主页 `https://mycomic.com`。中文内容、源级nsfw，单作品分级和用量未知；官网繁中与简中页面标题带“MYCOMIC - 我的漫畫／我的漫画”副文案，但按用户 2026-11-10 要求显示名只保留大写品牌 MYCOMIC。现红色 C 是此前保留身份的重绘图，不冒称官网原图，图标字节不变。popular、latest、search、筛选、排行、详情、目录、页描述与图像请求已实现；home/credentials不开放。不登录、不改Cookie、UA、网络或权限。
 
 ## 首选语言
 
@@ -25,3 +25,7 @@
 Koma 仅在宿主声明 source_filter_search_without_query_v1 时提供 search 作用域筛选并声明 useSearchForFilters；筛选以 search 执行，允许空查询。热门和最新 get_manga_list 不消费筛选，保持原 sort；显式最新上架使用内部值 new 并省略 sort，普通查询未选择排序亦省略 sort。旧宿主保留原无筛选和非空搜索行为。排行仅消费排序和其他筛选，保留原站无封面数据，不伪造封面；排行续页请求在网络前拒绝。cn 与 original 前缀沿当前设置，不改变已有默认和 ID。筛选项按源参考原值发送，未知值拒绝。
 
 本轮未发布候选仅通过合成 HTML 的实际 WASM 请求、解析及旧响应/403对照；原站先前返回403，真实筛选、排行 HTML 与 Native 普通路径均未验证，不能据此声称站点恢复。
+
+## 2026-11-10 显示名精简
+
+按用户要求只保留大写品牌 `MYCOMIC`；源 ID、内容、图标和阅读行为不变。
