@@ -27,6 +27,7 @@ members = [
   "sources/oldmasterq-zh-hant",
   "sources/namepara-zh-hant",
   "sources/mycomic",
+  "sources/longjm",
   "sources/cmanhua",
   "sources/tipo-ipmini-zh-hant",
   "sources/webtoons_zh_hant",
