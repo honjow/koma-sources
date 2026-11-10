@@ -8,7 +8,7 @@ const BASE: &[u8] = b"https://mycomic.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mycomic.koma",
     name: "MYCOMIC",
-    version: "0.1.8",
+    version: "0.1.29",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -503,6 +503,100 @@ fn diagnostic_error(op: &str, code: &str) {
     host::log_info(&b[..n]);
 }
 static mut LAST_HTTP_STATUS: u16 = 0;
+static mut CHALLENGE_CAUSE: bool = false;
+const CHALLENGE_ID_CAP: usize = 384;
+static mut CHALLENGE_ID: [u8; CHALLENGE_ID_CAP] = [0; CHALLENGE_ID_CAP];
+static mut CHALLENGE_ID_LEN: usize = 0;
+
+fn contains(haystack: &[u8], needle: &[u8]) -> bool {
+    if needle.is_empty() || haystack.len() < needle.len() {
+        return false;
+    };
+    haystack.windows(needle.len()).any(|w| w == needle)
+}
+
+fn challenge_cause_enabled(r: &[u8]) -> bool {
+    json_object_member(r, b"hostFeatures").map(trim_ascii).map_or(false, |v| {
+        v.starts_with(b"[") && v.ends_with(b"]") &&
+            v[1..v.len() - 1].split(|b| *b == b',')
+                .any(|x| trim_ascii(x) == b"\"source_http_challenge_cause_v1\"")
+    })
+}
+
+fn set_challenge_context(r: &[u8]) {
+    unsafe {
+        CHALLENGE_CAUSE = challenge_cause_enabled(r);
+        CHALLENGE_ID_LEN = 0;
+    }
+    diagnostic_value(b"mycomic challenge cause=", unsafe { CHALLENGE_CAUSE } as usize);
+}
+
+fn diagnostic_value(label: &[u8], value: usize) {
+    let mut b = [0u8; 96];
+    let mut n = 0;
+    let _ = write_bytes(&mut b, &mut n, label);
+    let _ = write_usize(&mut b, &mut n, value);
+    host::log_info(&b[..n]);
+}
+
+fn cloudflare_block(body: &[u8]) -> bool {
+    contains(body, b"<title>Attention Required! | Cloudflare</title>") ||
+        (contains(body, b"cf-error-details") && contains(body, b"Sorry, you have been blocked"))
+}
+
+fn capture_challenge_id(response: &[u8]) {
+    unsafe {
+        CHALLENGE_ID_LEN = 0;
+        let Some(v) = json_object_member(response, b"challengeRequestId") else { return };
+        if v.len() > CHALLENGE_ID_CAP || v.first() != Some(&b'"') || v.last() != Some(&b'"') {
+            return;
+        };
+        let mut decoded = [0u8; 384];
+        if unescape(&v[1..v.len() - 1], &mut decoded).map_or(false, |s| !s.is_empty() && s.len() <= 64) {
+            CHALLENGE_ID[..v.len()].copy_from_slice(v);
+            CHALLENGE_ID_LEN = v.len();
+        }
+    }
+}
+
+fn write_challenge_error(op: &str, message: &str) -> u32 {
+    let status = unsafe { LAST_HTTP_STATUS };
+    let mut envelope = [0u8; 1536];
+    let mut n = 0;
+    let mut ok = write_bytes(&mut envelope, &mut n, br#"{"type":"response","version":1,"ok":false,"operation":""#)
+        && append_json_escaped(&mut envelope, &mut n, op.as_bytes())
+        && write_bytes(&mut envelope, &mut n, br#"","error":{"code":"challenge_required","message":""#)
+        && append_json_escaped(&mut envelope, &mut n, message.as_bytes())
+        && write_bytes(&mut envelope, &mut n, br#"","status":"#)
+        && write_usize(&mut envelope, &mut n, status as usize);
+    unsafe {
+        if ok && CHALLENGE_ID_LEN > 0 {
+            ok = write_bytes(&mut envelope, &mut n, br#","challengeRequestId":"#) &&
+                write_bytes(&mut envelope, &mut n, &CHALLENGE_ID[..CHALLENGE_ID_LEN]);
+        }
+    }
+    ok = ok && write_bytes(&mut envelope, &mut n, br#"},"hostHints":{"network":false},"warnings":[]}"#);
+    if !ok {
+        return write_error(op, "internal_error", "error response overflow");
+    };
+    response_buffer().write(&envelope[..n], false)
+}
+
+// Keep the default NetworkKit transport but do not override its UA.
+// The challenge WebView then receives the same effective identity that the
+// host probe later attaches to the original GET.
+fn build_request(url: &[u8]) -> Option<usize> {
+    let b = http_req_buf();
+    let mut n = 0;
+    if !write_bytes(b, &mut n, br#"{"version":1,"method":"GET","url":""#)
+        || !append_json_escaped(b, &mut n, url)
+        || !write_bytes(b, &mut n, br#"","headers":{"Referer":"https://mycomic.com"},"timeoutMs":15000,"responseKind":"bodyText"}"#)
+    {
+        return None;
+    };
+    Some(n)
+}
+
 fn fetch(path: &[u8]) -> Result<Node, &'static str> {
     unsafe { LAST_HTTP_STATUS = 0 };
     host::log_info(b"mycomic fetch stage=enter");
@@ -512,7 +606,11 @@ fn fetch(path: &[u8]) -> Result<Node, &'static str> {
     let mut url = [0; 8192];
     let u = absolute(path, &mut url)?;
     let b = http_req_buf();
-    let n = koma_source_sdk::build_get_request(b, u, Some(BASE), &[]).ok_or("request overflow")?;
+    let mut n = build_request(u).ok_or("request overflow")?;
+    if unsafe { CHALLENGE_CAUSE } {
+        n = n.checked_sub(1).ok_or("request overflow")?;
+        bytes(b, &mut n, br#", "wantChallengeRequestId":true}"#)?;
+    };
     host::log_info(b"mycomic fetch stage=request_ready");
     let size = host::http_request(&b[..n], http_out()).map_err(|_| "network request failed")?;
     host::log_info(b"mycomic fetch stage=http_return");
@@ -525,6 +623,25 @@ fn fetch(path: &[u8]) -> Result<Node, &'static str> {
     diagnostic_status(status);
     match status {
         200..=299 => {}
+        401 | 403 | 503 if unsafe { CHALLENGE_CAUSE } => {
+            // The Host's cf-mitigated marker is authoritative when present.
+            // The raw-envelope fallback keeps the older hard-block page flow
+            // visible as a verification entry instead of a dead end.
+            let signaled = json_object_member(response, b"accessSignal")
+                .map(trim_ascii) == Some(b"\"challenge_required\"");
+            let blocked = signaled || cloudflare_block(response);
+            diagnostic_value(b"mycomic challenge cf=", blocked as usize);
+            if blocked {
+                capture_challenge_id(response);
+                diagnostic_value(b"mycomic challenge id=", unsafe { CHALLENGE_ID_LEN });
+                return Err("website verification required");
+            };
+            match status {
+                401 => return Err("authentication required"),
+                403 => return Err("public request rejected"),
+                _ => return Err("server error"),
+            }
+        }
         404 => return Err("not found"),
         429 => return Err("rate limited"),
         401 => return Err("authentication required"),
@@ -557,9 +674,13 @@ fn error(op: &str, e: &str) -> u32 {
         "rate limited" => "rate_limited",
         "public request rejected" => "permission_denied",
         "authentication required" => "authentication_required",
+        "website verification required" => "challenge_required",
         _ => "source_error",
     };
     diagnostic_error(op, code);
+    if e == "website verification required" {
+        return write_challenge_error(op, message);
+    };
     write_error(op, code, message)
 }
 fn execute(op: &str, result: Result<usize, &'static str>) -> u32 {
@@ -958,30 +1079,35 @@ fn run_search(r: &[u8]) -> u32 {
     unsafe {
         LAST_HTTP_STATUS = 0;
     }
+    set_challenge_context(r);
     execute("search", list(r, true))
 }
 fn run_get_manga_list(r: &[u8]) -> u32 {
     unsafe {
         LAST_HTTP_STATUS = 0;
     }
+    set_challenge_context(r);
     execute("get_manga_list", list(r, false))
 }
 fn run_get_manga(r: &[u8]) -> u32 {
     unsafe {
         LAST_HTTP_STATUS = 0;
     }
+    set_challenge_context(r);
     execute("get_manga", detail(r))
 }
 fn run_get_chapters(r: &[u8]) -> u32 {
     unsafe {
         LAST_HTTP_STATUS = 0;
     }
+    set_challenge_context(r);
     execute("get_chapters", chapters(r))
 }
 fn run_get_pages(r: &[u8]) -> u32 {
     unsafe {
         LAST_HTTP_STATUS = 0;
     }
+    set_challenge_context(r);
     execute("get_pages", pages(r))
 }
 fn run_get_listings(_: &[u8]) -> u32 {
@@ -1002,7 +1128,7 @@ fn image_request(r: &[u8]) -> Result<usize, &'static str> {
     let mut n = 0;
     bytes(b, &mut n, b"{\"url\":")?;
     q(b, &mut n, u)?;
-    bytes(b, &mut n, b",\"headers\":{}}")?;
+    bytes(b, &mut n, b",\"headers\":{\"Referer\":\"https://mycomic.com/\"}}")?;
     Ok(n)
 }
 fn run_get_image_request(r: &[u8]) -> u32 {
