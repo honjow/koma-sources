@@ -15,6 +15,14 @@ Sources are compiled to WebAssembly (`wasm32-unknown-unknown`, `#![no_std]`) and
 确实具备该能力的宿主。正式版本尚未确定时，候选包不进入公开索引。
 
 ## Quick Start
+### 验证页 UA
+
+需要网页验证的源默认使用系统 WebView UA。若真机上确认 Cloudflare managed challenge 在系统 UA 下反复挑战或拿不到 `cf_clearance`，可在 `websitePolicy` 声明 `webSessionAndroidAgent: true`：宿主保留原生 UA 的 Chrome/WebKit 版本和移动指纹，只把括号内的 OS token 换成 `; Android 10`，与华为系统浏览器的行为一致。不要声明桌面 Chrome UA，它会和移动指纹矛盾。该声明默认关闭，启用前要在真机对照验证页加载、cookie/clearance 状态和原请求结果；只改声明、没做设备验证不能记为修复。
+
+### WebView fetch bridge
+
+原生网络栈被站点拒绝、但验证后的 WebView 会话能正常读取文档时，可声明 `webFetchBridge: true`。宿主在验证完成后保留一个隐藏的 WebView 会话，同源 GET 用页面内 fetch 读取，把 HTML 作为 200 bodyText 回放给源。只支持同源 GET、无 body；每个新 URL 需要一次页面内 fetch，但不再弹验证页。启用前要在真机验证列表、封面、详情、章节和阅读图片，不能只声明就发布。
+
 
 ```bash
 # 1. Create a new source from template
