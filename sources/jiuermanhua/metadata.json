@@ -1,3 +1,8 @@
 {
-  "homepage": "http://www.92mh.com"
+  "homepage": "http://www.92mh.com",
+  "localizedNames": {
+    "zh-Hans": "92漫画",
+    "zh-Hant": "92漫畫",
+    "en": "92Manhua"
+  }
 }

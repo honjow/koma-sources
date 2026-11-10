@@ -12,7 +12,7 @@ const WEB: &[u8] = b"https://3hentai.net";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hentai3.zh.koma",
     name: "3Hentai",
-    version: "0.1.7",
+    version: "0.1.8",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -1239,7 +1239,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
-    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.hentai3.zh.koma\",\"name\":\"3Hentai\",\"version\":\"0.1.7\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"3Hentai（中文）\",\"zh-Hant\":\"3Hentai（中文）\",\"en\":\"3Hentai (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":true,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
+    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.hentai3.zh.koma\",\"name\":\"3Hentai\",\"version\":\"0.1.8\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"3Hentai\",\"zh-Hant\":\"3Hentai\",\"en\":\"3Hentai\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":true,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
 }
 macro_rules! export_op {
     ($f:ident,$op:literal,$run:ident) => {

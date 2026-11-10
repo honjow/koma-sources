@@ -27,3 +27,7 @@ Build with `bash build.sh --source comicfury-zh`. Build and parser checks do not
 The fixed reference `949dea252eb8e867b7b40834a26e13088764ff55` defines tags, sort, last update, completed, violence, nudity, language and sexual-content selections. The source now exposes these through `get_filters` and consumes `args.filters` for search and listings. To preserve the already accepted Koma results, all four content flags default to `0` even though the reference defaults to `2`; changing them requires an explicit selection. Last-update defaults to `0`, completed false maps to the site's `completed=1`, and tags are UTF-8 URL encoded after the reference comma-space normalization. Unknown choices or malformed values fail before HTTP. No account, cookies, warning confirmation or UI style changes are introduced.
 
 Official same-header Chinese popular requests returned 12 cards with 0/0/0/0 and 19 with 2/2/2/2. Production candidate and original C++ Host replay of retained real HTML verified old versus new exact request URL and data equality for popular, latest and search with host-injected defaults; explicit choices and invalid inputs were checked separately, with live candidate popular calls returning the respective 12 and 19 cards. These are source/desktop results, not Native filter persistence or acceptance.
+
+## 2026-11-10 显示名精简
+
+按用户要求去掉单源语言后缀，当前显示名为 `Comic Fury`；源 ID、内容、图标和阅读行为不变。历史名称仅保留在旧版本记录中。

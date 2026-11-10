@@ -31,3 +31,7 @@ The default remains SINGLE and preserves `xkcd:zh`, every `xkcdch:zh:<number>` c
 Grouping follows the adopted Keiyoushi reference: join the Chinese archive to `https://xkcd.com/archive/` by original comic number and group by the English publication year or year-month, newest first, ten collections per page. The translated archive date is not a substitute: the verified live snapshots contain nine differing dates. English archive or mapping failure is reported for grouped list/detail/chapter requests instead of inventing dates; SINGLE operations and reading an already-generated grouped chapter do not require the English archive. Grouped chapter pages still verify membership in the Chinese archive and keep the existing same-origin body-image restriction. The English site is queried only for grouped list/detail/chapter operations; no cache persistence or automatic cross-book progress migration is claimed.
 
 Production WASM was exercised with live Chinese and English archives, year/month lists and cursor, a 2024 group containing comic 2893, grouped detail/chapter/page, and an old SINGLE book/chapter/page while another setting was selected. Retained 0.1.5 fixture outputs for SINGLE list/detail/chapters matched, and an English HTTP 503 fixture produced a grouped error while old SINGLE operations remained available. Device settings interaction, display, persistence, return path and published package remain unverified until their respective ordinary-path evidence exists.
+
+## 2026-11-10 显示名精简
+
+按用户要求去掉单源语言后缀，当前显示名为 `xkcd`；源 ID、内容、图标和阅读行为不变。历史名称仅保留在旧版本记录中。

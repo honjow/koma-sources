@@ -52,13 +52,13 @@ koma_source_sdk::koma_source_buffers! {
 }
 koma_source_sdk::koma_source_helpers!();
 
-// 官网 www.92mh.com 标题和版权均用“92漫画网”；保留现有 92 字标、ID 和地址。
+// 官网 www.92mh.com 的 <title> 是 SEO 标题并以“92漫画网”结尾；按用户 2026-11-10 要求采用 Keiyoushi 上游源名“92漫画”。保留现有 92 字标、ID 和地址。
 // 现有字标不是本次新核实的官网素材，站点身份或图标需新依据才调整。
 // 固定上游为 MIXED，官网可见 R-18，源级保守标记 nsfw；未取得作品级分级时用 unknown。
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.jiuermanhua.koma",
-    name: "92漫画网",
-    version: "0.1.9",
+    name: "92漫画",
+    version: "0.1.10",
     api_version: "0.2",
     language: "zh",
     author: "Koma",

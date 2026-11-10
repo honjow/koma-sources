@@ -9,7 +9,7 @@ const MAX: usize = 1048576;
 const INFO: SourceInfo = SourceInfo {
     id: "com.hentaihand.zh.koma",
     name: "HentaiHand",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -931,7 +931,7 @@ fn run_get_settings(_: &[u8]) -> u32 {
     write_error("get_settings", "not_supported", "not supported")
 }
 
-const INFO_JSON: &str = r#"{"sourceInfo":{"id":"com.hentaihand.zh.koma","name":"HentaiHand","version":"0.1.3","apiVersion":"0.2","language":"zh","author":"Koma","contentRating":"nsfw","description":"匿名中文作品信息；含成人内容，各作品分级及使用情况未知。","localizedNames":{"zh-Hans":"HentaiHand（中文）","zh-Hant":"HentaiHand（中文）","en":"HentaiHand (Chinese)"}},"capabilities":{"search":true,"mangaDetail":true,"chapters":true,"pages":true,"listings":true,"mangaList":true,"imageRequest":true,"home":false,"filters":true,"settings":false,"future":{"login":false,"auth":false,"process_page_image":false,"page_description":false,"base_url":false,"deeplink":false,"migration":false}}}"#;
+const INFO_JSON: &str = r#"{"sourceInfo":{"id":"com.hentaihand.zh.koma","name":"HentaiHand","version":"0.1.4","apiVersion":"0.2","language":"zh","author":"Koma","contentRating":"nsfw","description":"匿名中文作品信息；含成人内容，各作品分级及使用情况未知。","localizedNames":{"zh-Hans":"HentaiHand","zh-Hant":"HentaiHand","en":"HentaiHand"}},"capabilities":{"search":true,"mangaDetail":true,"chapters":true,"pages":true,"listings":true,"mangaList":true,"imageRequest":true,"home":false,"filters":true,"settings":false,"future":{"login":false,"auth":false,"process_page_image":false,"page_description":false,"base_url":false,"deeplink":false,"migration":false}}}"#;
 // Source-local ABI gate; SDK remains byte-identical. Check before helper forms a slice.
 fn checked_request(ptr: u32, len: u32) -> Option<&'static [u8]> {
     let cap = core::arch::wasm32::memory_size::<0>().checked_mul(65536)?;

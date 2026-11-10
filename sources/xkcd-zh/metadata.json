@@ -1,8 +1,8 @@
 {
   "localizedNames": {
-    "zh-Hans": "xkcd（中文）",
-    "zh-Hant": "xkcd（中文）",
-    "en": "xkcd (Chinese)"
+    "zh-Hans": "xkcd",
+    "zh-Hant": "xkcd",
+    "en": "xkcd"
   },
   "homepage": "https://xkcd.tw/",
   "chapterOrder": "newest_first"

@@ -16,7 +16,7 @@ const BASE: &[u8] = b"https://mangaball.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mangaball.zh.koma",
     name: "MangaBall",
-    version: "0.1.5",
+    version: "0.1.6",
     api_version: "0.2",
     language: "zh",
     author: "Koma",

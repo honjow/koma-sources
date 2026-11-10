@@ -13,7 +13,7 @@ const WEB: &[u8] = b"https://hentaifox.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hentaifox.zh.koma",
     name: "HentaiFox",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -1203,7 +1203,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 pub extern "C" fn koma_source_info() -> u32 {
     response_buffer().write_success_parts("source_info", &[
  b"{\"sourceInfo\":{\"id\":\"", SOURCE_INFO.id.as_bytes(), b"\",\"name\":\"", SOURCE_INFO.name.as_bytes(), b"\",\"version\":\"", SOURCE_INFO.version.as_bytes(), b"\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"",SOURCE_INFO.description.as_bytes(),
- "\",\"contentRating\":\"nsfw\",\"localizedNames\":{\"zh-Hans\":\"HentaiFox（中文）\",\"zh-Hant\":\"HentaiFox（中文）\",\"en\":\"HentaiFox (Chinese)\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes()
+ "\",\"contentRating\":\"nsfw\",\"localizedNames\":{\"zh-Hans\":\"HentaiFox\",\"zh-Hant\":\"HentaiFox\",\"en\":\"HentaiFox\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes()
  ])
 }
 macro_rules! export_op {

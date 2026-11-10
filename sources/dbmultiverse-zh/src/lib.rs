@@ -11,7 +11,7 @@ const LIST: &[u8] = b"https://www.dragonball-multiverse.com/cn/read.html";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.dragonballmultiverse.zh.koma",
     name: "Dragon Ball Multiverse",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",

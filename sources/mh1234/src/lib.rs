@@ -51,7 +51,7 @@ koma_source_sdk::koma_source_helpers!();
 
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mh1234.koma",
-    name: "漫画1234网",
+    name: "漫画1234",
     version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
