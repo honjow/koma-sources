@@ -11,6 +11,7 @@
       "baozicdn.com",
       "bzcdn.net"
     ],
+    "webSessionAndroidAgent": true,
     "chapterIdentity": {
       "workPrefix": "manga:",
       "chapterPrefix": "chapter:",
