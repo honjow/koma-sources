@@ -223,6 +223,15 @@ ABI. Reuse the listing's mirror or other already known inputs. Do not re-read a
 session or fetch a detail page per cover. Keep the old resolver for older hosts
 and for covers that actually need a ticket, session, or special transport.
 
+`get_pages` and `get_image_request` may also receive optional `mangaId` and
+`mangaUrl`. A bookshelf record without a provider URL uses Koma's internal
+`source://<sourceId>/<mangaId>` locator. The App omits it for image requests and
+may pass it to `get_pages`; either way, a source must treat any `source://` value
+as "no URL" instead of parsing it as a detail page. Validate a detail URL only
+when it is a real site URL, and bind identity through `mangaId` when the URL is
+absent or internal. Do not fail a request merely because the optional URL is an
+internal locator.
+
 ## JSON Response Formats
 
 You build response JSON in `payload_buf()` using `write_bytes` and `append_json_escaped`.

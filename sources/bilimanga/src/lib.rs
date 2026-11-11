@@ -1006,7 +1006,9 @@ fn optional_image_owner(a: &[u8], owner: &[u8]) -> R<()> {
     }
     let mut route = [0; 1024];
     if let Some(route) = protocol::text(a, b"mangaUrl", &mut route)? {
-        if canonical_detail_id(route) != Ok(owner) {
+        // Koma 用 source:// 记录书架作品位置，它不是网站地址，不能按详情路由校验。
+        // 书架续读时作品身份已由上面的 mangaId 约束，图片请求也不会带这个 locator。
+        if !route.starts_with(b"source://") && canonical_detail_id(route) != Ok(owner) {
             return Err("identity_mismatch");
         }
     }
