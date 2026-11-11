@@ -10,4 +10,8 @@ icon.png 是原CSS consumer计算样式的直接离线Chromium栅格化，不是
 
 渲染器、三个原CSS/headers/URL、computed consumer与receipt保留在 /private/tmp/koma-guazi-mh160-icon-current-followup-20261017/。`icon-source.css` 是最后原CSS全文件；不在标准打包时重新联网或重新生成图。最终视觉适用性/Native未接受，先交Root审。
 
-当前打包素材SHA256：`e379a353752a8c303b66e4928405f8d430b775bfcb267bac4f1a42c16de1ba96`。标准build仅复制存储资源，不保证重编WASM字节等于冻结旧包；当前图标候选保旧WASM精确，正式编译交付需独立验收。
+旧候选素材SHA256：`e379a353752a8c303b66e4928405f8d430b775bfcb267bac4f1a42c16de1ba96`。标准build仅复制存储资源，不保证重编WASM字节等于冻结旧包；当前图标候选保旧WASM精确，正式编译交付需独立验收。
+
+## 0.1.7 候选：为原标识增加底色
+
+应用户要求，为原官网 CSS 栅格化标识添加纯深灰 `#30363c` 底色；原白色和红色主体使用原始透明像素合成，再等比缩放至 624×624，不重绘标识。处理前图标 SHA-256 `e379a353752a8c303b66e4928405f8d430b775bfcb267bac4f1a42c16de1ba96`，候选图标 SHA-256 `401b4635c0922f898f672158761bd2de49eef1fd06baa6dd00c9d1a93ceceefa`。浅、深背景离线对照见 Koma `.hvigor/outputs/source-icon-audit-20261112/candidates/icon-light-dark-review.png`；候选图标已从最终包中读回，并在 237 浅色书源管理列表核对版本和显示；深色设备列表及浏览首页未验，未发布。

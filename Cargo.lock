@@ -1280,7 +1280,7 @@ dependencies = [
 
 [[package]]
 name = "koma_dm5_source"
-version = "0.1.27"
+version = "0.1.28"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1343,7 +1343,7 @@ dependencies = [
 
 [[package]]
 name = "koma_guazimanhua_source"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1379,7 +1379,7 @@ dependencies = [
 
 [[package]]
 name = "koma_hentaiclub_source"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1457,7 +1457,7 @@ dependencies = [
 
 [[package]]
 name = "koma_jiuermanhua_source"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1844,7 +1844,7 @@ dependencies = [
 
 [[package]]
 name = "koma_wnacg_source"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
