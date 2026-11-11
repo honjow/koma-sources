@@ -40,6 +40,14 @@ jobs:
             target
           key: ${{ runner.os }}-sources-${{ github.sha }}
           restore-keys: ${{ runner.os }}-sources-
+      - name: Point apt at a mirror that resolves
+        run: |
+          # Hosted runners intermittently fail DNS for *.ubuntu.com while
+          # github.com / static.rust-lang.org resolve fine (2026-11-11 outage).
+          # The image's mirror+file:/etc/apt/apt-mirrors.txt source reads its
+          # mirror URL from that file; redirect it to a mirror that resolves.
+          set -euo pipefail
+          sudo sh -c 'echo "http://mirrors.aliyun.com/ubuntu/" > /etc/apt/apt-mirrors.txt'
       - name: Install package tools
         run: sudo apt-get update && sudo apt-get install -y jq zip python3-pil
       - name: Check complete workspace coverage
