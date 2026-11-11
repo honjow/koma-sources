@@ -1,6 +1,6 @@
 # 书源目录
 
-本目录收录 Koma 的全部书源。每个子目录是一个独立的 Rust/WASM 源，`src/lib.rs` 中的 `SOURCE_INFO` 定义源 ID、名称、版本与描述，`metadata.json` 承载登录、章节顺序等运行时元数据。构建入口是仓库根的 `build.sh`，CI 会编译全部源并打包发布。
+本目录收录 Koma 的全部书源。每个子目录是一个独立的 Rust/WASM 源，源 ID、名称、版本与描述由 `SOURCE_INFO` 常量定义（多数在 `src/lib.rs`；kiutaku/xiutaku 共用 `sources/taku_gallery.rs`，simplyhentai-zh 用 `INFO_JSON` 常量），`metadata.json` 承载登录、章节顺序等运行时元数据。构建入口是仓库根的 `build.sh`，CI 会编译全部源并逐个校验元数据后打包发布。
 
 下表按类别列出全部源。"备注"来自各源 `SOURCE_INFO.description` 与 README，标注了内容分级、登录要求、收录边界等需要留意的点。
 
@@ -95,7 +95,11 @@
 | buondua | Buon Dua | 0.2 | 公开相册，含成人内容 |
 | cosplaytele | CosplayTele | 0.1.0 | 公开相册，含成人内容 |
 | noyacg | NoyAcg | 0.1.11 | |
-| simplyhentai-zh | (待补 SOURCE_INFO) | | 源已存在，`lib.rs` 缺 `SOURCE_INFO`，需补全 |
+| hentaihand-zh | HentaiHand | 0.1.4 | 匿名中文作品信息；含成人内容，单作品分级与用量未知 |
+| simplyhentai-zh | Simply Hentai | 0.1.9 | 中文元数据目录；NSFW 源，单作品分级与用量未知 |
+| kiutaku | Kiutaku | 0.1.1 | 公开图集，含成人内容；与 xiutaku 共享 `taku_gallery.rs` 实现 |
+| xiutaku | Xiutaku | 0.1.4 | 公开图集，含成人内容；与 kiutaku 共享 `taku_gallery.rs` 实现 |
+
 
 ## 作者专栏 / 独立站点
 
@@ -122,9 +126,7 @@
 | tongli | 東立 | 0.1.9 | JSON API，Firebase 匿名认证 |
 | zazhimi | 杂志迷 | 0.1.4 | JSON API 杂志源 |
 | iqiyi | Iqiyi | 0.1.4 | Bada 公开元数据 API，需真实主机时钟与熵 |
-| cmanhua | (待补 SOURCE_INFO) | | 源已存在，`lib.rs` 缺 `SOURCE_INFO` |
-| kiutaku | (待补 SOURCE_INFO) | | 源已存在，`lib.rs` 缺 `SOURCE_INFO` |
-| xiutaku | (待补 SOURCE_INFO) | | 源已存在，`lib.rs` 缺 `SOURCE_INFO` |
+| cmanhua | CManhua | 0.1.9 | 公开中文目录与章节 |
 
 ## 非源目录（不参与构建）
 
@@ -134,9 +136,8 @@
 | taku_gallery.rs | 单文件参考实现，非标准源目录结构 |
 | xcomic_java_regex.rs | 单文件参考实现，非标准源目录结构 |
 
-## 待补全 / 需注意
+## 需注意
 
-- **缺 `SOURCE_INFO`**：`cmanhua`、`hentaihand-zh`、`kiutaku`、`simplyhentai-zh`、`xiutaku` 的 `src/lib.rs` 没有 `SOURCE_INFO` 常量，`build.sh` 的元数据校验会失败，需补全源 ID、名称、版本与描述。
 - **繁中源**：目录名带 `-zh-hant` 后缀的是繁体中文源，`-zh-hans` 是简体，`-zh` 默认简中。
 - **登录要求**：`picacomic`（账号登录）、`wnacg`（部分内容）、`tapastic`（源 web 会话）等需要凭据，其余多为匿名可读。
 - **内容分级**：成人源已单独归类；标注"分级未确认/以实际内容为准"的源，单作品分级以站点实际内容为准，源级不做强保证。
