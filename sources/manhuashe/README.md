@@ -1,20 +1,20 @@
-# 漫画社 public adapter
+# 漫画社公开适配器
 
-Contract reference: Keiyoushi extensions-source `src/zh/manhuashe/.../Manhuashe.kt`, Apache-2.0, revision `10f06eb833af5990bc5470c84c5e93edc159ad4e`. https://github.com/keiyoushi/extensions-source/blob/10f06eb833af5990bc5470c84c5e93edc159ad4e/LICENSE
+合同参考：Keiyoushi extensions-source `src/zh/manhuashe/.../Manhuashe.kt`，Apache-2.0，修订 `10f06eb833af5990bc5470c84c5e93edc159ad4e`。https://github.com/keiyoushi/extensions-source/blob/10f06eb833af5990bc5470c84c5e93edc159ad4e/LICENSE
 
-Stable source id and old canonical name remain unchanged. Manga `manga:<original path>`, chapter `chapter:<original manga path>:<original chapter path>` and page `page:<zero-based index>` identities remain compatible. The primary's explicit catalogue reversal is preserved. Through 0.1.5 chapterNumber was null; index represents only that original order.
+稳定源 ID 和旧规范名称保持不变。漫画 `manga:<原始路径>`、章节 `chapter:<原始漫画路径>:<原始章节路径>` 和页 `page:<零基索引>` 身份保持兼容。主站的显式目录反转保留。直到 0.1.5 chapterNumber 为 null；索引只表示那个原始顺序。
 
-Upstream MIXED is conservatively mapped to current nsfw=true/contentRating=nsfw, not a statement that every title is adult. Individual work ratings and actual usage are unknown. No auth, cookie bootstrap, mirror fallback, arbitrary JS, image bytes decrypt or automatic retry. Missing/ambiguous/oversized parsing inputs fail. Normal public HTML contract only; build and host gates do not establish physical acceptance.
+上游 MIXED 保守映射为当前 nsfw=true/contentRating=nsfw，不是声明每个标题都是成人内容。单作品分级和实际用量未知。无认证、cookie 引导、镜像回退、任意 JS、图像字节解密或自动重试。缺失/含糊/超大的解析输入失败。只有普通公开 HTML 合同；构建和宿主门禁不建立物理验收。
 
-Current production entry is `bash build.sh --source manhuashe` using the current canonical SDK and formal CLI. The historical package_candidate.py remains in the original owner only; it is not imported into canonical. Its stale registry correction is represented by this source's nsfw=true row. Minimum App version remains 0.1.0. The original official homepage-declared JPEG is now retained unprocessed as icon.jpg; see ASSET_SOURCES.md. This closes only the package resource prerequisite; small-slot visual suitability remains unaccepted. No publication.
+当前生产入口是 `bash build.sh --source manhuashe`，使用当前规范 SDK 和正式 CLI。历史 package_candidate.py 只保留在原所有者处；不导入规范树。其过期 registry 更正由本源 nsfw=true 行表示。最低 App 版本保持 0.1.0。原官网首页声明的 JPEG 现在未处理保留为 icon.jpg；见 ASSET_SOURCES.md。这只闭合包资源前置条件；小槽视觉适用性保持未验收。无发布。
 
-0.1.2 adds only the primary fixed public image-request Referer/Origin descriptor. It preserves the input HTTP(S) URL and sets no User-Agent/cookie. Descriptor success does not prove image download/rendering or fix the observed 197 failure.
-
-
-Historical 197 0.1.2 accepted only the named 一人之下/767 坦率 17-page route, P1/P3, single download and no-clear cold/Library continuation. That historical native success does not certify the new standard WASM or current website. Original five retained-response results and image descriptors survive; their three raw HTML fixture bodies currently do not, so current-SDK HTTP/DOM equivalence is unknown. This integration changes no parser, ID or public image headers. App display clipping remains independent and unchanged.
+0.1.2 只添加主站固定公开图像请求 Referer/Origin 描述符。它保留输入 HTTP(S) URL，不设 User-Agent/cookie。描述符成功不证明图像下载/渲染，也不修复观察到的 197 失败。
 
 
-Official 150×50 JPEG horizontal logo is source-owned artwork, not code licensed by this adapter. No crop, resize, recoloring, backing removal, shadow/mask, redraw or format conversion is performed. The URL ends .png and the server labels image/png, but the actual original bytes decode as JPEG/RGB with no alpha; package name icon.jpg follows the actual format. App display clipping is separate and unchanged.
+历史 197 0.1.2 只验收了具名 一人之下/767 坦率 17 页路由、P1/P3、单下载和不清数据冷/书架继续。那个历史原生成功不认证新标准 WASM 或当前网站。原五个保留响应结果和图像描述符幸存；其三个原始 HTML 固件体目前不在了，所以当前 SDK 的 HTTP/DOM 等价未知。本集成不改解析器、ID 或公开图像头。App 显示裁剪保持独立不变。
+
+
+官方 150×50 JPEG 横版 logo 是源所有者的美术作品，不是本适配器许可的代码。没有裁剪、缩放、改色、去底板、阴影/遮罩、重绘或格式转换。URL 以 .png 结尾且服务器标记 image/png，但实际原始字节解码为 JPEG/RGB 无 alpha；包名 icon.jpg 跟随实际格式。App 显示裁剪独立且不变。
 
 ## 237 现装 0.1.2 具名在线观察（2026-10-21）
 
@@ -40,28 +40,27 @@ Root 已亲审本条首两页原图及精确记录；结论仅限上述具名路
 
 同版本metadata局部刷新边界：上述重导后旧Browse行仍为raw名称；随后237不清数据冷启（PID8283→stop后空→37211）后，Browse实际恢复“漫画社”v0.1.4，54个已启用保持。仅检查列表，未进入源页或请求站点；这不改变前述网页通过结论，也不证明同进程同版本行会立即刷新。原图/回执沿同一category-membership分区的`manhuashe014-name-cold237-001/{enabled54.png,run-metadata.json}`、`manhuashe014-name-cold237-003/browse-name.png`和`manhuashe014-name-cold-postflight237-003/run-metadata.json`。最终10000ms/AWAKE并释放租约；自动化的不存在scroll调用与重复浏览文本断言失败原件保留，不计产品故障。
 
-## 0.1.5 user-approved icon derivative
+## 0.1.5 用户批准的图标衍生
 
-The user explicitly approved this resource treatment from source-icons-four-proposals.png on2026-10-22. Uses the approved744×612RGBA yellow stylized漫/chocolate-brown speech-bubble derivative, closing the former right-hand connection smoothly and omitting画社/English. identity-reconstruction.svg preserves the smooth geometric input. The complete official150×50JPEG is preserved as official-header-logo-original.jpg; it is not an official independent original or exact glyph restoration. This explicit selection supersedes the earlier no-extraction/connected-wordmark hold. No additional background plate, shadow or external mask is added. App30vp/R7 and source order remain unchanged. Only source resource delivery versions are aligned to0.1.5; provider requests, identities, chapters/pages, localized metadata and other business behavior are unchanged. Offline/locked single-source build and actual WASM info0.1.5 passed; the52592B standard package has exactly manifest.json/source.wasm/icon.png, complete registered rating/minAppVersion/localized metadata and the approved candidate bytes. Icon validation and diff checks passed without hashes; dist/index is unchanged. Root completed the ordinary237 picker 0.1.4→0.1.5 update and reviewed the complete light-theme manager/Browse images: the approved identity is complete and clear. Evidence: Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/three-icons-package237-001/{manager-manhuashe015,browse-manhuashe015}.png`. This accepts only these two light-theme icon consumers; it does not establish dark-theme rendering or source content. Final registry readback: 59→60 entries, only H-Comic newly added; the original relative order and all unrelated entries remain unchanged. Manhuashe/MH160 changes are limited to their expected package references and versions. Original system theme/Browse group and10000ms/AWAKE/window208 were restored, only the three uploaded installer files were removed and confirmed absent, and the lease was released. Receipts: `three-icons-final-restored237-001` and `three-icons-package237-001/browse-original-restored.png`. This does not establish source-content or reading acceptance.
+用户在 2026-10-22 从 source-icons-four-proposals.png 明确批准了这个资源处理。使用批准的 744×612 RGBA 黄色风格化漫/巧克力棕气泡衍生，平滑闭合原右侧连接并省略画社/英文。identity-reconstruction.svg 保留平滑几何输入。完整官方 150×50 JPEG 保留为 official-header-logo-original.jpg；它不是官方独立原件或精确字形复原。这个显式选择取代早前的不提取/连接字标保留。不添加额外背景板、阴影或外部遮罩。App 30vp/R7 和源顺序保持不变。只有源资源交付版本对齐到 0.1.5；提供方请求、身份、章节/页、本地化元数据和其他业务行为不变。离线/锁定单源构建和真实 WASM info0.1.5 通过；52592B 标准包恰好含 manifest.json/source.wasm/icon.png，完整注册的评级/minAppVersion/本地化元数据和批准的候选字节。图标校验和 diff 检查通过无哈希；dist/index 不变。Root 完成普通 237 picker 0.1.4→0.1.5 更新并审查了完整浅色主题管理/浏览图像：批准的身份完整清晰。证据：Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/three-icons-package237-001/{manager-manhuashe015,browse-manhuashe015}.png`。这只验收这两个浅色主题图标消费者；不建立深色主题渲染或源内容。最终 registry 读回：59→60 条目，只有 H-Comic 新增；原相对顺序和所有无关条目保持不变。Manhuashe/MH160 变化限于其预期的包引用和版本。原系统主题/浏览组和 10000ms/AWAKE/窗口208 恢复，只删除三个上传的安装器文件并确认不存在，租约释放。这只验收图标交付，不代表源阅读/下载。
 
+## 0.1.6 显式章节编号
 
-## 0.1.6 explicit chapter numbers
+只有显式以 `第N话` 或 `N <章节标题>` 开头的标题现在提供 chapterNumber。公告和其他无编号标题保持 null；不从索引推断日期、季、卷或编号。原章节 ID、标题、目录反转/顺序、索引、分组、请求和阅读继续边界保持不变。MH160 不变。
 
-Only titles explicitly prefixed with `第N话` or `N <chapter title>` now provide chapterNumber. Announcements and other unnumbered titles remain null; this does not infer dates, seasons, volumes or numbering from index. Original chapter IDs, titles, catalogue reversal/order, index, groups, requests and reading continuation boundaries remain unchanged. MH160 is not changed.
-
-The actual Rust helper passed all 800 titles from the retained successful `manhuashe014-detail-fixture.html`: 786 explicitly numbered entries and 14 announcement/activity entries left unnumbered, plus nine negative cases covering seasons, volumes, extras, dates and overflow. Single-source offline locked WASM build passed; these checks do not substitute for ordinary App update, sort or first-reading acceptance, which remain pending.
-
-
-## 0.1.7 delimiter-free chapter labels
-
-The 237 ordinary update to 0.1.6 exposed a real counterexample: 大奉打更人 has 672 entries including `669阴物`, `624“鸡”不可失`, and numeric-only `583`/`571`. These explicit leading labels now provide chapterNumber too; the original spaced form including `721 TA` remains accepted. Season/volume/date prefixes, announcements, leave notices, events and extras remain unnumbered. IDs, catalogue reversal/order, index, groups and all requests are unchanged; no MH160 change.
-
-The retained successful 800-title catalogue plus this same exact work’s single successful production-Host result (`manhuashe016-dafeng-chapters-host.json`, HTTP200) passed all 1472 actual-title cases: 786/800 and 671/672 numbered, respectively; 13 negative cases passed. The initial stricter candidate rejected the real spaced `721 TA` and was corrected before acceptance. Ordinary 0.1.6 first reading had no prior history for comic_13836 and selected `第1话 001牢狱之灾` (chapter_13836_17244), showing the complete P1/24 cover and saving P1/24 on natural return; 0.1.6 numeric sorting failed on the unnumbered newer labels, and is not marked passed. 0.1.7 ordinary update/sort verification remains pending.
+实际 Rust 辅助通过了保留的成功 `manhuashe014-detail-fixture.html` 全部 800 个标题：786 个显式编号条目和 14 个公告/活动条目保持无编号，另有九个负例覆盖季、卷、番外、日期和溢出。单源离线锁定 WASM 构建通过；这些检查不替代普通 App 更新、排序或首读验收，那些保持待定。
 
 
-237 ordinary picker 0.1.6→0.1.7 update succeeded, with Browse and registry both reading 0.1.7. In the same 672-entry work, descending now begins 669/668/667; ascending shows the unnumbered 请假条 followed by chapters 1/2/3. This accepts the corrected numbered metadata and numbered ordering only: the current App’s treatment of unknown chapter numbers remains an observed issue, not a full sorting pass. Evidence is Koma’s existing237 `category-membership/manhuashe017-number237-{desc,asc-oldconsumer}-001/{screen.png,layout.json}`; the earlier first-reading and natural-return evidence is `manhuashe016-number237-{firstread,firstreturn}-001`.
+## 0.1.7 无分隔符章节标签
 
-`manhuashe017-number237-final-restored-001` retains the normal Browse anchor, 63 source records in the original relative order, and only this source’s version/package references changed. All previous progress records are unchanged; only comic_13836’s natural P1/24 progress was added. The temporary order override was reset through the ordinary control; AWAKE/10000ms and absence of both uploaded installers and both scratch files were read back before lease release. Source image/identity, App UI and MH160 were not modified by this source delivery.
+237 普通更新到 0.1.6 暴露了真实反例：大奉打更人有 672 个条目，含 `669阴物`、`624“鸡”不可失` 和纯数字 `583`/`571`。这些显式前导标签现在也提供 chapterNumber；原空格形式含 `721 TA` 仍接受。季/卷/日期前缀、公告、请假条、活动和番外保持无编号。ID、目录反转/顺序、索引、分组和所有请求不变；MH160 不变。
+
+保留的成功 800 标题目录加同一精确作品的单次成功生产 Host 结果（`manhuashe016-dafeng-chapters-host.json`，HTTP200）通过了全部 1472 个实际标题用例：分别 786/800 和 671/672 编号；13 个负例通过。初始更严格的候选拒绝了真实空格 `721 TA`，验收前已更正。普通 0.1.6 首读对 comic_13836 无先前历史，选择了 `第1话 001牢狱之灾`（chapter_13836_17244），显示完整 P1/24 封面并在自然返回时保存 P1/24；0.1.6 数字排序在无编号新标签上失败，不标记通过。0.1.7 普通更新/排序验证保持待定。
+
+
+237 普通 picker 0.1.6→0.1.7 更新成功，Browse 和 registry 都读回 0.1.7。同一 672 条目作品中，降序现在从 669/668/667 开始；升序显示无编号的请假条后接第 1/2/3 章。这只验收更正后的编号元数据和编号排序：当前 App 对未知章节编号的处理仍是观察到的问题，不是完整排序通过。证据是 Koma 现有 237 `category-membership/manhuashe017-number237-{desc,asc-oldconsumer}-001/{screen.png,layout.json}`；更早的首读和自然返回证据是 `manhuashe016-number237-{firstread,firstreturn}-001`。
+
+`manhuashe017-number237-final-restored-001` 保留普通 Browse 锚点、63 条源记录原相对顺序，只有本源版本/包引用变化。所有先前进度记录不变；只添加了 comic_13836 的自然 P1/24 进度。临时顺序覆盖经普通控件重置；AWAKE/10000ms 和两个上传安装器及两个临时文件的不存在在读回后释放租约。本源交付未修改源图像/身份、App UI 和 MH160。
 
 ## 0.1.9 显式镜像设置
 
@@ -69,6 +68,6 @@ The retained successful 800-title catalogue plus this same exact work’s single
 
 备用站实际返回的搜索第一页无 `/1` 链接；仅将精确匹配查询路径且无页号的链接识别为第一页，其他分页仍校验精确查询和页序。现有用户身份、图标和默认域不变。仅真实站点/WASM与具名旧作品测试，普通 Native 设置持久和设备阅读仍需独立验证。
 
-## 0.1.11 chapter capacity and missing author
+## 0.1.11 章节容量与缺失作者
 
-The chapter list alone accepts up to 8192 selected nodes; all other selectors retain their existing capacity and excess remains an error. The site can explicitly show an empty author in the current work’s metadata; this is represented as an empty authors array, while a missing or duplicated author label remains an error. Catalogues that exceed the existing response buffer use work-bound cursors in pages of up to 1000 entries, reduced further when needed to fit the response budget; shorter catalogues keep their original single response. Chapter identity, global index and reverse order are unchanged.
+章节列表单独接受最多 8192 个选中节点；所有其他选择器保持既有容量，超出仍是错误。站点可以在当前作品元数据中显式显示空作者；这表示为空 authors 数组，而缺失或重复的作者标签仍是错误。超出既有响应缓冲的目录使用绑定作品的游标，每页最多 1000 个条目，需要时进一步缩减以适配响应预算；较短目录保持原单次响应。章节身份、全局索引和反转顺序不变。

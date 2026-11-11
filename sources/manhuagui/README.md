@@ -17,7 +17,7 @@ Host 的普通 HTTP、封面和 Reader 图片快取 miss 共用同一进程 owne
 
 ## 实现来源
 
-Source-only ordinary public HTML adapter for https://www.manhuagui.com, based on Keiyoushi extensions-source commit 10f06eb833af5990bc5470c84c5e93edc159ad4e (Apache-2.0). LZ-string algorithm attribution: Keiyoushi LZString (Apache-2.0), with an independent algorithm check against pieroxy/lz-string 1.5.0 (reference file licensed WTFPL v2); bounded source-local implementation.
+仅源普通公开 HTML 适配器，面向 https://www.manhuagui.com，基于 Keiyoushi extensions-source commit 10f06eb833af5990bc5470c84c5e93edc159ad4e（Apache-2.0）。LZ-string 算法归因：Keiyoushi LZString（Apache-2.0），并对 pieroxy/lz-string 1.5.0（参考文件许可 WTFPL v2）做独立算法核对；有界源本地实现。
 
 搜索筛选仅用于目录：沿参考提供排序、地区、剧情、受众、年份、字母与进度；未选择排序保留当前热门或最新原路由。排行仅输出网站真实标题和链接，不推断封面或分页；文字搜索不消费目录筛选。旧宿主不显示新筛选。
 

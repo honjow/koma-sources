@@ -1,11 +1,11 @@
 # Ikmmh / 爱看漫 0.1.3
 
-Independent source `com.ikmmh.zh.koma` provides Chinese category browsing, search, manga details, complete chapter directories and original-image descriptors. It does not provide latest, home, login, settings or filters. The source is marked NSFW; individual work ratings and availability follow the provider.
+独立源 `com.ikmmh.zh.koma` 提供中文分类浏览、搜索、漫画详情、完整章节目录和原图像描述符。不提供最新、首页、登录、设置或筛选。源标记 NSFW；逐作品评级和可用性跟随提供者。
 
-The chapter directory uses the provider's `orderby=desc` request and preserves its complete newest-first sequence. The package declares `chapterOrder: newest_first` for compatible hosts; chapter IDs and displayed ordering remain unchanged. Chapter numbers remain unknown rather than being inferred from array positions.
+章节目录使用提供者的 `orderby=desc` 请求并保留其完整最新优先序列。包声明 `chapterOrder: newest_first` 供兼容宿主；章节 ID 和显示顺序不变。章节编号保持未知而非从数组位置推断。
 
-Page requests validate chapter ownership and require all original-image metadata batches to be complete before returning a page list. Images use the existing HTTPS CDN allowlist and source image-request validation. Category pagination uses the existing 48-item heuristic, which does not establish an exact total.
+页请求验证章节所有权并要求所有原图像元数据批次完整后才返回页列表。图像使用既有 HTTPS CDN 白名单和源图像请求验证。分类分页使用既有 48 项启发式，不确立精确总数。
 
-The package uses the approved temporary `IKM` wordmark, not a claimed official icon. The fixed Keiyoushi reference requests the same category and detail endpoints for the affected routes. The provider returned HTTP 403 with the explicit current-region denial on both routes. Koma now preserves that outcome as `region_restricted`, using `permission_denied` when the body gives no such explanation. Other statuses and successful parsing keep their previous behavior. This change does not establish website availability or native reading.
+包使用已批准的临时 `IKM` 字标，不声称官方图标。固定 Keiyoushi 参考对受影响路由请求相同分类和详情端点。提供者在两个路由返回 HTTP 403 带显式当前区域拒绝。Koma 现在保留该结果为 `region_restricted`，当正文无此解释时使用 `permission_denied`。其他状态和成功解析保持先前行为。此变化不确立网站可用性或 native 阅读。
 
-Source behavior is independently adapted from the fixed Keiyoushi reference. Licensing and attribution are in `LICENSE` and `NOTICE.md`.
+源行为独立适配自固定 Keiyoushi 参考。许可和归因在 `LICENSE` 和 `NOTICE.md`。

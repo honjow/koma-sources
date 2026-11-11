@@ -39,6 +39,6 @@ SDK普通metadata请求使用其原User-Agent与官网BASE Referer，不修改SD
 
 本次只确认首屏与首篇正文，不代表第二页、其他15篇、下载、冷启动或整源性能均已通过。安装过程仍观察到47ms主线程回调，App卡顿项继续独立处理。以上是新增实机结果，原离线验证的范围与历史限制保留。
 
-## Source-tree recovery boundary
+## 源树恢复边界
 
-The original implementation and its dated stage notes above are preserved. This recovery uses the current canonical SDK and does not add artwork, standard-package registration or new HTTP/native acceptance. Original named runtime evidence remains separately bound to its original version and package.
+上述原实现及其带日期的阶段说明保持保留。这次恢复使用当前规范 SDK，不添加素材、标准包注册或新 HTTP/native 验收。原具名运行时证据仍单独绑定其原版本和包。

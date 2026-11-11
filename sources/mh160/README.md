@@ -1,55 +1,55 @@
 # 漫画160 source
 
-Public contract reference: Keiyoushi extensions-source `src/zh/mh160/.../Mh160.kt`, revision `10f06eb833af5990bc5470c84c5e93edc159ad4e`, Apache-2.0: https://github.com/keiyoushi/extensions-source/blob/10f06eb833af5990bc5470c84c5e93edc159ad4e/LICENSE . Preserve upstream attribution. Adapter code uses Koma source SDK and source helper patterns.
+公开合同参考：Keiyoushi extensions-source `src/zh/mh160/.../Mh160.kt`，修订 `10f06eb833af5990bc5470c84c5e93edc159ad4e`，Apache-2.0：https://github.com/keiyoushi/extensions-source/blob/10f06eb833af5990bc5470c84c5e93edc159ad4e/LICENSE 。保留上游归因。适配器代码使用 Koma 源 SDK 和源助手模式。
 
-Upstream rating SAFE; actual source contents are unverified, so Koma source/content rating is unknown. Actual usage rate unknown. No account, arbitrary JavaScript evaluation or anonymous registration. Only explicit quoted reader literals; unsupported/missing/ambiguous/overflowed inputs fail. Declared capabilities describe implemented public contracts and do not imply host or native acceptance.
+上游评级 SAFE；实际源内容未验证，故 Koma 源/内容评级为 unknown。实际使用率未知。无账号、任意 JavaScript 求值或匿名注册。只有显式引用的读者字面量；不受支持/缺失/含糊/溢出的输入失败。声明的能力描述已实现的公开合同，不隐含宿主或 native 验收。
 
-Canonical source id `com.mh160.koma`; manga identity `mh160:<original slug>`, chapter identity `mh160ch:<original public path>`, page identity `page:mh160:<original chapter path>:<1-based index>`. Upstream catalogue order is preserved, chapterNumber remains null.
+规范源 ID `com.mh160.koma`；漫画身份 `mh160:<原 slug>`，章节身份 `mh160ch:<原公开路径>`，页身份 `page:mh160:<原章节路径>:<1基索引>`。上游目录顺序保留，chapterNumber 保持 null。
 
 图片请求使用源官网的 Referer 和 Origin，封面与正文共用该请求合同；图片 URL 与作品、章节身份保持不变。
 
 ## 0.1.5 原源序与首次未读
 
-按本轮用户采用的Mihon规则，包显式声明`chapterOrder: newest_first`。固定Keiyoushi10f06eb的`Mh160.parseChapters`与本源`chapters`都按相同DOM选择直接输出，遵循Mihon最新在前接口；声明不改变任何目录项或请求。237现存《风起苍岚》782章原快照首为第2季352，末为第1话苍岚之巅1/43350001，且没有该书进度。整表含番外、请假条、标题漏字和第8话异常插入，不能宣称话数严格单调，不能据此从标题猜数、去重或整理目录。
+按本轮用户采用的 Mihon 规则，包显式声明 `chapterOrder: newest_first`。固定 Keiyoushi 10f06eb 的 `Mh160.parseChapters` 与本源 `chapters` 都按相同 DOM 选择直接输出，遵循 Mihon 最新在前接口；声明不改变任何目录项或请求。237 现存《风起苍岚》782 章原快照首为第 2 季 352，末为第 1 话苍岚之巅 1/43350001，且没有该书进度。整表含番外、请假条、标题漏字和第 8 话异常插入，不能宣称话数严格单调，不能据此从标题猜数、去重或整理目录。
 
-宿主对声明源从原序的最早端找未读，已有进度和显式选章优先；章号继续null、原路径/顺序/图标/网页授权不变。固定参考代码、完整旧快照分析与生产选择器结果保存在Koma `user-flow-audit/mh160-chapter-contract-review-256`。本次不重请旧403章节/详情、跳转失败页或首图，不把首次目标修正写成正文恢复。标准22644B三成员包已237普通文件选择器014→015更新；80源同序，仅本源7个交付/版本/方向字段变化，旧79源及书库、Reader、网页会话元数据完整保持。生产选择器在实际782章旧快照和本包声明下，首次为43350001第1话，标读该话的受控选择分支为73620002第2话，原数组不变；这不是设备上新开正文。259观测主进程40851→49736，新进程书架/继续阅读真实显示，260全部四域JSON同258；没有观察空PID阶段，不写成空进程证明。自传包已ABSENT。范围提交、精确CI及公开发布仍分别记录于Koma CURRENT_STATUS。
+宿主对声明源从原序的最早端找未读，已有进度和显式选章优先；章号继续 null、原路径/顺序/图标/网页授权不变。固定参考代码、完整旧快照分析与生产选择器结果保存在 Koma `user-flow-audit/mh160-chapter-contract-review-256`。本次不重请旧 403 章节/详情、跳转失败页或首图，不把首次目标修正写成正文恢复。标准 22644B 三成员包已 237 普通文件选择器 014→015 更新；80 源同序，仅本源 7 个交付/版本/方向字段变化，旧 79 源及书库、Reader、网页会话元数据完整保持。生产选择器在实际 782 章旧快照和本包声明下，首次为 43350001 第 1 话，标读该话的受控选择分支为 73620002 第 2 话，原数组不变；这不是设备上新开正文。259 观测主进程 40851→49736，新进程书架/继续阅读真实显示，260 全部四域 JSON 同 258；没有观察空 PID 阶段，不写成空进程证明。自传包已 ABSENT。范围提交、精确 CI 及公开发布仍分别记录于 Koma CURRENT_STATUS。
 
 ## 0.1.4 错误原因与网页会话
 
 请求失败现在保留 Host 返回的 HTTP 状态；只有 Host 明确标记网页挑战时才报告需要网页验证，普通拒绝、找不到页面和限流仍分别显示原原因。包声明的网页会话只限源本来使用的 `www.mh160mh.com`、`m.mh160mh.com` 两个 HTTPS origin，仍须由 App 按既有流程取得用户同意；不改 UA、网址、作品/章节身份或排序。
 
-生产 WASM 编译及 info 0.1.4 已通过；本机真实 WASM 的失败封包检查覆盖明确挑战、普通403、404、429、500与伪似信号，不访问网站。这不代表挑战已成功通过，也没有修复已观察的跨 origin 网页白屏或宣称正文可读；远端发布及普通更新后的实际表现仍待验证。
+生产 WASM 编译及 info 0.1.4 已通过；本机真实 WASM 的失败封包检查覆盖明确挑战、普通 403、404、429、500 与伪似信号，不访问网站。这不代表挑战已成功通过，也没有修复已观察的跨 origin 网页白屏或宣称正文可读；远端发布及普通更新后的实际表现仍待验证。
 
 ## 0.1.3 作品网页入口
 
-列表和详情现在返回本源已有的公开作品地址，App可据此显示现有“在WebView中打开”和“在浏览器中打开”动作。地址与详情请求的`/kanmanhua/<slug>/`一致；作品ID、章节顺序、未提供的话数及图标保持。跨季目录与图片失败仍在调查，此更新不代表整源已可正常阅读。
+列表和详情现在返回本源已有的公开作品地址，App 可据此显示现有「在 WebView 中打开」和「在浏览器中打开」动作。地址与详情请求的 `/kanmanhua/<slug>/` 一致；作品 ID、章节顺序、未提供的话数及图标保持。跨季目录与图片失败仍在调查，此更新不代表整源已可正常阅读。
 
-## Current native boundary (197, 2026-10-10)
+## 当前 native 边界（197，2026-10-10）
 
-Exact 0.1.0 package SHA `77ce60bd21d05227fe02e28d2627e5db2d20e4670b385255c89179cce4664619` and WASM SHA `b8da3dd365ce0be0be902fa609bc49be2eb9fc25bdd290f37ae384ce81f2bd8d` were read back after ordinary subscription installation. Native popular displayed 50 actual Chinese titles; covers were placeholders. Chinese keyword search was rejected with HTTP403. Actual `mh160:12094` 风起苍岚 detail and full 782-chapter catalogue returned200. Chapter `mh160ch:/kanmanhua/12094/43350001.html` 第1话 苍岚之巅1 returned200 and parsed10 pages, but Reader P1 failed; the historical first-image-window record noted404. Its raw response/request linkage is insufficient here to establish the failure cause, and it does not identify the cause of later cover placeholders or the unbound zero-chapter stage. Literal PID742697 and all10 image URL mappings match the fixed primary contract. No image Retry, UA/domain variation, download, full readability or all-site acceptance. Server-side failure causes remain unknown.
+精确 0.1.0 包 SHA `77ce60bd21d05227fe02e28d2627e5db2d20e4670b385255c89179cce4664619` 和 WASM SHA `b8da3dd365ce0be0be902fa609bc49be2eb9fc25bdd290f37ae384ce81f2bd8d` 在普通订阅安装后读回。Native 热门显示 50 个实际中文标题；封面是占位符。中文关键词搜索被 HTTP403 拒绝。实际 `mh160:12094` 风起苍岚详情和完整 782 章目录返回 200。章节 `mh160ch:/kanmanhua/12094/43350001.html` 第 1 话 苍岚之巅 1 返回 200 并解析 10 页，但 Reader P1 失败；历史首图窗口记录注明 404。其原始响应/请求关联在此不足以确立失败原因，也不识别后来封面占位符或未绑定零章节阶段的原因。字面 PID 742697 和全部 10 个图像 URL 映射匹配固定主合同。无图像 Retry、UA/域变化、下载、全可读性或整站验收。服务端失败原因仍未知。
 
-No-clear cold PID40136→42019 preserved all four JSON states byte for byte. Original24 comic objects and15 source objects were retained; only this own source/title were added. Reader/Queue bytes matched the pre-phase baseline. Only the owned `/src013/` repository was removed; original three repositories/selected URL were restored byte exactly, power override10000ms read back, owned delivery stopped and lease released. App/Kit and borrowed WIP were kept. Remaining search/cover/image branches stay OPEN until their specific public contract/service conditions change.
+无清除冷 PID 40136→42019 逐字节保留全部四个 JSON 状态。原 24 个漫画对象和 15 个源对象保留；只添加本源/标题。Reader/Queue 字节匹配阶段前基线。只移除自有的 `/src013/` 仓库；原三个仓库/选中 URL 逐字节恢复，电源覆盖 10000ms 读回，自有交付停止并释放租约。App/Kit 和借用的 WIP 保留。剩余搜索/封面/图像分支保持 OPEN，直到其特定公开合同/服务条件变化。
 
 
-## Current source-only recovery boundary
+## 当前仅源恢复边界
 
-This recovery preserves the original business, identity and metadata with the current canonical SDK. It does not register standard packaging or add an icon. Historical artwork/API/Native results above retain their named version and path only; no new request, compile, package or device acceptance is claimed by this proposal. Original candidate wrappers and source/asset evidence remain preserved outside this production closure.
+这次恢复以当前规范 SDK 保留原业务、身份和元数据。它不注册标准打包或添加图标。上面的历史美术/API/Native 结果只保留其具名版本和路径；本提案不声称新的请求、编译、打包或设备验收。原候选包装器和源/资产证据保留在这个生产闭合之外。
 
-## Current icon provenance baseline
+## 当前图标来源基线
 
-The current official desktop header directly declares the unmodified280×95 PNG now retained as icon.png; ASSET_SOURCES.md records its exact parent and URL. This corrects the earlier source-only omission without changing the0.1.0 provider/version or standard registration. The official mobile mark is also horizontal and the square footer image is a QR code, so neither is misrepresented as a superior standalone icon. Small-slot suitability and current ordinary device delivery remain OPEN; this is not source/content acceptance.
+当前官方桌面头部直接声明未修改的 280×95 PNG，现保留为 icon.png；ASSET_SOURCES.md 记录其精确父级和 URL。这更正了更早的仅源省略而不改变 0.1.0 提供方/版本或标准注册。官方移动标记也是横向的，方形页脚图像是二维码，故两者都不被误作更优的独立图标。小槽适用性和当前普通设备交付保持 OPEN；这不是源/内容验收。
 
 
 ## 2026-10-21 原首图失败章节的当前父链条件
 
-沿上方197旧首图失败记录，只对当时曾200的准确公开章节 `https://www.mh160mh.com/kanmanhua/12094/43350001.html` 作一次默认匿名Python urllib.request.urlopen GET（timeout20），实际返回 `HTTPError 403: Forbidden`。没有取得新的章节HTML、reader脚本声明或原图URI，不请求图片，不重试、改UA/客户端/域或处理挑战。本次只限制这条准确章节请求，不判定其他章节、独立首页或整站；旧10页计划/首图404绑定不足及当前服务端拒绝原因仍未知，没有依据修改图片域映射或解析。
+沿上方 197 旧首图失败记录，只对当时曾 200 的准确公开章节 `https://www.mh160mh.com/kanmanhua/12094/43350001.html` 作一次默认匿名 Python urllib.request.urlopen GET（timeout 20），实际返回 `HTTPError 403: Forbidden`。没有取得新的章节 HTML、reader 脚本声明或原图 URI，不请求图片，不重试、改 UA/客户端/域或处理挑战。本次只限制这条准确章节请求，不判定其他章节、独立首页或整站；旧 10 页计划/首图 404 绑定不足及当前服务端拒绝原因仍未知，没有依据修改图片域映射或解析。
 
-现有目录path身份、顺序和旧ID保持，本次没有目录、版本、源业务、App或设备改动。Root本轮交接指出同path不同标题不得盲去重；相关原始调查由Root维护，本次没有独立重核，不把该交接或此403冒成目录因果证据。
+现有目录 path 身份、顺序和旧 ID 保持，本次没有目录、版本、源业务、App 或设备改动。Root 本轮交接指出同 path 不同标题不得盲去重；相关原始调查由 Root 维护，本次没有独立重核，不把该交接或此 403 冒成目录因果证据。
 
 ## 0.1.1 完整主字标图标
 
-Root亲看同站官方280×95原件及小槽浅深对照后接受原像素完整红色“漫画160”主字标：只去下方辅助域名及透明余边，190×51、四周8px透明安全边；不截单字、不重排/重绘/放大或换字体。原图保留official-header-logo-original.png，候选为icon.png。Cargo/Info/lock010→011仅资源版本，源身份/请求/章节与App30vp/R7/排序不动。可辨性改善但横长细笔画仍有限，不称全质量通过。旧403/正文边界保持。2026-10-22设备237普通本地010→011更新完成，管理/Browse完整原图均显示整行红主字标及v011，管理仍启用；58项sourceId/enabled逐项同序。原Browse喵趣组、原10000ms/AWAKE恢复，只清本人传包并核不存在，租约释放。证据：Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/mh160011-icon-awake237-001/{manager-mh160011.png,browse-mh160011.png,browse-original-group.png}`，registry/清理/电源回执在同分区`mh160011-icon-restored237-001`（completed，哈希关闭）。仅接受本次完整主标呈现的有限改善，横长细笔画仍OPEN，不冒正文或全源质量通过。
+Root 亲看同站官方 280×95 原件及小槽浅深对照后接受原像素完整红色「漫画160」主字标：只去下方辅助域名及透明余边，190×51、四周 8px 透明安全边；不截单字、不重排/重绘/放大或换字体。原图保留 official-header-logo-original.png，候选为 icon.png。Cargo/Info/lock 010→011 仅资源版本，源身份/请求/章节与 App 30vp/R7/排序不动。可辨性改善但横长细笔画仍有限，不称全质量通过。旧 403/正文边界保持。2026-10-22 设备 237 普通本地 010→011 更新完成，管理/Browse 完整原图均显示整行红主字标及 v011，管理仍启用；58 项 sourceId/enabled 逐项同序。原 Browse 喵趣组、原 10000ms/AWAKE 恢复，只清本人传包并核不存在，租约释放。证据：Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/mh160011-icon-awake237-001/{manager-mh160011.png,browse-mh160011.png,browse-original-group.png}`，registry/清理/电源回执在同分区 `mh160011-icon-restored237-001`（completed，哈希关闭）。仅接受本次完整主标呈现的有限改善，横长细笔画仍 OPEN，不冒正文或全源质量通过。
 
-## 0.1.2 user-approved icon derivative
+## 0.1.2 用户批准的图标派生
 
-The user explicitly approved this resource treatment from source-icons-four-proposals.png on2026-10-22. Uses the approved114×96RGBA original red glyphs arranged as漫画 above160; it is a two-line derivative, not the official original horizontal layout. The complete280×95original remains official-header-logo-original.png without overwrite; the former190×51primary mark is preserved as official-primary-wordmark-original.png. This explicit selection supersedes the previous no-rearrangement hold; no font replacement or glyph redraw is introduced. No additional background plate, shadow or external mask is added. App30vp/R7 and source order remain unchanged. Only source resource delivery versions are aligned to0.1.2; provider requests, identities, chapters/pages, localized metadata and other business behavior are unchanged. Offline/locked single-source build and actual WASM info0.1.2 passed; the21301B standard package has exactly manifest.json/source.wasm/icon.png, complete registered rating/minAppVersion/localized metadata and the approved candidate bytes. Icon validation and diff checks passed without hashes; dist/index is unchanged. Root completed the ordinary237 picker 0.1.1→0.1.2 update and reviewed the complete light-theme manager/Browse images: the approved identity is complete and clear. Evidence: Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/three-icons-package237-001/{manager-mh160012,browse-mh160012}.png`. This accepts only these two light-theme icon consumers; it does not establish dark-theme rendering or source content. Final registry readback: 59→60 entries, only H-Comic newly added; the original relative order and all unrelated entries remain unchanged. Manhuashe/MH160 changes are limited to their expected package references and versions. Original system theme/Browse group and10000ms/AWAKE/window208 were restored, only the three uploaded installer files were removed and confirmed absent, and the lease was released. Receipts: `three-icons-final-restored237-001` and `three-icons-package237-001/browse-original-restored.png`. This does not establish source-content or reading acceptance.
+用户在 2026-10-22 从 source-icons-four-proposals.png 明确批准了这个资源处理。使用批准的 114×96 RGBA 原红字形排成「漫画」在「160」上方；它是两行派生，不是官方原横向布局。完整 280×95 原件保留为 official-header-logo-original.png 不覆盖；原 190×51 主字标保留为 official-primary-wordmark-original.png。这个显式选择取代先前的不重排保留；不引入字体替换或字形重绘。不添加额外背景底板、阴影或外部遮罩。App 30vp/R7 和源顺序保持不变。只把源资源交付版本对齐到 0.1.2；提供方请求、身份、章节/页、本地化元数据和其他业务行为不变。离线/锁定单源构建和实际 WASM info 0.1.2 通过；21301B 标准包恰好是 manifest.json/source.wasm/icon.png，完整注册评级/minAppVersion/本地化元数据和批准的候选字节。图标校验和 diff 检查无哈希通过；dist/index 不变。Root 完成普通 237 选择器 0.1.1→0.1.2 更新并审查完整浅色主题管理/Browse 图像：批准的身份完整清晰。证据：Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/three-icons-package237-001/{manager-mh160012,browse-mh160012}.png`。这只验收这两个浅色主题图标消费者；不确立深色主题渲染或源内容。最终 registry 读回：59→60 项，只有 H-Comic 新增；原相对顺序和所有无关项保持不变。Manhuashe/MH160 变化限于其预期包引用和版本。原系统主题/Browse 组和 10000ms/AWAKE/window208 恢复，只移除三个上传安装器文件并核不存在，租约释放。回执：`three-icons-final-restored237-001` 和 `three-icons-package237-001/browse-original-restored.png`。

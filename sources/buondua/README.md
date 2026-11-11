@@ -1,40 +1,13 @@
 # Buon Dua 0.1.0
 
-Independent no_std Rust port of the complete Keiyoushi BuonDua.kt at
-de743aed846da53e00c45ab26ee0e77f7bb4355b (versionCode 13 / lib1.6 / Apache-2.0).
-Provider https://buondua.com, sourceId com.buondua.koma, reference NSFW/all language.
+完整 Keiyoushi BuonDua.kt 的独立 no_std Rust 移植，位于
+de743aed846da53e00c45ab26ee0e77f7bb4355b（versionCode 13 / lib1.6 / Apache-2.0）。
+提供者 https://buondua.com，sourceId com.buondua.koma，参考 NSFW/全语言。
 
-Popular and latest use the exact 20-item offset requests. Non-empty text search
-wins over Tag ID; empty search/browse can use the original Tag ID route. Details
-retain the title's page-suffix removal, article info, original download link
-descriptions, public archive-code text and tags. No download link is fetched.
-Details and URL search use the same article's official Open Graph cover when
-its owner matches the requested gallery and the image is on a provider host.
-Missing or foreign metadata leaves the remaining detail available.
-Default pref_split_pages=true lists webpage chapters newest-first, Page N down
-to Page 1; false returns one Gallery and concatenates every real webpage's images
-in ascending webpage/original DOM order. Repeated image URLs keep their positions.
-A failed webpage fails the whole merge; no partial success or invented page.
+热门和最新使用精确的 20 项 offset 请求。非空文本搜索优先于 Tag ID；空搜索/浏览可用原 Tag ID 路由。详情保留标题的页后缀去除、文章信息、原下载链接描述、公开存档码文本和标签。不抓取下载链接。详情和 URL 搜索在同一文章所有者匹配所请求图库且图像在提供者宿主上时使用该文章的官方 Open Graph 封面。缺失或外部元数据使其余详情仍可用。默认 pref_split_pages=true 按最新优先列出网页章节，Page N 到 Page 1；false 返回一个 Gallery 并按网页/原 DOM 升序拼接每个真实网页的图像。重复图像 URL 保留其位置。任一网页失败则整个合并失败；无部分成功或虚构页。
 
-Host adaptations: independent Koma chapter IDs explicitly record webpage/gallery
-mode, preserving precise existing chapter IDs across settings changes. The
-upstream's optional related-work function has no Koma ABI operation. Whole-gallery
-reads are sequential because the Host has bounded calls; content order is
-unchanged. The date preserves the reference's unzoned local date/time, without
-adding a timezone. Text/header filter schema uses supported Host declarations.
-Standard image transport is sufficient: actual CDN original bytes matched with
-no Referer or Cookie. No image-processing/header/auth feature is claimed.
+宿主适配：独立 Koma 章节 ID 显式记录网页/图库模式，跨设置变更保留精确既有章节 ID。上游的可选相关作品函数没有 Koma ABI 操作。整图库读取是顺序的因为宿主有界调用；内容顺序不变。日期保留参考的无时区本地日期/时间，不添加时区。文本/头筛选 schema 使用受支援宿主声明。标准图像传输即足够：实际 CDN 原字节无 Referer 或 Cookie 即匹配。不声称图像处理/头/认证特性。
 
-Requests to buondua.com share the reference's 10 requests per second Host
-limit. The rule does not include i2.buondua.com or other CDN hosts. Network
-operations require the specific source_rate_limit_buondua_v1 capability before
-performing HTTP; the older generic rate feature is not a substitute. The
-production package requires Koma 1.2.0 or newer, whose Host provides this rule.
+对 buondua.com 的请求共享参考的每秒 10 请求宿主限制。该规则不含 i2.buondua.com 或其他 CDN 宿主。网络操作在执行 HTTP 前要求特定 source_rate_limit_buondua_v1 能力；旧的通用速率特性不能替代。生产包要求 Koma 1.2.0 或更新，其宿主提供该规则。
 
-Settings identity contract: when the Host declares source_chapter_exclusions_v1,
-a complete split catalogue explicitly excludes its Gallery ID; a complete merged
-catalogue explicitly excludes its verified Page 1..N IDs. This hides alternate
-rows through the existing Host contract without deleting progress/downloads.
-An old exact CID still resolves its own encoded mode. Before publishing those
-exclusions, the advertised Page 1/N and real pagination End must agree; malformed
-pagination fails rather than publishing a partial catalogue.
+设置身份合同：当宿主声明 source_chapter_exclusions_v1，完整拆分目录显式排除其 Gallery ID；完整合并目录显式排除其已验证 Page 1..N ID。这通过既有宿主合同隐藏替代行而不删除进度/下载。旧的精确 CID 仍解析其自身编码模式。在发布那些排除前，通告的 Page 1/N 和真实分页 End 必须一致；畸形分页失败而非发布部分目录。

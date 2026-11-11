@@ -47,20 +47,11 @@ JSON必须有效UTF8/完整结构；重复对象key或任何转义对象key失�
 原始证据 `/private/tmp/koma-pgr-zh-public-contract-20261014` 及 `/private/tmp/koma-pgr-zh-two-read-supplement-20261014`；完整交付 `/private/tmp/koma-pgr-zh-implementation-20261014`。Root独立审源码/原合同后负责Native，不以Host通过代替实机。
 
 
-## Canonical 0.1.2 integration
+## 规范 0.1.2 集成
 
-The earlier sections document the original 0.1.0 investigation. The reviewed
-0.1.1 chapter-label implementation is retained: explicit 第…话/話 labels set
-chapterNumber, chapter readingGroup and continuationEligible; unrecognized
-labels retain null, special and false. IDs, order, titles, dates, page plans
-and image ownership remain unchanged. Existing capacity boundaries remain;
-this integration does not claim every title or boundary has native coverage.
+前面的章节记录原 0.1.0 调查。已审 0.1.1 章节标签实现保留：显式 第…话/話 标签设置 chapterNumber、章节 readingGroup 和 continuationEligible；未识别标签保留 null、special 和 false。ID、顺序、标题、日期、页计划和图像归属保持不变。既有容量边界保持；这个集成不声称每个标题或边界都有 native 覆盖。
 
-0.1.2 registers that existing provider in the canonical workspace/build and
-uses the current SDK HTTP-status decoder. PGR already checks status 200 before
-body decoding. The official 400px same-portrait original replaces the 30px
-favicon; provenance and prior image-only acceptance are in ASSET_SOURCES.md.
-Current integration review: /private/tmp/koma-pgr012-original-canonical-20261018.
+0.1.2 把那个既有提供方注册到规范工作区/构建并使用当前 SDK HTTP 状态解码器。PGR 已在正文解码前检查状态 200。官方 400px 同头像原件替换 30px favicon；出处和先前仅图像验收在 ASSET_SOURCES.md。当前集成审查：/private/tmp/koma-pgr012-original-canonical-20261018。
 
 
 ## 237 0.1.2 第一话普通正文（2026-10-23）

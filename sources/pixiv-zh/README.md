@@ -1,19 +1,19 @@
 # pixiv 0.1.14
 
-支持章节阅读序能力的宿主使用系列已校验的 content_order 续读；单幅作品和旧宿主行为保持原样。
+支援章节阅读序能力的宿主使用系列已校验的 content_order 续读；单幅作品和旧宿主行为保持原样。
 
-Pixiv anonymous All ages manga search; separate artwork and complete public series catalogues. Service zh is UI language, not a body-language claim; usage unknown. No user/login or home.
-Raw page cursor carries exact query, cumulative unique artwork IDs and emitted series IDs. Complete public catalogue before success; no fabricated book total or chapter numbers. Chapter/volume and content language null. Original images remain the default with the existing Pixiv Referer. Explicit quality preferences use only the same API page's real URL variants.
-A series may expose fewer visible works than its total. Only uniquely identified visible works bound to the same series and owner are returned, after the public content endpoint returns an empty page and the top-level display_series_content_count matches. Pagination retains the endpoint's cumulative entry-offset last_order; content_order remains the real per-work reading order and may contain gaps. Missing works and their reasons are never inferred. Embedded display counts may use the reported total or public visible count; they do not control catalogue completeness. Unknown structures, contradictory counts, duplicates and capacity overflow fail the whole operation.
-Metadata must be complete UTF8/JSON below1MiB; bounded4096 members/pages. Overflow, within-page duplicates, drift, access and cancellation fail the whole operation. Legal cross-page artwork overlap is deduplicated after validating its complete card; a nonempty page with no new artwork fails explicitly. Missing/null optional artwork comments omit description; malformed nonstring comments remain rejected.
+Pixiv 匿名全年龄漫画搜索；独立美术和完整公开系列目录。服务 zh 是 UI 语言，不是正文语言声称；用量未知。无用户/登录或首页。
+原始页游标携带精确查询、累计唯一美术 ID 和已发出系列 ID。成功前完整公开目录；不虚构书总数或章节编号。章节/卷和内容语言 null。原图像保持默认带既有 Pixiv Referer。显式质量偏好只用同一 API 页的真实 URL 变体。
+系列可能暴露少于其总数的可见作品。只在公开内容端点返回空页且顶层 display_series_content_count 匹配后，返回唯一识别的绑定到同系列和所有者的可见作品。分页保留端点的累计条目偏移 last_order；content_order 保持真实逐作品阅读顺序且可能含缺口。缺失作品及其原因从不推断。嵌入显示计数可能用报告的总数或公开可见计数；它们不控制目录完整性。未知结构、矛盾计数、重复和容量溢出失败整个操作。
+元数据必须完整 UTF8/JSON 低于 1MiB；有界 4096 成员/页。溢出、页内重复、漂移、访问和取消失败整个操作。合法跨页美术重叠在验证其完整卡片后去重；非空页无新美术明确失败。缺失/null 可选美术注释省略描述；畸形非字符串注释仍被拒绝。
 
-The image-quality contract follows fixed Keiyoushi 949dea252eb8e867b7b40834a26e13088764ff55 pref_image_quality select: thumb_mini / small / regular / original, default original. A missing chosen variant falls forward only through the remaining larger variants, matching upstream; no filename or URL is guessed. Unknown values retain original. Every page still requires its valid original identity, exact count and original-URL deduplication before any output; All ages, private/login rejection and i.pximg.net URL validation stay unchanged. Page IDs/index/order and default URLs are unchanged; no credentials, cookies, mirror or new host grants. Official pixiv Help Center uses lowercase pixiv; display names follow that spelling. The existing official icon, homepage, identity and runtime behavior are unchanged.
+图像质量合同遵循固定 Keiyoushi 949dea252eb8e867b7b40834a26e13088764ff55 pref_image_quality 选择：thumb_mini / small / regular / original，默认 original。缺失所选变体只向前回退到剩余更大变体，匹配上游；不猜文件名或 URL。未知值保留 original。每页在任何输出前仍要求其有效原身份、精确计数和原 URL 去重；全年龄、私有/登录拒绝和 i.pximg.net URL 校验保持不变。页 ID/索引/顺序和默认 URL 不变；无凭据、cookie、镜像或新宿主授权。官方 pixiv Help Center 用小写 pixiv；显示名跟随该拼写。既有官方图标、首页、身份和运行时行为不变。
 
-Search filters support the reference Posted before and Posted after fields when the host supports scoped filters. Nonempty values are sent as ecd and scd; the cursor retains the dates so a changed filter cannot reuse an earlier result page. Empty values preserve the existing request and cursor. The source continues to accept only anonymous All ages manga; the remaining reference filters are not implemented.
+搜索筛选在宿主支援作用域筛选时支援参考的 Posted before 和 Posted after 字段。非空值作为 ecd 和 scd 发送；游标保留日期故改变筛选不能复用先前结果页。空值保留既有请求和游标。源继续只接受匿名全年龄漫画；其余参考筛选未实现。
 
 
 ## 匿名热门与最新候选
 
-固定参考 949dea252eb8e867b7b40834a26e13088764ff55：热门调用漫画日榜再批量取作品详情；最新调用漫画更新接口并略过广告。参考按作品和系列身份去重、每次缓冲50项，非空结果后允许继续直到空结果。Koma get_listings/get_manga_list 的 popular/latest 分别消费这些接口；opaque cursor 独立保存源页、页内位置、未消费的公开页快照与已见作品和系列，拒绝跨栏目复用；快照避免数据刷新后重取同页造成跳项。保留本源原有匿名、全年龄、非私有、非仅登录的访问边界；不可访问项不被输出，结构损坏或榜单和详情身份不一致不冒部分成功。
+固定参考 949dea252eb8e867b7b40834a26e13088764ff55：热门调用漫画日榜再批量取作品详情；最新调用漫画更新接口并略过广告。参考按作品和系列身份去重、每次缓冲 50 项，非空结果后允许继续直到空结果。Koma get_listings/get_manga_list 的 popular/latest 分别消费这些接口；opaque cursor 独立保存源页、页内位置、未消费的公开页快照与已见作品和系列，拒绝跨栏目复用；快照避免数据刷新后重取同页造成跳项。保留本源原有匿名、全年龄、非私有、非仅登录的访问边界；不可访问项不被输出，结构损坏或榜单和详情身份不一致不冒部分成功。
 
-本地候选已用匿名中文接口真实榜单及详情四页、最新五页回放前50及续页，真实数据后的空页是合成终态；有界容量、用户路径及真实末页仍需独立验证。候选新增匿名标签、部分/完整匹配和日期排序；空词按参考以标签或「漫画」为词请求，含关键词时在本站结果中匹配标签。官网真实搜索、两种标签模式、游标变化及空批续页已回放。含关键词标签筛选按参考先取36项估算窗口、最多1000项，公开页快照保存未消费余项；真实三页回放部分匹配窗口66项/结果50项、完整匹配窗口69项/结果49项，零命中上限与第二页失败恢复为受控合成验证，真实终点及普通 Native 尚未验。用户查找需登录，其他选项包含超出当前匿名全年龄范围的能力，不能据新增栏目声称全面功能对齐。
+本地候选已用匿名中文接口真实榜单及详情四页、最新五页回放前 50 及续页，真实数据后的空页是合成终态；有界容量、用户路径及真实末页仍需独立验证。候选新增匿名标签、部分/完整匹配和日期排序；空词按参考以标签或「漫画」为词请求，含关键词时在本站结果中匹配标签。官网真实搜索、两种标签模式、游标变化及空批续页已回放。含关键词标签筛选按参考先取 36 项估算窗口、最多 1000 项，公开页快照保存未消费余项；真实三页回放部分匹配窗口 66 项/结果 50 项、完整匹配窗口 69 项/结果 49 项，零命中上限与第二页失败恢复为受控合成验证，真实终点及普通 Native 尚未验。用户查找需登录，其他选项包含超出当前匿名全年龄范围的能力，不能据新增栏目声称全面功能对齐。

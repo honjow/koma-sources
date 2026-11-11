@@ -1,41 +1,41 @@
-# 喵趣漫画 — independent Koma source 0.1.6
+# 喵趣漫画 — 独立 Koma 源 0.1.6
 
-Stable source ID: `com.miaoqu.koma`; Chinese canonical name: 喵趣漫画. The user explicitly chose 喵趣 to match the retained icon and Mihon source name; website title variants do not override that choice. Localized labels are optional presentation metadata. Actual usage: unknown. Upstream SAFE (protobuf 1 and Gradle SAFE), individual works unknown. This source shares the SixMH catalogue but has independent host and slug identities; no aliases, migration or merging.
+稳定源 ID：`com.miaoqu.koma`；中文规范名：喵趣漫画。用户明确选择喵趣以匹配保留的图标和 Mihon 源名；网站标题变体不覆盖那个选择。本地化标签是可选呈现元数据。实际用量：未知。上游 SAFE（protobuf 1 和 Gradle SAFE），单作品未知。本源与六漫画共享目录但有独立的宿主和 slug 身份；无别名、迁移或合并。
 
-Public contract follows Keiyoushi revision `1319949ca9bc456908196e3ba2d104e94182c5d6`. HTML popular/latest/search, mobile detail/catalogue, canonical chapter DATA literal. Fixed SDK Firefox121 UA-only; no Cookie, Referer or Origin. Only 2xx accepted; upstream HTTP500 exception is intentionally unimplemented without current evidence. No auth, JS execution, image-byte decryption, mirrors, challenge interception, retry or filter background fetch.
+公开合同遵循 Keiyoushi 修订 `1319949ca9bc456908196e3ba2d104e94182c5d6`。HTML 热门/最新/搜索，移动端详情/目录，规范章节 DATA 字面量。固定 SDK Firefox121 仅 UA；无 Cookie、Referer 或 Origin。只接受 2xx；上游 HTTP500 异常因无当前证据而有意未实现。无认证、JS 执行、图像字节解密、镜像、挑战拦截、重试或筛选后台抓取。
 
-`miaoqu:<actual slug>`; `miaoquch:<original chapter path>`; `miaoqupage:<original chapter path>:<zero-based index>`. Original catalogue order reverses per primary; unknown chapter number stays null, ordinal is not a chapter number. Duplicate titles or explicit numbers are not deduplicated. Payload, complete UTF8 body and output are bounded; overflow or malformed structure is failure.
+`miaoqu:<实际 slug>`；`miaoquch:<原始章节路径>`；`miaoqupage:<原始章节路径>:<零基索引>`。原目录顺序按主站反转；未知章节编号保持 null，序号不是章节编号。重复标题或显式编号不去重。载荷、完整 UTF8 体和输出有界；溢出或结构畸形即失败。
 
-Retained actual HTTP200 bodies prove 35 popular cards / next2, 1204 catalogue links and 12 image URLs for 斗破苍穹 第131回 卑鄙的联手（上）. Production WASM replay checks these named paths only. Latest/search are implemented from primary but live unverified. Root later accepted only a finite named native chapter; search and covers remain OPEN. This current-SDK source recovery adds no Native/download/cold acceptance.
+保留的实际 HTTP200 体证明 35 张热门卡片 / next2、1204 个目录链接和斗破苍穹 第131回 卑鄙的联手（上）的 12 个图像 URL。生产 WASM 回放只检查这些具名路径。最新/搜索从主站实现但在线未验证。Root 后来只验收了有限具名原生章节；搜索和封面保持 OPEN。这个当前 SDK 源恢复不添加 Native/下载/冷验收。
 
-Current recovery preserves the original0.1.0 business, Apache license and localized metadata only. The old0444d3a4 migration icon is excluded, and no build registry entry is added without a trusted usable identity asset. The original borrowed-compatibility candidate wrapper and its package evidence remain historical materials; they are not the current standard build entry or approval to bypass the required icon. No package, website request or deployment is produced by this recovery.
+当前恢复只保留原 0.1.0 业务、Apache 许可和本地化元数据。旧 0444d3a4 迁移图标被排除，没有可信可用身份资产就不添加构建 registry 条目。原借用兼容候选包装器及其包证据保持为历史材料；它们不是当前标准构建入口或绕过必需图标的批准。本恢复不产生包、网站请求或部署。
 
-## 0.1.1 webpage-link candidate
+## 0.1.1 网页链接候选
 
-Detail now declares one `kind=source` link using the same MOBILE + detail path as its existing GET. For the existing `miaoqu:doupocangkong` (斗破苍穹) entity, one ordinary anonymous GET to `https://m.miaoqumh.org/doupocangkong` returned HTTP200/113257B and the named work HTML, without redirect. No canonical/og:url was present; the link follows this successful detail request, not a guessed desktop URL. Original identity, requests, catalogue, reading and metadata remain unchanged.
+详情现在声明一个 `kind=source` 链接，使用与其既有 GET 相同的 MOBILE + 详情路径。对既有的 `miaoqu:doupocangkong`（斗破苍穹）实体，一次普通匿名 GET 到 `https://m.miaoqumh.org/doupocangkong` 返回 HTTP200/113257B 和具名作品 HTML，无重定向。没有 canonical/og:url；链接跟随这个成功的详情请求，不是猜造的桌面 URL。原身份、请求、目录、阅读和元数据保持不变。
 
-Actual 0.1.0 and 0.1.1 WASM replayed that same saved HTML with network blocked: both succeeded, every non-links manga field and the sole HTTP request were deeply equal. Offline locked release build passed. The page's sole declared identity candidate `/template/wap/tiantangmanhua/img/favicon.ico` returned HTTP404 on one GET; no asset was obtained. Missing trusted icon still blocks standard packaging; no package or new Native acceptance is claimed. The separate prior www homepage403 remains stopped. Evidence: `Koma/.hvigor/outputs/user-flow-audit/miaoqu011-{detail-once.html,detail-once.json,baseline-offline.json,candidate-offline.json,link-compare-offline.json,declared-favicon.json}`. Existing NOTICE WIP is retained separately.
+实际 0.1.0 和 0.1.1 WASM 在禁网下回放那同一保存的 HTML：两者都成功，所有非 links 的 manga 字段和唯一 HTTP 请求深比较相等。离线锁定 release 构建通过。页面唯一声明的身份候选 `/template/wap/tiantangmanhua/img/favicon.ico` 在一次 GET 中返回 HTTP404；没有获得资产。缺失可信图标仍阻塞标准打包；不声明包或新 Native 验收。独立的先前 www 首页 403 保持停止。证据：`Koma/.hvigor/outputs/user-flow-audit/miaoqu011-{detail-once.html,detail-once.json,baseline-offline.json,candidate-offline.json,link-compare-offline.json,declared-favicon.json}`。既有 NOTICE WIP 单独保留。
 
-## 2026-10-22 distribution asset restoration
+## 2026-10-22 分发资产恢复
 
-The current `icon.png` restores the unchanged original from the installed device237 0.1.0 package, received as `miaoqu010-current-asset237-001/installed-icon.png`. This restores the required package asset for remote installation/update; it does not claim a new official high-resolution resource, resolved icon quality, or new provider/content acceptance. Existing plate/shadow/small-slot limitations remain OPEN. No image processing, source identity, request, chapter or App presentation changes. Prior business-only/missing-file statements above describe the earlier recovery checkpoint; the original source documents and notices are retained.
+当前 `icon.png` 从已装 device237 0.1.0 包恢复未修改原件，接收为 `miaoqu010-current-asset237-001/installed-icon.png`。这恢复了远程安装/更新所需的包资产；不声明新的官方高分辨率资源、已解决的图标质量或新提供方/内容验收。既有底板/阴影/小槽限制保持 OPEN。无图像处理、源身份、请求、章节或 App 呈现变化。上面先前的仅业务/缺失文件说明描述的是更早的恢复检查点；原源文档和通知保留。
 
-## 0.1.2 icon board/shadow cleanup
+## 0.1.2 图标底板/阴影清理
 
-This version removes the external white board/grey shadow from the retained fixed-upstream192×192 Miaoqu reference. Chroma separation restores alpha around its original104×104 glyph without scaling or tracing; the foreground uses the original body's modal orange RGB240/160/110. The120×120 PNG retains8px transparent safety margins. This is background cleanup of the existing identity, not a new official resource or high-resolution redraw; no new backing, shadow or mask is added. The separate generated image with yellow fringe/hole specks was rejected and is not used. App radius/slot/order, source identity/requests/chapters and all provider behaviour remain unchanged; only source/Cargo/lock asset-delivery version011→012. Website403/404 branches remain stopped; no content acceptance is added. Device237 ordinary local update0.1.0→0.1.2 succeeded; both management and Browse display the orange mark without the former board/grey edge. All56 sourceId/enabled pairs retain their exact order, and the original Browse position/10000ms override were restored, read back AWAKE, with the owned transfer removed and lease released. Root reviewed both full-resolution images and the restoration receipt; the board/shadow cleanup is accepted for these two consumers. Original full images and receipts: Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/miaoqu012-icon-import237-001/{manager-current,browse-current}.png` and `miaoqu012-icon-restored237-001`.
+本版本从保留的固定上游 192×192 喵趣参考中移除外部白底板/灰阴影。色度分离恢复其原 104×104 字形周围的 alpha，不缩放或描摹；前景使用原主体的众数橙 RGB240/160/110。120×120 PNG 保留 8px 透明安全边距。这是既有身份的背景清理，不是新官方资源或高分辨率重绘；不添加新底板、阴影或遮罩。单独的带黄边/孔斑的生成图像被拒绝且未使用。App 圆角/槽位/顺序、源身份/请求/章节和所有提供方行为保持不变；只有源/Cargo/lock 资产交付版本 011→012。网站 403/404 分支保持停止；不添加内容验收。device237 普通本地更新 0.1.0→0.1.2 成功；管理和 Browse 都显示橙色标识且无原底板/灰边。全部 56 个 sourceId/启用对保持精确顺序，原 Browse 位置/10000ms 覆盖恢复、读回 AWAKE，本人传输删除并释放租约。Root 审查了两张全分辨率图像和恢复回执；底板/阴影清理对这两个消费者被验收。原全图和回执：Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/miaoqu012-icon-import237-001/{manager-current,browse-current}.png` 和 `miaoqu012-icon-restored237-001`。
 
 
-## Current displayed name
+## 当前显示名
 
-The adopted simplified/traditional display names are 喵趣漫画 / 喵趣漫畫, following the user's explicit 2026-11-05 choice and the fixed Mihon source name. The saved desktop and mobile HTML titles use 妙趣漫画; this known title variant does not change the chosen display name. Preserve the stable source ID, domains, icon, manga/chapter IDs and user history; a later naming change requires a new explicit user decision.
+采用的简繁显示名是 喵趣漫画 / 喵趣漫畫，遵循用户 2026-11-05 的明确选择和固定 Mihon 源名。保存的桌面和移动 HTML 标题使用 妙趣漫画；这个已知标题变体不改变选定的显示名。保留稳定源 ID、域名、图标、漫画/章节 ID 和用户历史；后续改名需要新的明确用户决定。
 
-The desktop homepage's declared favicon and logo URLs both returned HTTP 404 during this check. The existing icon is the previously accepted cleaned form of the fixed upstream Miaoqu reference; the original downloaded reference, retained original and installed 0.1.0 asset have matching SHA256. This establishes provenance of the retained icon, not its identity with a currently available official site asset. It is not replaced or claimed as verified-current.
+桌面首页声明的 favicon 和 logo URL 在本次检查中都返回 HTTP 404。现有图标是先前接受的固定上游喵趣参考的清理形式；原下载的参考、保留原件和已装 0.1.0 资产有匹配的 SHA256。这确立了保留图标的出处，不是它与当前可用官方站点资产同一性的证明。不替换也不声称已验证当前。
 
-## 0.1.4 explicit removed-work response
+## 0.1.4 显式已删作品响应
 
-The mobile route for `miaoqu:moutianchengweigongzhu` returns a final HTTP200 at `/err/comic` with the exact public notice “很遗憾，该漫画不存在或章节已被删除。” and a category redirect script. The adopted MCCMSWeb reference already rejects this final error route before parsing. Since the current host response does not expose the final redirect URL, detail and catalogue recognize only that complete retained error-body template and return the existing `not_found` category with the provider meaning. This does not assert whether the work itself or only its chapters were removed, invent an empty catalogue, change IDs, or broaden content scope. Unknown or partial notices and unexplained missing selectors retain their original parse errors.
+`miaoqu:moutianchengweigongzhu` 的移动路由在 `/err/comic` 返回最终 HTTP200，带精确公开通知“很遗憾，该漫画不存在或章节已被删除。”和一个分类重定向脚本。采用的 MCCMSWeb 参考已在解析前拒绝这个最终错误路由。由于当前宿主响应不暴露最终重定向 URL，详情和目录只识别那个完整保留的错误体模板并返回既有 `not_found` 分类带提供方含义。这不断言是作品本身还是只有章节被删除，不虚构空目录，不改 ID，也不扩大内容范围。未知或部分通知和无法解释的缺失选择器保持原解析错误。
 
-The separate `miaoqu:jiesuomoshide99genuzhu` catalogue receipt is HTTP520 `server_error`, not a parse error; it was not retried or accepted as content. Normal detail/catalogue payloads, request headers, catalogue order and chapter/page identities remain unchanged. Device237 ordinary update confirmed the adopted 喵趣 name; opening the actual popular card 某天成为公主 showed the existing explicit unavailable-content guidance instead of a source runtime error. The prior source/data and power state were restored. This named check does not establish all removed works, normal chapter reading, downloads or cold reads.
+独立的 `miaoqu:jiesuomoshide99genuzhu` 目录回执是 HTTP520 `server_error`，不是解析错误；未重试也不作为内容验收。正常详情/目录载荷、请求头、目录顺序和章节/页身份保持不变。device237 普通更新确认了采用的喵趣名；打开实际热门卡片某天成为公主显示了既有显式不可用内容指引而不是源运行时错误。先前源/数据和电源状态恢复。这个具名检查不建立全部已删作品、正常章节阅读、下载或冷读。
 
 ## 搜索筛选
 

@@ -1,36 +1,36 @@
-xkcd Chinese independent source, com.xkcd.zh.koma 0.1.6.
+xkcd 中文独立源，`com.xkcd.zh.koma` 0.1.6。
 
-Archive order, chapter IDs, metadata and cover stay unchanged. get_pages validates archive membership then reads the chapter HTML and collects every direct #content > img:not([id]) in DOM order. Zero matching ordinary body images returns the existing unsupported error. No ID blacklist or template-name heuristic. The old single-image PageID :0 remains; further body images use their DOM ordinal. All selected URI values pass the existing same-origin strip-image boundary. Metadata preview images do not replace body-role checks.
+归档顺序、章节 ID、元数据和封面保持不变。get_pages 先校验归档成员资格，然后读取章节 HTML 并按 DOM 顺序收集所有直连 `#content > img:not([id])`。零个匹配的普通正文图像返回既有不支持错误。无 ID 黑名单或模板名启发式。旧单图像 PageID :0 保持；后续正文图像使用其 DOM 序号。所有选中的 URI 值通过既有同源剥离图像边界。元数据预览图像不替代正文角色校验。
 
-Real retained 2978 is one normal image and stays identical. Real 1110 is an interactive overlay/map; 1331 requires frequency animation; 1190 requires its frame/canvas player. These three have zero ordinary body matches and return unsupported. A controlled two-image variant proves no first-image truncation; it is not an observed live multi-image comic.
+真实保留的 2978 是单张普通图像，保持相同。真实 1110 是交互式叠加/地图；1331 需要频率动画；1190 需要其帧/画布播放器。这三个零普通正文匹配并返回不支持。受控双图像变体证明无首图像截断；它不是观察到的在线多图像漫画。
 
-Cost: get_pages adds one HTML GET after the archive GET. get_image_request and cover consumers stay unchanged, with no new network call. Already persisted old page plans/downloads cannot be revoked by this new method; cache refresh and Native acceptance are not claimed. No synthesized alt/title text page, JS execution, tile/image fetch, login, retries or style changes.
+成本：get_pages 在归档 GET 后添加一次 HTML GET。get_image_request 和封面消费者保持不变，无新网络调用。已持久化的旧页计划/下载不能由这个新方法撤销；缓存刷新和 Native 验收不声明。无合成 alt/title 文本页、JS 执行、瓦片/图像抓取、登录、重试或样式变化。
 
-Keiyoushi primary revision 1319949ca9bc456908196e3ba2d104e94182c5d6 Xkcd.kt:107/375–405 uses this selector but selectFirst and adds a generated text page. This candidate retains the complete matching body set rather than treating its first item as proof of completeness. Other unknown HTML structures remain unverified.
+Keiyoushi 主修订 `1319949ca9bc456908196e3ba2d104e94182c5d6` 的 Xkcd.kt:107/375–405 使用这个选择器但 selectFirst 并添加生成的文本页。本候选保留完整的匹配正文集合，而不是把第一项当作完整性证明。其他未知 HTML 结构保持未验证。
 
-Version0.1.4 replaces the displayed derived two-person icon with the complete 1000px official author-account avatar declared through the website-linked shop. The original WebP and its white canvas are unmodified; provider behavior is unchanged. See ASSET_SOURCES.md. 197 ALN-AL80 ordinary local import and both package-manager/Browse icon presentation were observed in light and dark themes on 2026-10-20. Versions 0.1.2 (ComicFury) and 0.1.4 (xkcd) appeared at the original positions 55/56 in the unchanged 79-source sequence. Original follow-system theme and timeout were restored. This accepts only these icon consumers, not provider reading/download behavior.
-
-
-## 0.1.5 declared collection webpage
-
-In 0.1.5 the source had one manga entity, `xkcd:zh`, whose strips are chapters. Its declared source webpage is `https://xkcd.tw/`, the existing Chinese translation site's homepage; it is neither an individual-strip URL nor a claim that the translation site is the author's xkcd.com site. The original manga output introduced in57abfeb had no URL/links; 013/014 changed identity artwork and version rather than removing a webpage field. The current ABI's `get_manga` contract accepts `links: [{kind: "source", url: "..."}]`.
-
-015 adds that source link only to `get_manga`. The shared manga renderer now receives a detail flag; `get_manga_list` retains its old output. Archive requests/headers, IDs, cover selection, chapter/page behavior, unsupported interactive-body cases, icon bytes and App styles remain unchanged. Runtime/Cargo/lock become0.1.5 for ordinary update discovery. The existing stable cargo/rustc pair compiled the single crate offline; the first unbound compiler attempt failed with E0463 before the explicit compiler-path correction, without installing a toolchain.
-
-Actual014/015 WASM execution through Node WebAssembly used the same clearly controlled one-entry archive callback, not a website response. It confirmed that detail adds exactly the declared source link, all other detail metadata is identical, and list metadata plus both HTTP callback requests remain identical; external network requests were0. Raw outputs are Koma `.hvigor/outputs/user-flow-audit/xkcd014-link-baseline-offline.json` and `xkcd015-link-offline.json`. The local importable product `dist/xkcd-zh-0.1.5.koma` contains only manifest.json/source.wasm/icon.webp, with the tested WASM and original icon bytes checked directly. It follows the current build.sh three-member/metadata contract in the existing dist directory; the complete script was not run because it would create new staging/delivery directories. No helper script, directory, index publication or hash computation was added.
-
-237 VDE-AL00 unfolded1320×2120 ordinary local picker updated the actual013 package to015, with import success and the same visible placement between Comic Fury and NHentai.xxx. This also inherits the already approved014 original author-avatar asset; no015 icon edit is claimed. Ordinary collection list showed one book; detail showed676/676 chapters and the existing2978 page1/1 continuation. No chapter, download, webpage action or browser was opened. Thus this accepts package delivery and the named ordinary metadata route, not the new App webpage actions or new reading acceptance; Root197 owns those webpage actions. GUI stayed54 enabled, Browse end was restored, the unique transferred product file was removed/tested absent, and10000ms/AWAKE was read back before releasing b6c6880e. No private state export or full54-object equality claim was made. Evidence: Koma user-flow-audit device237 category-membership `xkcd015-import237-001` and `xkcd015-session-restored237-001`.
-
-Root197 with the final Koma Debug16289732B observed ordinary014→015 update, unchanged79 enabled sources, both new detail menu entries, and the declared Chinese homepage rendered in WebView with title「首頁 - xkcd 中文翻譯」. This is the real App consumer of the new source-link field, distinct from the controlled WASM fixture and237 metadata-only route. Evidence: Koma device197 reader-failure-retry/sourceorder-web197-final-installed-001/xkcd015-detail-web-menu.png and xkcd015-webview.png.
+版本 0.1.4 用通过网站链接商店声明的完整 1000px 官方作者账户头像替换显示的双人衍生图标。原 WebP 和其白画布未修改；提供方行为不变。见 ASSET_SOURCES.md。2026-10-20 在 197 ALN-AL80 上观察到普通本地导入和两种主题下的包管理器/Browse 图标呈现。版本 0.1.2（ComicFury）和 0.1.4（xkcd）出现在不变的 79 源序列的原位置 55/56。原跟随系统主题和超时恢复。这只验收这些图标消费者，不代表提供方阅读/下载行为。
 
 
-## 0.1.6 optional organization
+## 0.1.5 声明的合集网页
 
-The default remains SINGLE and preserves `xkcd:zh`, every `xkcdch:zh:<number>` chapter, original page IDs, archive requests and the existing body-image behavior. A saved SINGLE book or chapter continues to resolve independently of the current setting. Only an explicit BY_YEAR or BY_YEAR_MONTH choice creates separately identified grouped books and chapters; changing the setting does not rewrite old library records or reading progress.
+0.1.5 中源有一个漫画实体 `xkcd:zh`，其条漫是章节。其声明的源网页是 `https://xkcd.tw/`，即现有中文翻译站的首页；它既不是单条漫画 URL，也不是声称翻译站就是作者的 xkcd.com 站点。57abfeb 引入的原 manga 输出没有 URL/links；013/014 改的是身份美术和版本，不是删除网页字段。当前 ABI 的 `get_manga` 合同接受 `links: [{kind: "source", url: "..."}]`。
 
-Grouping follows the adopted Keiyoushi reference: join the Chinese archive to `https://xkcd.com/archive/` by original comic number and group by the English publication year or year-month, newest first, ten collections per page. The translated archive date is not a substitute: the verified live snapshots contain nine differing dates. English archive or mapping failure is reported for grouped list/detail/chapter requests instead of inventing dates; SINGLE operations and reading an already-generated grouped chapter do not require the English archive. Grouped chapter pages still verify membership in the Chinese archive and keep the existing same-origin body-image restriction. The English site is queried only for grouped list/detail/chapter operations; no cache persistence or automatic cross-book progress migration is claimed.
+015 只给 `get_manga` 添加那个源链接。共享漫画渲染器现在接收详情标志；`get_manga_list` 保持旧输出。归档请求/头、ID、封面选择、章节/页行为、不支持的交互式正文情况、图标字节和 App 样式保持不变。运行时/Cargo/lock 变为 0.1.5 供普通更新发现。既有稳定 cargo/rustc 对离线编译了单 crate；首次未绑定编译器的尝试在显式编译器路径更正前以 E0463 失败，没有安装工具链。
 
-Production WASM was exercised with live Chinese and English archives, year/month lists and cursor, a 2024 group containing comic 2893, grouped detail/chapter/page, and an old SINGLE book/chapter/page while another setting was selected. Retained 0.1.5 fixture outputs for SINGLE list/detail/chapters matched, and an English HTTP 503 fixture produced a grouped error while old SINGLE operations remained available. Device settings interaction, display, persistence, return path and published package remain unverified until their respective ordinary-path evidence exists.
+实际 014/015 WASM 通过 Node WebAssembly 执行，使用同一明确受控的单条目归档回调，不是网站响应。它确认详情恰好添加声明的源链接，所有其他详情元数据相同，列表元数据和两个 HTTP 回调请求保持相同；外部网络请求为 0。原始输出是 Koma `.hvigor/outputs/user-flow-audit/xkcd014-link-baseline-offline.json` 和 `xkcd015-link-offline.json`。本地可导入产物 `dist/xkcd-zh-0.1.5.koma` 只含 manifest.json/source.wasm/icon.webp，直接检查了受测 WASM 和原图标字节。它遵循现有 dist 目录当前 build.sh 的三成员/元数据合同；完整脚本没有运行，因为它会创建新的暂存/交付目录。没有添加辅助脚本、目录、索引发布或哈希计算。
+
+237 VDE-AL00 展开 1320×2120 普通本地 picker 把实际 013 包更新到 015，导入成功且相同可见位置在 Comic Fury 和 NHentai.xxx 之间。这也继承了已批准的 014 原作者头像资产；不声明 015 图标编辑。普通合集列表显示一本书；详情显示 676/676 章和既有 2978 第 1/1 页继续。没有打开章节、下载、网页动作或浏览器。因此这只验收包交付和具名普通元数据路由，不代表新 App 网页动作或新阅读验收；Root197 拥有那些网页动作。GUI 保持 54 启用，Browse 末端恢复，唯一传输的产物文件删除/测试不存在，读回 10000ms/AWAKE 后释放 b6c6880e。没有私有状态导出或全 54 对象相等声明。证据：Koma user-flow-audit device237 category-membership `xkcd015-import237-001` 和 `xkcd015-session-restored237-001`。
+
+Root197 用最终 Koma Debug 16289732B 观察到普通 014→015 更新、不变的 79 启用源、两个新详情菜单项，以及声明的中文首页在 WebView 中渲染，标题「首頁 - xkcd 中文翻譯」。这是新源链接字段的真实 App 消费者，区别于受控 WASM 固件和 237 仅元数据路由。证据：Koma device197 reader-failure-retry/sourceorder-web197-final-installed-001/xkcd015-detail-web-menu.png 和 xkcd015-webview.png。
+
+
+## 0.1.6 可选组织
+
+默认保持 SINGLE，保留 `xkcd:zh`、每个 `xkcdch:zh:<编号>` 章节、原页 ID、归档请求和既有正文图像行为。已保存的 SINGLE 书或章节独立于当前设置继续解析。只有显式 BY_YEAR 或 BY_YEAR_MONTH 选择才创建单独识别的分组书和章节；改变设置不重写旧库记录或阅读进度。
+
+分组遵循采用的 Keiyoushi 参考：把中文归档按原漫画编号连接 `https://xkcd.com/archive/`，按英文出版年或年月分组，最新在前，每页十个合集。翻译归档日期不是替代：已验证的在线快照含九个不同日期。英文归档或映射失败对分组列表/详情/章节请求报告，而不是虚构日期；SINGLE 操作和阅读已生成的分组章节不需要英文归档。分组章节页仍校验中文归档成员资格并保持既有同源正文图像限制。英文站点只对分组列表/详情/章节操作查询；不声明缓存持久或自动跨书进度迁移。
+
+生产 WASM 用在线中英文归档、年/月列表和游标、含漫画 2893 的 2024 分组、分组详情/章节/页，以及选择另一设置时的旧 SINGLE 书/章节/页运行。保留的 0.1.5 固件输出对 SINGLE 列表/详情/章节匹配，英文 HTTP 503 固件产生分组错误而旧 SINGLE 操作仍可用。设备设置交互、显示、持久、返回路径和发布包保持未验证，直到各自普通路径证据存在。
 
 ## 2026-11-10 显示名精简
 

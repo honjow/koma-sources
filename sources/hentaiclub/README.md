@@ -1,25 +1,24 @@
 # 绅士会所
 
-Independent Rust/WASM port of complete HentaiClub.kt/Filters.kt at Keiyoushi
-de743aed846da53e00c45ab26ee0e77f7bb4355b (extension v1, lib1.6, Apache-2.0).
-Name 绅士会所, zh language and original host www.hentaiclub.net are retained.
-The reference is MIXED: per-work rating stays unknown; no individual comic is
-classified from the website name. There is no account, preference, latest list,
-related-work or URL-import implementation in that reference.
+完整 HentaiClub.kt/Filters.kt 的独立 Rust/WASM 移植，位于 Keiyoushi
+de743aed846da53e00c45ab26ee0e77f7bb4355b（extension v1、lib1.6、Apache-2.0）。
+名称绅士会所、zh 语言和原宿主 www.hentaiclub.net 保留。
+参考是 MIXED：逐作品评级保持未知；不从网站名给单部漫画分类。该参考没有账号、偏好、最新列表、
+相关作品或 URL 导入实现。
 
-Popular/search/tag/category/details/one fixed chapter/all original data-src
-positions and original image headers are implemented. Category pagination
-deliberately repeats the original category URL; unsupported latest/URL import
-remain unsupported. The first content image is the reference's actual cover.
-Opaque CDN URLs are not rejected by guessed ownership. PageID and supplied
-manga/chapter/URL owners are strictly checked before image request output.
+热门/搜索/标签/分类/详情/一个固定章节/全部原 data-src
+位置和原图像头已实现。分类分页
+刻意重复原分类 URL；不受支援的最新/URL 导入
+保持不受支援。第一张内容图像是参考的实际封面。
+不透明 CDN URL 不因猜测的归属被拒绝。PageID 和提供的
+漫画/章节/URL 所有者在图像请求输出前严格检查。
 
-Anonymous network operations require source_rate_limit_hentaiclub_v1 before
-HTTP: exact main hostname www.hentaiclub.net shares 2/1000ms, unrelated CDNs do
-not. Single fixed-chapter metadata and image-request descriptions need no HTTP.
-Jsoup's unquoted substring attribute selector is quoted for the Host scraper;
-its meaning is unchanged. Transport/refusal/malformed/known-empty cases remain
-separate, with no inferred takedown or payment.
+匿名网络操作在 HTTP 前要求 source_rate_limit_hentaiclub_v1：
+精确主宿主 www.hentaiclub.net 共享 2/1000ms，无关 CDN 不共享。
+单固定章节元数据和图像请求描述符无需 HTTP。
+Jsoup 的无引号子串属性选择器为宿主爬虫加了引号；
+其含义不变。传输/拒绝/畸形/已知空情况保持
+分开，无推断的下架或付费。
 
 ## 参考对照与验收
 

@@ -43,9 +43,9 @@ Browse/detail为1次首页GET；chapters为首页+reader+XML三GET；get_pages�
 
 Overwatch繁中PDF分支与探測機首图522原失败保持，不重试或换域/协议/client，不据另一作品成功宣称这些分支通过。没有设备/IDE/签名/提交/推送/发版，App/Kit/SDK/主源WIP与BNS及所有旧冻结源/包保持。Root下一步审全部Rust/README/diff/真实parent/XML/Host轨迹/ABI和冻结后决定普通197安装/30页阅读、下载、进度与cold。
 
-## 2026-10-17 required identity resource
+## 2026-10-17 必需身份资源
 
-The new icon-only candidate uses the genuine local resource documented in ASSET_SOURCES.md. The earlier optional-PNG/no-icon package description remains historical evidence, not the current production resource rule. Manifest.icon names the actual root file; WASM, version, stable identities and parser behavior are unchanged. Old frozen packages remain separate. Native icon display has not been accepted; App rounded clipping remains.
+新的仅图标候选使用 ASSET_SOURCES.md 文档化的真实本地资源。更早的可选-PNG/无图标包描述保持历史证据，不是当前生产资源规则。Manifest.icon 命名实际根文件；WASM、版本、稳定身份和解析器行为不变。旧冻结包保持单独。Native 图标显示未验收；App 圆角裁剪保持。
 
 ## 0.1.2 图标重建交付
 

@@ -1,47 +1,47 @@
 # GoDa漫画
 
-Stable source `org.goda.koma`, runtime version 0.1.6, API 0.2, Chinese.
-Independent from installed Baozi identity; catalogue overlap unknown; no aliases or user-record migration.
+稳定源 `org.goda.koma`，运行时版本 0.1.6，API 0.2，中文。
+与已装包子身份独立；目录重叠未知；无别名或用户记录迁移。
 
-The default request backend remains baozimh.org; the separately declared website homepage remains godamh.com. Explicit mirror choices are described below. Fixed Keiyoushi 1319949ca9bc456908196e3ba2d104e94182c5d6 leaf GoDaManhua, parent GoDa and Dto public decoder, Apache-2.0. Upstream SAFE=1; individual content and actual usage unknown. The source excludes advertisements, downloads and external English links.
+默认请求后端保持 baozimh.org；单独声明的网站首页保持 godamh.com。显式镜像选择见下文。固定 Keiyoushi `1319949ca9bc456908196e3ba2d104e94182c5d6` 叶 GoDaManhua、父 GoDa 和 Dto 公开解码器，Apache-2.0。上游 SAFE=1；单内容和实际用量未知。源排除广告、下载和外部英文链接。
 
-HTML popular/latest/search and details, full public chapter JSON API, static marker/reorder/alphabet/Base64URL image-address protocol; no JS execution, account/cookie/challenge handling, automatic mirror probing or image-byte decryption. Fixed SDK Firefox121 and published Referer/Origin. Chapters reverse the original complete API array, retain every original title/slug/ID, and never use API order or ordinal as a chapter number. Host indices describe returned sequence only. Pages retain original array order; API order is not a zero-based index.
+HTML 热门/最新/搜索和详情、完整公开章节 JSON API、静态标记/重排/字母/Base64URL 图像地址协议；无 JS 执行、账号/cookie/挑战处理、自动镜像探测或图像字节解密。固定 SDK Firefox121 和发布 Referer/Origin。章节反转原完整 API 数组，保留每个原标题/slug/ID，从不把 API 顺序或序号用作章节编号。宿主索引只描述返回序列。页保留原数组顺序；API 顺序不是零基索引。
 
-Strict complete UTF8/JSON/body and output capacity: 1MiB body and 1MiB payload, 8192 chapters, 2048 HTML/page selections, bounded individual text/attributes. Overflow/missing/invalid data errors, never partial-success truncation. Actual final envelope must fit native 1MiB runtime limit. Date fields are omitted rather than inferred.
+严格完整 UTF8/JSON/体和输出容量：1MiB 体和 1MiB 载荷，8192 章节，2048 HTML/页选择，有界单独文本/属性。溢出/缺失/无效数据错误，从不部分成功截断。实际最终封套必须适配 native 1MiB 运行时限制。日期字段省略而不是推断。
 
-Current production entry: `bash build.sh --source goda` with current canonical SDK/formal CLI and required icon. The historical package_candidate.py remains only in the old owner, not imported into canonical. The historical crate/runtime split recorded below predates the current production declarations. Cargo, sourceInfo and package now consistently declare 0.1.6; the crate identity remains koma_goda_source. Minimum App version remains 0.1.0. No distribution or device action.
+当前生产入口：`bash build.sh --source goda` 带当前规范 SDK/正式 CLI 和必需图标。历史 package_candidate.py 只保留在旧所有者，不导入规范。下面记录的历史 crate/运行时拆分早于当前生产声明。Cargo、sourceInfo 和包现在一致声明 0.1.6；crate 身份保持 koma_goda_source。最低 App 版本保持 0.1.0。无分发或设备操作。
 
-Evidence in ignored .hermes-artifacts/goda-20261011. Retained public responses and production-WASM replay are local contract evidence, not native read/download/cold acceptance. Root owns 197 ordinary user-path acceptance.
-
-
-Latest accepted successor is 0.1.1 original-G icon correction. User-supplied godamanga.com redirected to m.g-mh.org and explicitly declared its Logo.png; exact original PNG is retained, see ASSET_SOURCES.md. This does not migrate the old request backend or alias source IDs. Historical 0.1.0 named 武炼巅峰/1扫地小厮17-page read/download/cold and 0.1.1 icon update/cold are separate finite records; old backend-domain and whole-source boundaries remain. New current-SDK standard WASM has not been Native accepted. App row30vp/radius7/clipping are unchanged.
+证据在忽略的 .hermes-artifacts/goda-20261011。保留的公开响应和生产 WASM 回放是本地合同证据，不是 native 阅读/下载/冷验收。Root 拥有 197 普通用户路径验收。
 
 
-0.1.2 isolated candidate: retain the identity-checked getinfo API's complete root-relative image paths instead of requiring the first retained sample's /scomic/<canonical-slug> storage layout. A newly retained, uniquely matched 武炼巅峰/夺酒 response contains 70 /hp/wuliandianfeng/3864/... paths. API mid/id/slug validation remains unchanged; URLs still use only the existing fixed https://c-nd2-1.6wm.top origin, and valid_path still rejects network-path references, dot segments, encoded slash/backslash/control characters, non-path query/fragment characters and oversized paths. Array order and ordinal page identities are unchanged; no image bytes or new host are fetched. Old 17-page body is separately preserved. This candidate's page plans and offline results do not prove current image HTTP availability or Native reading; the original 0.1.1 Native failure remains. Original icon bytes and App clipping are unchanged. Cargo crate remains the inherited 0.1.0, runtime/package alone becomes 0.1.2.
+最新验收后继是 0.1.1 原 G 图标更正。用户提供的 godamanga.com 重定向到 m.g-mh.org 并显式声明其 Logo.png；精确原 PNG 保留，见 ASSET_SOURCES.md。这不迁移旧请求后端或别名源 ID。历史 0.1.0 具名武炼巅峰/1扫地小厮 17 页阅读/下载/冷和 0.1.1 图标更新/冷是单独的有限记录；旧后端域和整源边界保持。新当前 SDK 标准 WASM 未 Native 验收。App 行30vp/圆角7/裁剪不变。
 
 
-## 237 現裝 0.1.2「奪酒」第2頁有限結果（2026-10-21）
+0.1.2 隔离候选：保留身份核对的 getinfo API 的完整根相对图像路径，而不是要求首个保留样本的 /scomic/<规范-slug> 存储布局。新保留、唯一匹配的武炼巅峰/夺酒响应含 70 个 /hp/wuliandianfeng/3864/... 路径。API mid/id/slug 校验保持不变；URL 仍只用既有固定 https://c-nd2-1.6wm.top 源，valid_path 仍拒绝网络路径引用、点段、编码斜杠/反斜杠/控制字符、非路径查询/片段字符和超大路径。数组顺序和序号页身份不变；不抓取图像字节或新宿主。旧 17 页正文单独保留。这个候选的页计划和离线结果不证明当前图像 HTTP 可用性或 Native 阅读；原 0.1.1 Native 失败保持。原图标字节和 App 裁剪不变。Cargo crate 保持继承的 0.1.0，运行时/包单独变为 0.1.2。
 
-接續的是原011在《武炼巅峰／夺酒》HTTP200後invalid image URL的失敗，非舊「掃地小廝」17頁。原canonical提交f0487ab已修復身份核對後的根相對頁路徑；本輪未再改解析、版本或圖標。現012生產WASM對精確 `godach:wuliandianfeng-pikapi/12-6059776-3864#12/1748368` 單次Host get_pages，實際原API HTTP200並成功返回70頁，首URI仍既有固定CDN的 `/hp/wuliandianfeng/3864/` 路徑。原stdout/stderr在Koma `.hvigor/outputs/user-flow-audit/goda012-current-duojiu-pages-host.{json,stderr.log}`；沒有重試、取新host或圖片實體，Host頁計畫不冒Native正文。
 
-237普通Browse已顯示GoDa0.1.2，因此沒有重新導入。熱門18本→武炼巅峰詳情3875/3875章；進入前已存在「繼續閱讀・夺酒・第2/70頁」，不能把它冒成本輪首次閱讀或過去已親看正文。沿原繼續閱讀後，實際親看第2/70頁完整彩色敘事畫面（人物眼部與飛船構圖），21:31:05原生日誌有ReaderImage display_ready/display_complete page=2。該頁缺足夠可讀對白，不據此確認正文語言；未核在線首取/快取來源、全70頁、下載、cold或其他章節。原011失敗和舊17頁結果均保留，各自版本與驗收邊界不變。
+## 237 现装 0.1.2「夺酒」第 2 页有限结果（2026-10-21）
 
-自然Back後仍為原夺酒第2/70頁。臨時升序已透過原「重置」恢復全部/預設話數降序，且重置標記消失；Browse末端恢復，10000ms/AWAKE讀回後釋放本人b5fcf3cb租約。本輪未改53項源啟用、導入包或匯出私有狀態，未將GUI首末觀察冒作全量持久內容逐項相同。
+接续的是原 011 在《武炼巅峰／夺酒》HTTP200 后 invalid image URL 的失败，非旧「扫地小厮」17 页。原 canonical 提交 f0487ab 已修复身份核对后的根相对页路径；本轮未再改解析、版本或图标。现 012 生产 WASM 对精确 `godach:wuliandianfeng-pikapi/12-6059776-3864#12/1748368` 单次 Host get_pages，实际原 API HTTP200 并成功返回 70 页，首 URI 仍既有固定 CDN 的 `/hp/wuliandianfeng/3864/` 路径。原 stdout/stderr 在 Koma `.hvigor/outputs/user-flow-audit/goda012-current-duojiu-pages-host.{json,stderr.log}`；没有重试、取新 host 或图像实体，Host 页计划不冒 Native 正文。
 
-原件在Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/goda012-entry237-001/`：`goda-current-row.png`、`goda-detail-ready.png`、`duojiu-existing-page2-current.png`、`natural-return-original-detail.png`、`final-browse-restored.png`及entry/chapter/continue/return-actions.json。Reader原日誌在旁列 `goda012-continue-log-restored237-001/run-metadata.json`，最終回復在 `goda012-session-restored237-001/run-metadata.json`；全部本輪artifact雜湊關閉。
+237 普通 Browse 已显示 GoDa 0.1.2，因此没有重新导入。热门 18 本→武炼巅峰详情 3875/3875 章；进入前已存在「继续阅读・夺酒・第 2/70 页」，不能把它冒成本轮首次阅读或过去已亲看正文。沿原继续阅读后，实际亲看第 2/70 页完整彩色叙事画面（人物眼部与飞船构图），21:31:05 原生日志有 ReaderImage display_ready/display_complete page=2。该页缺足够可读对白，不据此确认正文语言；未核在线首取/快取来源、全 70 页、下载、cold 或其他章节。原 011 失败和旧 17 页结果均保留，各自版本与验收边界不变。
 
-2026-10-26：用户报告普通网页误开包子。0.1.3将独立homepage元数据纠正为用户指定、实际首页自称GoDa漫畫的https://godamh.com/；只修品牌主页声明，原baozimh.org请求后端、章节/图片ID及权限保持。旧metadata把后端当主页的ae83e07被本修正取代，不能因后端仍保留而复活错误网页入口。
+自然 Back 后仍为原夺酒第 2/70 页。临时升序已通过原「重置」恢复全部/默认话数降序，且重置标记消失；Browse 末端恢复，10000ms/AWAKE 读回后释放本人 b5fcf3cb 租约。本轮未改 53 项源启用、导入包或导出私有状态，未将 GUI 首末观察冒作全量持久内容逐项相同。
+
+原件在 Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/goda012-entry237-001/`：`goda-current-row.png`、`goda-detail-ready.png`、`duojiu-existing-page2-current.png`、`natural-return-original-detail.png`、`final-browse-restored.png` 及 entry/chapter/continue/return-actions.json。Reader 原日志在旁列 `goda012-continue-log-restored237-001/run-metadata.json`，最终回复在 `goda012-session-restored237-001/run-metadata.json`；全部本轮 artifact 哈希关闭。
+
+2026-10-26：用户报告普通网页误开包子。0.1.3 将独立 homepage 元数据纠正为用户指定、实际首页自称 GoDa 漫畫的 https://godamh.com/；只修品牌主页声明，原 baozimh.org 请求后端、章节/图片 ID 及权限保持。旧 metadata 把后端当主页的 ae83e07 被本修正取代，不能因后端仍保留而复活错误网页入口。
 
 ## 0.1.4 显式镜像设置
 
-固定参考 949dea252eb8e867b7b40834a26e13088764ff55 声明六个首选镜像。`preferredMirror` 默认 `https://baozimh.org`，只有用户显式选择才使用另五项；未知值回退原默认，绝不自动探测或切换。设置影响目录、搜索、详情的站点域和 API/图片请求 Referer、Origin；共享 API 与原图地址仍由原实现及身份校验决定。`metadata.json` 的官网入口始终是 `https://godamh.com`，不随此选择重写。原漫画、章节和页面 ID 不改，也不自动迁移书库。
+固定参考 `949dea252eb8e867b7b40834a26e13088764ff55` 声明六个首选镜像。`preferredMirror` 默认 `https://baozimh.org`，只有用户显式选择才使用另五项；未知值回退原默认，绝不自动探测或切换。设置影响目录、搜索、详情的站点域和 API/图片请求 Referer、Origin；共享 API 与原图地址仍由原实现及身份校验决定。`metadata.json` 的官网入口始终是 `https://godamh.com`，不随此选择重写。原漫画、章节和页面 ID 不改，也不自动迁移书库。
 
-六域真实首页与具名《有鬼拍不到》详情均能读取、作品ID及首章ID一致；生产WASM分别验证目录、搜索、详情、同一首章页表。实际一次实时API更新使第一域章节116条、后五域117条，116个已有章节ID均相同，不推断其他作品或站点全量一致。备用域godamh.com完整图片请求头实取首图200；此前缺UA的直接请求两种Origin均403，不把错误当图片。默认图像请求与0.1.3相同。真实237设置持久、图像渲染和跨镜像旧库仍需独立验证。
+六域真实首页与具名《有鬼拍不到》详情均能读取、作品 ID 及首章 ID 一致；生产 WASM 分别验证目录、搜索、详情、同一首章页表。实际一次实时 API 更新使第一域章节 116 条、后五域 117 条，116 个已有章节 ID 均相同，不推断其他作品或站点全量一致。备用域 godamh.com 完整图片请求头实取首图 200；此前缺 UA 的直接请求两种 Origin 均 403，不把错误当图片。默认图像请求与 0.1.3 相同。真实 237 设置持久、图像渲染和跨镜像旧库仍需独立验证。
 
-## 0.1.6 explicit unavailable chapters and large declared image arrays
+## 0.1.6 显式不可用章节与大型声明图像数组
 
-The two retained HTTP200 manga detail pages for `woduzishengji-duburedicestudio-a04` and `guizhuoxiandao` explicitly mark their h1 status as `章節下架` and omit the entire `#mangachapters`/data-mid container. This is the manga's chapter catalogue, not one failed chapter or a proven whole-work deletion. In that precise combination detail/chapters return `error.code=content_removed` with `源站已标示该作品章节下架` and `reasonCode=not_found` for older hosts. Ordinary HTTP 404 keeps the original `not_found` result. Unknown missing nodes retain their previous parse error; available works are unaffected. No manga ID is inferred, no empty complete chapter list is fabricated, and no mirror is automatically probed. This follows the pinned reference GoDaManhua's removed-catalogue handling.
+`woduzishengji-duburedicestudio-a04` 和 `guizhuoxiandao` 两个保留的 HTTP200 漫画详情页把 h1 状态显式标记为 `章節下架` 并省略整个 `#mangachapters`/data-mid 容器。这是该漫画的章节目录，不是一个失败章节或已证明的整作品删除。在那个精确组合中详情/章节返回 `error.code=content_removed` 带 `源站已标示该作品章节下架`，旧宿主 `reasonCode=not_found`。普通 HTTP 404 保持原 `not_found` 结果。未知缺失节点保留先前解析错误；可用作品不受影响。不推断漫画 ID，不虚构空完整章节列表，不自动探测镜像。这遵循固定参考 GoDaManhua 的已删目录处理。
 
-The real identity-checked `32982/1788073` chapter contains a 41,288-byte encoded string: the previous local 32KiB input buffer rejected it even though the independently decoded array is only 30,958 bytes and contains 221 unique image URLs. Image-string unescaping now temporarily uses the existing 1MiB payload buffer. The complete decoder first writes to the separate REORDER and DECODED buffers; its temporary payload borrow ends before serialization starts, and the page array remains borrowed only from DECODED. This adds no memory buffer or SDK/host limit. The final 1MiB envelope, 2048-page capacity, complete JSON/UTF8 validation, marker/alphabet checks, mid/id/slug checks, fixed CDN, path restrictions, full original array order and page identities remain unchanged. No truncation or synthesized image URL is used.
+真实身份核对的 `32982/1788073` 章节含一个 41,288 字节编码字符串：先前本地 32KiB 输入缓冲区拒绝了它，尽管独立解码的数组只有 30,958 字节且含 221 个唯一图像 URL。图像字符串解转义现在临时使用既有 1MiB 载荷缓冲区。完整解码器先写入单独的 REORDER 和 DECODED 缓冲区；其临时载荷借用序列化开始前结束，页数组只从 DECODED 借用。这不添加内存缓冲区或 SDK/宿主限制。最终 1MiB 封套、2048 页容量、完整 JSON/UTF8 校验、标记/字母检查、mid/id/slug 检查、固定 CDN、路径限制、完整原数组顺序和页身份保持不变。不使用截断或合成图像 URL。
 
-Reference readback uses immutable Keiyoushi `949dea252eb8e867b7b40834a26e13088764ff55` GoDa.kt, GoDaManhua.kt and Dto.kt. The static decoder is unchanged; the independent literal reference pipeline supplies the full expected array for all221 entries. Metadata/API replay and this classification do not claim current Native reading, image binary availability, or access to chapters the public manga page explicitly withholds.
+参考读回使用不可变 Keiyoushi `949dea252eb8e867b7b40834a26e13088764ff55` GoDa.kt、GoDaManhua.kt 和 Dto.kt。静态解码器不变；独立字面参考管线为全部 221 项提供完整预期数组。元数据/API 回放和这个分类不声称当前 Native 阅读、图像二进制可用性或访问公开漫画页显式扣留的章节。

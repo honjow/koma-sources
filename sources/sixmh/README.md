@@ -1,28 +1,28 @@
-# 六漫画 source candidate
+# 六漫画源候选
 
-Canonical source `com.sixmh.koma`, Chinese content, NSFW per current Keiyoushi metadata; measured usage unknown. Implementation reference: Keiyoushi extensions-source `10f06eb833af5990bc5470c84c5e93edc159ad4e`, SixMH.kt/Crypto.kt and MCCMSWeb.kt/config (Apache-2.0 upstream). Source-contract and finite native-acceptance boundaries are recorded separately below.
+规范源 `com.sixmh.koma`，中文内容，按当前 Keiyoushi 元数据为 NSFW；实测用量未知。实现参考：Keiyoushi extensions-source `10f06eb833af5990bc5470c84c5e93edc159ad4e` 的 SixMH.kt/Crypto.kt 与 MCCMSWeb.kt/config（上游 Apache-2.0）。源合同与有限原生验收边界分别记录如下。
 
-Popular/latest use canonical public PC HTML routes; details/catalogue preserve canonical href IDs and catalogue order. Chapter number/date remain unknown. Search follows the fixed MCCMS reference mobile request contract at `/search/{query}/{page}`. The source percent-encodes the JSON-decoded query, preserves catalogue IDs, recognizes the site’s explicit empty result, and fails on unknown or challenge responses rather than returning a false empty list. Optional filters/settings/login are false. Missing/ambiguous/overflow/captcha/error structures fail explicitly.
+热门/最新使用规范公开 PC HTML 路由；详情/目录保留规范 href ID 和目录顺序。章节编号/日期保持未知。搜索沿固定 MCCMS 参考移动端请求合同 `/search/{query}/{page}`。源对 JSON 解码后的查询做百分号编码，保留目录 ID，识别站点的显式空结果，对未知或挑战响应显式失败而不是返回假空列表。可选筛选/设置/登录为 false。缺失/含糊/溢出/验证码/错误结构显式失败。
 
-Chapter params contain Base64 IV+ciphertext; RustCrypto aes 0.8.4/cbc 0.1.2 decrypt metadata URL JSON with strict padding/UTF8/full JSON checks. Image bytes are never transformed; no JS, session, challenge, account or paywall path. Parent PC User-Agent and omitted Referer/Origin are initial public contracts, never refusal retries. AES/CBC licenses MIT OR Apache-2.0, versions/checksums locked.
+章节参数含 Base64 IV+密文；RustCrypto aes 0.8.4/cbc 0.1.2 解密元数据 URL JSON，带严格填充/UTF8/完整 JSON 校验。图像字节从不变换；无 JS、会话、挑战、账号或付费墙路径。父级 PC User-Agent 和省略 Referer/Origin 是初始公开合同，不是拒绝重试。AES/CBC 许可为 MIT OR Apache-2.0，版本/校验和已锁定。
 
-Finite logs contain static stage/operation/error labels and numeric HTTP status only; no URLs, queries, titles, cookies or content.
+有限日志只含静态阶段/操作/错误标签和数字 HTTP 状态；无 URL、查询、标题、cookie 或内容。
 
-## Finite native acceptance (197, 2026-10-10)
+## 有限原生验收（197，2026-10-10）
 
-The exact 0.1.0 archive 6faa4081b099667a1bd324c6256f3b683b955cdd3ae03cd1ac72697dccb49ca8 and WASM 800213e75c28d507e41294a3cb0ffacd4a5d5b225bc9d44c5c3fc796edbfbe5b were installed through the ordinary subscription route and read back byte-for-byte. Ordinary popular pagination appended 30 to 60 entries; initially visible covers displayed real images. Public nonadult 鬼灭之刃 `/255429` loaded 212 chapters; explicit 第1话 残酷 `/255429/58497.html` returned 54 pages and displayed real pages 1 and 6. A single-chapter download completed 54/54; 54 nonzero physical files totalled 9,009,709 bytes and every size matched the manifest. A no-clear cold start held all four state files byte-for-byte, and ordinary Library Continue displayed the same real page 6/54. All original source, book, reader and queue objects were preserved.
+精确的 0.1.0 归档 `6faa4081b099667a1bd324c6256f3b683b955cdd3ae03cd1ac72697dccb49ca8` 和 WASM `800213e75c28d507e41294a3cb0ffacd4a5d5b225bc9d44c5c3fc796edbfbe5b` 经普通订阅路由安装并逐字节读回。普通热门分页把 30 追加到 60 个条目；初始可见封面显示了真实图像。公开非成人《鬼灭之刃》`/255429` 加载 212 章；显式 第1话 残酷 `/255429/58497.html` 返回 54 页并显示真实第 1 页和第 6 页。单章下载完成 54/54；54 个非零物理文件共 9,009,709 字节，每个大小与清单匹配。不清数据冷启动保持全部四个状态文件逐字节不变，普通书架继续显示同一真实第 6/54 页。所有原始源、书、阅读器和队列对象都保留。
 
-This accepts only the named public path. Search remains disabled; latest listing, terminal catalogue/site-wide coverage, login/paid content and disconnected-device reading are unproven. Site HTML itself labels this sample 爱情/耽美; those values were not invented or corrected from the title. The source keeps unknown chapter numbers null, but the App currently replaces them with source indices; sorting semantics are separately pending user choice and were not changed here. Root evidence is retained in the Koma production tree under `.hermes-artifacts/20261005-production/src014-sixmh-20261010/`. The README acceptance note does not change the frozen module/package bytes.
+这只验收具名公开路径。搜索保持禁用；最新列表、终点目录/全站覆盖、登录/付费内容和断网设备阅读未证明。站点 HTML 本身把这个样例标记为 爱情/耽美；这些值不是从标题虚构或纠正的。源保持未知章节编号为 null，但 App 当前用源索引替换它们；排序语义另行等待用户选择，此处未改。Root 证据保留在 Koma 生产树 `.hermes-artifacts/20261005-production/src014-sixmh-20261010/` 下。README 验收说明不改变冻结的模块/包字节。
 
-## Current standard-delivery candidate (2026-10-18)
+## 当前标准交付候选（2026-10-18）
 
-The complete original 49780a37 business implementation, crate identity/version, and localized names remain byte-for-byte. The current canonical SDK and standard build generate a new WASM; this does not inherit the historical Native acceptance. The historical App index fallback above is a dated observation, not a present consumer requirement.
+完整的原 49780a37 业务实现、crate 身份/版本和本地化名称保持逐字节不变。当前规范 SDK 和标准构建生成新 WASM；这不继承历史 Native 验收。上面历史 App 索引回退是带日期的观察，不是当前消费者需求。
 
-Root icon.ico is the unprocessed site-declared 32px original; ASSET_SOURCES.md records the URL, declaration and SHA. The production build validates the required icon and exports its actual filename. Small-slot legibility and current-WASM Native paths remain unverified. No new upstream requests, image processing, parser changes or device work are part of this candidate.
+Root icon.ico 是未处理的站点声明 32px 原件；ASSET_SOURCES.md 记录 URL、声明和 SHA。生产构建校验必需图标并导出其实际文件名。小槽可读性和当前 WASM Native 路径保持未验证。本候选不含新上游请求、图像处理、解析器变化或设备工作。
 
-## 0.1.1 transport classification (isolated candidate)
+## 0.1.1 传输分类（隔离候选）
 
-Only a formal host ok:false/error.code=network_error envelope with neither status nor statusCode, or an HTTP host ABI failure, is reported as network_error. Unknown/invalid statuses and all existing HTTP non-2xx classifications remain explicit failures. Existing success parsing, complete-body checks, UA, timeout, TLS and SDK are unchanged. The first current-standard Native popular attempt failed at TLS (CURL35/RespCode0/zero bytes); no detail/body/download/cold result was reached, and this classification change does not repair or prove the remote connection. Controlled envelopes are not the original Native callback input.
+只有正式宿主 ok:false/error.code=network_error 封套且无 status 也无 statusCode，或 HTTP 宿主 ABI 失败，才报告为 network_error。未知/无效状态和所有既有 HTTP 非 2xx 分类保持显式失败。既有成功解析、完整体校验、UA、超时、TLS 和 SDK 不变。首次当前标准 Native 热门尝试在 TLS 失败（CURL35/RespCode0/零字节）；没有到达详情/正文/下载/冷结果，这个分类变化不修复也不证明远端连接。受控封套不是原 Native 回调输入。
 
 ## 2026-10-21 237现装0.1.2《一人之下》有限Native结果
 
@@ -52,31 +52,31 @@ Root审过分类与版本diff后，仅SixMH Cargo、内嵌SourceInfo及对应loc
 
 最后普通Back回原热门列表，再回Browse末端；两处仅本轮013上传路径已删除且读回不存在，10000ms/AWAKE读回、9acb0ad0租约已释放，哈希关闭，原件`sixmh013-session-restored237-001`。首次上传位置未出现在picker，按原回执改用公共Docs/Download后才导入；恢复manifest首轮因不支持allowFailure字段在动作前校验失败，删除该字段后同协议完成，未重导或重复正文。没有私有状态导出、App/样式变更或提交推送。
 
-## 0.1.4 webpage-link candidate
+## 0.1.4 网页链接候选
 
-`get_manga` declares one `kind=source` link using the same BASE + normalized public detail path as its existing GET. The retained HTTP200 latest-list parent explicitly linked `/620554` (罗梅莉娅战记~伯爵千金，打倒魔王之後发现人类处境实在不妙於是组建军队~). One ordinary anonymous GET with the unchanged PC Firefox150 contract returned HTTP200/29294B at `https://www.liumanhua.com/620554`, without redirect, and the matching work title. No canonical/og:url was present; this link is the successful original detail request URL. Requests, identities, chapter parsing, removed-catalogue classification, images, permissions and icon are unchanged.
+`get_manga` 声明一个 `kind=source` 链接，使用与其既有 GET 相同的 BASE + 规范化公开详情路径。保留的 HTTP200 最新列表父级明确链接了 `/620554`（罗梅莉娅战记~伯爵千金，打倒魔王之後发现人类处境实在不妙於是组建军队~）。一次普通匿名 GET 用不变的 PC Firefox150 合同在 `https://www.liumanhua.com/620554` 返回 HTTP200/29294B，无重定向，匹配作品标题。没有 canonical/og:url；这个链接就是成功的原详情请求 URL。请求、身份、章节解析、下架目录分类、图像、权限和图标都不变。
 
-Actual 0.1.3 and 0.1.4 WASM replayed the same saved work HTML with network blocked: both succeeded, every non-links manga field and the sole HTTP request were deeply equal. Offline locked single-crate release build passed. At that offline stage, no package, index, hashes, device work or reading acceptance was produced. Prior `/255429` and homepage403 remain stopped; this work is separate from old 鬼灭 and 水行群侠 reading evidence. Evidence under `Koma/.hvigor/outputs/user-flow-audit/`: `sixmh014-latest-parent{.html,-receipt.json}`, `sixmh014-{detail-once.html,detail-once.json,baseline-offline.json,candidate-offline.json,link-compare-offline.json,build.log}` and `sixmh013-baseline.wasm`.
+实际 0.1.3 和 0.1.4 WASM 在禁网下回放同一保存的作品 HTML：两者都成功，所有非 links 的 manga 字段和唯一 HTTP 请求深比较相等。离线锁定单 crate release 构建通过。那个离线阶段没有产生包、索引、哈希、设备工作或阅读验收。此前 `/255429` 和首页 403 保持停止；本工作与旧鬼灭和水行群侠阅读证据独立。证据在 `Koma/.hvigor/outputs/user-flow-audit/`：`sixmh014-latest-parent{.html,-receipt.json}`、`sixmh014-{detail-once.html,detail-once.json,baseline-offline.json,candidate-offline.json,link-compare-offline.json,build.log}` 和 `sixmh013-baseline.wasm`。
 
-## 0.1.4 corrected-package webpage acceptance (237)
+## 0.1.4 更正包网页验收（237）
 
-On the Root-signed App (16317008B / 2026-10-22 01:23:08), ordinary picker installed 0.1.4. The first local package incorrectly declared `nsfw=false`; its installed manifest and preliminary icon evidence are retained. Root corrected only that manifest field and ordinary same-version picker reimport installed the 197542B package. The installed manifest exactly matches the corrected package (`nsfw=true`, `contentRating=nsfw`); all 54 source IDs, registry order and enabled values remain equal before correction and at final return. Manager/Browse same-group original icons retain the approved 1.05 asset scale.
+在 Root 签名的 App（16317008B / 2026-10-22 01:23:08）上，普通 picker 安装了 0.1.4。第一个本地包错误地声明了 `nsfw=false`；其已装 manifest 和初步图标证据保留。Root 只更正了那个 manifest 字段，普通同版本 picker 重导安装了 197542B 包。已装 manifest 与更正后的包完全一致（`nsfw=true`、`contentRating=nsfw`）；全部 54 个源 ID、registry 顺序和启用值在更正前和最终返回时保持相等。管理/浏览同组原图标保留批准的 1.05 资源缩放。
 
-The ordinary 更新时间 list exposed the exact `/620554` work. `get_manga` and `get_chapters` each returned HTTP200; native detail showed 3/3 chapters and Start reading. Both webpage menu entries appeared. WebView displayed the same work's real cover/title/author/three catalogue entries; natural Back kept the original 3 chapters, 3/3 catalogue and Start reading. No chapter, Reader, external browser or download was opened; old 鬼灭/水行群侠 reading acceptance is separate. Original 热门人气 selection and Browse54 were restored, own transfer removed, 10000ms/AWAKE read back and lease released.
+普通更新时间列表暴露了精确的 `/620554` 作品。`get_manga` 和 `get_chapters` 各返回 HTTP200；原生详情显示 3/3 章和开始阅读。两个网页菜单项都出现。WebView 显示了同一作品的真实封面/标题/作者/三条目录项；自然 Back 保持原 3 章、3/3 目录和开始阅读。没有打开章节、Reader、外部浏览器或下载；旧鬼灭/水行群侠阅读验收独立。原热门人气选择和 Browse54 恢复，本人传包删除，10000ms/AWAKE 读回并释放租约。
 
-Raw evidence in Koma's existing `category-membership` device237 partition: `sixmh014-{import-icons237-001-gate,manifest-before-fix237-001,corrected-import237-003-restored,manifest-corrected237-001}`, `sixmh014-exact620554237-001-{gate,restored}`, `sixmh014-webview620554237-001-gate/webview620554.png`, and `sixmh014-return-restored237-001-{gate,restored}`. This accepts only the named corrected-package webpage/return and icon paths, without site-wide or new reading claims.
+原始证据在 Koma 现有 `category-membership` device237 分区：`sixmh014-{import-icons237-001-gate,manifest-before-fix237-001,corrected-import237-003-restored,manifest-corrected237-001}`、`sixmh014-exact620554237-001-{gate,restored}`、`sixmh014-webview620554237-001-gate/webview620554.png` 和 `sixmh014-return-restored237-001-{gate,restored}`。这只验收具名更正包的网页/返回和图标路径，不做全站或新阅读声明。
 
-Search 0.1.5: anonymous production WASM returned two results for 一人之下, page 1 and page 2 of 漫画 with advancing cursors, the last page without a cursor, and an explicit empty result for zzqxv987654321. A special-character query returned the website JSON “搜索繁忙” and was surfaced as an error; Native acceptance remains separate.
+搜索 0.1.5：匿名生产 WASM 对一人之下返回两条结果，漫画第 1 页和第 2 页带推进的游标，末页无游标，zzqxv987654321 显式空结果。特殊字符查询返回网站 JSON“搜索繁忙”并作为错误呈现；Native 验收保持独立。
 
-## 0.1.8: long chapter catalogues
+## 0.1.8：长章节目录
 
-The 2,048-descriptor array shared with other HTML lists rejected the entire chapter catalogue for three live search results titled 全职法师. Chapter selection now has a separate 8,192-descriptor capacity. The source still returns every chapter in the site's order with its original ID and never silently truncates; the existing runtime response size limit still applies. Search, detail, page requests, and the explicit unavailable result are unchanged.
+与其他 HTML 列表共享的 2,048 描述符数组拒绝了三个标题为全职法师的在线搜索结果的整个章节目录。章节选择现在有独立的 8,192 描述符容量。源仍按站点顺序返回所有章节及其原始 ID，从不静默截断；既有运行时响应大小限制仍适用。搜索、详情、页请求和显式不可用结果不变。
 
-The four live catalogues contained 3,277, 1,025, 2,206, and 2,197 entries. Local WASM and native HTML replay matched each entry and kept the old result for the 1,025-entry catalogue. Pura X 237, running Koma 1.1.1, displayed all four counts after ordinary package import and source search. The first two pages of 01 世界大变 in the 3,277-entry catalogue rendered and the reader returned to the detail page.
+四个在线目录含 3,277、1,025、2,206 和 2,197 个条目。本地 WASM 和原生 HTML 回放匹配每个条目，1,025 条目目录保持旧结果。Pura X 237 运行 Koma 1.1.1，普通包导入和源搜索后显示全部四个计数。3,277 条目目录中 01 世界大变的前两页渲染，阅读器返回详情页。
 
-## 0.1.9: explicit pending chapter list
+## 0.1.9：显式待浏览章节列表
 
-When the existing chapter list is empty, the site's present list element has no child elements, and the latest-chapter link has empty href and exactly “待浏览”, report `no_chapters`. Explicit “已下架” retains `not_found`; a missing list, unrecognized children, missing link, or any other marker remains `source_error`. This prevents an unknown layout from masquerading as a confirmed empty catalogue. Existing valid catalogue order and capacity remain unchanged.
+当既有章节列表为空、站点现有列表元素无子元素、最新章节链接 href 为空且恰好为“待浏览”时，报告 `no_chapters`。显式“已下架”保持 `not_found`；缺失列表、无法识别的子元素、缺失链接或任何其他标记保持 `source_error`。这防止未知布局伪装成确认的空目录。既有有效目录顺序和容量不变。
 
 ## 状态、排序与标签候选
 

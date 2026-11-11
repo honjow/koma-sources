@@ -1,47 +1,16 @@
 # 腾讯动漫 0.1.4
 
-Public Chinese catalogues, title search, details and ordered chapters. Pages are
-limited to chapters currently marked free in the public catalogue and whose page
-data explicitly says canRead=true. A chapter with the provider's pay marker
-and no free marker returns `paid_chapter`. Missing or conflicting access marks
-return `permission_denied`. The gate returns before requesting any non-free
-reader HTML. No login, purchase, DRM, challenge handling, JavaScript execution,
-or account headers are implemented.
+公开中文目录、标题搜索、详情和有序章节。页限定于公开目录中当前标记免费的章节且其页数据显式说 canRead=true。带提供者付费标记且无免费标记的章节返回 `paid_chapter`。缺失或冲突的访问标记返回 `permission_denied`。门控在请求任何非免费阅读器 HTML 前返回。不实现登录、购买、DRM、挑战处理、JavaScript 执行或账号头。
 
-Nonce parsing permits only concatenated alphanumeric string literals and bounded
-numeric constants with up to three decimal places: unary !/~/+/-; arithmetic;
-comparisons; conditional expressions; Math.pow with exponent 0..8; Math.round; charCodeAt() on a bounded ASCII string literal.
-A whole nonce atom may also use substring(nonnegative constant) on a bounded
-decimal string literal; its entire result is converted to an integer. String
-addition and other string operations remain unsupported. The final nonce atom
-must be an integer. All values, input length, nesting, steps, noise tokens,
-base64 data, handles and page count have fixed limits. The exact public viewer
-nonce atom `1 - !!document.children` folds to zero because the [DOM Standard
-defines `children` as an HTMLCollection](https://dom.spec.whatwg.org/#dom-parentnode-children),
-which is truthy regardless of length. No browser property is accessed. Other
-global expressions, arbitrary calls, noninteger values, overflow and unknown
-encodings fail explicitly. This expression was observed in the public free
-chapter `537057:3` of 《铳火》.
+Nonce 解析只允许拼接的字母数字字符串字面量和至多三位小数的有界数值常量：一元 !/~/+/-；算术；比较；条件表达式；指数 0..8 的 Math.pow；Math.round；对有界 ASCII 字符串字面量的 charCodeAt()。
+整个 nonce 原子也可对有界十进制字符串字面量使用 substring(非负常量)；其整个结果转换为整数。字符串加法和其他字符串操作仍不受支援。最终 nonce 原子必须是整数。所有值、输入长度、嵌套、步数、噪声 token、base64 数据、句柄和页计数有固定限制。精确公开查看器 nonce 原子 `1 - !!document.children` 折叠为零因为 [DOM 标准将 `children` 定义为 HTMLCollection](https://dom.spec.whatwg.org/#dom-parentnode-children)，无论长度都为真值。不访问浏览器属性。其他全局表达式、任意调用、非整数值、溢出和未知编码明确失败。这个表达式在《铳火》公开免费章节 `537057:3` 观察到。
 
-IDs use canonical comic/chapter/picture IDs, never temporary image URLs. The
-known image domain is HTTPS manhua.acimg.cn; Referer/User-Agent are public constants.
-Desktop catalogue pagination follows the actual next link; mobile search uses the
-observed ten-result contract. Localized display names live in metadata.json and
-remain separate from source identity and content language. Attribution: NOTICE.
+ID 使用规范 comic/chapter/picture ID，从不临时图像 URL。已知图像域是 HTTPS manhua.acimg.cn；Referer/User-Agent 是公开常量。桌面目录分页跟随实际下一链接；移动搜索使用观察到的十结果合同。本地化显示名在 metadata.json 中且与源身份和内容语言保持分离。归因：NOTICE。
 
-Source/build/host checks do not replace the named Koma native-device acceptance.
+源/构建/宿主检查不替代具名 Koma 原生设备验收。
 
-Historical 0.1.1 named Koma acceptance on 197 (2026-10-10): ordinary subscription update and
-physical package/module digests matched; default listing shows 12 covers;
-一人之下 search and 834/834 chapters; 1.姐姐1 download 17/17, actual first
-image retained after no-clear cold start; ordinary picker from chapter 1 opens
-2.姐姐2 with actual panels and 1/17. Existing library/progress/download objects
-and original preferences were preserved. This accepts only the named public/free
-path. Earlier uncaptured 0.1.0 Reader failure remains unexplained. Unknown nonce
-grammars still fail explicitly; no whole-site availability claim. Current host
-search 一人 traverses 10 results then 2 distinct results and terminates; its
-second native search page remains unverified.
+历史 0.1.1 具名 Koma 验收在 197（2026-10-10）：普通订阅更新和物理包/模块摘要匹配；默认列表显示 12 封面；一人之下搜索和 834/834 章节；1.姐姐1 下载 17/17，不清冷启动后实际第一图像保留；普通 picker 从第 1 章打开 2.姐姐2 带实际面板和 1/17。既有书架/进度/下载对象和原偏好保留。这只验收具名公开/免费路径。先前未捕获的 0.1.0 Reader 失败仍无解释。未知 nonce 语法仍明确失败；无整站可用性声称。当前宿主搜索一人遍历 10 结果后 2 个不同结果并终止；其第二原生搜索页仍未验证。
 
-Current 0.1.2 chapter semantics use explicit numeric labels with the reviewed separators to populate chapterNumber; unknown labels remain unknown and are not numbered by index or chapter ID. Original chapter identity/order and paid/locked identity are retained; paid content is not requested. The exact reviewed owner, retained 835-record contract/output comparison and source diff are preserved in `/private/tmp/koma-tencent012-chapter-semantics-20261017/` (Root review included). This canonical integration preserves that parser and adopts the current shared SDK/standard flags; the historical 0.1.1 acceptance above is not acceptance of newly compiled canonical WASM. Current icon identity and its Native visual limits are described in ASSET_SOURCES.md.
+当前 0.1.2 章节语义使用显式数字标签带已审分隔符填充 chapterNumber；未知标签保持未知且不按索引或章节 ID 编号。原章节身份/顺序和付费/锁定身份保留；不请求付费内容。精确已审所有者、保留的 835 记录合同/输出比较和源 diff 保留在 `/private/tmp/koma-tencent012-chapter-semantics-20261017/`（含 Root 审查）。这个规范集成保留那个解析器并采用当前共享 SDK/标准标志；上述历史 0.1.1 验收不是新编译规范 WASM 的验收。当前图标身份及其 Native 视觉限制在 ASSET_SOURCES.md 描述。
 
-目录支持参考排序、属性、进度和标签筛选；未选择排序时分别保留热门与最新原路由，标题搜索不消费这些筛选。旧宿主不展示新筛选。
+目录支援参考排序、属性、进度和标签筛选；未选择排序时分别保留热门与最新原路由，标题搜索不消费这些筛选。旧宿主不展示新筛选。

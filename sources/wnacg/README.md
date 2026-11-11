@@ -1,91 +1,27 @@
 # 紳士漫畫 (WNACG)
 
-Independent no_std Rust/WASM port of the complete public WNACG.kt, Filters.kt,
-Preferences.kt and mirror behavior at Keiyoushi
-de743aed846da53e00c45ab26ee0e77f7bb4355b (extension v6, lib1.6, Apache-2.0).
-The source name, zh language, NSFW classification, default buzz/site mirrors and
-the exact original desktop User-Agent are retained. Related-works and
-ONLY_FETCH_ONCE are not exposed by the current Koma ABI.
+Keiyoushi `de743aed846da53e00c45ab26ee0e77f7bb4355b`（extension v6、lib1.6、Apache-2.0）处完整公开 WNACG.kt、Filters.kt、Preferences.kt 和镜像行为的独立 no_std Rust/WASM 移植。保留源名称、zh 语言、NSFW 分类、默认 buzz/站点镜像和精确原桌面 User-Agent。相关作品和 ONLY_FETCH_ONCE 不由当前 Koma ABI 暴露。
 
-Anonymous popular/latest, keyword search, tag/category/ranking/sort filters,
-supported gallery/reader/collection URL import, metadata, single-gallery and
-complete paginated collection chapters, and every original gallery-image match
-are implemented. Collections keep the first occurrence of each data-chid and
-reverse the complete original catalogue. Repeated image URLs keep original
-positions and separate IDs. Single-gallery date and collection dates retain
-Asia/Taipei midnight. No images are filtered, cropped or unscrambled. At the first request of each
-Host process, including a cached-page image request, mirror discovery follows
-the original BaseUrlFetchInterceptor. A request built for the exact previous
-mirror host moves to the current mirror with its path/query unchanged; external
-CDNs are never guessed or rewritten.
-Source-side owner validation covers PageID, optional manga/chapter/URL owners
-and provably different CID partitions in /data/<prefix>/<two-digits>/ paths.
-Opaque CDN paths are accepted without guessing their host or ownership.
+匿名热门/最新、关键词搜索、标签/分类/排行/排序筛选、支持的画廊/阅读器/合集 URL 导入、元数据、单画廊和完整分页合集章节，以及每个原画廊图像匹配都已实现。合集保留每个 data-chid 的首次出现并反转完整原目录。重复图像 URL 保持原位置和独立 ID。单画廊日期和合集日期保留 Asia/Taipei 午夜。图像不筛选、不裁剪、不解乱。每个宿主进程的首次请求（包括缓存页图像请求）的镜像发现遵循原 BaseUrlFetchInterceptor。为精确先前镜像宿主构建的请求以不变路径/查询移到当前镜像；外部 CDN 从不猜测或重写。源侧所有者校验覆盖 PageID、可选漫画/章节/URL 所有者和 /data/<前缀>/<两位>/ 路径中可证明不同的 CID 分区。不透明 CDN 路径接受而不猜测其宿主或归属。
 
-Host adaptations:
-- Stateless calls use an opaque next-source-page cursor for blacklist skipping,
-  replacing Mihon's mutable generation/offset object. Query/settings lifecycle
-  remains Host-owned. Comma/newline keywords, case-insensitive matching, search
-  toggle and default maximum five scanned pages retain the reference behavior.
-- html_text lacks a br-node callback. Genuine br tags become literal text
-  newlines before HTML parsing; ordinary node text separately normalizes
-  whitespace, while descriptions keep whole-text line breaks.
-- The original process-scoped mirror refresh uses source_private_session_process_v1
-  and CAS source_private_session_replace_v1. One Host process tag triggers one
-  ordinary public domain-list discovery. Failure/empty discovery retains the
-  previous mirror list for that process, with no TTL, alternate URL or retry.
-  Versioned private storage is install-scoped; this differs from upstream's
-  SharedPreferences lifetime and is documented rather than treated as identical.
-- Mirror option values are opaque URL tokens plus an automatic-first alias.
-  Visible options remain the actual mirror hosts. The default follows first;
-  an explicit nonfirst pick follows its URL; disappearing or becoming-first
-  picks become automatic. This preserves the reference's selection semantics
-  without writing public settings from WASM. Settings/login metadata only read
-  ready cache, or immediately abort an empty owner; they never discover mirrors,
-  call process_scope, commit a value, or send HTTP.
-- Extra categories replace the saved menu snapshot after each actual list.
-  This uses the same private CAS owner; merge-only settingObservations cannot
-  represent logout/removal semantics.
-- Text scan-count consumption follows Kotlin's optional plus, BMP decimal
-  digits, leading zeros, Int range and invalid/nonpositive fallback five.
-  The reference also rejects invalid values before saving. get_settings requires
-  source_setting_positive_integer_v1 and declares its existing positive_integer
-  validator with the original error message. Ordinary reads keep the reference
-  getter fallback for legacy invalid saved values; they do not rely on form
-  validation as a substitute. Host implementation exists; Native acceptance is
-  tracked separately by Root.
+宿主适配：
+- 无状态调用用不透明 next-source-page 游标做黑名单跳过，替代 Mihon 的可变 generation/offset 对象。查询/设置生命周期仍由宿主拥有。逗号/换行关键词、大小写不敏感匹配、搜索开关和默认最多扫描五页保留参考行为。
+- html_text 缺少 br 节点回调。真正的 br 标签在 HTML 解析前变成字面文本换行；普通节点文本单独规范化空白，而描述保留整段文本换行。
+- 原进程作用域镜像刷新使用 source_private_session_process_v1 和 CAS source_private_session_replace_v1。一个宿主进程标签触发一次普通公开域名列表发现。失败/空发现为该进程保留先前镜像列表，无 TTL、备用 URL 或重试。带版本的私有存储是安装作用域的；这与上游 SharedPreferences 生命周期不同，作为文档记录而非视为相同。
+- 镜像选项值是不透明 URL 令牌加自动首项别名。可见选项保持实际镜像宿主。默认跟随首项；显式非首项选择跟随其 URL；消失或变为首项的选择变为自动。这保留参考的选择语义而不从 WASM 写公开设置。设置/登录元数据只读取就绪缓存，或立即中止空所有者；从不发现镜像、调用 process_scope、提交值或发送 HTTP。
+- 额外分类在每次实际列表后替换保存的菜单快照。这使用同一私有 CAS 所有者；仅合并的 settingObservations 不能表示登出/移除语义。
+- 文本扫描计数消费遵循 Kotlin 的可选 plus、BMP 十进制数字、前导零、Int 范围和无效/非正回退五。参考也在保存前拒绝无效值。get_settings 要求 source_setting_positive_integer_v1 并声明其既有 positive_integer 校验器带原错误消息。普通读取保留参考 getter 对遗留无效保存值的回退；不依赖表单校验作为替代。宿主实现存在；Native 验收由 Root 单独跟踪。
 
-All real network entry points require source_private_session_v1,
-source_private_session_process_v1, source_private_session_replace_v1 and
-source_rate_limit_wnacg_v1 before RPC/HTTP. The rate owner shares 50/60000ms for
-all actual hosts matching ^(?:www\.)?wn(?:acg\w*|\d+)\.; unrelated image CDNs
-are excluded. This regular expression never grants Cookie or login permission.
-The web authentication descriptor supplies the exact desktop UA and actual
-selected mirror /users-login.html. Only explicitly declared origins may get a
-Host web session; a newly discovered undeclared mirror fails that grant.
-authenticated:false means no source-verifiable account state; no Cookie
-inspection or speculative login request is used.
+所有真实网络入口在 RPC/HTTP 前要求 source_private_session_v1、source_private_session_process_v1、source_private_session_replace_v1 和 source_rate_limit_wnacg_v1。速率所有者对所有匹配 `^(?:www\.)?wn(?:acg\w*|\d+)\.` 的实际宿主共享 50/60000ms；无关图像 CDN 排除。这个正则从不授予 Cookie 或登录权限。Web 认证描述符提供精确桌面 UA 和实际所选镜像 /users-login.html。只有显式声明的源才能获得宿主 Web 会话；新发现的未声明镜像在那个授权上失败。authenticated:false 表示无可源验证的账号状态；不用 Cookie 检查或推测性登录请求。
 
-404 and missing h2 keep the reference's ambiguity: content may not exist or may
-require login. Neither proves takedown, payment or authentication. Transport,
-403 refusal, 429, 5xx, known empty album and malformed responses stay separate.
-A failed collection page never publishes a partial catalogue. No fake account,
-access-restriction bypass, or retry after refusal is introduced.
+404 和缺失 h2 保留参考的含糊：内容可能不存在也可能需要登录。两者都不证明下架、付费或认证。传输、403 拒绝、429、5xx、已知空相册和畸形响应保持分开。失败的合集页从不发布部分目录。不引入假账号、访问限制绕过或拒绝后重试。
 
-Local verification 2026-11-06: a fixed 60-work stratified plan produced 59
-complete original website samples and one preserved RemoteDisconnected failure.
-The actual WASM matches five list strata and all 59 details, 92 original
-chapters and 5807 original image positions. Twelve distinct works' middle
-originals were downloaded, decoded and visually reviewed (11 comic pages,
-one photograph); no ads or blanks counted. Separate actual-WASM state/ownership/
-transport recovery uses explicit local Host test doubles. Local replay does not establish all-site health. Production requires Koma
-1.2.0 or later for the Host capabilities described above; Native acceptance and
-public distribution must be verified separately.
+本地验证 2026-11-06：固定 60 作品分层计划产生 59 个完整原网站样本和一个保留的 RemoteDisconnected 失败。实际 WASM 匹配五个列表层和全部 59 个详情、92 个原章节和 5807 个原图像位置。12 个不同作品的中间原件已下载、解码并目视审查（11 漫画页、一张照片）；未计广告或空白。独立的实际 WASM 状态/归属/传输恢复使用显式本地宿主测试替身。本地回放不建立全站健康。生产需要 Koma 1.2.0 或更高以获得上述宿主能力；Native 验收和公开分发必须单独验证。
 
-Review correction: internal V1 used uploadTime, which the actual Host chapter parser did not consume. V2 uses the existing dateUpload ABI. The original V1 WASM loses all 92 expected dates through SourceModels; the V2 WASM preserves all 92 against the unchanged original website oracle. V1 remains immutable failure evidence, and no Host parser was changed.
+审查更正：内部 V1 用了 uploadTime，而实际宿主章节解析器没有消费它。V2 使用既有 dateUpload ABI。原 V1 WASM 通过 SourceModels 丢失全部 92 个预期日期；V2 WASM 对不变原网站 oracle 保留全部 92 个。V1 保持不可变失败证据，没有改宿主解析器。
 
-The production workspace retains this source’s original size-optimized release profile; packaging rejects a WASM over the Host’s 1 MiB limit.
+生产工作区保留本源的原尺寸优化 release profile；打包拒绝超过宿主 1 MiB 限制的 WASM。
 
 封面请求沿上游桌面 User-Agent 和当前镜像 Referer；宿主以作品 ID 作为 pageId 时，书源只在本地校验已观察到的 WN 缩略图 CDN 与路径，并在给出作品网址时核对作品 ID，不为每张封面重复请求详情。合集封面路径可能属于子相册，不能据此假设它等于合集 ID。正文图片仍使用原章节身份校验。
 
-0.1.1: when the Host advertises `source_public_cover_user_agent_v1`, the catalogue carries its already selected mirror Referer and the original User-Agent alongside each approved public cover URL. The Host schedules the downloads. An older Host still uses the original image resolver.
+0.1.1：当宿主通告 `source_public_cover_user_agent_v1` 时，目录在其已选镜像 Referer 和原 User-Agent 旁携带每个批准的公开封面 URL。宿主安排下载。较旧宿主仍使用原图像解析器。

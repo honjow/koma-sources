@@ -1,20 +1,20 @@
 # English WEBTOON / CANVAS 0.1.6
 
-Public English search, details, episode catalogues and reader pages. Existing IDs, API catalogue order, image-page order and default output are retained. Requests keep the existing `locale=en` cookie; this source does not accept age/consent or introduce account settings.
+公开英文搜索、详情、集目录和阅读器页。既有 ID、API 目录顺序、图像页顺序和默认输出保留。请求保持既有 `locale=en` cookie；这个源不接受年龄/同意或不引入账号设置。
 
-## Settings
+## 设置
 
-All settings default to `false` and are read from each request snapshot.
+所有设置默认 `false` 并从每请求快照读取。
 
-- `showAuthorsNotes`: append the current episode's creator note using the host's `webtoon-author-notes` text-image template. This setting is shown and consumed only with `text_page_image_v1`. HTML entities are decoded by the source DOM once; text whitespace follows Jsoup 1.22.2. Existing locked/MotionToon guards apply before notes.
-- `useMaxQuality`: remove only a complete `type=q90` query pair from normalized image URLs. Other parameters, fragments, page IDs and indices remain unchanged.
-- `useSequentialNumbering`: request the complete catalogue with the reference's `pageSize=99999`, assign one-based numbers in API order and reject an incomplete response. With the setting off, the original cursor pagination and official-title numbering remain unchanged. The reference reverses its final list; this source preserves its established API order rather than changing the directory contract.
+- `showAuthorsNotes`：使用宿主 `webtoon-author-notes` 文字图像模板追加当前集的创作者注释。此设置只在 `text_page_image_v1` 时显示和消费。HTML 实体由源 DOM 解码一次；文字空白遵循 Jsoup 1.22.2。既有锁定/MotionToon 守卫在注释前应用。
+- `useMaxQuality`：只从规范化图像 URL 移除完整的 `type=q90` 查询对。其他参数、片段、页 ID 和索引不变。
+- `useSequentialNumbering`：以参考的 `pageSize=99999` 请求完整目录，按 API 顺序分配一基编号并拒绝不完整响应。设置关时，原游标分页和官方标题编号不变。参考反转其最终列表；这个源保留其既定 API 顺序而非改变目录合同。
 
-The source keeps its existing response limits and explicit errors. It does not advertise unsupported listings or bypass upstream access restrictions. Text descriptions are never sent to an external image service.
+源保持其既有响应限制和显式错误。不通告不受支援的列表或绕过上游访问限制。文字描述从不发送到外部图像服务。
 
-## Implementation source
+## 实现来源
 
-The independent Rust implementation and provider-asset attribution are documented in NOTICE.md and ASSET_SOURCES.md. The settings behavior additionally follows Keiyoushi `extensions-source` tree `949dea252eb8e867b7b40834a26e13088764ff55`, `src/all/webtoons/.../Webtoons.kt`, with only the host capability and existing directory-order adaptations above.
+独立 Rust 实现和提供者资产归因在 NOTICE.md 和 ASSET_SOURCES.md 文档化。设置行为还遵循 Keiyoushi `extensions-source` 树 `949dea252eb8e867b7b40834a26e13088764ff55`、`src/all/webtoons/.../Webtoons.kt`，只有上述宿主能力和既有目录顺序适配。
 
 搜索先解码请求中的 JSON 转义，再按既有站点请求规则编码用户输入；默认、空查询与分页规则保持原行为。
 

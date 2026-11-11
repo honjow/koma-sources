@@ -1,29 +1,29 @@
 # TerraHistoricus
 
-The current source is 0.1.8, with stable ID `com.terrahistoricus.koma` and the existing work, episode and page identities. Canonical Cargo and standard source-build registration are present. The source keeps anonymous public API access; home, filters, settings and credentials remain unsupported. Localized display names and content language are separate contracts. Real usage remains unknown.
+当前源是 0.1.8，带稳定 ID `com.terrahistoricus.koma` 和既有作品、集和页身份。规范 Cargo 和标准源构建注册存在。源保持匿名公开 API 访问；首页、筛选、设置和凭据仍不受支援。本地化显示名和内容语言是单独合同。真实用量仍未知。
 
-When the host declares `source_public_cover_user_agent_v1`, 0.1.8 passes the existing Referer and User-Agent alongside public `web.hycdn.cn/comic/pic/` covers. The app can fetch the same URL directly on browse, recent updates, search and detail. Other cover URLs and legacy consumers still follow the existing image request resolver, including the separate signed reader-page resolution. The current official catalogue has 22 Terra and 6 Talos-II works.
+当宿主声明 `source_public_cover_user_agent_v1`，0.1.8 把既有 Referer 和 User-Agent 与公开 `web.hycdn.cn/comic/pic/` 封面一起传递。App 可在浏览、最近更新、搜索和详情直接抓取同一 URL。其他封面 URL 和遗留消费者仍遵循既有图像请求解析器，包括单独的签名阅读页解析。当前官方目录有 22 部 Terra 和 6 部 Talos-II 作品。
 
-The 0.1.6 business successor corrected complete-array termination, direct JSON-member/whitespace/escape handling, episode numbers and unknown chapter language. The 0.1.7 successor changes the version and package identity asset only. The current unmodified site-declared 512px asset and its provenance are described in [ASSET_SOURCES.md](ASSET_SOURCES.md); the older black-composited favicon is historical material.
+0.1.6 业务后继更正了完整数组终止、直接 JSON 成员/空白/转义处理、集编号和未知章节语言。0.1.7 后继只改变版本和包身份资产。当前未改的站点声明 512px 资产及其来源在 [ASSET_SOURCES.md](ASSET_SOURCES.md) 描述；旧的黑色合成 favicon 是历史素材。
 
-Original 0.1.6 evidence covers the named 21-item catalog and work 7746, one chapter, first real page of 58 and return. Covers remained visibly pixelated. It does not establish all-page content, a new download, cold continuation or the whole source. Original 0.1.7 evidence covers the ordinary indexed update and installed/Browse identity rows; it adds no new content, download or cold acceptance. Neither record is a new result from this recovery audit.
+原 0.1.6 证据覆盖具名 21 项目录和作品 7746、一章、58 中第一真实页和返回。封面仍明显像素化。它不确立全页内容、新下载、冷续读或整源。原 0.1.7 证据覆盖普通索引更新和已安装/Browse 身份行；不添加新内容、下载或冷验收。两条记录都不是这次恢复审计的新结果。
 
-## Historical 0.1.1 record
+## 历史 0.1.1 记录
 
-The complete original `662b02d2` README follows unchanged. Its candidate version, earlier asset statement, device follow-up and `native OPEN` wording describe that stage. They do not replace the current source, asset record, named evidence boundaries or current human instructions.
+完整原 `662b02d2` README 原样跟随。其候选版本、较早资产声明、设备跟进和 `native OPEN` 措辞描述那个阶段。它们不替代当前源、资产记录、具名证据边界或当前人工指令。
 
 ```text
-# TerraHistoricus 0.1.1 candidate
+# TerraHistoricus 0.1.1 候选
 
-Chinese official Terra Historicus / 泰拉记事社 source. Keeps com.terrahistoricus.koma, cid, cid/episode and page:cid:episode:n identities. Corrects actual get_listings response ABI, current object cursor and legacy numeric/string page parsing, two-topic terminal-null semantics for popular/latest, and independent HTTP status/statusCode classification. Existing static home sections lack IDs/items and filters/settings are empty, so those capabilities are false. No App/SDK/Reader changes, login, account, challenge handling or publication.
+中文官方 Terra Historicus / 泰拉记事社 源。保留 com.terrahistoricus.koma、cid、cid/episode 和 page:cid:episode:n 身份。更正实际 get_listings 响应 ABI、当前对象游标和遗留数字/字符串页解析、热门/最新的两主题终端 null 语义，以及独立 HTTP status/statusCode 分类。既有静态首页区块缺 ID/条目且筛选/设置为空，故那些能力为 false。无 App/SDK/Reader 变化、登录、账号、挑战处理或发布。
 
-Localized names: zh-Hans 泰拉记事社, zh-Hant 泰拉記事社, English canonical TerraHistoricus. Real user usage rate unknown. Existing icon/whole-site rating retained; no popularity claim is inferred from metadata.
+本地化名：zh-Hans 泰拉记事社，zh-Hant 泰拉記事社，英文规范 TerraHistoricus。真实用户用量率未知。既有图标/整站评级保留；不从元数据推断流行度声称。
 
-Primary Keiyoushi reference: https://github.com/keiyoushi/extensions-source/blob/5b95ccc4b6a96fb9a4a28cead59255b0af99276e/src/zh/terrahistoricus/src/eu/kanade/tachiyomi/extension/zh/terrahistoricus/TerraHistoricus.kt. Current official public API supplied the observed contracts; this extends the existing Koma source and copies no Kotlin code.
+主 Keiyoushi 参考：https://github.com/keiyoushi/extensions-source/blob/5b95ccc4b6a96fb9a4a28cead59255b0af99276e/src/zh/terrahistoricus/src/eu/kanade/tachiyomi/extension/zh/terrahistoricus/TerraHistoricus.kt。当前官方公开 API 提供观察到的合同；这扩展既有 Koma 源且不复制任何 Kotlin 代码。
 
-Actual named host routes: popular topic pages 21 and 5 works, latest topics 4 and 4; search 大将军 finds cid7746 循途漫录：大将军，出击！; complete catalogue 1 episode7746/8623; all58 page descriptors; first original public JPEG1534154B fetched normally. Existing old Terra上篇 native Reader path was not repeated. This host route never substitutes native acceptance. Root must use197 ordinary subscription/Browse/search/detail/current chapter real reader/download/no-data-clear cold route; native OPEN.
+实际具名宿主路由：热门主题页 21 和 5 作品，最新主题 4 和 4；搜索 大将军 找到 cid7746 循途漫录：大将军，出击！；完整目录 1 集7746/8623；全部58 页描述符；第一原公开 JPEG1534154B 正常抓取。既有旧 Terra上篇 native Reader 路径未重做。这个宿主路由从不替代 native 验收。Root 必须用197 普通订阅/Browse/搜索/详情/当前章真实阅读器/下载/不清数据冷路由；native OPEN。
 
-Two investigated alternatives are not implemented: Manhuadb is absent from current zh directory; Creativecomic requires encrypted image response transformation beyond current get_image_request ABI. Neither conclusion is a whole-product blocker.
+调查的两个替代方案未实现：Manhuadb 不在当前 zh 目录；Creativecomic 需要超出当前 get_image_request ABI 的加密图像响应转换。两个结论都不是整产品阻塞。
 ```
 
 ## 237 现装0.1.7具名第二页补验（2026-10-21）

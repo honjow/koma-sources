@@ -1,32 +1,32 @@
-# Comic Fury (Chinese) source
+# Comic Fury（中文）source
 
-Stable identity `com.comicfury.zh.koma`, version `0.1.8`, language `zh`, canonical origin `https://comicfury.com`. MIXED remains conservatively mapped to `nsfw=true`; this does not label every comic as adult. Source behavior follows the retained Keiyoushi ComicFury implementation and the fixed settings reference `949dea252eb8e867b7b40834a26e13088764ff55`.
+稳定身份 `com.comicfury.zh.koma`，版本 `0.1.8`，语言 `zh`，规范 origin `https://comicfury.com`。MIXED 保守映射为 `nsfw=true`；这不把每部漫画标为成人。源行为遵循保留的 Keiyoushi ComicFury 实现和固定设置参考 `949dea252eb8e867b7b40834a26e13088764ff55`。
 
-## Public behavior
+## 公开行为
 
-Popular, search and latest retain the published four content flag defaults at zero and Chinese language. The reference tags, sorting, last-updated, completed and four content filters are exposed through the existing host filter contract; explicit selections are forwarded to the official search form. Sort has no universal schema default: absent selection retains search=0, popular=1 and latest=2, so host default injection cannot change the adopted listing behavior. The explicit official empty-search marker returns an empty successful result; an unexplained empty card list remains an error. Catalogues retain primary order reversal, chapter identities and explicit group episode numbers; covers/extras keep null chapter numbers.
+热门、搜索和最新保留发布的四个内容标志零默认和中文语言。参考的标签、排序、最后更新、完结和四个内容筛选通过既有宿主筛选合同暴露；显式选择转发到官方搜索表单。排序没有通用 schema 默认：缺失选择保留 search=0、popular=1 和 latest=2，故宿主默认注入不能改变采用的列表行为。显式官方空搜索标记返回空成功结果；无法解释的空卡片列表仍是错误。目录保留主顺序反转、章节身份和显式分组集数；封面/额外保持 null 章节号。
 
-A profile may genuinely omit its description or avatar. The source returns an empty description or null cover only after verifying the unique profile, its own nonempty title and the requested work's same-site reader link. An existing but malformed avatar, a description heading with an unknown body, conflicting ownership or a missing profile remains an error; warning and HTTP error handling is unchanged. Existing profiles with both fields retain their previous output.
+个人主页可能确实省略其描述或头像。源只在验证唯一个人主页、其自身非空标题和所请求作品的同站阅读器链接后返回空描述或 null 封面。既有但畸形的头像、带未知正文的描述标题、冲突所有权或缺失个人主页仍是错误；警告和 HTTP 错误处理不变。既有带两字段的主页保留先前输出。
 
-Reader images belong only to the exact first `div.is--comic-page` matching the requested chapter. Preloaded neighbouring chapters are excluded. A server response for another comic remains an owner error. The existing image URLs, IDs and order are unchanged with no settings.
+阅读器图像只属于匹配所请求章节的精确首个 `div.is--comic-page`。预加载的相邻章节被排除。为另一部漫画的服务器响应仍是所有者错误。既有图像 URL、ID 和顺序在无设置时不变。
 
-## Settings
+## 设置
 
-`showAuthorsNotes` defaults to `false`. It is shown and consumed only when the host explicitly advertises `text_page_image_v1`; older hosts return no setting and receive only original URL pages even if a saved value is true. When enabled, each author-note box under the current comic appends one text page after the original images. Reader comments and notes from other comics are excluded.
+`showAuthorsNotes` 默认 `false`。只在宿主显式通告 `text_page_image_v1` 时显示和消费；旧宿主不返回设置且即使保存值为 true 也只接收原 URL 页。启用时，当前漫画下每个作者注释框在原图像后追加一个文字页。其他漫画的读者评论和注释被排除。
 
-The source converts note HTML to plain Unicode: explicit BRs retain each line break, blocks provide the minimum paragraph gap, and the existing HTML parser decodes entities once. Text pages use the existing `webtoon-author-notes` template, whose layout matches the adopted text interceptor; the host prepares a local PNG through the original Reader image/cache pipeline. No synthetic network URL is emitted.
+源把注释 HTML 转换为纯 Unicode：显式 BR 保留每个换行，块提供最小段落间距，既有 HTML 解析器解码一次实体。文字页使用既有 `webtoon-author-notes` 模板，其布局匹配采用的文字拦截器；宿主通过原 Reader 图像/缓存管线准备本地 PNG。不发出合成网络 URL。
 
-## Retained boundaries and delivery
+## 保留边界与交付
 
-No warning-confirmation POST, cookies, login, custom-host layout fallback, mirror selection or account configuration is added. Official SVG default-cover URLs remain genuine URLs; support is owned by the host. The complete official 192px icon and its original green field remain unchanged.
+不添加警告确认 POST、cookie、登录、自定义宿主布局回退、镜像选择或账号配置。官方 SVG 默认封面 URL 保持真实 URL；支援由宿主拥有。完整官方 192px 图标和其原绿色底保持不变。
 
-Build with `bash build.sh --source comicfury-zh`. Build and parser checks do not establish Native image rendering or full provider availability. Code and asset attribution remain in `NOTICE.md` and `ASSET_SOURCES.md`.
+用 `bash build.sh --source comicfury-zh` 构建。构建和解析器检查不确立 Native 图像渲染或完整提供方可用性。代码和资产归因保留在 `NOTICE.md` 和 `ASSET_SOURCES.md`。
 
-## Filter contract (0.1.6)
+## 筛选合同（0.1.6）
 
-The fixed reference `949dea252eb8e867b7b40834a26e13088764ff55` defines tags, sort, last update, completed, violence, nudity, language and sexual-content selections. The source now exposes these through `get_filters` and consumes `args.filters` for search and listings. To preserve the already accepted Koma results, all four content flags default to `0` even though the reference defaults to `2`; changing them requires an explicit selection. Last-update defaults to `0`, completed false maps to the site's `completed=1`, and tags are UTF-8 URL encoded after the reference comma-space normalization. Unknown choices or malformed values fail before HTTP. No account, cookies, warning confirmation or UI style changes are introduced.
+固定参考 `949dea252eb8e867b7b40834a26e13088764ff55` 定义标签、排序、最后更新、完结、暴力、裸体、语言和性内容选择。源现在通过 `get_filters` 暴露这些并为搜索和列表消费 `args.filters`。为保留已验收的 Koma 结果，四个内容标志即使参考默认为 `2` 也默认为 `0`；改变它们需要显式选择。最后更新默认为 `0`，完结 false 映射到站点的 `completed=1`，标签在参考逗号空格规范化后 UTF-8 URL 编码。未知选择或畸形值在 HTTP 前失败。不引入账号、cookie、警告确认或 UI 样式变化。
 
-Official same-header Chinese popular requests returned 12 cards with 0/0/0/0 and 19 with 2/2/2/2. Production candidate and original C++ Host replay of retained real HTML verified old versus new exact request URL and data equality for popular, latest and search with host-injected defaults; explicit choices and invalid inputs were checked separately, with live candidate popular calls returning the respective 12 and 19 cards. These are source/desktop results, not Native filter persistence or acceptance.
+官方同头中文热门请求在 0/0/0/0 返回 12 张卡片，在 2/2/2/2 返回 19 张。生产候选和原 C++ 宿主对保留真实 HTML 的回放验证了热门、最新和搜索在宿主注入默认下的新旧精确请求 URL 和数据相等；显式选择和无效输入单独检查，在线候选热门调用分别返回 12 和 19 张卡片。这些是源/桌面结果，不是 Native 筛选持久化或验收。
 
 ## 2026-11-10 显示名精简
 

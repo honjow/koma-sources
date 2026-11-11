@@ -28,9 +28,9 @@
 
 真实站点与桌面生产WASM核 `love + newest`、`love + exclude=yaoi` 及逗号空格组合；筛选热门 newest+exclude 的前两页各24项并真实推进。原 C++ Host 使用保存的真实 love 页面，默认搜索与公开0.1.4 URL/data相等；未筛选热门与旧完整URL游标比较使用明确标记的受控分页HTML，不冒原站实时证据。错误sort或错误类型于网络前拒绝，篡改下一页参数拒绝。固定参考另有登录收藏及随机画廊，当前未实现：收藏需账户，随机不保证中文归属；不据两项已实现筛选宣称参考全部功能完成。Native 控件和实际使用仍待验证。
 
-## 0.1.6 real WebP thumbnails and explicit CDN host
+## 0.1.6 真实 WebP 缩略图与显式 CDN 宿主
 
-The Pages count reads only the unique page-count field, without consuming unrelated long tag text. WebP and PNG thumbnails are accepted only when the validated same-work reader declares the corresponding original format and matching media identity, count, order and dimensions. The observed supercdn.site and cdn.supercdn.site hosts must agree across cover, thumbnails, reader declaration and original URL; no other host is accepted. Existing supercdn page IDs are unchanged; the explicit cdn marker in new page IDs is checked again by image_request with the full work route.
+页计数只读取唯一的页数字段，不消费无关的长标签文本。WebP 和 PNG 缩略图只在已验证的同作品阅读器声明了对应原格式且媒体身份、计数、顺序和尺寸匹配时才接受。观察到的 supercdn.site 和 cdn.supercdn.site 宿主必须在封面、缩略图、阅读器声明和原 URL 之间一致；不接受其他宿主。既有 supercdn 页 ID 不变；新页 ID 中的显式 cdn 标记由 image_request 带完整作品路由再次检查。
 
 ## 最新与中文显示候选
 
