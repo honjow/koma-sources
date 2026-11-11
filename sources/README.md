@@ -45,21 +45,21 @@
 | mangaxiaosi-zh | Manga Xiao Si | 0.1.8 | 有限排行与查询目录 |
 | nnhanman-zh | NNHanman | 0.1.4 | 排行与搜索元数据 |
 | comicfury-zh | Comic Fury | 0.1.9 | 上游 MIXED，可选作者注释 |
-| copymanga | 拷贝漫画 | 0.2 | 公开列表与阅读 |
+| copymanga | 拷贝漫画 | 0.1.6 | 公开列表与阅读 |
 | mycomic | MYCOMIC | 0.1.30 | 高频迭代源 |
-| mangabz | Mangabz | 0.2 | |
+| mangabz | Mangabz | 0.1.15 | |
 | mangaball-zh | MangaBall | 0.1.6 | 中文章节，走 Log into the Future API |
-| komiic | Komiic | 0.2 | |
+| komiic | Komiic | 0.1.20 | |
 | dongmanmanhua | 咚漫 (DongmanManhua) | 0.1.6 | 上游 SAFE |
 | goda | GoDa漫画 | 0.1.8 | 上游 SAFE |
 | guazimanhua | 瓜子漫画 | 0.1.6 | 公开 HTML 源 |
-| manhuagui | Manhuagui | 0.2 | 普通公开 HTML 适配，不支持成人隐藏目录 |
-| manhuaren | 漫画人 | 0.2 | API 源，要求匿名会话 |
+| manhuagui | Manhuagui | 0.1.12 | 普通公开 HTML 适配，不支持成人隐藏目录 |
+| manhuaren | 漫画人 | 0.1.12 | API 源，要求匿名会话 |
 | manhuashe | 漫画社 (Manhuashe) | 0.1.13 | |
-| manhuawu | 漫画屋 (Manhuawu) | 0.2 | MCCMSWeb HTML 适配 |
+| manhuawu | 漫画屋 (Manhuawu) | 0.1.12 | MCCMSWeb HTML 适配 |
 | manhuadui | 优酷漫画 | 0.1.5 | 仅搜索与列表，详情与阅读不可用 |
-| mh1234 | 漫画1234 | 0.2 | 公开目录与阅读 |
-| mh160 | 漫画160 | 0.2 | 上游 SAFE |
+| mh1234 | 漫画1234 | 0.1.13 | 公开目录与阅读 |
+| mh160 | 漫画160 | 0.1.12 | 上游 SAFE |
 | miaoqu | 喵趣漫画 | 0.1.6 | 与六漫画共享目录 |
 | sixmh | 六漫画 | 0.1.10 | 公开 HTML 目录与搜索 |
 | zaimanhua | 再漫画 | 0.1.11 | zaimanhua.com |
@@ -67,8 +67,8 @@
 | comicabc | 無限動漫 | 0.1.12 | 公开目录与有限字面记录页 |
 | jiuermanhua | 92漫画 | 0.1.10 | |
 | happymh | 嗨皮漫画 | 0.1.8 | |
-| bilimanga | 嗶哩漫畫 | 0.2 | 含不同内容分级作品 |
-| baozimh | 包子漫畫 (Baozimh) | 0.2 | baozimh.com HTML 抓取 |
+| bilimanga | 嗶哩漫畫 | 0.1.5 | 含不同内容分级作品 |
+| baozimh | 包子漫畫 (Baozimh) | 0.1.21 | baozimh.com HTML 抓取 |
 | cartoon18-zh | Cartoon18 | 0.1.3 | 中文界面与匿名元数据 |
 | utifa | Utifa | 0.1.0 | 中文漫画 |
 | dbmultiverse-zh | Dragon Ball Multiverse | 0.1.4 | 支持文字气泡叠加 |
@@ -80,10 +80,10 @@
 
 | 目录 | 名称 | 版本 | 备注 |
 |---|---|---|---|
-| picacomic | 哔咔漫画 | 0.2 | 浏览与阅读需账号登录；含 DNS 引导策略 |
-| jinmantiantang | 禁漫天堂 | 0.2 | 匿名浏览与阅读，账号功能在原站使用；要求 Koma 1.4.3 |
-| wnacg | 紳士漫畫 | 0.2 | 公开相册与合集，部分内容需登录 |
-| hentaiclub | 绅士会所 | 0.2 | 含成人内容 |
+| picacomic | 哔咔漫画 | 0.1.4 | 浏览与阅读需账号登录；含 DNS 引导策略 |
+| jinmantiantang | 禁漫天堂 | 0.1.6 | 匿名浏览与阅读，账号功能在原站使用；要求 Koma 1.4.3 |
+| wnacg | 紳士漫畫 | 0.1.5 | 公开相册与合集，部分内容需登录 |
+| hentaiclub | 绅士会所 | 0.1.5 | 含成人内容 |
 | nhentaito-zh | NHentai.to | 0.1.8 | 中文漫画目录源 |
 | nhentaixxx-zh | NHentai.xxx | 0.1.6 | 作品分级以实际内容为准 |
 | 3hentai-zh | 3Hentai | 0.1.8 | |
@@ -92,7 +92,7 @@
 | hcomic-zh | H-Comic | 0.1.4 | 含成人内容，分级未知 |
 | hanman18 | HANMAN18 | 0.1.6 | manga18 多源框架，NSFW |
 | longjm | 龙禁漫 | 0.1.2 | 成人内容，单作品分级与用量未知 |
-| buondua | Buon Dua | 0.2 | 公开相册，含成人内容 |
+| buondua | Buon Dua | 0.1.3 | 公开相册，含成人内容 |
 | cosplaytele | CosplayTele | 0.1.0 | 公开相册，含成人内容 |
 | noyacg | NoyAcg | 0.1.11 | |
 | hentaihand-zh | HentaiHand | 0.1.4 | 匿名中文作品信息；含成人内容，单作品分级与用量未知 |
