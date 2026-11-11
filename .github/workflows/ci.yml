@@ -22,7 +22,10 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # ubuntu-latest 已切到 ubuntu-26.04 (resolute)，其 apt 源对 ubuntu.com
+    # 的 DNS 解析在 hosted runner 池上持续故障（checkout/rustup 正常，仅 apt 失败）。
+    # 固定到稳定的 ubuntu-24.04，待 26.04 镜像的 apt 源恢复后再切回 latest。
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
