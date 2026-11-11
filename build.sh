@@ -127,7 +127,7 @@ copymanga|copymanga|true|1.4.1
 wnacg|wnacg|true|1.4.1
 hentaiclub|hentaiclub|true|1.4.1
 bilimanga|bilimanga|true|1.4.1
-jinmantiantang|jinmantiantang|true|1.4.1
+jinmantiantang|jinmantiantang|true|1.4.3
 utifa|utifa|true|1.2.0
 mangapluscreators-en|mangapluscreators-en|false|0.1.1
 '
