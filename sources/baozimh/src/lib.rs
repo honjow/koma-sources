@@ -157,7 +157,7 @@ fn fetch_html(url_bytes: &[u8], request:&[u8]) -> Result<usize, FetchError> {
         .or_else(|| extract_json_number(resp, b"statusCode"))
         .map(parse_status_code).unwrap_or(0);
     match status {
-        401 | 403 => {
+        401 | 403 | 503 => {
             let error = match access_signal::from_host_response(status, resp, body_buf()) {
                 Some(signal) => FetchError::Access(status, signal, if challenge_cause_enabled(request){ChallengeId::from_response(resp)}else{ChallengeId{raw:[0;384],len:0}}),
                 None => FetchError::Http(status),

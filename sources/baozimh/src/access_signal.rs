@@ -6,9 +6,14 @@ type R<T> = Result<T, &'static str>;
 pub enum AccessSignal { Challenge, Authentication }
 
 pub fn from_host_response(status: u16, response: &[u8], body: &mut [u8]) -> Option<AccessSignal> {
-    if !matches!(status, 401 | 403) { return None; }
+    if !matches!(status, 401 | 403 | 503) { return None; }
     valid_json(response).ok()?;
     if member(response, b"ok")? != b"true" { return None; }
+    // The host derives this marker from the HTTP response header, independently of its body.
+    if member(response, b"accessSignal") == Some(br#""challenge_required""#) {
+        return Some(AccessSignal::Challenge);
+    }
+    if status == 503 { return None; }
     let raw = member(response, b"bodyText")?;
     let len = decode_string(raw, body)?;
     from_body(status, &body[..len])

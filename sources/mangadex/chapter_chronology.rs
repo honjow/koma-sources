@@ -38,8 +38,9 @@ fn hundredths(value: &[u8]) -> Option<u32> {
     whole.checked_mul(100)?.checked_add(hundredths)
 }
 
-fn place<'a>(row: &[u8], manga: &[u8], group: &'a mut [u8; 296]) -> Option<ChapterPlacement<'a>> {
+fn place<'a>(row: &'a [u8], manga: &[u8], group: &'a mut [u8; 296]) -> Option<ChapterPlacement<'a>> {
     let attrs = json_object_member(row, b"attributes")?;
+    let language = string(attrs, b"translatedLanguage")?;
     let chapter = hundredths(string(attrs, b"chapter")?)?;
     if chapter >= 1_000_000 {
         return None;
@@ -79,9 +80,10 @@ fn place<'a>(row: &[u8], manga: &[u8], group: &'a mut [u8; 296]) -> Option<Chapt
     if count == 0 {
         group[0] = b'u';
         group[1..37].copy_from_slice(uploader?);
-        return Some(ChapterPlacement::InGroup {
+        return Some(ChapterPlacement::Variant {
             group: &group[..37],
             position,
+            sequence: language,
         });
     }
     groups[..count].sort_unstable();
@@ -91,12 +93,13 @@ fn place<'a>(row: &[u8], manga: &[u8], group: &'a mut [u8; 296]) -> Option<Chapt
         group[end..end + 36].copy_from_slice(id);
         end += 36;
     }
-    Some(ChapterPlacement::InGroup {
+    Some(ChapterPlacement::Variant {
         group: &group[..end],
         position,
+        sequence: language,
     })
 }
 
-pub fn placement<'a>(row: &[u8], manga: &[u8], group: &'a mut [u8; 296]) -> ChapterPlacement<'a> {
+pub fn placement<'a>(row: &'a [u8], manga: &[u8], group: &'a mut [u8; 296]) -> ChapterPlacement<'a> {
     place(row, manga, group).unwrap_or(ChapterPlacement::ManualOnly)
 }

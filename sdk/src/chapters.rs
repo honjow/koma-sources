@@ -104,6 +104,9 @@ pub enum ChapterPlacement<'a> {
     /// A stable ordinal relative to the whole group, including across pages.
     /// The host accepts nonnegative integers up to JavaScript's safe integer limit.
     InGroup { group: &'a [u8], position: u64 },
+    /// Alternate editions share an ordinal and a reader-only sequence.
+    /// The original group remains the scope for bulk actions and older hosts.
+    Variant { group: &'a [u8], position: u64, sequence: &'a [u8] },
     /// The source has no verified continuation position for this entry.
     ManualOnly,
 }
@@ -140,7 +143,7 @@ impl<'a> ChapterResponse<'a> {
             };
             writer.push(
                 *chapter,
-                enabled.then_some((b"source-catalog", position as u64)),
+                enabled.then_some((b"source-catalog", position as u64, None)),
             )?;
         }
         writer.finish(ChapterPage::Complete)
@@ -174,6 +177,7 @@ impl<'a> ChapterResponse<'a> {
 pub struct GroupedChapters<'a> {
     writer: CatalogWriter<'a>,
     reading_order: bool,
+    reading_variants: bool,
 }
 
 impl<'a> GroupedChapters<'a> {
@@ -181,6 +185,7 @@ impl<'a> GroupedChapters<'a> {
         Ok(Self {
             writer: CatalogWriter::new(buffer)?,
             reading_order: reading_order_supported(request),
+            reading_variants: source_protocol::feature(request, b"chapter_reading_variants_v1"),
         })
     }
 
@@ -189,23 +194,25 @@ impl<'a> GroupedChapters<'a> {
         chapter: Chapter<'_>,
         placement: ChapterPlacement<'_>,
     ) -> Result<(), SourceError> {
-        let position = match placement {
-            ChapterPlacement::InGroup { group, position } => {
-                if group.trim_ascii().is_empty() {
-                    return Err(SourceError::source_error("empty chapter reading group"));
+        let (group, position, variant) = match placement {
+            ChapterPlacement::InGroup { group, position } => (group, position, None),
+            ChapterPlacement::Variant { group, position, sequence } => {
+                if sequence.trim_ascii().is_empty() {
+                    return Err(SourceError::source_error("empty chapter variant sequence"));
                 }
-                if position > 9_007_199_254_740_991 {
-                    return Err(SourceError::source_error(
-                        "chapter reading position exceeds safe integer range",
-                    ));
-                }
-                self.reading_order.then_some((group, position))
+                (group, position, self.reading_variants.then_some(sequence))
             }
-            // Preserve legacy omission for unverified entries. Grouped sources
-            // must leave manifest chapterOrder unset so these remain manual.
-            ChapterPlacement::ManualOnly => None,
+            ChapterPlacement::ManualOnly => return self.writer.push(chapter, None),
         };
-        self.writer.push(chapter, position)
+        if group.trim_ascii().is_empty() {
+            return Err(SourceError::source_error("empty chapter reading group"));
+        }
+        if position > 9_007_199_254_740_991 {
+            return Err(SourceError::source_error(
+                "chapter reading position exceeds safe integer range",
+            ));
+        }
+        self.writer.push(chapter, self.reading_order.then_some((group, position, variant)))
     }
 
     pub fn finish(self, page: ChapterPage<'_>) -> ChapterResult<'a> {
@@ -299,7 +306,7 @@ impl<'a> CatalogWriter<'a> {
     fn push(
         &mut self,
         chapter: Chapter<'_>,
-        position: Option<(&[u8], u64)>,
+        position: Option<(&[u8], u64, Option<&[u8]>)>,
     ) -> Result<(), SourceError> {
         let start = self.cursor;
         if let Err(error) = self.write_chapter(chapter, position) {
@@ -312,7 +319,7 @@ impl<'a> CatalogWriter<'a> {
     fn write_chapter(
         &mut self,
         chapter: Chapter<'_>,
-        position: Option<(&[u8], u64)>,
+        position: Option<(&[u8], u64, Option<&[u8]>)>,
     ) -> Result<(), SourceError> {
         if self.cursor > Self::PREFIX.len() {
             self.bytes(b",")?;
@@ -360,11 +367,18 @@ impl<'a> CatalogWriter<'a> {
             Some(value) => self.number(value)?,
             None => self.bytes(b"null")?,
         }
-        if let Some((group, ordinal)) = position {
+        if let Some((group, ordinal, variant_sequence)) = position {
             self.bytes(br#","readingGroup":"#)?;
             self.string(Some(group))?;
             self.bytes(br#","continuationEligible":true,"readingOrder":"#)?;
             self.number64(ordinal)?;
+            if let Some(sequence) = variant_sequence {
+                self.bytes(br#","readingVariantSequence":"#)?;
+                self.string(Some(sequence))?;
+                self.bytes(br#","readingVariantGroup":""#)?;
+                self.number64(ordinal)?;
+                self.bytes(b"\"")?;
+            }
         }
         self.bytes(b"}")
     }
