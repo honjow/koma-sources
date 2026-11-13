@@ -32,25 +32,25 @@
 | dm5 | DM5 | 0.1.27 | 老牌漫画平台 |
 | tencentcomics | 腾讯动漫 | 0.1.4 | 公开目录与免费章节；付费与 JS 内容边界见 README |
 | kuaikan | 快看漫画 | 0.1.7 | 公开目录与免费章节 |
-| mangadex | MangaDex | 0.1.25 | 官方 API（JSON，无 HTML 抓取） |
-| mangadex-zh-hans | MangaDex | 0.1.12 | 简体中文公开章节 |
-| mangadex-zh-hant | MangaDex | 0.1.12 | 繁體中文目錄（zh-hk） |
+| mangadex | MangaDex | 0.1.26 | 官方 API（JSON，无 HTML 抓取） |
+| mangadex-zh-hans | MangaDex | 0.1.13 | 简体中文公开章节 |
+| mangadex-zh-hant | MangaDex | 0.1.13 | 繁體中文目錄（zh-hk） |
 | webtoons | WEBTOON (English) | 0.1.9 | 英文 WEBTOON 与 CANVAS 浏览、搜索、阅读 |
 | webtoons_zh_hant | LINE WEBTOON (Traditional Chinese) | 0.1.12 | 繁中 LINE WEBTOON |
 | tapastic | Tapas | 0.1.0 | 公开集与原站访问；登录走 Koma 源 web 会话 |
 | mangapluscreators-en | MANGA Plus Creators by SHUEISHA | 0.1.7 | 集英社官方英文创作者目录 |
-| namicomi-zh-hans | NamiComi | 0.1.5 | 简体中文公开漫画 |
-| namicomi-zh-hant | NamiComi | 0.1.5 | 繁體中文公開漫畫 |
-| globalcomix-zh-hans | GlobalComix | 0.1.6 | 中文公开漫画，可浏览目录和免费页面 |
+| namicomi-zh-hans | NamiComi | 0.1.6 | 简体中文公开漫画 |
+| namicomi-zh-hant | NamiComi | 0.1.6 | 繁體中文公開漫畫 |
+| globalcomix-zh-hans | GlobalComix | 0.1.7 | 中文公开漫画，可浏览目录和免费页面 |
 | mangaxiaosi-zh | Manga Xiao Si | 0.1.8 | 有限排行与查询目录 |
-| nnhanman-zh | NNHanman | 0.1.4 | 排行与搜索元数据 |
+| nnhanman-zh | NNHanman | 0.1.5 | 排行与搜索元数据 |
 | comicfury-zh | Comic Fury | 0.1.9 | 上游 MIXED，可选作者注释 |
 | copymanga | 拷贝漫画 | 0.1.6 | 公开列表与阅读 |
-| mycomic | MYCOMIC | 0.1.30 | 高频迭代源 |
+| mycomic | MYCOMIC | 0.1.31 | 高频迭代源 |
 | mangabz | Mangabz | 0.1.15 | |
-| mangaball-zh | MangaBall | 0.1.6 | 中文章节，走 Log into the Future API |
+| mangaball-zh | MangaBall | 0.1.7 | 中文章节，走 Log into the Future API |
 | komiic | Komiic | 0.1.20 | |
-| dongmanmanhua | 咚漫 (DongmanManhua) | 0.1.6 | 上游 SAFE |
+| dongmanmanhua | 咚漫 (DongmanManhua) | 0.1.7 | 上游 SAFE |
 | goda | GoDa漫画 | 0.1.8 | 上游 SAFE |
 | guazimanhua | 瓜子漫画 | 0.1.6 | 公开 HTML 源 |
 | manhuagui | Manhuagui | 0.1.12 | 普通公开 HTML 适配，不支持成人隐藏目录 |
@@ -60,18 +60,18 @@
 | manhuadui | 优酷漫画 | 0.1.5 | 仅搜索与列表，详情与阅读不可用 |
 | mh1234 | 漫画1234 | 0.1.13 | 公开目录与阅读 |
 | mh160 | 漫画160 | 0.1.12 | 上游 SAFE |
-| miaoqu | 喵趣漫画 | 0.1.6 | 与六漫画共享目录 |
+| miaoqu | 喵趣漫画 | 0.1.7 | 与六漫画共享目录 |
 | sixmh | 六漫画 | 0.1.10 | 公开 HTML 目录与搜索 |
-| zaimanhua | 再漫画 | 0.1.11 | zaimanhua.com |
+| zaimanhua | 再漫画 | 0.1.12 | zaimanhua.com |
 | zerobyw | Zerobyw | 0.1.10 | HTML 抓取源 |
 | comicabc | 無限動漫 | 0.1.12 | 公开目录与有限字面记录页 |
-| jiuermanhua | 92漫画 | 0.1.10 | |
+| jiuermanhua | 92漫画 | 0.1.12 | |
 | happymh | 嗨皮漫画 | 0.1.8 | |
 | bilimanga | 嗶哩漫畫 | 0.1.5 | 含不同内容分级作品 |
-| baozimh | 包子漫畫 (Baozimh) | 0.1.21 | baozimh.com HTML 抓取 |
+| baozimh | 包子漫畫 (Baozimh) | 0.1.22 | baozimh.com HTML 抓取 |
 | cartoon18-zh | Cartoon18 | 0.1.3 | 中文界面与匿名元数据 |
 | utifa | Utifa | 0.1.0 | 中文漫画 |
-| dbmultiverse-zh | Dragon Ball Multiverse | 0.1.4 | 支持文字气泡叠加 |
+| dbmultiverse-zh | Dragon Ball Multiverse | 0.1.5 | 支持文字气泡叠加 |
 | ikmmh-zh | Ikmmh | 0.1.3 | 匿名分类目录与有限查询 |
 | xcomic-zh | XCOMIC | 0.1.13 | 匿名查询并读取原图 |
 | xcomic-zh-hant | XCOMIC | 0.1.14 | 繁中公开版，匿名 GraphQL 查询 |
@@ -91,7 +91,7 @@
 | hentaifox-zh | HentaiFox | 0.1.4 | 单作品评级与用量未知 |
 | hcomic-zh | H-Comic | 0.1.4 | 含成人内容，分级未知 |
 | hanman18 | HANMAN18 | 0.1.6 | manga18 多源框架，NSFW |
-| longjm | 龙禁漫 | 0.1.2 | 成人内容，单作品分级与用量未知 |
+| longjm | 龙禁漫 | 0.1.3 | 成人内容，单作品分级与用量未知 |
 | buondua | Buon Dua | 0.1.3 | 公开相册，含成人内容 |
 | cosplaytele | CosplayTele | 0.1.0 | 公开相册，含成人内容 |
 | noyacg | NoyAcg | 0.1.11 | |
@@ -123,10 +123,10 @@
 
 | 目录 | 名称 | 版本 | 备注 |
 |---|---|---|---|
-| tongli | 東立 | 0.1.9 | JSON API，Firebase 匿名认证 |
+| tongli | 東立 | 0.1.10 | JSON API，Firebase 匿名认证 |
 | zazhimi | 杂志迷 | 0.1.4 | JSON API 杂志源 |
 | iqiyi | Iqiyi | 0.1.4 | Bada 公开元数据 API，需真实主机时钟与熵 |
-| cmanhua | CManhua | 0.1.9 | 公开中文目录与章节 |
+| cmanhua | CManhua | 0.1.10 | 公开中文目录与章节 |
 
 ## 非源目录（不参与构建）
 

@@ -2,6 +2,7 @@
 // Public contract: Keiyoushi Miaoqu.kt / MCCMSWeb.kt, Apache-2.0, revision
 // 1319949ca9bc456908196e3ba2d104e94182c5d6. No authentication/mirror/JS processing.
 use koma_source_sdk::{
+    chapters::{Chapter, ChapterNumber, ChapterPage, ChapterPlacement, ChapterResult, GroupedChapters},
     host,
     json_utils::*,
     source::{SourceCapabilities, SourceInfo},
@@ -10,7 +11,7 @@ const BASE: &[u8] = b"https://www.miaoqumh.org";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.miaoqu.koma",
     name: "喵趣漫画",
-    version: "0.1.6",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -991,7 +992,7 @@ fn explicit_chapter_number(title: &[u8]) -> Option<usize> {
     }
     number(&s[..len])
 }
-fn chapters(r: &[u8]) -> Result<usize, &'static str> {
+fn chapters(r: &[u8]) -> ChapterResult<'static, &'static str> {
     let (id, s) = manga_identity(r)?;
     let mut path = [0; 1024];
     let root = fetch(MOBILE, detail_path(s, &mut path)?)?;
@@ -1000,9 +1001,7 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
     if nodes.n == 0 {
         return Err("chapter structure missing");
     }
-    let b = payload_buf();
-    let mut n = 0;
-    bytes(b, &mut n, b"{\"chapters\":[")?;
+    let mut catalog = GroupedChapters::new(payload_buf(), r).map_err(|e| e.message())?;
     for (index, i) in (0..nodes.n).rev().enumerate() {
         let a = selected(&nodes, i);
         let mut href = [0; 1024];
@@ -1012,36 +1011,24 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
         if title.is_empty() {
             return Err("empty chapter title");
         }
-        if index > 0 {
-            bytes(b, &mut n, b",")?;
-        }
-        bytes(b, &mut n, b"{\"id\":")?;
-        qid(b, &mut n, b"miaoquch:", cp)?;
-        bytes(b, &mut n, b",\"mangaId\":")?;
-        q(b, &mut n, id)?;
-        bytes(b, &mut n, b",\"title\":")?;
-        q(b, &mut n, title)?;
-        bytes(b, &mut n, b",\"index\":")?;
-        if !write_usize(b, &mut n, index) {
-            return Err("payload overflow");
-        }
-        bytes(b, &mut n, b",\"chapterNumber\":")?;
-        match explicit_chapter_number(title) {
-            Some(v) => {
-                if !write_usize(b, &mut n, v) {
-                    return Err("payload overflow");
-                }
-            }
-            None => bytes(b, &mut n, b"null")?,
-        };
-        bytes(b,&mut n,b",\"volumeNumber\":null,\"language\":\"zh\",\"publishedAt\":null,\"updatedAt\":null,\"pageCount\":null,\"scanlator\":null}")?;
+        let mut id_buf = [0; 1024];
+        let mut id_len = 0;
+        bytes(&mut id_buf, &mut id_len, b"miaoquch:")?;
+        bytes(&mut id_buf, &mut id_len, cp)?;
+        let mut chapter = Chapter::new(&id_buf[..id_len], id, title);
+        chapter.index = Some(index);
+        chapter.chapter_number = explicit_chapter_number(title).map(ChapterNumber::Integer);
+        chapter.language = Some(b"zh");
+        // The site's Next link follows raw list order, including extras.
+        // Preserve the source's reversed presentation in the returned array.
+        catalog.push(chapter, ChapterPlacement::InGroup {
+            group: b"source-catalog",
+            position: i as u64,
+        }).map_err(|e| e.message())?;
     }
-    bytes(
-        b,
-        &mut n,
-        b"],\"page\":{\"nextCursor\":null,\"hasMore\":false}}",
-    )?;
-    Ok(n)
+    let response = catalog.finish(ChapterPage::Complete).map_err(|e| e.message())?;
+    diagnostic(b"operation_ok", b"get_chapters");
+    Ok(response)
 }
 static mut DECODE_MID: [u8; 262144] = [0; 262144];
 static mut DECODE_JSON: [u8; 262144] = [0; 262144];
@@ -1199,8 +1186,13 @@ fn run_get_manga_list(r: &[u8]) -> u32 {
 fn run_get_manga(r: &[u8]) -> u32 {
     execute("get_manga", detail(r))
 }
-fn run_get_chapters(r: &[u8]) -> u32 {
-    execute("get_chapters", chapters(r))
+fn run_get_chapters(r: &[u8]) -> ChapterResult<'static, &'static str> {
+    chapters(r)
+}
+fn write_chapter_error(message: &str) -> u32 {
+    let error = code(message);
+    diagnostic(b"operation_error", error.as_bytes());
+    write_error("get_chapters", error, message)
 }
 fn run_get_pages(r: &[u8]) -> u32 {
     execute("get_pages", pages(r))
@@ -1235,4 +1227,4 @@ fn image_request(r: &[u8]) -> Result<usize, &'static str> {
 fn run_get_image_request(r: &[u8]) -> u32 {
     execute("get_image_request", image_request(r))
 }
-koma_source_sdk::koma_source_exports!("miaoqu");
+koma_source_sdk::koma_source_exports!("miaoqu", typed_chapters, write_chapter_error);

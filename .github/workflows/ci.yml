@@ -52,6 +52,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y jq zip python3-pil
       - name: Check complete workspace coverage
         run: bash build.sh --check-registry
+      - name: Check chapter SDK compile contract
+        run: cargo test --locked -p koma_source_sdk --doc
+      - name: Type-check sources before WASM compilation
+        run: cargo check --locked --release --target wasm32-unknown-unknown --workspace --exclude koma-source-dev
       - name: Compile all production sources and teaching demo
         run: bash build.sh --compile-only
       - name: Check every compiled source metadata (offline)

@@ -3,6 +3,7 @@ extern crate koma_source_sdk;
 mod html;
 use html::{Tag, Tags};
 use koma_source_sdk::{
+    chapters::{Chapter, ChapterNumber, ChapterPage, ChapterPlacement, ChapterResult, GroupedChapters},
     host,
     json_utils::*,
     source::{SourceCapabilities, SourceInfo},
@@ -12,7 +13,7 @@ const BASE: &[u8] = b"https://cmanhua.com";
 const INFO: SourceInfo = SourceInfo {
     id: "com.cmanhua.koma",
     name: "CManhua",
-    version: "0.1.9",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -111,11 +112,8 @@ fn decoded(s: &[u8]) -> Option<&'static [u8]> {
     let n = html::decoded(s, b)?;
     Some(unsafe { core::slice::from_raw_parts(b.as_ptr(), n) })
 }
-fn qhtml(b: &mut [u8], n: &mut usize, s: &[u8]) -> bool {
-    let s = match decoded(s) {
-        Some(s) => s,
-        None => return false,
-    };
+fn normalized_html_text(s: &[u8]) -> Option<&'static [u8]> {
+    let s = decoded(s)?;
     let out = scratch_a();
     let mut len = 0;
     let mut pending = false;
@@ -126,15 +124,19 @@ fn qhtml(b: &mut [u8], n: &mut usize, s: &[u8]) -> bool {
         }
         if pending {
             if !write_bytes(out, &mut len, b" ") {
-                return false;
+                return None;
             }
             pending = false;
         }
         if !write_bytes(out, &mut len, &[byte]) {
-            return false;
+            return None;
         }
     }
-    quoted(b, n, &out[..len])
+    Some(&out[..len])
+}
+
+fn qhtml(b: &mut [u8], n: &mut usize, s: &[u8]) -> bool {
+    normalized_html_text(s).is_some_and(|text| quoted(b, n, text))
 }
 fn absolute(b: &mut [u8], n: &mut usize, s: &[u8]) -> bool {
     if s.starts_with(b"https://") {
@@ -533,12 +535,15 @@ fn chapter_id(h: &[u8]) -> Option<&[u8]> {
         None
     }
 }
-fn original_chapter_number(title: &[u8]) -> Option<usize> {
-    let title = core::str::from_utf8(decoded(title)?).ok()?;
-    // The outer "章节 N" is a site sequence; the original chapter label follows the series name.
+fn provider_chapter_sequence(title: &str) -> Option<(u32, &str)> {
+    // The outer "章节 N" is the site's own reading sequence.
     let (sequence, content) = title.split_once(':')?;
     let sequence = sequence.trim().strip_prefix("章节").or_else(|| sequence.trim().strip_prefix("章節"))?;
-    sequence.trim().parse::<usize>().ok()?;
+    Some((sequence.trim().parse().ok()?, content))
+}
+
+fn original_chapter_number(title: &str) -> Option<usize> {
+    let (_, content) = provider_chapter_sequence(title)?;
     let (_, label) = content.rsplit_once(" - ")?;
     let label = label.trim();
     let number = if let Some(explicit) = label.strip_prefix('第') {
@@ -560,10 +565,17 @@ fn original_chapter_number(title: &[u8]) -> Option<usize> {
 fn add_chapters(
     doc: &[u8],
     s: &[u8],
-    n: &mut usize,
+    catalog: &mut GroupedChapters<'_>,
     count: &mut usize,
+    sequence_start: &mut usize,
 ) -> Result<(), &'static str> {
-    let b = payload_buf();
+    let mut manga_id = [0; SCRATCH_CAP];
+    let mut manga_len = 0;
+    if !(write_bytes(&mut manga_id, &mut manga_len, b"cmm:")
+        && write_bytes(&mut manga_id, &mut manga_len, s))
+    {
+        return Err("catalogue overflow");
+    }
     for a in Tags::new(doc) {
         if !a.class(b"cd-chapter-link") {
             continue;
@@ -576,28 +588,40 @@ fn add_chapters(
         }
         ids[*count].copy_from_slice(cid);
         let title = a.inner().ok_or("missing chapter title")?;
-        if *count > 0 && !write_bytes(b, n, b",") {
+        let mut chapter_id = [0; SCRATCH_CAP];
+        let mut chapter_len = 0;
+        if !(write_bytes(&mut chapter_id, &mut chapter_len, b"cmc:")
+            && write_bytes(&mut chapter_id, &mut chapter_len, s)
+            && write_bytes(&mut chapter_id, &mut chapter_len, b":")
+            && write_bytes(&mut chapter_id, &mut chapter_len, cid))
+        {
             return Err("catalogue overflow");
         }
-        let ok = write_bytes(b, n, br#"{"id":"cmc:"#)
-            && write_bytes(b, n, s)
-            && write_bytes(b, n, b":")
-            && write_bytes(b, n, cid)
-            && write_bytes(b, n, br#"","mangaId":"cmm:"#)
-            && write_bytes(b, n, s)
-            && write_bytes(b, n, br#"","title":"#)
-            && qhtml(b, n, title)
-            && write_bytes(b, n, br#", "chapterNumber":"#)
-            && match original_chapter_number(title) {
-                Some(number) => write_usize(b, n, number),
-                None => write_bytes(b, n, b"null"),
+        let title_text = decoded(title).and_then(|text| core::str::from_utf8(text).ok());
+        let number = title_text.and_then(original_chapter_number);
+        let position = title_text.and_then(provider_chapter_sequence).map(|(position, _)| position);
+        let title = normalized_html_text(title).ok_or("catalogue overflow")?;
+        let mut chapter = Chapter::new(&chapter_id[..chapter_len], &manga_id[..manga_len], title);
+        chapter.chapter_number = number.map(ChapterNumber::Integer);
+        chapter.language = Some(b"zh");
+        chapter.sequence_index = Some(*count);
+        chapter.locked = Some(false);
+        let mut group = [0; 32];
+        let placement = match position {
+            Some(position) if position as usize == *count + 1 => {
+                let mut length = 0;
+                if !write_usize(&mut group, &mut length, *sequence_start) {
+                    return Err("catalogue overflow");
+                }
+                ChapterPlacement::InGroup { group: &group[..length], position: u64::from(position - 1) }
             }
-            && write_bytes(b, n, br#", "sequenceIndex":"#)
-            && write_usize(b, n, *count)
-            && write_bytes(b, n, br#", "language":"zh","locked":false}"#);
-        if !ok {
-            return Err("catalogue overflow");
-        }
+            _ => {
+                // An unverified row separates runs of verified site ordinals.
+                *sequence_start = *count + 1;
+                ChapterPlacement::ManualOnly
+            }
+        };
+        catalog.push(chapter, placement).map_err(|_| "catalogue overflow")?;
         *count += 1;
     }
     Ok(())
@@ -622,25 +646,32 @@ fn explicit_empty_catalogue(doc: &[u8]) -> bool {
     counts == 1 && lists == 1 && zero && empty
 }
 
-fn run_get_chapters(req: &[u8]) -> u32 {
+fn write_chapter_error((code, message): (&str, &str)) -> u32 {
+    if code.is_empty() {
+        return error("get_chapters", message);
+    }
+    write_error("get_chapters", code, message)
+}
+
+fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, (&'static str, &'static str)> {
     let s = match slug(req) {
         Some(s) => s,
-        None => return write_error("get_chapters", "invalid_request", "bad mangaId"),
+        None => return Err(("invalid_request", "bad mangaId")),
     };
     let d = match manga_web(s) {
         Ok(d) => d,
-        Err(e) => return error("get_chapters", e),
+        Err(e) => return Err(("", e)),
     };
     if d.len() > 384 * 1024 {
-        return error("get_chapters", "catalogue HTML overflow");
+        return Err(("", "catalogue HTML overflow"));
     }
     let orig = unsafe { &mut *core::ptr::addr_of_mut!(ORIGINAL) };
     orig[..d.len()].copy_from_slice(d);
     let orig = unsafe { core::slice::from_raw_parts(orig.as_ptr(), d.len()) };
-    let b = payload_buf();
-    let mut n = 0;
-    write_bytes(b, &mut n, br#"{"items":["#);
+    let mut catalog = GroupedChapters::new(payload_buf(), req)
+        .map_err(|e| (e.code(), e.message()))?;
     let mut count = 0;
+    let mut sequence_start = 0;
     let mut range_end = 0usize;
     let mut ranges = 0;
     for a in Tags::new(orig) {
@@ -650,7 +681,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         }
         let label = match a.inner().and_then(decoded) {
             Some(v) => v,
-            None => return error("get_chapters", "missing range label"),
+            None => return Err(("", "missing range label")),
         };
         let mut bounds = label.split(|b| *b == b'-');
         let start = bounds
@@ -667,53 +698,53 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             {
                 (start, end)
             }
-            _ => return error("get_chapters", "invalid chapter range"),
+            _ => return Err(("", "invalid chapter range")),
         };
         let before = count;
         ranges += 1;
         if ranges > 128 {
-            return error("get_chapters", "too many chapter ranges");
+            return Err(("", "too many chapter ranges"));
         }
         let range = if a.class(b"btn-primary") {
             orig
         } else {
             let t = match target(a) {
                 Some(t) => t,
-                None => return error("get_chapters", "unknown catalogue target"),
+                None => return Err(("", "unknown catalogue target")),
             };
             let f = match make_form(orig, t) {
                 Ok(f) => f,
-                Err(e) => return error("get_chapters", e),
+                Err(e) => return Err(("", e)),
             };
             let u = match url_for_manga(s) {
                 Some(u) => u,
-                None => return error("get_chapters", "URL overflow"),
+                None => return Err(("", "URL overflow")),
             };
             match fetch(u, Some(f)) {
                 Ok(d) => d,
-                Err(e) => return error("get_chapters", e),
+                Err(e) => return Err(("", e)),
             }
         };
-        if let Err(e) = add_chapters(range, s, &mut n, &mut count) {
-            return error("get_chapters", e);
+        if let Err(e) = add_chapters(range, s, &mut catalog, &mut count, &mut sequence_start) {
+            return Err(("", e));
         }
         if count - before != end - start + 1 {
-            return error("get_chapters", "incomplete chapter range");
+            return Err(("", "incomplete chapter range"));
         }
         range_end = end;
     }
     if ranges == 0 {
-        if let Err(e) = add_chapters(orig, s, &mut n, &mut count) {
-            return error("get_chapters", e);
+        if let Err(e) = add_chapters(orig, s, &mut catalog, &mut count, &mut sequence_start) {
+            return Err(("", e));
         }
     }
     if count == 0 {
         if ranges == 0 && explicit_empty_catalogue(orig) {
-            return write_error("get_chapters", "no_chapters", "no public chapters available");
+            return Err(("no_chapters", "no public chapters available"));
         }
-        return error("get_chapters", "missing public catalogue");
+        return Err(("", "missing public catalogue"));
     }
-    page_end("get_chapters", &mut n, None)
+    catalog.finish(ChapterPage::Complete).map_err(|e| (e.code(), e.message()))
 }
 fn url_for_manga(s: &[u8]) -> Option<&'static [u8]> {
     let b = scratch_b();
@@ -852,4 +883,4 @@ fn run_get_filters(req: &[u8]) -> u32 {
 fn run_get_settings(_: &[u8]) -> u32 {
     write_error("get_settings", "not_implemented", "not supported")
 }
-koma_source_sdk::koma_source_exports!("cmanhua");
+koma_source_sdk::koma_source_exports!("cmanhua", typed_chapters, write_chapter_error);

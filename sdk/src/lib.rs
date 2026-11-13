@@ -1,5 +1,6 @@
 #![cfg_attr(not(test), no_std)]
 
+pub mod chapters;
 pub mod gallery_titles;
 
 pub mod source_protocol;
@@ -1108,6 +1109,14 @@ pub mod result {
             self.last_response
         }
 
+        pub(crate) fn success_payload_len(operation: &str, data_len: usize) -> usize {
+            RESPONSE_PREFIX_OK.len()
+                + operation.len()
+                + DATA_PREFIX.len()
+                + data_len
+                + SUCCESS_SUFFIX.len()
+        }
+
         pub fn write_success(&mut self, operation: &str, data_json: &[u8]) -> u32 {
             self.write_parts(
                 true,
@@ -2148,9 +2157,60 @@ macro_rules! koma_source_helpers {
     };
 }
 
+/// Exports the chapter ABI with an SDK-validated successful return value.
+#[macro_export]
+macro_rules! koma_source_chapter_export {
+    ($source_name:literal, $handler:path) => {
+        $crate::koma_source_chapter_export!(
+            $source_name,
+            $handler,
+            |error: $crate::source::SourceError| write_error("get_chapters", error.code(), error.message())
+        );
+    };
+    ($source_name:literal, $handler:path, $write_error:expr) => {
+        $crate::koma_source_chapter_export!($source_name, $handler, $write_error, read_request);
+    };
+    ($source_name:literal, $handler:path, $write_error:expr, $read_request:path) => {
+        #[no_mangle]
+        pub extern "C" fn koma_source_get_chapters(req_ptr: u32, req_len: u32) -> u32 {
+            let req = match $read_request(req_ptr, req_len) {
+                Some(r) => r,
+                None => return write_error("get_chapters", "invalid_request", "empty request"),
+            };
+            $crate::host::log_info(concat!($source_name, " get_chapters").as_bytes());
+            let result: $crate::chapters::ChapterResult<'_, _> = $handler(req);
+            match result {
+                Ok(chapters) => chapters.write(response_buffer()),
+                Err(error) => ($write_error)(error),
+            }
+        }
+    };
+}
+
 #[macro_export]
 macro_rules! koma_source_exports {
+    ($source_name:literal, typed_chapters, $write_error:path) => {
+        $crate::koma_source_exports!(@common $source_name);
+        $crate::koma_source_chapter_export!($source_name, run_get_chapters, $write_error);
+    };
+    ($source_name:literal, typed_chapters) => {
+        $crate::koma_source_exports!(@common $source_name);
+        $crate::koma_source_chapter_export!($source_name, run_get_chapters);
+    };
     ($source_name:literal) => {
+        $crate::koma_source_exports!(@common $source_name);
+
+        #[no_mangle]
+        pub extern "C" fn koma_source_get_chapters(req_ptr: u32, req_len: u32) -> u32 {
+            let req = match read_request(req_ptr, req_len) {
+                Some(r) => r,
+                None => return write_error("get_chapters", "invalid_request", "empty request"),
+            };
+            $crate::host::log_info(concat!($source_name, " get_chapters").as_bytes());
+            run_get_chapters(req)
+        }
+    };
+    (@common $source_name:literal) => {
         #[no_mangle]
         pub extern "C" fn koma_source_init(_manifest_ptr: u32, manifest_len: u32) -> i32 {
             $crate::host::log_info(concat!($source_name, " source init").as_bytes());
@@ -2187,16 +2247,6 @@ macro_rules! koma_source_exports {
             };
             $crate::host::log_info(concat!($source_name, " get_manga").as_bytes());
             run_get_manga(req)
-        }
-
-        #[no_mangle]
-        pub extern "C" fn koma_source_get_chapters(req_ptr: u32, req_len: u32) -> u32 {
-            let req = match read_request(req_ptr, req_len) {
-                Some(r) => r,
-                None => return write_error("get_chapters", "invalid_request", "empty request"),
-            };
-            $crate::host::log_info(concat!($source_name, " get_chapters").as_bytes());
-            run_get_chapters(req)
         }
 
         #[no_mangle]

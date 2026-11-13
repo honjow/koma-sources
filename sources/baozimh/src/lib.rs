@@ -7,6 +7,9 @@ mod chapter_number;
 mod access_signal;
 mod cdn_selection;
 
+use koma_source_sdk::chapters::{
+    reading_order_supported, Chapter, ChapterNumber, ChapterPage, ChapterPlacement, ChapterResult, GroupedChapters,
+};
 use koma_source_sdk::host::{
     self, HtmlDescriptor, html_attr, html_close, html_parse, html_select, html_text, http_request,
     log_info,
@@ -15,7 +18,7 @@ use koma_source_sdk::json_utils::{
     append_json_escaped, contains_bytes, extract_json_number, extract_json_string, find_subslice,
     json_object_member, request_page_number, write_bytes, write_url_encoded, write_usize,
 };
-use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
+use koma_source_sdk::source::{SourceCapabilities, SourceError, SourceInfo};
 use koma_source_sdk::{build_get_request, parse_status_code};
 
 // Opaque token is copied only from the HTTP response that caused this error.
@@ -610,14 +613,73 @@ fn reference_title_has_digit(title: &[u8]) -> bool {
     core::str::from_utf8(title).map(|s| s.chars().any(|c| ND.iter().any(|(a,b)| (*a..=*b).contains(&(c as u32))))).unwrap_or(false)
 }
 
-fn run_get_chapters(req: &[u8]) -> u32 {
+// The site lists recent chapters separately, in reverse order. Only its
+// complete main catalog can verify that a chapter slot is a reading position.
+fn main_catalog_len(document: HtmlDescriptor, slug: &[u8]) -> Option<usize> {
+    const SELECTOR: &[u8] = b"#chapter-items a.comics-chapters__item";
+    let count = usize::try_from(html_select_all(document.raw(), SELECTOR, &mut [])).ok()?;
+    if count == 0 {
+        return None;
+    }
+    let byte_count = count.checked_mul(4)?;
+    let handles = body_buf().get_mut(..byte_count)?;
+    let selected = usize::try_from(html_select_all(document.raw(), SELECTOR, handles)).ok()?;
+    let descriptors = PageDescriptors { bytes: handles, count: selected.min(count) };
+    if selected != count {
+        return None;
+    }
+    for position in 0..count {
+        let mut href_buf = [0u8; 256];
+        let capacity = href_buf.len();
+        let href = attr_into(descriptors.get(position)?, b"href", &mut href_buf)?;
+        let href = chapter_duplicates::complete_fact(Some(href), capacity)?;
+        if main_chapter_slot(href, slug) != Some(position) {
+            return None;
+        }
+    }
+    Some(count)
+}
+
+fn main_chapter_slot(href: &[u8], slug: &[u8]) -> Option<usize> {
+    let query = href.strip_prefix(b"/user/page_direct?")?;
+    let mut pairs = query.split(|byte| *byte == b'&');
+    if pairs.next()?.strip_prefix(b"comic_id=")? != slug || pairs.next()? != b"section_slot=0" {
+        return None;
+    }
+    let slot = pairs.next()?.strip_prefix(b"chapter_slot=")?;
+    if pairs.next().is_some() || slot.is_empty() || (slot.len() > 1 && slot[0] == b'0') ||
+        !slot.iter().all(u8::is_ascii_digit) {
+        return None;
+    }
+    core::str::from_utf8(slot).ok()?.parse().ok()
+}
+
+enum ChapterError {
+    Source(SourceError),
+    Fetch(FetchError),
+}
+
+impl From<SourceError> for ChapterError {
+    fn from(error: SourceError) -> Self {
+        Self::Source(error)
+    }
+}
+
+fn write_chapter_error(error: ChapterError) -> u32 {
+    match error {
+        ChapterError::Source(error) => write_error("get_chapters", error.code(), error.message()),
+        ChapterError::Fetch(error) => write_fetch_error("get_chapters", error),
+    }
+}
+
+fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, ChapterError> {
     let manga_id = match extract_json_string(req, b"mangaId") {
         Some(v) => v,
-        None => return write_error("get_chapters", "invalid_request", "missing mangaId"),
+        None => return Err(SourceError::invalid_request("missing mangaId").into()),
     };
     let prefix = b"manga:";
     if manga_id.len() <= prefix.len() || &manga_id[..prefix.len()] != prefix {
-        return write_error("get_chapters", "invalid_request", "unexpected mangaId");
+        return Err(SourceError::invalid_request("unexpected mangaId").into());
     }
     let slug = &manga_id[prefix.len()..];
     let order_mode = if chapter_identity_feature(req) {
@@ -630,59 +692,56 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         && write_bytes(url_buf, &mut url_cursor, b"/comic/")
         && write_bytes(url_buf, &mut url_cursor, slug))
     {
-        return write_error("get_chapters", "internal_error", "url overflow");
+        return Err(SourceError::internal_error("url overflow").into());
     }
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
 
-    let html_len = match fetch_html(url_bytes,req) {
-        Ok(n) => n,
-        Err(e) => return write_fetch_error("get_chapters", e),
-    };
+    let html_len = fetch_html(url_bytes, req).map_err(ChapterError::Fetch)?;
     let html_bytes = &body_buf()[..html_len];
 
     let document = match html_parse(html_bytes) {
         Ok(d) => OwnedDescriptor(d),
-        Err(_) => return write_error("get_chapters", "parse_error", "html_parse failed"),
+        Err(_) => return Err(SourceError::parse_error("html_parse failed").into()),
+    };
+
+    let verified_catalog_len = if reading_order_supported(req) {
+        main_catalog_len(document.0, slug)
+    } else {
+        None
     };
 
     // Same production SelectAll ownership contract as the pages consumer.
     let count = html_select_all(document.0.raw(), b"a.comics-chapters__item", &mut scratch_a()[..0]);
     if count < 0 {
-        return write_error("get_chapters", "parse_error", "chapter selection failed");
+        return Err(SourceError::parse_error("chapter selection failed").into());
     }
     let total_items = count as usize;
     let descriptor_bytes = match total_items.checked_mul(4) {
         Some(bytes) if bytes <= BODY_CAP => bytes,
-        _ => return write_error("get_chapters", "source_error", "chapters cannot fit current response capacity"),
+        _ => return Err(SourceError::source_error("chapters cannot fit current response capacity").into()),
     };
     let handles = &mut body_buf()[..descriptor_bytes];
     let selected = if total_items == 0 { 0 } else {
         html_select_all(document.0.raw(), b"a.comics-chapters__item", handles)
     };
     if selected < 0 {
-        return write_error("get_chapters", "parse_error", "chapter selection failed");
+        return Err(SourceError::parse_error("chapter selection failed").into());
     }
     let descriptors = PageDescriptors {
         bytes: handles,
         count: (selected as usize).min(descriptor_bytes / 4),
     };
     if selected as usize != total_items {
-        return write_error("get_chapters", "parse_error", "chapter selection changed");
+        return Err(SourceError::parse_error("chapter selection changed").into());
     }
 
-    let payload = payload_buf();
-    let mut c = 0usize;
-    if !write_bytes(payload, &mut c, br#"{"items":["#) {
-        return write_error("get_chapters", "internal_error", "payload overflow");
-    }
-
-    let mut written = 0usize;
+    let mut catalog = GroupedChapters::new(payload_buf(), req)?;
     let mut seen_len = 0usize;
 
     for i in 0..total_items {
         let hd = match descriptors.get(i) {
             Some(value) => value,
-            None => return write_error("get_chapters", "parse_error", "missing chapter descriptor"),
+            None => return Err(SourceError::parse_error("missing chapter descriptor").into()),
         };
         let mut title_buf = [0u8; 256];
         let title_capacity = title_buf.len();
@@ -709,47 +768,36 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             continue;
         }
 
-        if written > 0 {
-            if !write_bytes(payload, &mut c, b",") { return write_error("get_chapters", "internal_error", "payload overflow"); }
-        }
         let use_title = order_mode == b"2" || (order_mode == b"1" && title.map(reference_title_has_digit).unwrap_or(false));
         if use_title && complete_title.map(|value| value.is_empty()).unwrap_or(true) {
-            return write_error("get_chapters", "source_error", "chapter title unavailable or truncated");
+            return Err(SourceError::source_error("chapter title unavailable or truncated").into());
         }
-        let ok = write_bytes(payload, &mut c, br#"{"id":"chapter:"#)
-            && append_json_escaped(payload, &mut c, slug)
-            && write_bytes(payload, &mut c, b":")
-            && append_json_escaped(payload, &mut c, slot)
-            && (!use_title || (write_bytes(payload, &mut c, b"#") && append_json_escaped(payload, &mut c, complete_title.unwrap())))
-            && write_bytes(payload, &mut c, br#"","mangaId":"manga:"#)
-            && append_json_escaped(payload, &mut c, slug)
-            && write_bytes(payload, &mut c, br#"","title":""#)
-            && append_json_escaped(payload, &mut c, title.unwrap_or(b"Chapter"))
-            && write_bytes(payload, &mut c, br#"","chapterNumber":"#)
-            && if let Some(number) = complete_title.and_then(chapter_number::title_chapter_number) {
-                write_bytes(payload, &mut c, b"\"")
-                    && append_json_escaped(payload, &mut c, number)
-                    && write_bytes(payload, &mut c, b"\"")
-            } else {
-                write_bytes(payload, &mut c, b"null")
-            }
-            && write_bytes(payload, &mut c, br#","volumeNumber":null,"publishedAt":null,"updatedAt":null,"pageCount":null}"#);
-        if !ok { return write_error("get_chapters", "internal_error", "payload overflow"); }
-        written += 1;
+        // Build the original chapter ID as bytes and let the SDK escape it once.
+        let mut id = [0u8; SCRATCH_CAP + 32 + 256];
+        let mut id_len = 0;
+        if !(write_bytes(&mut id, &mut id_len, b"chapter:")
+            && write_bytes(&mut id, &mut id_len, slug)
+            && write_bytes(&mut id, &mut id_len, b":")
+            && write_bytes(&mut id, &mut id_len, slot)
+            && (!use_title || (write_bytes(&mut id, &mut id_len, b"#")
+                && write_bytes(&mut id, &mut id_len, complete_title.unwrap()))))
+        {
+            return Err(SourceError::internal_error("chapter ID overflow").into());
+        }
+        let mut chapter = Chapter::new(&id[..id_len], manga_id, title.unwrap_or(b"Chapter"));
+        chapter.chapter_number = complete_title.and_then(chapter_number::title_chapter_number).map(ChapterNumber::Text);
+
+        let reading_order = verified_catalog_len.and_then(|len| {
+            main_chapter_slot(complete_href?, slug).filter(|slot| *slot < len)
+        });
+        let placement = match reading_order {
+            Some(position) => ChapterPlacement::InGroup { group: b"baozi-main", position: position as u64 },
+            None => ChapterPlacement::ManualOnly,
+        };
+        catalog.push(chapter, placement)?;
     }
 
-    if !write_bytes(payload, &mut c, br#"],"page":{"nextCursor":null,"hasMore":false}}"#) {
-        return write_error("get_chapters", "internal_error", "payload overflow");
-    }
-    let result = write_success_payload("get_chapters", c);
-    if result == 0 { return write_error("get_chapters", "internal_error", "response overflow"); }
-    let envelope_len = unsafe {
-        core::ptr::read_unaligned((result as *const u8).add(8).cast::<u32>())
-    };
-    if envelope_len as usize > NATIVE_RESULT_CAP {
-        return write_error("get_chapters", "source_error", "chapters cannot fit current response capacity");
-    }
-    result
+    Ok(catalog.finish(ChapterPage::Complete)?)
 }
 
 // Own exactly the child handles actually written by SelectAll, including
@@ -1401,15 +1449,7 @@ pub extern "C" fn koma_source_get_manga(req_ptr: u32, req_len: u32) -> u32 {
     run_get_manga(req)
 }
 
-#[no_mangle]
-pub extern "C" fn koma_source_get_chapters(req_ptr: u32, req_len: u32) -> u32 {
-    let req = match read_request(req_ptr, req_len) {
-        Some(r) => r,
-        None => return write_error("get_chapters", "invalid_request", "empty request"),
-    };
-    log_info(b"baozimh get_chapters");
-    run_get_chapters(req)
-}
+koma_source_sdk::koma_source_chapter_export!("baozimh", run_get_chapters, write_chapter_error);
 
 #[no_mangle]
 pub extern "C" fn koma_source_get_pages(req_ptr: u32, req_len: u32) -> u32 {

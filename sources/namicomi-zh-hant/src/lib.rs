@@ -1,6 +1,7 @@
 #![no_std]
 // Independent modified adaptation of NamiComi published JSON contract, Apache-2.0.
 // Keiyoushi primary1319949ca9bc456908196e3ba2d104e94182c5d6. No auth/premium fallback.
+use koma_source_sdk::chapters::{Chapter, ChapterNumber, ChapterPage, ChapterPlacement, ChapterResult, DecimalChapterNumber, GroupedChapters};
 use koma_source_sdk::{
     host,
     json_utils::*,
@@ -9,7 +10,7 @@ use koma_source_sdk::{
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.namicomi.zh-hant.koma",
     name: "NamiComi",
-    version: "0.1.5",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -1071,8 +1072,8 @@ fn emit_chapter(
     title: &[u8],
     index: usize,
     locked: bool,
-    b: &mut [u8],
-    n: &mut usize,
+    catalog: &mut GroupedChapters<'_>,
+    placement: ChapterPlacement<'_>,
 ) -> Result<(), E> {
     let cid = id(text(e, b"id")?)?;
     let a = required(e, b"attributes")?;
@@ -1112,38 +1113,43 @@ fn emit_chapter(
     // A published chapter may have null name/volume/chapter. Accessible chapters
     // keep an empty title for Host's existing unnamed label; locked ones retain
     // the reference lock prefix. Never infer a chapter number from missing data.
-    bytes(b, n, b"{\"id\":")?;
-    qid(b, n, CP, title, Some(cid))?;
-    bytes(b, n, b",\"mangaId\":")?;
-    qid(b, n, MP, title, None)?;
-    bytes(b, n, b",\"title\":")?;
-    q(b, n, &name[..nn])?;
-    bytes(b, n, b",\"index\":")?;
-    wn(b, n, index)?;
-    for (out, k) in [
-        (b",\"chapterNumber\":".as_slice(), b"chapter".as_slice()),
-        (b",\"volumeNumber\":".as_slice(), b"volume".as_slice()),
-    ] {
-        bytes(b, n, out)?;
-        match chapter_number(member(a, k)?)? {
-            Some(v) => bytes(b, n, v)?,
-            None => bytes(b, n, b"null")?,
-        }
-    }
-    bytes(b, n, b",\"language\":\"zh-Hant\",\"publishedAt\":")?;
-    let date = raw_string(a, b"publishAt")?;
-    rawq(b, n, date)?;
-    bytes(b, n, b",\"updatedAt\":null,\"pageCount\":")?;
-    match member(a, b"pages")? {
-        Some(v) if v != b"null" => {
-            integer(v)?;
-            bytes(b, n, v)?
-        }
-        _ => bytes(b, n, b"null")?,
+    let mut chapter_id = [0; 128];
+    let mut chapter_len = 0;
+    bytes(&mut chapter_id, &mut chapter_len, CP)?;
+    bytes(&mut chapter_id, &mut chapter_len, title)?;
+    bytes(&mut chapter_id, &mut chapter_len, b":")?;
+    bytes(&mut chapter_id, &mut chapter_len, cid)?;
+    let mut manga_id = [0; 64];
+    let mut manga_len = 0;
+    bytes(&mut manga_id, &mut manga_len, MP)?;
+    bytes(&mut manga_id, &mut manga_len, title)?;
+    let mut chapter = Chapter::new(&chapter_id[..chapter_len], &manga_id[..manga_len], &name[..nn]);
+    chapter.index = Some(index);
+    chapter.chapter_number = chapter_number(member(a, b"chapter")?)?
+        .and_then(DecimalChapterNumber::new).map(ChapterNumber::Decimal);
+    chapter.volume_number = chapter_number(member(a, b"volume")?)?
+        .and_then(DecimalChapterNumber::new).map(ChapterNumber::Decimal);
+    chapter.language = Some(b"zh-Hant");
+    let mut date = [0; 1024];
+    chapter.published_at = Some(unescape(quoted(raw_string(a, b"publishAt")?)?, &mut date)?);
+    chapter.page_count = match member(a, b"pages")? {
+        Some(v) if v != b"null" => Some(integer(v)?),
+        _ => None,
     };
-    bytes(b, n, b",\"scanlator\":null}")
+    catalog.push(chapter, placement).map_err(|e| e.message())
 }
-fn chapters(r: &[u8]) -> Result<usize, E> {
+
+fn provider_number(attrs: &[u8], key: &[u8]) -> Result<Option<f64>, E> {
+    Ok(chapter_number(member(attrs, key)?)?
+        .and_then(|value| core::str::from_utf8(value).ok()?.parse().ok()))
+}
+
+fn provider_coordinate(entity: &[u8]) -> Result<Option<(f64, f64)>, E> {
+    let attrs = required(entity, b"attributes")?;
+    let volume = provider_number(attrs, b"volume")?.unwrap_or(0.0);
+    Ok(provider_number(attrs, b"chapter")?.map(|chapter| (volume, chapter)))
+}
+fn chapters(r: &[u8]) -> ChapterResult<'static, E> {
     let title = manga_id(r)?;
     let supports=exclusions_supported(r);
     let show_locked=show_locked_chapters(r);
@@ -1244,36 +1250,72 @@ fn chapters(r: &[u8]) -> Result<usize, E> {
             records[i].accessible = required(map, ids[i - start])? == b"true";
         }
     }
-    let b = payload_buf();
-    let mut n = 0;
+    let mut catalog = GroupedChapters::new(payload_buf(), r).map_err(|e| e.message())?;
     let mut emitted = 0;
-    bytes(b, &mut n, b"{\"chapters\":[")?;
-    // Complete owner/language/pagination and gating validation precedes visibility.
-    // Visibility never removes retained Library/Reader data or changes page access.
-    for rr in &records[..count] {
-        let raw=record(*rr,chbytes);
-        if let Some(cid)=wanted {
-            if text(raw,b"id")?!=cid{continue;}
-        }else if !rr.accessible&&!show_locked{continue;}
-        if emitted > 0 {bytes(b, &mut n, b",")?;}
-        emit_chapter(raw,title,emitted,!rr.accessible,b,&mut n)?;
+    let mut run_start = 0;
+    let mut previous = None;
+    let mut previous_verified = None;
+    // The API explicitly orders by volume and chapter, descending. Hidden
+    // chapters and ambiguous coordinates break the readable sequence.
+    for (index, rr) in records[..count].iter().enumerate() {
+        let raw = record(*rr, chbytes);
+        let coordinate = provider_coordinate(raw)?;
+        let next = if index + 1 < count {
+            provider_coordinate(record(records[index + 1], chbytes))?
+        } else {
+            None
+        };
+        let verified = coordinate.filter(|key| rr.accessible && wanted.is_none()
+            && previous != Some(*key) && next != Some(*key));
+        if !matches!((previous_verified, verified), (Some(previous), Some(current)) if previous > current) {
+            run_start = index;
+        }
+        previous = coordinate;
+        previous_verified = verified;
+        if let Some(cid) = wanted {
+            if text(raw, b"id")? != cid {
+                continue;
+            }
+        } else if !rr.accessible && !show_locked {
+            continue;
+        }
+        let mut group = [0; 32];
+        let mut group_len = 0;
+        wn(&mut group, &mut group_len, run_start)?;
+        let placement = if verified.is_some() {
+            ChapterPlacement::InGroup {
+                group: &group[..group_len],
+                position: (count - index - 1) as u64,
+            }
+        } else {
+            ChapterPlacement::ManualOnly
+        };
+        emit_chapter(raw, title, emitted, !rr.accessible, &mut catalog, placement)?;
         emitted += 1;
     }
-    if wanted.is_some()&&emitted!=1{return Err("chapter ownership mismatch");}
-    bytes(b,&mut n,b"]")?;
-    if supports&&wanted.is_none(){
-        bytes(b,&mut n,b",\"excludedChapterIds\":[")?;let mut excluded=0;
-        if !show_locked {
-            for rr in &records[..count] {
-                if rr.accessible{continue;}
-                if excluded>0{bytes(b,&mut n,b",")?;}
-                qid(b,&mut n,CP,title,Some(text(record(*rr,chbytes),b"id")?))?;excluded+=1;
-            }
-        }
-        bytes(b,&mut n,b"]")?;
+    if wanted.is_some() && emitted != 1 {
+        return Err("chapter ownership mismatch");
     }
-    bytes(b,&mut n,b",\"page\":{\"nextCursor\":null,\"hasMore\":false}}")?;
-    Ok(n)
+    if !supports || wanted.is_some() {
+        return catalog.finish(ChapterPage::Complete).map_err(|e| e.message());
+    }
+    let mut excluded = catalog.with_excluded_ids(ChapterPage::Complete).map_err(|e| e.message())?;
+    if !show_locked {
+        for rr in &records[..count] {
+            if rr.accessible {
+                continue;
+            }
+            let cid = text(record(*rr, chbytes), b"id")?;
+            let mut id = [0; 128];
+            let mut len = 0;
+            bytes(&mut id, &mut len, CP)?;
+            bytes(&mut id, &mut len, title)?;
+            bytes(&mut id, &mut len, b":")?;
+            bytes(&mut id, &mut len, cid)?;
+            excluded.push(&id[..len]).map_err(|e| e.message())?;
+        }
+    }
+    excluded.finish().map_err(|e| e.message())
 }
 fn pages(r: &[u8]) -> Result<usize, E> {
     let saver = data_saver(r)?;
@@ -1370,8 +1412,13 @@ fn run_get_manga_list(r: &[u8]) -> u32 {
 fn run_get_manga(r: &[u8]) -> u32 {
     execute("get_manga", detail(r))
 }
-fn run_get_chapters(r: &[u8]) -> u32 {
-    execute("get_chapters", chapters(r))
+fn run_get_chapters(r: &[u8]) -> ChapterResult<'static, E> {
+    chapters(r)
+}
+fn write_chapter_error(message: &str) -> u32 {
+    let code = error_code(message);
+    host::log_info(code.as_bytes());
+    write_error("get_chapters", code, message)
 }
 fn run_get_pages(r: &[u8]) -> u32 {
     execute("get_pages", pages(r))
@@ -1395,4 +1442,4 @@ fn run_get_settings(r: &[u8]) -> u32 {
     let result=bytes(out,&mut n,&data[..data.len()-2]).and_then(|_|bytes(out,&mut n,r#",{"id":"showLockedChapters_zh-hant","name":"顯示付費章節","description":"顯示需要高級會員帳號的章節","kind":"toggle","default":"false"}]}"#.as_bytes()));
     match result{Ok(())=>write_success_payload("get_settings",n),Err(e)=>write_error("get_settings","internal_error",e)}
 }
-koma_source_sdk::koma_source_exports!("namicomi-zh-hant");
+koma_source_sdk::koma_source_exports!("namicomi-zh-hant", typed_chapters, write_chapter_error);

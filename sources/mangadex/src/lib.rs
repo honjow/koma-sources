@@ -2,6 +2,8 @@
 
 extern crate koma_source_sdk;
 
+use koma_source_sdk::chapters::{Chapter, ChapterNumber, ChapterPage, ChapterPlacement, ChapterResult, GroupedChapters};
+use koma_source_sdk::plain_text::decode_json_content;
 use koma_source_sdk::host::{self, http_request, log_info};
 use koma_source_sdk::json_utils::{
     JsonArrayIter, JsonObjectStringIter, append_json_escaped, contains_bytes,
@@ -30,6 +32,8 @@ static mut SEARCH_QUERY: [u8; 65536] = [0; 65536];
 // host response capacity while preserving the page size expected by Koma.
 const JSON_BUF_CAP: usize = 512 * 1024;
 
+#[path = "../chapter_chronology.rs"]
+mod chapter_chronology;
 #[path = "../first_volume_cover_en.rs"]
 mod first_volume_cover;
 #[path = "../original_language.rs"]
@@ -137,7 +141,7 @@ fn append_manga_title(out: &mut [u8], n: &mut usize, obj: &[u8], req: &[u8]) -> 
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "org.mangadex.koma",
     name: "MangaDex",
-    version: "0.1.25",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "en",
     author: "Koma",
@@ -650,20 +654,12 @@ fn chapter_traversal(req: &[u8]) -> Option<ChapterTraversal> {
 // Scan the matching raw page once; the last filtered page finishes any raw tail.
 // Offsets are never compared between filtered and unfiltered sets because their
 // pagination shifts when chapters are excluded.
-fn append_chapter_exclusions(out: &mut [u8], pos: &mut usize, req: &[u8], manga: &[u8],
-    language: &[u8], start: usize, last_filtered_page: bool, hidden: &[[u8;36]]) -> Result<usize, (&'static str, &'static str)> {
+fn collect_chapter_exclusions(req: &[u8], manga: &[u8],
+    language: &[u8], start: usize, last_filtered_page: bool, excluded: &mut [[u8; 36]], mut count: usize) -> Result<usize, (&'static str, &'static str)> {
     let invalid = ("parse_error", "invalid unfiltered chapter feed");
-    if !write_bytes(out, pos, br#","excludedChapterIds":["#) { return Err(("internal_error", "overflow")); }
     let mut offset = start;
-    let mut first = true; let mut excluded = 0usize;
-    for id in hidden {
-        if !first && !write_bytes(out,pos,b",") {return Err(("internal_error","overflow"));}
-        if !(write_bytes(out,pos,br#""ch:"#) && write_bytes(out,pos,id) && write_bytes(out,pos,b"\"")) {return Err(("internal_error","overflow"));}
-        first=false; excluded+=1;
-    }
     if !blacklist::active(req,b"blockedGroups_en",b"blockedUploader_en") {
-        if !write_bytes(out,pos,b"]") {return Err(("internal_error","overflow"));}
-        return Ok(excluded);
+        return Ok(count);
     }
     loop {
         if host::check_cancel() { return Err(("cancelled", "request cancelled")); }
@@ -679,9 +675,9 @@ fn append_chapter_exclusions(out: &mut [u8], pos: &mut usize, req: &[u8], manga:
         let number = |key: &[u8]| api_number(data,key).and_then(|v|core::str::from_utf8(v).ok()).and_then(|v|v.parse::<usize>().ok());
         if api_string(data,b"result") != Some(b"ok") || number(b"offset") != Some(offset) || number(b"limit") != Some(100) { return Err(invalid); }
         let total = number(b"total").ok_or(invalid)?;
-        let mut chapters = api_array(data,b"data").ok_or(invalid)?; let mut count = 0usize;
+        let mut chapters = api_array(data,b"data").ok_or(invalid)?; let mut page_count = 0usize;
         while let Some(ch) = chapters.next_object() {
-            count += 1; if count > 100 { return Err(invalid); }
+            page_count += 1; if page_count > 100 { return Err(invalid); }
             let id = api_string(ch,b"id").ok_or(invalid)?;
             if id.len()!=36 || !id.iter().enumerate().all(|(i,c)| if matches!(i,8|13|18|23) {*c==b'-'} else {c.is_ascii_hexdigit()}) { return Err(invalid); }
             let attr = api_attributes(ch);
@@ -700,28 +696,35 @@ fn append_chapter_exclusions(out: &mut [u8], pos: &mut usize, req: &[u8], manga:
             if !owned || chapter_lang != language { return Err(invalid); }
             let hosted = api_string(attr,b"externalUrl").is_none() && api_number(attr,b"pages") != Some(b"0");
             if matched && hosted {
-                if !first && !write_bytes(out,pos,b",") { return Err(("internal_error", "overflow")); }
-                if !(write_bytes(out,pos,br#""ch:"#) && append_api_string(out,pos,id) && write_bytes(out,pos,b"\"")) { return Err(("internal_error", "overflow")); }
-                first = false; excluded += 1;
+                let destination = excluded.get_mut(count).ok_or(("source_error", "too many excluded chapters"))?;
+                destination.copy_from_slice(id);
+                count += 1;
             }
         }
-        if offset.checked_add(count).ok_or(invalid)? > total || (count == 0 && offset < total) { return Err(invalid); }
+        if offset.checked_add(page_count).ok_or(invalid)? > total || (page_count == 0 && offset < total) { return Err(invalid); }
         let next = offset.checked_add(100).ok_or(invalid)?;
         if !last_filtered_page || next >= total { break; }
         offset = next;
     }
-    if !write_bytes(out,pos,b"]") { return Err(("internal_error", "overflow")); }
-    Ok(excluded)
+    Ok(count)
 }
 
-fn run_get_chapters(req: &[u8]) -> u32 {
+type ChapterError = (&'static str, &'static str);
+
+fn write_chapter_error((code, message): ChapterError) -> u32 {
+    write_error("get_chapters", code, message)
+}
+
+static mut EXCLUDED_CHAPTERS: [[u8; 36]; 4096] = [[0; 36]; 4096];
+
+fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, ChapterError> {
     let manga_id = match extract_json_string(req, b"mangaId") {
         Some(v) => v,
-        None => return write_error("get_chapters", "invalid_request", "missing mangaId"),
+        None => return Err(("invalid_request", "missing mangaId")),
     };
     let prefix = b"mdx:";
     if manga_id.len() <= prefix.len() || &manga_id[..prefix.len()] != prefix {
-        return write_error("get_chapters", "invalid_request", "bad mangaId");
+        return Err(("invalid_request", "bad mangaId"));
     }
     let uuid = &manga_id[prefix.len()..];
 
@@ -730,12 +733,12 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         Some(value) => {
             let id = match nonempty_title_string(value) {
                 Some(id) if id.starts_with(b"ch:") => &id[3..],
-                _ => return write_error("get_chapters", "invalid_request", "bad chapterId"),
+                _ => return Err(("invalid_request", "bad chapterId")),
             };
             if id.len() != 36 || !id.iter().enumerate().all(|(index, byte)| {
                 if matches!(index, 8 | 13 | 18 | 23) { *byte == b'-' } else { byte.is_ascii_hexdigit() }
             }) {
-                return write_error("get_chapters", "invalid_request", "bad chapterId");
+                return Err(("invalid_request", "bad chapterId"));
             }
             Some(id)
         }
@@ -747,12 +750,12 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         .unwrap_or(b"en");
     let mut traversal = match chapter_traversal(req) {
         Some(value) => value,
-        None => return write_error("get_chapters", "invalid_request", "invalid chapter cursor"),
+        None => return Err(("invalid_request", "invalid chapter cursor")),
     };
     let page = traversal.page;
     let offset = match (page - 1).checked_mul(100) {
         Some(value) => value,
-        None => return write_error("get_chapters", "invalid_request", "invalid page"),
+        None => return Err(("invalid_request", "invalid page")),
     };
     let url_buf = scratch_a();
     let mut url_cursor = 0usize;
@@ -772,35 +775,30 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     // prevent retained chapters reappearing; additional feed pages may be needed.
     // Unlike the reference, external and zero-page chapters remain excluded; no permission is granted.
     let include_unavailable = exclusion_host(req) && matches!(json_object_member(req, b"settings").and_then(|v| json_object_member(v, b"includeUnavailable_en")), Some(b"true") | Some(br#""true""#));
-    if exact_chapter.is_none() && exclusion_host(req) && !write_bytes(url_buf, &mut url_cursor, b"&includeUnavailable=1&includes%5B%5D=scanlation_group") { return write_error("get_chapters", "internal_error", "url overflow"); }
-    if exact_chapter.is_none() && !blacklist::append(url_buf, &mut url_cursor, req, b"blockedGroups_en", b"blockedUploader_en") { return write_error("get_chapters", "invalid_request", "invalid blacklist or URL capacity"); }
-    if !ok { return write_error("get_chapters", "internal_error", "url overflow"); }
+    if exact_chapter.is_none() && exclusion_host(req) && !write_bytes(url_buf, &mut url_cursor, b"&includeUnavailable=1&includes%5B%5D=scanlation_group") { return Err(("internal_error", "url overflow")); }
+    if exact_chapter.is_none() && !blacklist::append(url_buf, &mut url_cursor, req, b"blockedGroups_en", b"blockedUploader_en") { return Err(("invalid_request", "invalid blacklist or URL capacity")); }
+    if !ok { return Err(("internal_error", "url overflow")); }
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
 
     let api_json = match fetch_json(url_bytes) {
         Ok(v) => v,
-        Err(e) => { let (c, m) = fetch_error_code(e); return write_error("get_chapters", c, m); }
+        Err(e) => { let (c, m) = fetch_error_code(e); return Err((c, m)); }
     };
 
-    let payload = payload_buf();
-    let mut c = 0usize;
-    if !write_bytes(payload, &mut c, br#"{"items":["#) {
-        return write_error("get_chapters", "internal_error", "overflow");
-    }
-
+    let mut catalog = GroupedChapters::new(payload_buf(), req).map_err(|e| (e.code(), e.message()))?;
     let pagination_number = |key: &[u8]| json_object_member(api_json, key)
         .and_then(|bytes| core::str::from_utf8(bytes).ok())
         .and_then(|text| text.parse::<usize>().ok());
     let has_more = if exact_chapter.is_some() { false } else { match (pagination_number(b"offset"), pagination_number(b"limit"), pagination_number(b"total")) {
         (Some(response_offset), Some(100), Some(total)) if response_offset == offset =>
             response_offset.saturating_add(100) < total,
-        _ => return write_error("get_chapters", "parse_error", "invalid feed pagination"),
+        _ => return Err(("parse_error", "invalid feed pagination")),
     }};
 
     let mut exact_item = if let Some(chapter_uuid) = exact_chapter {
         let item = match json_object_member(api_json, b"data") {
             Some(item) => item,
-            None => return write_error("get_chapters", "parse_error", "no chapter data"),
+            None => return Err(("parse_error", "no chapter data")),
         };
         let same_id = json_object_member(item, b"id").and_then(nonempty_title_string) == Some(chapter_uuid);
         let mut same_manga = false;
@@ -813,19 +811,20 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             }
         }
         if !same_id || !same_manga {
-            return write_error("get_chapters", "not_found", "chapter does not match manga");
+            return Err(("not_found", "chapter does not match manga"));
         }
         Some(item)
     } else { None };
     let mut iter = if exact_chapter.is_none() {
         match api_array(api_json, b"data") {
             Some(it) => Some(it),
-            None => return write_error("get_chapters", "parse_error", "no data"),
+            None => return Err(("parse_error", "no data")),
         }
     } else { None };
 
     let mut written = 0usize;
-    let mut hidden = [[0u8;36];100]; let mut hidden_count=0usize;
+    let hidden = unsafe { &mut *core::ptr::addr_of_mut!(EXCLUDED_CHAPTERS) };
+    let mut hidden_count = 0;
     while let Some(obj) = exact_item.take().or_else(|| iter.as_mut().and_then(|it| it.next_object())) {
         if written >= 100 { break; }
         let ch_id = match api_string(obj, b"id") {
@@ -856,94 +855,104 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         }
 
         if exact_chapter.is_none() && exclusion_host(req) && unavailable && !include_unavailable {
-            if ch_id.len()!=36 || !ch_id.iter().enumerate().all(|(i,c)| if matches!(i,8|13|18|23) {*c==b'-'} else {c.is_ascii_hexdigit()}) {return write_error("get_chapters","parse_error","invalid chapter ID");}
+            if ch_id.len()!=36 || !ch_id.iter().enumerate().all(|(i,c)| if matches!(i,8|13|18|23) {*c==b'-'} else {c.is_ascii_hexdigit()}) {return Err(("parse_error", "invalid chapter ID"));}
             let mut owned=false;
             if let Some(mut rels)=api_array(obj,b"relationships") {while let Some(rel)=rels.next_object() {if api_string(rel,b"type")==Some(b"manga") && api_string(rel,b"id")==Some(uuid) {owned=true;}}}
-            if !owned || lang != language || pages.is_none() {return write_error("get_chapters","parse_error","invalid chapter owner or pages");}
-            if hidden_count>=100 {return write_error("get_chapters","parse_error","too many chapters");}
+            if !owned || lang != language || pages.is_none() {return Err(("parse_error", "invalid chapter owner or pages"));}
+            if hidden_count>=100 {return Err(("parse_error", "too many chapters"));}
             hidden[hidden_count].copy_from_slice(ch_id); hidden_count+=1; traversal.other=true; continue;
         }
-        if written > 0 {
-            if !write_bytes(payload, &mut c, b",") { return write_error("get_chapters", "internal_error", "overflow"); }
+        let capacity = ("internal_error", "overflow");
+        let mut id = [0; 128];
+        let mut id_len = 0;
+        if !(write_bytes(&mut id, &mut id_len, b"ch:")
+            && write_bytes(&mut id, &mut id_len, ch_id))
+        {
+            return Err(capacity);
         }
-        let ok = write_bytes(payload, &mut c, br#"{"id":"ch:"#)
-            && append_api_string(payload, &mut c, ch_id)
-            && write_bytes(payload, &mut c, br#"","mangaId":"mdx:"#)
-            && append_json_escaped(payload, &mut c, uuid)
-            && write_bytes(payload, &mut c, br#"","title":""#)
-            && append_api_string(payload, &mut c, title)
-            && write_bytes(payload, &mut c, br#"","chapterNumber":"#)
-            && if let Some(number) = chapter_num {
-                write_bytes(payload, &mut c, b"\"")
-                    && append_api_string(payload, &mut c, number)
-                    && write_bytes(payload, &mut c, b"\"")
-            } else {
-                write_bytes(payload, &mut c, b"null")
-            }
-            && write_bytes(payload, &mut c, br#","volumeNumber":null,"language":""#)
-            && append_api_string(payload, &mut c, lang)            && write_bytes(payload, &mut c, br#"","publishedAt":null,"updatedAt":null,"pageCount":"#);
-        if !ok { return write_error("get_chapters", "internal_error", "overflow"); }
-        if let Some(p) = pages {
-            if !write_bytes(payload, &mut c, p) { return write_error("get_chapters", "internal_error", "overflow"); }
-        } else {
-            if !write_bytes(payload, &mut c, b"null") { return write_error("get_chapters", "internal_error", "overflow"); }
-        }
+        let mut decoded = [0; 8192];
+        let title = decode_json_content(title, &mut decoded).map_err(|_| capacity)?;
+        let mut chapter = Chapter::new(&id[..id_len], manga_id, title);
+        let mut number = [0; 256];
+        chapter.chapter_number = match chapter_num {
+            Some(value) => Some(ChapterNumber::Text(decode_json_content(value, &mut number).map_err(|_| capacity)?)),
+            None => None,
+        };
+        let mut language_text = [0; 64];
+        chapter.language = Some(decode_json_content(lang, &mut language_text).map_err(|_| capacity)?);
+        chapter.page_count = pages.and_then(|value| core::str::from_utf8(value).ok()?.parse().ok());
+        let mut scanlator = [0; 8192];
         if include_unavailable && unavailable {
-            let mut group = None;
+            let prefix = b"UNAVAILABLE";
+            let mut len = prefix.len();
+            scanlator[..len].copy_from_slice(prefix);
             if let Some(mut relations) = api_array(obj, b"relationships") {
                 while let Some(rel) = relations.next_object() {
-                    if api_string(rel, b"type") == Some(b"scanlation_group") {
-                        group = api_string(api_attributes(rel), b"name");
-                        if group.is_some() { break; }
+                    if api_string(rel, b"type") != Some(b"scanlation_group") {
+                        continue;
+                    }
+                    if let Some(name) = api_string(api_attributes(rel), b"name") {
+                        if !write_bytes(&mut scanlator, &mut len, b" - ") {
+                            return Err(capacity);
+                        }
+                        len += decode_json_content(name, &mut scanlator[len..]).map_err(|_| capacity)?.len();
+                        break;
                     }
                 }
             }
-            if !write_bytes(payload, &mut c, br#","scanlator":"UNAVAILABLE"#) { return write_error("get_chapters", "internal_error", "overflow"); }
-            if let Some(name) = group {
-                if !write_bytes(payload, &mut c, b" - ") || !append_api_string(payload, &mut c, name) { return write_error("get_chapters", "internal_error", "overflow"); }
-            }
-            if !write_bytes(payload, &mut c, b"\"") { return write_error("get_chapters", "internal_error", "overflow"); }
+            chapter.scanlator = Some(&scanlator[..len]);
         }
-        if !write_bytes(payload, &mut c, b"}") { return write_error("get_chapters", "internal_error", "overflow"); }
+        let mut group = [0; 296];
+        let placement = if exact_chapter.is_none() && !unavailable && lang == language {
+            chapter_chronology::placement(obj, uuid, &mut group)
+        } else {
+            ChapterPlacement::ManualOnly
+        };
+        catalog.push(chapter, placement).map_err(|e| (e.code(), e.message()))?;
         written += 1;
         traversal.hosted = true;
     }
 
-    if !write_bytes(payload,&mut c,b"]") { return write_error("get_chapters", "internal_error", "overflow"); }
-    if exact_chapter.is_none() && (blacklist::active(req,b"blockedGroups_en",b"blockedUploader_en") || hidden_count>0) {
-        match append_chapter_exclusions(payload,&mut c,req,uuid,language,offset,!has_more,&hidden[..hidden_count]) {
-            // Remember a real excluded hosted chapter across the existing cursor so
-            // an external-only filtered remainder cannot hide that valid exclusion.
-            Ok(count) if count > 0 => traversal.other = true,
-            Ok(_) => {},
-            Err((code,message)) => return write_error("get_chapters",code,message),
+    let should_exclude = exact_chapter.is_none()
+        && (blacklist::active(req, b"blockedGroups_en", b"blockedUploader_en") || hidden_count > 0);
+    if should_exclude {
+        hidden_count = collect_chapter_exclusions(req, uuid, language, offset, !has_more, hidden, hidden_count)?;
+        if hidden_count > 0 {
+            traversal.other = true;
         }
     }
     if !has_more && traversal.known && traversal.external && !traversal.hosted && !traversal.other {
-        return write_error("get_chapters", "unsupported", "external chapters are not hosted by this source");
+        return Err(("unsupported", "external chapters are not hosted by this source"));
     }
-    let next_page = match page.checked_add(1) {
-        Some(value) => value,
-        None if has_more => return write_error("get_chapters", "invalid_request", "invalid page"),
-        None => page,
+    let mut cursor = [0; 64];
+    let page = if has_more {
+        let next = page.checked_add(1).ok_or(("invalid_request", "invalid page"))?;
+        let mut len = 0;
+        if !(write_bytes(&mut cursor, &mut len, b"mdxc1:")
+            && write_usize(&mut cursor, &mut len, next)
+            && write_bytes(&mut cursor, &mut len, if traversal.known { b":1" } else { b":0" })
+            && write_bytes(&mut cursor, &mut len, if traversal.hosted { b":1" } else { b":0" })
+            && write_bytes(&mut cursor, &mut len, if traversal.external { b":1" } else { b":0" })
+            && write_bytes(&mut cursor, &mut len, if traversal.other { b":1" } else { b":0" }))
+        {
+            return Err(("internal_error", "overflow"));
+        }
+        ChapterPage::NextCursor(&cursor[..len])
+    } else {
+        ChapterPage::Complete
     };
-    if !(write_bytes(payload, &mut c, br#","page":{"nextCursor":"#)
-        && if has_more {
-            write_bytes(payload, &mut c, b"\"mdxc1:")
-                && write_usize(payload, &mut c, next_page)
-                && write_bytes(payload, &mut c, if traversal.known { b":1" } else { b":0" })
-                && write_bytes(payload, &mut c, if traversal.hosted { b":1" } else { b":0" })
-                && write_bytes(payload, &mut c, if traversal.external { b":1" } else { b":0" })
-                && write_bytes(payload, &mut c, if traversal.other { b":1" } else { b":0" })
-                && write_bytes(payload, &mut c, b"\"")
-        } else { write_bytes(payload, &mut c, b"null") }
-        && write_bytes(payload, &mut c, br#","hasMore":"#)
-        && write_bytes(payload, &mut c, if has_more { b"true" } else { b"false" })
-        && write_bytes(payload, &mut c, b"}")) {
-        return write_error("get_chapters", "internal_error", "overflow");
+    if should_exclude {
+        let mut excluded = catalog.with_excluded_ids(page).map_err(|e| (e.code(), e.message()))?;
+        let mut id = [0; 39];
+        id[..3].copy_from_slice(b"ch:");
+        for raw in &hidden[..hidden_count] {
+            id[3..].copy_from_slice(raw);
+            excluded.push(&id).map_err(|e| (e.code(), e.message()))?;
+        }
+        excluded.finish().map_err(|e| (e.code(), e.message()))
+    } else {
+        catalog.finish(page).map_err(|e| (e.code(), e.message()))
     }
-    if !write_bytes(payload,&mut c,b"}") { return write_error("get_chapters", "internal_error", "overflow"); }
-    write_success_payload("get_chapters", c)
 }
 
 fn data_saver_enabled(req: &[u8]) -> bool {
@@ -1596,15 +1605,7 @@ pub extern "C" fn koma_source_get_manga(req_ptr: u32, req_len: u32) -> u32 {
     run_get_manga(req)
 }
 
-#[no_mangle]
-pub extern "C" fn koma_source_get_chapters(req_ptr: u32, req_len: u32) -> u32 {
-    let req = match read_request(req_ptr, req_len) {
-        Some(r) => r,
-        None => return write_error("get_chapters", "invalid_request", "empty"),
-    };
-    log_info(b"mangadex get_chapters");
-    run_get_chapters(req)
-}
+koma_source_sdk::koma_source_chapter_export!("mangadex", run_get_chapters, write_chapter_error);
 
 #[no_mangle]
 pub extern "C" fn koma_source_get_pages(req_ptr: u32, req_len: u32) -> u32 {

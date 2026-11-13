@@ -2,6 +2,7 @@
 // Public contract: Keiyoushi GlobalComix.kt and DTOs, Apache-2.0, revision
 // 1319949ca9bc456908196e3ba2d104e94182c5d6. No authentication/mirror/JS processing.
 use koma_source_sdk::{
+    chapters::{Chapter, ChapterNumber, ChapterPage, ChapterPlacement, ChapterResult, GroupedChapters},
     host,
     json_utils::*,
     source::{SourceCapabilities, SourceInfo},
@@ -10,7 +11,7 @@ const BASE: &[u8] = b"https://globalcomix.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.globalcomix.zh-hans.koma",
     name: "GlobalComix",
-    version: "0.1.6",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -844,7 +845,7 @@ fn release_chapter_id<'a>(
     bytes(out, &mut n, key)?;
     Ok(&out[..n])
 }
-fn chapters(r: &[u8]) -> Result<usize, &'static str> {
+fn chapters(r: &[u8]) -> ChapterResult<'static, &'static str> {
     let mut ib = [0; 512];
     let len = input_mid(r, &mut ib)?;
     let mid = &ib[..len];
@@ -879,10 +880,10 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
         return Err("incomplete catalogue");
     }
     let mut excluded = [false; 2048];
-    let out = payload_buf();
-    let mut n = 0;
+    let mut catalog = GroupedChapters::new(payload_buf(), r).map_err(|e| e.message())?;
     let mut emitted = 0;
-    bytes(out, &mut n, b"{\"chapters\":[")?;
+    let mut previous_order = None;
+    let mut run_start = 0;
     for (i, (start, end)) in spans[..count].iter().enumerate() {
         let o = &a[*start..*end];
         if !is(o, b"entity_type", b"\"Release\"")
@@ -915,6 +916,14 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
         let mut num = [0; 128];
         let value = text(o, b"chapter", &mut num)?;
         let page_count = uint(o, b"page_count")?;
+        // The API's release order is separate from its chapter label.
+        // A paid or missing release breaks the public continuation sequence.
+        let order = uint(o, b"order").ok().and_then(|v| u32::try_from(v).ok());
+        if paid || order.is_none() || previous_order.and_then(|v: u32| v.checked_add(1)) != order {
+            run_start = i;
+        }
+        previous_order = if paid { None } else { order };
+
         // Explicit exclusions are emitted only after validating this full entity.
         if let Some(wanted) = wanted {
             if cid != wanted {
@@ -924,43 +933,36 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
             excluded[i] = true;
             continue;
         }
-        if emitted > 0 {
-            bytes(out, &mut n, b",")?;
-        }
-        bytes(out, &mut n, b"{\"id\":")?;
-        q(out, &mut n, cid)?;
-        bytes(out, &mut n, b",\"mangaId\":")?;
-        q(out, &mut n, mid)?;
-        bytes(out, &mut n, b",\"title\":")?;
-        if premium == b"1" {
-            let mut title_buf = [0; 4352];
-            let mut tn = 0;
-            bytes(&mut title_buf, &mut tn, "🔒".as_bytes())?;
+        let mut title_buf = [0; 4352];
+        let title = if premium == b"1" {
+            let mut length = 0;
+            bytes(&mut title_buf, &mut length, "🔒".as_bytes())?;
             if !value.is_empty() {
-                bytes(&mut title_buf, &mut tn, b" Ch.")?;
-                bytes(&mut title_buf, &mut tn, value)?;
+                bytes(&mut title_buf, &mut length, b" Ch.")?;
+                bytes(&mut title_buf, &mut length, value)?;
             }
-            bytes(&mut title_buf, &mut tn, b" - ")?;
-            bytes(&mut title_buf, &mut tn, title)?;
-            q(out, &mut n, &title_buf[..tn])?;
+            bytes(&mut title_buf, &mut length, b" - ")?;
+            bytes(&mut title_buf, &mut length, title)?;
+            &title_buf[..length]
         } else {
-            q(out, &mut n, title)?;
-        }
-        bytes(out, &mut n, b",\"chapterNumber\":")?;
-        if let Some(v) = number(value) {
-            write_num(out, &mut n, v)?;
-        } else {
-            bytes(out, &mut n, b"null")?;
-        }
-        bytes(
-            out,
-            &mut n,
-            b",\"volumeNumber\":null,\"language\":\"zh\",\"pageCount\":",
-        )?;
-        write_num(out, &mut n, page_count)?;
-        bytes(out, &mut n, b",\"index\":")?;
-        write_num(out, &mut n, if wanted.is_some() { i } else { emitted })?;
-        bytes(out, &mut n, b"}")?;
+            title
+        };
+        let mut chapter = Chapter::new(cid, mid, title);
+        chapter.chapter_number = number(value).map(ChapterNumber::Integer);
+        chapter.language = Some(b"zh");
+        chapter.page_count = Some(page_count);
+        chapter.index = Some(if wanted.is_some() { i } else { emitted });
+        let mut group = [0; 32];
+        let mut group_len = 0;
+        write_num(&mut group, &mut group_len, run_start)?;
+        let placement = match order {
+            Some(position) if !paid && wanted.is_none() => ChapterPlacement::InGroup {
+                group: &group[..group_len],
+                position: u64::from(position),
+            },
+            _ => ChapterPlacement::ManualOnly,
+        };
+        catalog.push(chapter, placement).map_err(|e| e.message())?;
         emitted += 1;
     }
     if wanted.is_some() && emitted == 0 {
@@ -969,30 +971,22 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
     if !supports && emitted == 0 {
         return Err("permission denied");
     }
-    bytes(
-        out,
-        &mut n,
-        b"],\"page\":{\"nextCursor\":null,\"hasMore\":false}",
-    )?;
-    if supports {
-        bytes(out, &mut n, b",\"excludedChapterIds\":[")?;
-        let mut written = 0;
-        for (i, (start, end)) in spans[..count].iter().enumerate() {
-            if !excluded[i] {
+    let response = if supports {
+        let mut writer = catalog.with_excluded_ids(ChapterPage::Complete).map_err(|e| e.message())?;
+        for (index, &(start, end)) in spans[..count].iter().enumerate() {
+            if !excluded[index] {
                 continue;
             }
-            let mut cid = [0; 256];
-            let cid = release_chapter_id(&a[*start..*end], comic, &mut cid)?;
-            if written > 0 {
-                bytes(out, &mut n, b",")?;
-            }
-            q(out, &mut n, cid)?;
-            written += 1;
+            let mut id = [0; 256];
+            let id = release_chapter_id(&a[start..end], comic, &mut id)?;
+            writer.push(id).map_err(|e| e.message())?;
         }
-        bytes(out, &mut n, b"]")?;
-    }
-    bytes(out, &mut n, b"}")?;
-    Ok(n)
+        writer.finish()
+    } else {
+        catalog.finish(ChapterPage::Complete)
+    }.map_err(|e| e.message())?;
+    diagnostic(b"operation_ok", b"get_chapters");
+    Ok(response)
 }
 // Default keeps desktop_image_url. The opt-in key follows the provider's cn
 // language code; free release/page and exact owner guards remain authoritative.
@@ -1090,8 +1084,13 @@ fn run_get_manga_list(r: &[u8]) -> u32 {
 fn run_get_manga(r: &[u8]) -> u32 {
     execute("get_manga", detail(r))
 }
-fn run_get_chapters(r: &[u8]) -> u32 {
-    execute("get_chapters", chapters(r))
+fn run_get_chapters(r: &[u8]) -> ChapterResult<'static, &'static str> {
+    chapters(r)
+}
+fn write_chapter_error(message: &str) -> u32 {
+    let error = code(message);
+    diagnostic(b"operation_error", error.as_bytes());
+    write_error("get_chapters", error, message)
 }
 fn run_get_pages(r: &[u8]) -> u32 {
     execute("get_pages", pages(r))
@@ -1124,4 +1123,4 @@ fn run_get_settings(r: &[u8]) -> u32 {
     execute("get_settings", result)
 }
 
-koma_source_sdk::koma_source_exports!("globalcomix_zh_hans");
+koma_source_sdk::koma_source_exports!("globalcomix_zh_hans", typed_chapters, write_chapter_error);

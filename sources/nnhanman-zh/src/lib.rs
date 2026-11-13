@@ -2,6 +2,7 @@
 // Independent published anonymous Chinese metadata source. No auth/retry/dummy.
 use koma_source_sdk::host::HtmlDescriptor;
 use koma_source_sdk::{
+    chapters::{Chapter, ChapterNumber, ChapterPage, ChapterPlacement, ChapterResult, GroupedChapters},
     host,
     json_utils::*,
     source::{SourceCapabilities, SourceInfo},
@@ -10,7 +11,7 @@ type E = &'static str;
 type R<T> = Result<T, E>;
 const MAX: usize = 1048576;
 const WEB: &[u8] = b"https://nnhanman.xyz";
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.nnhanman.zh.koma",name:"NNHanman",version:"0.1.4",api_version:"0.2",language:"zh",author:"Koma",description:"NNHanman published Chinese ranking and search metadata. Per-work rating, artwork availability and usage unknown.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.nnhanman.zh.koma",name:"NNHanman",version:env!("CARGO_PKG_VERSION"),api_version:"0.2",language:"zh",author:"Koma",description:"NNHanman published Chinese ranking and search metadata. Per-work rating, artwork availability and usage unknown.",content_rating:"nsfw"};
 #[allow(dead_code)]
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
@@ -815,39 +816,41 @@ fn chapter_number(t: &[u8]) -> Option<&[u8]> {
     };
     Some(x)
 }
-fn detail(r: &[u8], chapters: bool) -> R<usize> {
+fn chapters(r: &[u8]) -> ChapterResult<'static, E> {
+    let mut work_buf = [0; 1024];
+    let work = work(r, &mut work_buf)?;
+    let doc = detail_doc(work)?;
+    let entries = collect(doc.0, work)?;
+    let mut catalog = GroupedChapters::new(payload_buf(), r).map_err(|e| e.message())?;
+    let mut work_id = [0; 1024];
+    let work_id = make(&[b"nn:zh:", work], &mut work_id)?;
+    for index in 0..entries.len {
+        let node = entries.at(entries.len - 1 - index);
+        let mut href = [0; 1024];
+        let id = chapter_href(attr(node, b"href", &mut href)?, work)?;
+        let mut chapter_id = [0; 1024];
+        let chapter_id = make(&[b"nnch:zh:", work, b":", id], &mut chapter_id)?;
+        let mut title = [0; 4096];
+        let title = nonempty(txt(node, &mut title)?)?;
+        let mut chapter = Chapter::new(chapter_id, work_id, title);
+        chapter.chapter_number = chapter_number(title).map(ChapterNumber::Text);
+        chapter.language = Some(b"zh");
+        // The site's next-chapter links follow the reversed, complete list.
+        catalog.push(chapter, ChapterPlacement::InGroup {
+            group: b"source-catalog",
+            position: index as u64,
+        }).map_err(|e| e.message())?;
+    }
+    catalog.finish(ChapterPage::Complete).map_err(|e| e.message())
+}
+
+fn detail(r: &[u8]) -> R<usize> {
     let mut work_buf = [0; 1024];
     let w = work(r, &mut work_buf)?;
     let doc = detail_doc(w)?;
-    let a = collect(doc.0, w)?;
+    collect(doc.0, w)?;
     let out = payload_buf();
     let mut n = 0;
-    if chapters {
-        bytes(out, &mut n, b"{\"chapters\":[")?;
-        for k in 0..a.len {
-            let i = a.len - 1 - k;
-            let mut h = [0; 1024];
-            let c = chapter_href(attr(a.at(i), b"href", &mut h)?, w)?;
-            let mut tb = [0; 4096];
-            let t = nonempty(txt(a.at(i), &mut tb)?)?;
-            if k > 0 {
-                bytes(out, &mut n, b",")?
-            };
-            bytes(out, &mut n, b"{\"id\":\"nnch:zh:")?;
-            bytes(out, &mut n, w)?;
-            bytes(out, &mut n, b":")?;
-            bytes(out, &mut n, c)?;
-            bytes(out, &mut n, b"\",\"mangaId\":\"nn:zh:")?;
-            bytes(out, &mut n, w)?;
-            bytes(out, &mut n, b"\",\"title\":")?;
-            q(out, &mut n, t)?;
-            bytes(out, &mut n, b",\"chapterNumber\":")?;
-            bytes(out, &mut n, chapter_number(t).unwrap_or(b"null"))?;
-            bytes(out, &mut n, b",\"volumeNumber\":null,\"language\":\"zh\"}")?
-        }
-        bytes(out, &mut n, b"]}")?;
-        return Ok(n);
-    }
     let mut tb = [0; 4096];
     let raw = st(doc.0, b"h1", &mut tb)?;
     let t = nonempty(
@@ -1061,12 +1064,16 @@ fn image_request(r: &[u8]) -> R<usize> {
 fn execute(op: &str, r: R<usize>) -> u32 {
     match r {
         Ok(n) => write_success_payload(op, n),
-        Err(e) => write_error(op, match e {
-            "transport error" => "network_error",
-            "timeout" => "timeout",
-            _ => "source_error",
-        }, e),
+        Err(e) => operation_error(op, e),
     }
+}
+fn operation_error(op: &str, message: &str) -> u32 {
+    let code = match message {
+        "transport error" => "network_error",
+        "timeout" => "timeout",
+        _ => "source_error",
+    };
+    write_error(op, code, message)
 }
 fn run_search(r: &[u8]) -> u32 {
     execute("search", list(r, true))
@@ -1108,10 +1115,13 @@ fn run_get_manga_list(r: &[u8]) -> u32 {
     match filtered_list(r) {Ok(Some(n))=>write_success_payload("get_manga_list",n),Ok(None)=>execute("get_manga_list",list(r,false)),Err(e)=>write_error("get_manga_list","source_error",e)}
 }
 fn run_get_manga(r: &[u8]) -> u32 {
-    execute("get_manga", detail(r, false))
+    execute("get_manga", detail(r))
 }
-fn run_get_chapters(r: &[u8]) -> u32 {
-    execute("get_chapters", detail(r, true))
+fn run_get_chapters(r: &[u8]) -> ChapterResult<'static, E> {
+    chapters(r)
+}
+fn write_chapter_error(message: &str) -> u32 {
+    operation_error("get_chapters", message)
 }
 fn run_get_pages(r: &[u8]) -> u32 {
     execute("get_pages", pages(r))
@@ -1177,7 +1187,7 @@ macro_rules! export_op {
 }
 export_op!(koma_source_search, "search", run_search);
 export_op!(koma_source_get_manga, "get_manga", run_get_manga);
-export_op!(koma_source_get_chapters, "get_chapters", run_get_chapters);
+koma_source_sdk::koma_source_chapter_export!("nnhanman", run_get_chapters, write_chapter_error, checked_request);
 export_op!(koma_source_get_pages, "get_pages", run_get_pages);
 export_op!(koma_source_get_listings, "get_listings", run_get_listings);
 export_op!(

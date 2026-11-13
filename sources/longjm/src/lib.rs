@@ -1,6 +1,7 @@
 #![no_std]
 
 use koma_source_sdk::{
+    chapters::{reading_order_supported, Chapter, ChapterNumber, ChapterPage, ChapterPlacement, ChapterResult, GroupedChapters},
     host,
     json_utils::*,
     source::{SourceCapabilities, SourceInfo},
@@ -36,7 +37,7 @@ const SETTINGS_JSON: &str = r#"{"settings":[{"id":"preferredDomain","name":"备�
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.longjm.koma",
     name: "龙禁漫",
-    version: "0.1.2",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -685,7 +686,7 @@ fn strip_chapter_prefix<'a>(title: &'a [u8], manga: &[u8]) -> &'a [u8] {
     title
 }
 
-fn write_chapters(req: &[u8]) -> Result<usize, &'static str> {
+fn write_chapters(req: &[u8]) -> ChapterResult<'static, &'static str> {
     let id = manga_id(req)?;
     let mut path = [0; 8192];
     let mut len = 0;
@@ -700,9 +701,20 @@ fn write_chapters(req: &[u8]) -> Result<usize, &'static str> {
     };
     let nodes = Nodes::get(&root, b"a.module-play-list-link")?;
     if nodes.n == 0 { return Err("empty chapters"); }
-    let b = payload_buf();
-    let mut n = 0;
-    bytes(b, &mut n, b"{\"items\":[")?;
+    // The site's own previous/next links follow the complete list even
+    // when the chapter number restarts. Keep other layouts manually readable.
+    let verified = if reading_order_supported(req) {
+        Nodes::get(&root, b".module-play-list-content.module-play-list-base a.module-play-list-link")
+            .map(|main| main.n == nodes.n)
+            .unwrap_or(false)
+    } else {
+        false
+    };
+    let mut catalog = GroupedChapters::new(payload_buf(), req).map_err(|e| e.message())?;
+    let mut work_id = [0; 8192];
+    let mut work_len = 0;
+    bytes(&mut work_id, &mut work_len, b"manga:")?;
+    bytes(&mut work_id, &mut work_len, id)?;
     let mut count = 0;
     for i in 0..nodes.n {
         let a = selected(&nodes, i);
@@ -720,24 +732,28 @@ fn write_chapters(req: &[u8]) -> Result<usize, &'static str> {
         let decoded = decode_entities(raw_title, &mut db)?;
         let title = strip_chapter_prefix(decoded, manga_title);
         if title.is_empty() { continue; }
-        let number = chapter_number(title);
-        if count > 0 { bytes(b, &mut n, b",")?; }
-        bytes(b, &mut n, b"{\"id\":\"chapter:")?;
-        bytes(b, &mut n, id)?;
-        bytes(b, &mut n, b":")?;
-        bytes(b, &mut n, hash)?;
-        bytes(b, &mut n, b"\",\"mangaId\":\"manga:")?;
-        bytes(b, &mut n, id)?;
-        bytes(b, &mut n, b"\",\"title\":")?;
-        q(b, &mut n, title)?;
-        bytes(b, &mut n, b",\"chapterNumber\":")?;
-        match number { Some(v) => q(b, &mut n, v)?, None => bytes(b, &mut n, b"null")? }
-        bytes(b, &mut n, b",\"volumeNumber\":null,\"language\":\"zh\",\"publishedAt\":null,\"updatedAt\":null,\"pageCount\":null}")?;
+        let mut chapter_id = [0; 8192 + 8];
+        let mut chapter_len = 0;
+        bytes(&mut chapter_id, &mut chapter_len, b"chapter:")?;
+        bytes(&mut chapter_id, &mut chapter_len, id)?;
+        bytes(&mut chapter_id, &mut chapter_len, b":")?;
+        bytes(&mut chapter_id, &mut chapter_len, hash)?;
+        let mut chapter = Chapter::new(&chapter_id[..chapter_len], &work_id[..work_len], title);
+        chapter.chapter_number = chapter_number(title).map(ChapterNumber::Text);
+        chapter.language = Some(b"zh");
+        let placement = if verified {
+            ChapterPlacement::InGroup {
+                group: b"source-catalog",
+                position: i as u64,
+            }
+        } else {
+            ChapterPlacement::ManualOnly
+        };
+        catalog.push(chapter, placement).map_err(|e| e.message())?;
         count += 1;
     }
     if count == 0 { return Err("empty chapters"); }
-    bytes(b, &mut n, b"],\"page\":{\"nextCursor\":null,\"hasMore\":false}}")?;
-    Ok(n)
+    catalog.finish(ChapterPage::Complete).map_err(|e| e.message())
 }
 
 fn write_pages(req: &[u8]) -> Result<usize, &'static str> {
@@ -828,11 +844,12 @@ fn image_request(req: &[u8]) -> Result<usize, &'static str> {
 
 fn run_search(req: &[u8]) -> u32 { execute("search", write_search(req)) }
 fn run_get_manga(req: &[u8]) -> u32 { execute("get_manga", write_detail(req)) }
-fn run_get_chapters(req: &[u8]) -> u32 { execute("get_chapters", write_chapters(req)) }
+fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, &'static str> { write_chapters(req) }
+fn write_chapter_error(message: &str) -> u32 { error("get_chapters", message) }
 fn run_get_pages(req: &[u8]) -> u32 { execute("get_pages", write_pages(req)) }
 fn run_get_image_request(req: &[u8]) -> u32 { execute("get_image_request", image_request(req)) }
 fn run_get_home(_: &[u8]) -> u32 { write_error("get_home", "not_implemented", "not supported") }
 fn run_get_filters(_: &[u8]) -> u32 { write_static("get_filters", br#"{"filters":[]}"#) }
 
-koma_source_sdk::koma_source_exports!("longjm");
+koma_source_sdk::koma_source_exports!("longjm", typed_chapters, write_chapter_error);
 

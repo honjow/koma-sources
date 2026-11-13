@@ -7,6 +7,7 @@ use alloc::{collections::BTreeSet, string::String, vec::Vec};
 static ALLOCATOR: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
 // Public contract: Keiyoushi MangaBall.kt and Dto.kt, Apache-2.0, revision
 // 1319949ca9bc456908196e3ba2d104e94182c5d6. No authentication/mirror/JS processing.
+use koma_source_sdk::chapters::{Chapter, ChapterNumber, ChapterPage, ChapterPlacement, ChapterResult, DecimalChapterNumber, GroupedChapters};
 use koma_source_sdk::{
     host,
     json_utils::*,
@@ -16,7 +17,7 @@ const BASE: &[u8] = b"https://mangaball.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mangaball.zh.koma",
     name: "MangaBall",
-    version: "0.1.6",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -251,11 +252,6 @@ fn chapter_scanlator(o: &[u8]) -> Result<Option<String>, &'static str> {
     if group==b"null" {return Ok(None);}
     let mut buf=[0;1024];let name=public_name(text(group,b"name",&mut buf)?)?;
     Ok(Some(name))
-}
-fn write_names(out: &mut [u8], n: &mut usize, names: &[String]) -> Result<(), &'static str> {
-    bytes(out,n,b"[")?;
-    for (i,name) in names.iter().enumerate() {if i>0 {bytes(out,n,b",")?;}q(out,n,name.as_bytes())?;}
-    bytes(out,n,b"]")
 }
 fn page(r: &[u8]) -> Result<usize, &'static str> {
     let a = args(r);
@@ -980,7 +976,19 @@ fn decimal(v: &[u8], allow_negative: bool) -> Result<(), &'static str> {
     }
     Ok(())
 }
-fn chapters(r: &[u8]) -> Result<usize, &'static str> {
+// A provider group ID and language identify the translation edition. Unknown
+// editions or equal coordinates cannot establish an automatic next chapter.
+fn chapter_coordinate(row: &[u8]) -> Option<((&[u8], &[u8]), f64, f64)> {
+    let lang = string(row, b"lang")?;
+    let group = string(row, b"group_id").filter(|id| id_valid(id))?;
+    let number = core::str::from_utf8(json_object_member(row, b"number")?).ok()?.parse::<f64>().ok()?;
+    let volume = json_object_member(row, b"volume")
+        .and_then(|value| core::str::from_utf8(value).ok()?.parse::<f64>().ok())
+        .unwrap_or(0.0);
+    Some(((lang, group), volume, number))
+}
+
+fn chapters(r: &[u8]) -> ChapterResult<'static, &'static str> {
     json_complete(r)?;
     let mut mb = [0; 64];
     let id = input_mid(r, &mut mb)?;
@@ -1011,12 +1019,17 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
     let mut excluded: Vec<String>=Vec::new();
     let mut known: Vec<String>=Vec::new();
     let mut chinese=0;
-    let b = payload_buf();
-    let mut n = 0;
+    let mut catalog = GroupedChapters::new(payload_buf(), r).map_err(|e| e.message())?;
+    let mut mid = [0; 64];
+    let mut mid_len = 0;
+    bytes(&mut mid, &mut mid_len, b"mb:")?;
+    bytes(&mut mid, &mut mid_len, id)?;
     let mut written = 0;
-    bytes(b, &mut n, b"{\"items\":[")?;
+    let mut previous = None;
+    let mut previous_verified = None;
+    let mut run_start = 0;
     let mut seen_ids = BTreeSet::new();
-    for (a, z) in &spans[..count] {
+    for (index, (a, z)) in spans[..count].iter().enumerate() {
         let o = &arr[*a..*z];
         let cid = string(o, b"id").ok_or("missing chapter ID")?;
         if !id_valid(cid) || string(o, b"title_id") != Some(id) {
@@ -1060,6 +1073,20 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
         }
         let volume = json_object_member(o, b"volume").unwrap_or(b"null");
         decimal(volume, false)?;
+        let key = chapter_coordinate(o);
+        let next = spans[index + 1..count].iter()
+            .map(|(start, end)| &arr[*start..*end])
+            .find(|row| string(row, b"lang").is_some_and(zh))
+            .and_then(chapter_coordinate);
+        let verified = key.filter(|key| !blacklisted && wanted.is_none()
+            && previous != Some(*key) && next != Some(*key));
+        if !matches!((previous_verified, verified), (Some((edition, volume, number)), Some((e, v, n)))
+            if edition == e && (volume, number) > (v, n))
+        {
+            run_start = index;
+        }
+        previous = key;
+        previous_verified = verified;
         // A selected group never hides a malformed/forbidden source entity.
         if let Some(wanted)=wanted {
             // Resume restores only its exact valid chapter. It is not a full
@@ -1071,42 +1098,48 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
             full.push_str(core::str::from_utf8(cid).map_err(|_|"invalid request")?);
             excluded.push(full);continue;
         }
-        if written > 0 {
-            bytes(b, &mut n, b",")?;
+        let mut chapter_id = [0; 128];
+        let mut len = 0;
+        bytes(&mut chapter_id, &mut len, b"mbc:")?;
+        bytes(&mut chapter_id, &mut len, id)?;
+        bytes(&mut chapter_id, &mut len, b":")?;
+        bytes(&mut chapter_id, &mut len, cid)?;
+        let mut chapter = Chapter::new(&chapter_id[..len], &mid[..mid_len], title);
+        chapter.chapter_number = DecimalChapterNumber::new(num).map(ChapterNumber::Decimal);
+        chapter.volume_number = DecimalChapterNumber::new(volume).map(ChapterNumber::Decimal);
+        chapter.language = Some(b"zh");
+        let mut group = [0; 32];
+        let mut group_len = 0;
+        if !write_usize(&mut group, &mut group_len, run_start) {
+            return Err("payload overflow");
         }
-        bytes(b, &mut n, b"{\"id\":\"mbc:")?;
-        bytes(b, &mut n, id)?;
-        bytes(b, &mut n, b":")?;
-        bytes(b, &mut n, cid)?;
-        bytes(b, &mut n, b"\",\"mangaId\":\"mb:")?;
-        bytes(b, &mut n, id)?;
-        bytes(b, &mut n, b"\",\"title\":")?;
-        q(b, &mut n, title)?;
-        bytes(b, &mut n, b",\"chapterNumber\":")?;
-        bytes(b, &mut n, num)?;
-        bytes(b, &mut n, b",\"volumeNumber\":")?;
-        bytes(b, &mut n, volume)?;
-        bytes(b, &mut n, b",\"language\":\"zh\"}")?;
+        let placement = if verified.is_some() {
+            ChapterPlacement::InGroup {
+                group: &group[..group_len],
+                position: (count - 1 - index) as u64,
+            }
+        } else {
+            ChapterPlacement::ManualOnly
+        };
+        catalog.push(chapter, placement).map_err(|e| e.message())?;
         written += 1;
     }
     if chinese == 0 {
         return Err("no Chinese chapters");
     }
     if wanted.is_some() && written==0 {return Err("not found");}
-    bytes(
-        b,
-        &mut n,
-        b"],\"page\":{\"nextCursor\":null,\"hasMore\":false}",
-    )?;
-    if observe {
-        bytes(b,&mut n,b",\"settingObservations\":{\"known_scanlators_pref\":")?;
-        write_names(b,&mut n,&known)?;bytes(b,&mut n,b"}")?;
-    }
-    if blacklist_supported(r) {
-        bytes(b,&mut n,b",\"excludedChapterIds\":")?;write_names(b,&mut n,&excluded)?;
-    }
-    bytes(b,&mut n,b"}")?;
-    Ok(n)
+    let response = if observe {
+        catalog.finish_with_scanlators(
+            ChapterPage::Complete,
+            b"known_scanlators_pref",
+            known.iter().map(|name| name.as_bytes()),
+            blacklist_supported(r).then(|| excluded.iter().map(|id| id.as_bytes())),
+        )
+    } else {
+        catalog.finish(ChapterPage::Complete)
+    }.map_err(|e| e.message())?;
+    diagnostic(b"operation_ok", b"get_chapters");
+    Ok(response)
 }
 fn pages(r: &[u8]) -> Result<usize, &'static str> {
     json_complete(r)?;
@@ -1211,8 +1244,13 @@ fn run_get_manga_list(r: &[u8]) -> u32 {
 fn run_get_manga(r: &[u8]) -> u32 {
     execute("get_manga", detail(r))
 }
-fn run_get_chapters(r: &[u8]) -> u32 {
-    execute("get_chapters", chapters(r))
+fn run_get_chapters(r: &[u8]) -> ChapterResult<'static, &'static str> {
+    chapters(r)
+}
+fn write_chapter_error(message: &str) -> u32 {
+    let error = code(message);
+    diagnostic(b"operation_error", error.as_bytes());
+    write_error("get_chapters", error, message)
 }
 fn run_get_pages(r: &[u8]) -> u32 {
     execute("get_pages", pages(r))
@@ -1256,4 +1294,4 @@ fn settings_schema(r: &[u8]) -> Result<usize, &'static str> {
     bytes(out,&mut n,b"]}")?;Ok(n)
 }
 fn run_get_settings(r: &[u8]) -> u32 {execute("get_settings",settings_schema(r))}
-koma_source_sdk::koma_source_exports!("mangaball_zh");
+koma_source_sdk::koma_source_exports!("mangaball_zh", typed_chapters, write_chapter_error);

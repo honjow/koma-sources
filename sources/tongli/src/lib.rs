@@ -2,6 +2,7 @@
 
 extern crate koma_source_sdk;
 
+use koma_source_sdk::chapters::{Chapter, ChapterNumber, ChapterPage, ChapterPlacement, ChapterResult, GroupedChapters};
 use koma_source_sdk::host::{http_request, log_info};
 use koma_source_sdk::json_utils::{
     append_json_escaped, append_json_unescaped_then_escaped, contains_bytes, extract_json_string,
@@ -38,7 +39,7 @@ static mut SEARCH_QUERY: [u8; 16384] = [0; 16384];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.tongli.koma",
     name: "東立",
-    version: "0.1.9",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -663,18 +664,30 @@ fn explicit_chapter_number(raw: &[u8]) -> Option<usize> {
     ordinal.parse().ok()
 }
 
-fn run_get_chapters(req: &[u8]) -> u32 {
+enum ChapterError {
+    Source(&'static str, &'static str),
+    Authorized(AuthorizedError),
+}
+
+fn write_chapter_error(error: ChapterError) -> u32 {
+    match error {
+        ChapterError::Source(code, message) => write_error("get_chapters", code, message),
+        ChapterError::Authorized(error) => write_authorized_error("get_chapters", error),
+    }
+}
+
+fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, ChapterError> {
     let manga_id = match extract_json_string(req, b"mangaId") {
         Some(v) => v,
-        None => return write_error("get_chapters", "invalid_request", "missing mangaId"),
+        None => return Err(ChapterError::Source("invalid_request", "missing mangaId")),
     };
     let (book_group_id, is_serial) = match split_manga_id(manga_id) {
         Some(v) => v,
-        None => return write_error("get_chapters", "invalid_request", "bad mangaId"),
+        None => return Err(ChapterError::Source("invalid_request", "bad mangaId")),
     };
     let url_len = match build_chapters_url(book_group_id, is_serial) {
         Some(v) => v,
-        None => return write_error("get_chapters", "internal_error", "url overflow"),
+        None => return Err(ChapterError::Source("internal_error", "url overflow")),
     };
     let url = unsafe {
         core::slice::from_raw_parts(core::ptr::addr_of!(SCRATCH_A) as *const u8, url_len)
@@ -682,75 +695,72 @@ fn run_get_chapters(req: &[u8]) -> u32 {
     let len = match fetch_authorized_json(url) {
         Ok(v) => v,
         Err(e) => {
-            return write_authorized_error("get_chapters", e);
+            return Err(ChapterError::Authorized(e));
         }
     };
     let json =
         unsafe { core::slice::from_raw_parts(core::ptr::addr_of!(BODY_BUF) as *const u8, len) };
     let mut root = match RootArrayIter::new(json) {
         Some(v) => v,
-        None => return write_error("get_chapters", "parse_error", "missing chapters array"),
+        None => return Err(ChapterError::Source("parse_error", "missing chapters array")),
     };
-    let payload = payload_buf();
-    let mut c = 0usize;
-    if !write_bytes(payload, &mut c, br#"{"items":["#) {
-        return write_error("get_chapters", "internal_error", "overflow");
-    }
-    let mut written = 0usize;
-    while let Some(obj) = root.next_object() {
+    let mut catalog = GroupedChapters::new(payload_buf(), req)
+        .map_err(|e| ChapterError::Source(e.code(), e.message()))?;
+    let mut last = None;
+    let mut run_start = 0;
+    for (index, obj) in core::iter::from_fn(|| root.next_object()).enumerate() {
         if contains_bytes(obj, br#""IsUpcoming":true"#) {
+            last = None;
             continue;
         }
-        let book_id = match extract_json_string(obj, b"BookID") {
-            Some(v) => v,
-            None => continue,
+        let Some(book_id) = extract_json_string(obj, b"BookID") else {
+            last = None;
+            continue;
         };
         let vol = extract_json_string(obj, b"Vol").unwrap_or(b"");
         let readable = contains_bytes(obj, br#""IsFree":true"#)
             || contains_bytes(obj, br#""IsPurchased":true"#);
-        if written > 0 && !write_bytes(payload, &mut c, b",") {
-            return write_error("get_chapters", "internal_error", "overflow");
+        let mut id = [0; 256];
+        let mut id_len = 0;
+        if !(write_bytes(&mut id, &mut id_len, b"tlch:")
+            && write_bytes(&mut id, &mut id_len, book_id))
+        {
+            return Err(ChapterError::Source("internal_error", "overflow"));
         }
-        let ok = write_bytes(payload, &mut c, br#"{"id":"tlch:"#)
-            && append_json_escaped(payload, &mut c, book_id)
-            && write_bytes(payload, &mut c, br#"","mangaId":""#)
-            && append_json_escaped(payload, &mut c, manga_id)
-            && write_bytes(payload, &mut c, br#"","title":""#)
-            && if readable {
-                true
-            } else {
-                write_bytes(payload, &mut c, b"\xF0\x9F\x94\x92 ")
-            }
-            && append_json_unescaped_then_escaped(payload, &mut c, vol)
-            && write_bytes(payload, &mut c, br#"","chapterNumber":"#)
-            && match explicit_chapter_number(vol) {
-                Some(ordinal) => write_usize(payload, &mut c, ordinal),
-                None => write_bytes(payload, &mut c, b"null"),
-            }
-            && write_bytes(
-                payload,
-                &mut c,
-                br#","volumeNumber":null,"language":"zh","scanlator":""#,
-            )
-            && write_bytes(payload, &mut c, b"\xE6\x9D\xB1\xE7\xAB\x8B")
-            && write_bytes(
-                payload,
-                &mut c,
-                br#"","publishedAt":null,"updatedAt":null,"pageCount":null}"#,
-            );
-        if !ok {
-            return write_error("get_chapters", "internal_error", "overflow");
+        let mut title = [0; 4096];
+        let (prefix, content) = if readable {
+            (&b""[..], &mut title[..])
+        } else {
+            let prefix = "🔒 ".as_bytes();
+            title[..prefix.len()].copy_from_slice(prefix);
+            (prefix, &mut title[prefix.len()..])
+        };
+        let len = koma_source_sdk::plain_text::decode_json_content(vol, content)
+            .map_err(|_| ChapterError::Source("internal_error", "overflow"))?.len() + prefix.len();
+        let number = explicit_chapter_number(vol);
+        let mut chapter = Chapter::new(&id[..id_len], manga_id, &title[..len]);
+        chapter.chapter_number = number.map(ChapterNumber::Integer);
+        chapter.language = Some(b"zh");
+        chapter.scanlator = Some("東立".as_bytes());
+        let position = if readable && is_serial == b"true" { number } else { None };
+        // Some serials expose chapter 1 plus only the latest few chapters.
+        // Connect consecutive, readable explicit chapters, preserving gaps.
+        if last.and_then(|v: usize| v.checked_add(1)) != position || position.is_none() {
+            run_start = index;
         }
-        written += 1;
+        last = position;
+        let mut group = [0; 32];
+        let mut group_len = 0;
+        if !write_usize(&mut group, &mut group_len, run_start) {
+            return Err(ChapterError::Source("internal_error", "overflow"));
+        }
+        let placement = match position.and_then(|value| u32::try_from(value).ok()) {
+            Some(position) => ChapterPlacement::InGroup { group: &group[..group_len], position: u64::from(position) },
+            None => ChapterPlacement::ManualOnly,
+        };
+        catalog.push(chapter, placement).map_err(|e| ChapterError::Source(e.code(), e.message()))?;
     }
-    if !write_bytes(
-        payload,
-        &mut c,
-        br#"],"page":{"nextCursor":null,"hasMore":false}}"#,
-    ) {
-        return write_error("get_chapters", "internal_error", "overflow");
-    }
-    write_success_payload("get_chapters", c)
+    catalog.finish(ChapterPage::Complete).map_err(|e| ChapterError::Source(e.code(), e.message()))
 }
 
 fn run_get_pages(req: &[u8]) -> u32 {
@@ -877,4 +887,4 @@ fn run_get_image_request(req: &[u8]) -> u32 {
     write_success_payload("get_image_request", c)
 }
 
-koma_source_sdk::koma_source_exports!("tongli");
+koma_source_sdk::koma_source_exports!("tongli", typed_chapters, write_chapter_error);

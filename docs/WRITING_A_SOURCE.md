@@ -147,7 +147,7 @@ koma_source_sdk::koma_source_helpers!();
 // 4. Implement operations
 fn run_search(req: &[u8]) -> u32 { /* ... */ }
 fn run_get_manga(req: &[u8]) -> u32 { /* ... */ }
-fn run_get_chapters(req: &[u8]) -> u32 { /* ... */ }
+fn run_get_chapters(req: &[u8]) -> koma_source_sdk::chapters::ChapterResult<'static> { /* ... */ }
 fn run_get_pages(req: &[u8]) -> u32 { /* ... */ }
 fn run_get_image_request(req: &[u8]) -> u32 { /* ... */ }
 // Optional operations (return not_implemented if unsupported):
@@ -158,7 +158,7 @@ fn run_get_filters(_req: &[u8]) -> u32 { write_error("get_filters", "not_impleme
 fn run_get_settings(_req: &[u8]) -> u32 { write_error("get_settings", "not_implemented", "") }
 
 // 5. WASM exports — auto-generated
-koma_source_sdk::koma_source_exports!("mysource");
+koma_source_sdk::koma_source_exports!("mysource", typed_chapters);
 ```
 
 ### What the macros provide
@@ -180,7 +180,7 @@ After `koma_source_helpers!`, these functions are available:
 - `decode_json_body(resp) -> Result<usize, FetchError>` — strip HTTP headers into body_buf
 - `fetch_get(url, referer) -> Result<usize, FetchError>` — HTTP GET + decode in one call
 
-After `koma_source_exports!("name")`, all `koma_source_*` WASM exports are generated.
+After `koma_source_exports!("name", typed_chapters)`, all `koma_source_*` WASM exports are generated.
 
 ### Strict request and transport boundaries
 
@@ -278,6 +278,37 @@ You build response JSON in `payload_buf()` using `write_bytes` and `append_json_
 ```
 
 ### get_chapters
+
+New sources and changes to an existing chapter parser use the typed SDK export.
+The chapter handler returns `ChapterResult`, whose successful value can only be
+created through one of these SDK entry points:
+
+- `ChapterResponse::single` for one chapter.
+- `ChapterResponse::ordered` for a complete, verified catalog with an explicit
+  `ChapterOrder::OldestFirst` or `ChapterOrder::NewestFirst`. It preserves the
+  returned array's order and assigns reading positions independently of titles.
+- `GroupedChapters` for mixed, paginated, or partially verified catalogs. Each
+  `push` requires `ChapterPlacement::InGroup { group, position }` or
+  `ChapterPlacement::ManualOnly`. Positions are nonnegative and unique within
+  each group and span all catalog pages. Where the provider cannot distinguish
+  equal positions, leave those entries manual or split the sequence at the
+  ambiguous boundary. Use `ManualOnly` for entries whose
+  order cannot be verified and leave manifest `chapterOrder` unset when using
+  grouped catalogs.
+
+For sources with custom WASM exports, use
+`koma_source_chapter_export!("name", run_get_chapters)` for this operation.
+The macro also accepts the source's existing error writer and ABI request reader
+to retain structured error information and existing request validation.
+Sources using the full export macro can pass the error writer as the third
+argument. Existing sources migrate when their chapter parsers change.
+
+Run `cargo check --locked --release --target wasm32-unknown-unknown -p <crate>`
+to catch missing placements or a raw success return before building WASM.
+Replay a saved provider catalog to check real chapter IDs, display order, and
+neighbor transitions, including pagination or mixed sections when present.
+The SDK uses the existing JSON ABI and emits explicit reading positions only
+when the host advertises `chapter_reading_order_v1`.
 
 ```json
 {

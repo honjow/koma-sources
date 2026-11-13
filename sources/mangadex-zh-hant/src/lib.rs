@@ -1,13 +1,16 @@
 #![no_std]
 // Independent anonymous traditional-Chinese MangaDex source; fixed primary1319949.
 use koma_source_sdk::{
+    chapters::{Chapter, ChapterNumber, ChapterPage, ChapterPlacement, ChapterResponse, ChapterResult, DecimalChapterNumber, GroupedChapters},
     host,
     json_utils::*,
     source::{SourceCapabilities, SourceInfo},
 };
+#[path = "../../mangadex/chapter_chronology.rs"]
+mod chapter_chronology;
 type E = &'static str;
 const MAX: usize = 1048576;
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"org.mangadex.zh-hant.koma",name:"MangaDex",version:"0.1.12",api_version:"0.2",language:"zh-Hant",author:"Koma",description:"MangaDex 繁體中文目錄（zh-hk），頁面用字可能不同；使用情況未知，關注較多列表不代表使用排行。",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"org.mangadex.zh-hant.koma",name:"MangaDex",version:env!("CARGO_PKG_VERSION"),api_version:"0.2",language:"zh-Hant",author:"Koma",description:"MangaDex 繁體中文目錄（zh-hk），頁面用字可能不同；使用情況未知，關注較多列表不代表使用排行。",content_rating:"nsfw"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -969,13 +972,13 @@ fn detail(r: &[u8]) -> Result<usize, E> {
     bytes(out, &mut n, b"}")?;
     Ok(n)
 }
-fn nullable_number(b: &mut [u8], n: &mut usize, v: Option<&[u8]>) -> Result<(), E> {
+fn nullable_number(v: Option<&[u8]>) -> Result<Option<ChapterNumber<'_>>, E> {
     match v {
-        None | Some(b"null") => bytes(b, n, b"null"),
+        None | Some(b"null") => Ok(None),
         Some(v) => {
             let v = quoted(v)?;
             if v.is_empty() {
-                return bytes(b, n, b"null");
+                return Ok(None);
             };
             if json_value_end(v, 0, 0) != Some(v.len())
                 || !matches!(v.first(), Some(b'-' | b'0'..=b'9'))
@@ -989,14 +992,21 @@ fn nullable_number(b: &mut [u8], n: &mut usize, v: Option<&[u8]>) -> Result<(), 
             if !value.is_finite() {
                 return Err("chapter number nonfinite");
             };
-            bytes(b, n, v)
+            Ok(DecimalChapterNumber::new(v).map(ChapterNumber::Decimal))
         }
     }
 }
 fn exclusion_host(req: &[u8]) -> bool {
     json_object_member(req,b"hostFeatures").map(|v|v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|c|*c==b',').any(|s|s.trim_ascii()==br#""source_chapter_exclusions_v1""#)).unwrap_or(false)
 }
-fn chapter_card(b: &mut [u8], n: &mut usize, v: &[u8], m: &[u8], include_unavailable: bool) -> Result<bool, E> {
+fn chapter_card(
+    catalog: &mut GroupedChapters<'_>,
+    v: &[u8],
+    m: &[u8],
+    include_unavailable: bool,
+    hide_unavailable: bool,
+    allow_continuation: bool,
+) -> Result<(bool, bool), E> {
     if text(v, b"type")? != b"chapter" {
         return Err("chapter type");
     };
@@ -1020,54 +1030,68 @@ fn chapter_card(b: &mut [u8], n: &mut usize, v: &[u8], m: &[u8], include_unavail
         }
     };
     if pages == 0 || (unavailable && !include_unavailable) || external {
-        return Ok(false);
+        return Ok((false, false));
     }
-    bytes(b, n, b"{\"id\":\"mdch:zh-hk:")?;
-    bytes(b, n, m)?;
-    bytes(b, n, b":")?;
-    bytes(b, n, id)?;
-    bytes(b, n, b"\",\"mangaId\":\"mdhant:")?;
-    bytes(b, n, m)?;
-    bytes(b, n, b"\",\"title\":")?;
-    match member(a, b"title")? {
-        None | Some(b"null") | Some(b"\"\"") => q(b, n, b"Chapter")?,
-        Some(t) => rawq(b, n, t)?,
+    let mut id_buf = [0; 128];
+    let mut id_len = 0;
+    bytes(&mut id_buf, &mut id_len, b"mdch:zh-hk:")?;
+    bytes(&mut id_buf, &mut id_len, m)?;
+    bytes(&mut id_buf, &mut id_len, b":")?;
+    bytes(&mut id_buf, &mut id_len, id)?;
+    let mut manga = [0; 64];
+    let mut manga_len = 0;
+    bytes(&mut manga, &mut manga_len, b"mdhant:")?;
+    bytes(&mut manga, &mut manga_len, m)?;
+    let mut title = [0; 8192];
+    let title = match member(a, b"title")? {
+        None | Some(b"null") | Some(b"\"\"") => b"Chapter",
+        Some(value) => unescape(quoted(value)?, &mut title)?,
     };
-    bytes(b, n, b",\"chapterNumber\":")?;
-    nullable_number(b, n, member(a, b"chapter")?)?;
-    bytes(b, n, b",\"volumeNumber\":")?;
-    nullable_number(b, n, member(a, b"volume")?)?;
-    bytes(b, n, b",\"language\":\"zh-Hant\",\"pageCount\":")?;
-    wn(b, n, pages)?;
-    bytes(b, n, b",\"publishedAt\":")?;
-    rawq(b, n, required(a, b"publishAt")?)?;
-    bytes(b, n, b",\"updatedAt\":")?;
-    rawq(b, n, required(a, b"updatedAt")?)?;
+    let mut chapter = Chapter::new(&id_buf[..id_len], &manga[..manga_len], title);
+    chapter.chapter_number = nullable_number(member(a, b"chapter")?)?;
+    chapter.volume_number = nullable_number(member(a, b"volume")?)?;
+    chapter.language = Some(b"zh-Hant");
+    chapter.page_count = Some(pages);
+    let mut published = [0; 256];
+    let mut updated = [0; 256];
+    chapter.published_at = Some(unescape(quoted(required(a, b"publishAt")?)?, &mut published)?);
+    chapter.updated_at = Some(unescape(quoted(required(a, b"updatedAt")?)?, &mut updated)?);
     let mut rel = Array::new(required(v, b"relationships")?)?;
-    let mut first = true;
+    let mut scanlator = [0; 8192];
+    let mut raw_name = None;
     while let Some(x) = rel.next()? {
-        if text(x, b"type")? == b"scanlation_group" {
-            if let Some(at) = member(x, b"attributes")? {
-                if let Some(t) = member(at, b"name")? {
-                    if first {
-                        bytes(b, n, b",\"scanlator\":")?;
-                        if unavailable {
-                            quoted(t)?;
-                            bytes(b, n, b"\"UNAVAILABLE - ")?;
-                            bytes(b, n, &t[1..t.len()-1])?;
-                            bytes(b, n, b"\"")?;
-                        } else { rawq(b, n, t)?; }
-                        first = false
-                    }
-                }
+        if text(x, b"type")? == b"scanlation_group" && raw_name.is_none() {
+            if let Some(attrs) = member(x, b"attributes")? {
+                raw_name = member(attrs, b"name")?;
             }
         }
     }
-    if unavailable && first { bytes(b, n, br#","scanlator":"UNAVAILABLE""#)?; }
-    bytes(b, n, b"}")?;
-    Ok(true)
+    let prefix: &[u8] = match (unavailable, raw_name.is_some()) {
+        (true, true) => b"UNAVAILABLE - ",
+        (true, false) => b"UNAVAILABLE",
+        _ => b"",
+    };
+    let mut name_len = prefix.len();
+    scanlator[..name_len].copy_from_slice(prefix);
+    if let Some(name) = raw_name {
+        name_len += unescape(quoted(name)?, &mut scanlator[name_len..])?.len();
+    }
+    if name_len > 0 || raw_name.is_some() {
+        chapter.scanlator = Some(&scanlator[..name_len]);
+    }
+    if unavailable && hide_unavailable {
+        return Ok((true, true));
+    }
+    let mut group = [0; 296];
+    let placement = if allow_continuation && !unavailable {
+        chapter_chronology::placement(v, m, &mut group)
+    } else {
+        ChapterPlacement::ManualOnly
+    };
+    catalog.push(chapter, placement).map_err(|e| e.message())?;
+    Ok((true, false))
 }
-fn feed(m: &[u8], target: Option<&[u8]>, req: Option<&[u8]>, mode: u8) -> Result<(usize, usize), E> {
+fn feed(m: &[u8], target: Option<&[u8]>, req: Option<&[u8]>, mode: u8) -> Result<(ChapterResponse<'static>, usize), E> {
     // Keep default visible chapters: request unavailable metadata so explicit exclusions
     // prevent retained chapters reappearing; additional feed pages may be needed.
     // Unlike the reference, external and zero-page chapters remain excluded; no permission is granted.
@@ -1080,11 +1104,8 @@ fn feed(m: &[u8], target: Option<&[u8]>, req: Option<&[u8]>, mode: u8) -> Result
     let mut offset = 0;
     let mut total0 = None;
     let mut rawcount = 0;
-    let mut emitted = 0;
     let mut wanted = None;
-    let output = payload_buf();
-    let mut n = 0;
-    bytes(output, &mut n, b"{\"items\":[")?;
+    let mut catalog = GroupedChapters::new(payload_buf(), req.unwrap_or(b"{}")).map_err(|e| e.message())?;
     loop {
         let mut off = [0; 24];
         let mut j = 0;
@@ -1119,16 +1140,12 @@ fn feed(m: &[u8], target: Option<&[u8]>, req: Option<&[u8]>, mode: u8) -> Result
             seen[rawcount].copy_from_slice(id);
             rawcount += 1;
             pagecount += 1;
-            let before = n;
-            if emitted > 0 {
-                bytes(output, &mut n, b",")?
-            };
-            let keep = chapter_card(output, &mut n, x, m, request_unavailable)?;
-            let hidden = exclusion_capable && mode != 3 && !include_unavailable && json_object_member(required(x,b"attributes")?,b"isUnavailable")==Some(b"true");
-            if !keep {
-                n = before
-            } else {
-                emitted += 1;
+            let (keep, hidden) = chapter_card(
+                &mut catalog, x, m, request_unavailable,
+                exclusion_capable && mode != 3 && !include_unavailable && mode != 1,
+                mode == 0 || mode == 2,
+            )?;
+            if keep {
                 if mode == 1 {
                     let r=req.ok_or("missing blacklist")?;
                     let mut rels=Array::new(required(x,b"relationships")?)?; let mut matched=false;
@@ -1148,9 +1165,8 @@ fn feed(m: &[u8], target: Option<&[u8]>, req: Option<&[u8]>, mode: u8) -> Result
                 if target == Some(id) {
                     wanted = Some(field_num(required(x, b"attributes")?, b"pages")?)
                 }
-                if hidden && mode != 1 {
+                if hidden {
                     unsafe { let i=HIDDEN_COUNT; if i>=4096{return Err("feed capacity")} HIDDEN_IDS[i].copy_from_slice(id); HIDDEN_COUNT=i+1; }
-                    n=before; emitted-=1;
                 }
             }
         }
@@ -1169,27 +1185,41 @@ fn feed(m: &[u8], target: Option<&[u8]>, req: Option<&[u8]>, mode: u8) -> Result
         };
         offset = end;
     }
-    bytes(output,&mut n,b"],\"page\":{\"hasMore\":false,\"nextCursor\":null}")?;
-    if mode==2 || (exclusion_capable && mode==0) {
-        bytes(output,&mut n,b",\"excludedChapterIds\":[")?;let mut excluded=0;
-        unsafe {for i in 0..HIDDEN_COUNT { if excluded>0 {bytes(output,&mut n,b",")?} bytes(output,&mut n,b"\"mdch:zh-hk:")?;bytes(output,&mut n,m)?;bytes(output,&mut n,b":")?;bytes(output,&mut n,&HIDDEN_IDS[i])?;bytes(output,&mut n,b"\"")?;excluded+=1; }}
-        if mode==2 {
-        unsafe {for i in 0..FULL_COUNT {if !FULL_PRESENT[i] {
-            if !FULL_MATCH[i] {return Err("filtered feed drift")}
-            if excluded>0 {bytes(output,&mut n,b",")?}
-            bytes(output,&mut n,b"\"mdch:zh-hk:")?;bytes(output,&mut n,m)?;bytes(output,&mut n,b":")?;bytes(output,&mut n,&FULL_IDS[i])?;bytes(output,&mut n,b"\"")?;excluded+=1;
-        }}}
+    let response = if mode == 2 || (exclusion_capable && mode == 0) {
+        let mut excluded = catalog.with_excluded_ids(ChapterPage::Complete).map_err(|e| e.message())?;
+        let mut full_id = [0; 128];
+        let mut prefix_len = 0;
+        bytes(&mut full_id, &mut prefix_len, b"mdch:zh-hk:")?;
+        bytes(&mut full_id, &mut prefix_len, m)?;
+        bytes(&mut full_id, &mut prefix_len, b":")?;
+        unsafe {
+            for index in 0..HIDDEN_COUNT {
+                full_id[prefix_len..prefix_len + 36].copy_from_slice(&HIDDEN_IDS[index]);
+                excluded.push(&full_id[..prefix_len + 36]).map_err(|e| e.message())?;
+            }
+            if mode == 2 {
+                for index in 0..FULL_COUNT {
+                    if FULL_PRESENT[index] {
+                        continue;
+                    }
+                    if !FULL_MATCH[index] {
+                        return Err("filtered feed drift");
+                    }
+                    full_id[prefix_len..prefix_len + 36].copy_from_slice(&FULL_IDS[index]);
+                    excluded.push(&full_id[..prefix_len + 36]).map_err(|e| e.message())?;
+                }
+            }
         }
-        bytes(output,&mut n,b"]")?;
-    }
-    bytes(output,&mut n,b"}")?;
-    match target {
-        Some(_) => Ok((
-            n,
-            wanted.ok_or("chapter not publicly available in owned zh-hk feed")?,
-        )),
-        None => Ok((n, 0)),
-    }
+        excluded.finish()
+    } else {
+        catalog.finish(ChapterPage::Complete)
+    }.map_err(|e| e.message())?;
+    let count = if target.is_some() {
+        wanted.ok_or("chapter not publicly available in owned zh-hk feed")?
+    } else {
+        0
+    };
+    Ok((response, count))
 }
 fn chapter_key(r: &[u8]) -> Result<(&[u8], &[u8]), E> {
     let k = text(args(r)?, b"chapterId")?
@@ -1362,9 +1392,7 @@ fn run_get_manga_list(r: &[u8]) -> u32 {
 fn run_get_manga(r: &[u8]) -> u32 {
     execute("get_manga", detail(r))
 }
-fn run_get_chapters(r: &[u8]) -> u32 {
-    execute(
-        "get_chapters",
+fn run_get_chapters(r: &[u8]) -> ChapterResult<'static, E> {
         key(r, b"mangaId", b"mdhant:").and_then(|m| {
             // Only a correctly owned exact chapter request can bypass the
             // filter; ordinary lists remain filtered.
@@ -1381,8 +1409,10 @@ fn run_get_chapters(r: &[u8]) -> u32 {
                 }
             }
             feed(m,None,Some(r),if filtered.is_none() { 3 } else { 0 }).map(|x|x.0)
-        }),
-    )
+        })
+}
+fn write_chapter_error(error: &str) -> u32 {
+    write_error("get_chapters", "source_contract_error", error)
 }
 fn run_get_pages(r: &[u8]) -> u32 {
     execute("get_pages", pages(r))
@@ -1458,7 +1488,7 @@ macro_rules! export_op {
 }
 export_op!(koma_source_search, "search", run_search);
 export_op!(koma_source_get_manga, "get_manga", run_get_manga);
-export_op!(koma_source_get_chapters, "get_chapters", run_get_chapters);
+koma_source_sdk::koma_source_chapter_export!("mangadex-zh-hant", run_get_chapters, write_chapter_error, checked_request);
 export_op!(koma_source_get_pages, "get_pages", run_get_pages);
 export_op!(koma_source_get_listings, "get_listings", run_get_listings);
 export_op!(

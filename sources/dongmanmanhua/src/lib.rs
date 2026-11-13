@@ -2,6 +2,7 @@
 // Public contract: Keiyoushi DongmanManhua.kt / KeiSource.kt, Apache-2.0, revision
 // 1319949ca9bc456908196e3ba2d104e94182c5d6. No authentication/mirror/JS processing.
 use koma_source_sdk::{
+    chapters::{Chapter, ChapterNumber, ChapterPage, ChapterPlacement, ChapterResult, GroupedChapters},
     host,
     json_utils::*,
     source::{SourceCapabilities, SourceInfo},
@@ -10,7 +11,7 @@ const BASE: &[u8] = b"https://www.dongmanmanhua.cn";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "cn.dongmanmanhua.koma",
     name: "咚漫 (DongmanManhua)",
-    version: "0.1.6",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh-Hans",
     author: "Koma",
@@ -982,15 +983,15 @@ fn explicit(t: &[u8]) -> Option<usize> {
     }
     number(&t[..end])
 }
-fn chapters(r: &[u8]) -> Result<usize, &'static str> {
+fn chapters(r: &[u8]) -> ChapterResult<'static, &'static str> {
     validate(r)?;
     let (mid, path) = manga(r)?;
     let mut current = [0; 4096];
     current[..path.len()].copy_from_slice(path);
     let mut cur = path.len();
-    let o = payload_buf();
-    let mut n = 0;
-    bytes(o, &mut n, b"{\"chapters\":[")?;
+    let mut catalog = GroupedChapters::new(payload_buf(), r).map_err(|e| e.message())?;
+    let mut block = None;
+    let mut previous_episode = None;
     let mut total = 0;
     let mut pages = 0;
     let mut seen = [0u64; 128];
@@ -1030,28 +1031,37 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
             bytes(&mut cid, &mut c, mid)?;
             bytes(&mut cid, &mut c, b":")?;
             bytes(&mut cid, &mut c, &p[1..])?;
-            if total > 0 {
-                bytes(o, &mut n, b",")?
+            // The public catalog can omit paywalled episodes. A gap in the
+            // provider's episode IDs breaks automatic continuation, even if
+            // the public rows are adjacent in the descending display list.
+            let mut episode_attribute = [0; 32];
+            let episode = li.optional_attr(b"data-episode-no", &mut episode_attribute)
+                .ok()
+                .flatten()
+                .filter(|episode| {
+                    p.split(|byte| matches!(byte, b'?' | b'&')).any(|part| {
+                        part.strip_prefix(b"episode_no=") == Some(*episode)
+                    })
+                })
+                .and_then(number)
+                .and_then(|value| u32::try_from(value).ok());
+            if episode.and_then(|value| value.checked_add(1)) != previous_episode || block.is_none() {
+                block = episode;
+            }
+            previous_episode = episode;
+            let mut group = [0; 32];
+            let placement = match (block, episode) {
+                (Some(first), Some(position)) => ChapterPlacement::InGroup {
+                    group: format_number(first as usize, &mut group)?,
+                    position: u64::from(position),
+                },
+                _ => ChapterPlacement::ManualOnly,
             };
-            bytes(o, &mut n, b"{\"id\":")?;
-            q(o, &mut n, &cid[..c])?;
-            bytes(o, &mut n, b",\"mangaId\":")?;
-            q(o, &mut n, mid)?;
-            bytes(o, &mut n, b",\"title\":")?;
-            q(o, &mut n, title)?;
-            bytes(o, &mut n, b",\"index\":")?;
-            bytes(o, &mut n, format_number(total, &mut [0; 32])?)?;
-            bytes(o, &mut n, b",\"chapterNumber\":")?;
-            if let Some(v) = explicit(title) {
-                bytes(o, &mut n, format_number(v, &mut [0; 32])?)?
-            } else {
-                bytes(o, &mut n, b"null")?
-            };
-            bytes(
-                o,
-                &mut n,
-                b",\"publishedAt\":null,\"language\":\"zh-Hans\"}",
-            )?;
+            let mut chapter = Chapter::new(&cid[..c], mid, title);
+            chapter.index = Some(total);
+            chapter.chapter_number = explicit(title).map(ChapterNumber::Integer);
+            chapter.language = Some(b"zh-Hans");
+            catalog.push(chapter, placement).map_err(|e| e.message())?;
             total += 1;
         }
         let mut nb = [0; 4096];
@@ -1066,8 +1076,9 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
             }
         }
     }
-    paging(o, &mut n, false, 1)?;
-    Ok(n)
+    let response = catalog.finish(ChapterPage::Complete).map_err(|e| e.message())?;
+    diagnostic(b"operation_ok", b"get_chapters");
+    Ok(response)
 }
 fn pages(r: &[u8]) -> Result<usize, &'static str> {
     validate(r)?;
@@ -1151,8 +1162,13 @@ fn run_get_manga_list(r: &[u8]) -> u32 {
 fn run_get_manga(r: &[u8]) -> u32 {
     execute("get_manga", detail(r))
 }
-fn run_get_chapters(r: &[u8]) -> u32 {
-    execute("get_chapters", chapters(r))
+fn run_get_chapters(r: &[u8]) -> ChapterResult<'static, &'static str> {
+    chapters(r)
+}
+fn write_chapter_error(message: &str) -> u32 {
+    let error = code(message);
+    diagnostic(b"operation_error", error.as_bytes());
+    write_error("get_chapters", error, message)
 }
 fn run_get_pages(r: &[u8]) -> u32 {
     execute("get_pages", pages(r))
@@ -1174,4 +1190,4 @@ fn run_get_filters(_: &[u8]) -> u32 {
 fn run_get_settings(_: &[u8]) -> u32 {
     write_error("get_settings", "unimplemented", "not supported")
 }
-koma_source_sdk::koma_source_exports!("dongmanmanhua");
+koma_source_sdk::koma_source_exports!("dongmanmanhua", typed_chapters, write_chapter_error);

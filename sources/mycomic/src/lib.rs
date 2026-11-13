@@ -1,5 +1,6 @@
 #![no_std]
 use koma_source_sdk::{
+    chapters::{Chapter, ChapterNumber, ChapterPage, ChapterPlacement, ChapterResult, GroupedChapters},
     host,
     json_utils::*,
     source::{SourceCapabilities, SourceInfo},
@@ -8,7 +9,7 @@ const BASE: &[u8] = b"https://mycomic.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mycomic.koma",
     name: "MYCOMIC",
-    version: "0.1.30",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -965,21 +966,32 @@ fn explicit_chapter_number(title: &[u8]) -> Option<usize> {
     number(ordinal.trim().as_bytes())
 }
 
-fn chapters(r: &[u8]) -> Result<usize, &'static str> {
+fn chapters(r: &[u8]) -> ChapterResult<'static, &'static str> {
     let id = manga_id(r)?;
     let root = manga_doc(id, r)?;
     let groups = Nodes::get(&root, b"div[data-flux-card] + div div[x-data]")?;
     if groups.n == 0 {
         return Err("complete chapter owner missing");
     };
-    let b = payload_buf();
-    let mut n = 0;
+    let mut catalog = GroupedChapters::new(payload_buf(), r).map_err(|e| e.message())?;
     let mut count = 0;
-    bytes(b, &mut n, b"{\"items\":[")?;
     for i in 0..groups.n {
         let group = selected(&groups, i);
         let raw = group.attr(b"x-data", scratch_a())?;
         let arr = chapter_array(raw)?;
+        // Keiyoushi preserves each provider array. A saved real catalog
+        // confirms newest first. Keep the site's distinct arrays separate.
+        let mut group_id = [0; 32];
+        let mut group_len = 0;
+        bytes(&mut group_id, &mut group_len, b"mycomic-section:")?;
+        if !write_usize(&mut group_id, &mut group_len, i) {
+            return Err("payload overflow");
+        }
+        let mut chapters = JsonArrayIter::from_raw_array(arr).ok_or("invalid chapter array")?;
+        let mut position = 0u64;
+        while chapters.next_object().is_some() {
+            position += 1;
+        }
         let mut rest = trim_ascii(&arr[1..arr.len() - 1]);
         let mut first = true;
         let mut note = [0; 16384];
@@ -1011,41 +1023,22 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
             if title.is_empty() {
                 return Err("empty chapter title");
             };
-            if count > 0 {
-                bytes(b, &mut n, b",")?;
-            }
-            bytes(b, &mut n, b"{\"id\":\"")?;
-            bytes(b, &mut n, cid)?;
-            bytes(b, &mut n, b"\",\"mangaId\":")?;
-            q(b, &mut n, id)?;
-            bytes(b, &mut n, b",\"title\":")?;
-            q(b, &mut n, title)?;
-            bytes(b, &mut n, b",\"index\":")?;
-            if !write_usize(b, &mut n, count) {
-                return Err("payload overflow");
-            };
-            bytes(b, &mut n, b",\"chapterNumber\":")?;
-            if let Some(ordinal) = explicit_chapter_number(title) {
-                if !write_usize(b, &mut n, ordinal) {
-                    return Err("payload overflow");
-                }
-            } else {
-                bytes(b, &mut n, b"null")?;
-            }
-            bytes(b, &mut n, b",\"updatedAt\":null,\"scanlator\":")?;
-            if note.is_empty() {
-                bytes(b, &mut n, b"null")?;
-            } else {
-                q(b, &mut n, note)?;
-            }
-            bytes(b, &mut n, b"}")?;
+            let mut chapter = Chapter::new(cid, id, title);
+            chapter.index = Some(count);
+            chapter.chapter_number = explicit_chapter_number(title).map(ChapterNumber::Integer);
+            chapter.scanlator = if note.is_empty() { None } else { Some(note) };
+            position = position.checked_sub(1).ok_or("invalid chapter count")?;
+            catalog.push(chapter, ChapterPlacement::InGroup {
+                group: &group_id[..group_len],
+                position,
+            }).map_err(|e| e.message())?;
+
             count += 1;
             rest = trim_ascii(&rest[obj.len()..]);
             first = false;
         }
     }
-    bytes(b, &mut n, b"]}")?;
-    Ok(n)
+    catalog.finish(ChapterPage::Complete).map_err(|e| e.message())
 }
 fn pages(r: &[u8]) -> Result<usize, &'static str> {
     let cid = chapter_id(r)?;
@@ -1106,12 +1099,15 @@ fn run_get_manga(r: &[u8]) -> u32 {
     set_challenge_context(r);
     execute("get_manga", detail(r))
 }
-fn run_get_chapters(r: &[u8]) -> u32 {
+fn write_chapter_error(message: &str) -> u32 {
+    error("get_chapters", message)
+}
+fn run_get_chapters(r: &[u8]) -> ChapterResult<'static, &'static str> {
     unsafe {
         LAST_HTTP_STATUS = 0;
     }
     set_challenge_context(r);
-    execute("get_chapters", chapters(r))
+    chapters(r)
 }
 fn run_get_pages(r: &[u8]) -> u32 {
     unsafe {
@@ -1161,4 +1157,4 @@ fn run_get_settings(_: &[u8]) -> u32 {
     payload_buf()[..data.len()].copy_from_slice(data);
     write_success_payload("get_settings", data.len())
 }
-koma_source_sdk::koma_source_exports!("mycomic");
+koma_source_sdk::koma_source_exports!("mycomic", typed_chapters, write_chapter_error);

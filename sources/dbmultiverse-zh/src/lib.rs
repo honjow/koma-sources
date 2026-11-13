@@ -1,5 +1,6 @@
 #![no_std]
 extern crate koma_source_sdk;
+use koma_source_sdk::chapters::{Chapter, ChapterNumber, ChapterPage, ChapterPlacement, ChapterResult, GroupedChapters};
 use koma_source_sdk::host::{self, HtmlDescriptor};
 use koma_source_sdk::json_utils::*;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
@@ -11,7 +12,7 @@ const LIST: &[u8] = b"https://www.dragonball-multiverse.com/cn/read.html";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.dragonballmultiverse.zh.koma",
     name: "Dragon Ball Multiverse",
-    version: "0.1.4",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -353,7 +354,7 @@ fn cards(detail: Option<&[u8]>, op: &str) -> R<W> {
     let _ = op;
     Ok(w)
 }
-fn chapters(req: &[u8]) -> R<W> {
+fn chapters(req: &[u8]) -> ChapterResult<'static, &'static str> {
     let c = manga_id(req)?;
     let mut url = [0; 256];
     let mut n = 0;
@@ -368,8 +369,14 @@ fn chapters(req: &[u8]) -> R<W> {
     if all.len == 0 {
         return Err("missing_field");
     }
-    let mut w = W::new();
-    w.put(br#"{"chapters":["#)?;
+    let mut catalog = GroupedChapters::new(payload_buf(), req).map_err(|_| "capacity_exceeded")?;
+    let mut manga_id = [0; 256];
+    let mut manga_len = 0;
+    if !(write_bytes(&mut manga_id, &mut manga_len, b"dbm:zh:")
+        && write_bytes(&mut manga_id, &mut manga_len, c))
+    {
+        return Err("capacity_exceeded");
+    }
     for j in 0..all.len {
         let d = all.at(all.len - 1 - j);
         let mut h = [0; 1024];
@@ -383,32 +390,29 @@ fn chapters(req: &[u8]) -> R<W> {
         }
         let mut t = [0; 1024];
         let title = st(d, b"h4", &mut t)?;
-        if j > 0 {
-            w.put(b",")?
-        }
-        w.put(br#"{"id":"dbmch:zh:"#)?;
-        if !append_json_escaped(payload_buf(), &mut w.n, path) {
+        let mut id = [0; 1033];
+        let mut id_len = 0;
+        if !(write_bytes(&mut id, &mut id_len, b"dbmch:zh:")
+            && write_bytes(&mut id, &mut id_len, path))
+        {
             return Err("capacity_exceeded");
         }
-        w.put(br#"","mangaId":"dbm:zh:"#)?;
-        if !append_json_escaped(payload_buf(), &mut w.n, c) {
-            return Err("capacity_exceeded");
-        }
-        w.put(br#"","title":"#)?;
-        w.q(title)?;
-        w.put(br#", "chapterNumber":"#)?;
-        let num = title
-            .strip_prefix(b"Chapter ")
-            .and_then(|s| s.iter().position(|x| *x == b':').map(|i| &s[..i]));
-        if let Some(v) = num.filter(|v| !v.is_empty() && v.iter().all(u8::is_ascii_digit)) {
-            w.put(v)?
-        } else {
-            w.put(b"null")?
-        }
-        w.put(br#", "volumeNumber":null,"publishedAt":null,"updatedAt":null,"pageCount":null}"#)?;
+        let mut chapter = Chapter::new(&id[..id_len], &manga_id[..manga_len], title);
+        chapter.chapter_number = title.strip_prefix(b"Chapter ")
+            .and_then(|text| text.iter().position(|byte| *byte == b':').map(|end| &text[..end]))
+            .filter(|text| !text.is_empty() && text.iter().all(u8::is_ascii_digit))
+            .and_then(|text| core::str::from_utf8(text).ok())
+            .and_then(|number| number.parse::<usize>().ok())
+            .map(ChapterNumber::Integer);
+        // Official Previous/Next links use the same work and chapter query.
+        let ordinal = &q[c.len() + b"&chapter=".len()..];
+        let position = core::str::from_utf8(ordinal).ok()
+            .and_then(|value| value.parse::<u32>().ok())
+            .ok_or("invalid_chapter_url")?;
+        catalog.push(chapter, ChapterPlacement::InGroup { group: b"source-catalog", position: u64::from(position) })
+            .map_err(|_| "capacity_exceeded")?;
     }
-    w.put(b"]}")?;
-    Ok(w)
+    catalog.finish(ChapterPage::Complete).map_err(|_| "capacity_exceeded")
 }
 // Text overlay is negotiated separately: without it the old host must never
 // receive a page whose dialogue would be missing from the original image.
@@ -583,8 +587,11 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     }
     done("get_manga_list", cards(None, "get_manga_list"))
 }
-fn run_get_chapters(req: &[u8]) -> u32 {
-    done("get_chapters", chapters(req))
+fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, &'static str> {
+    chapters(req)
+}
+fn write_chapter_error(code: &str) -> u32 {
+    write_error("get_chapters", code, "DB Multiverse public contract could not be completed")
 }
 fn run_get_pages(req: &[u8]) -> u32 {
     done("get_pages", pages(req))
@@ -621,4 +628,4 @@ fn run_get_filters(_req: &[u8]) -> u32 {
 fn run_get_settings(_req: &[u8]) -> u32 {
     write_error("get_settings", "unsupported", "not supported")
 }
-koma_source_sdk::koma_source_exports!("dbmultiverse_zh");
+koma_source_sdk::koma_source_exports!("dbmultiverse_zh", typed_chapters, write_chapter_error);

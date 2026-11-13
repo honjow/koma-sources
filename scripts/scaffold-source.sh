@@ -26,7 +26,8 @@ display_name() {
   for word in $spaced; do
     first="${word:0:1}"
     rest="${word:1}"
-    out+="${first^^}${rest} "
+    first="$(printf '%s' "$first" | LC_ALL=C tr '[:lower:]' '[:upper:]')"
+    out+="$first$rest "
   done
   printf '%s' "${out% }"
 }
@@ -63,7 +64,8 @@ cat > "$SOURCE_DIR/src/lib.rs" <<EOF
 #![no_std]
 
 use koma_source_sdk::json_utils::{append_json_escaped, extract_json_string, write_bytes};
-use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
+use koma_source_sdk::chapters::ChapterResult;
+use koma_source_sdk::source::{SourceCapabilities, SourceError, SourceInfo};
 
 const BASE_URL: &[u8] = b"https://example.com";
 
@@ -102,12 +104,6 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     credentials: false,
 };
 
-#[cfg(not(test))]
-#[panic_handler]
-fn panic(_: &core::panic::PanicInfo<'_>) -> ! {
-    loop {}
-}
-
 fn write_static_success(operation: &str, data: &[u8]) -> u32 {
     let payload = payload_buf();
     if data.len() > payload.len() {
@@ -126,8 +122,9 @@ fn run_get_manga(req: &[u8]) -> u32 {
     write_error("get_manga", "unimplemented", "not yet implemented")
 }
 
-fn run_get_chapters(_req: &[u8]) -> u32 {
-    write_error("get_chapters", "unimplemented", "not yet implemented")
+fn run_get_chapters(_req: &[u8]) -> ChapterResult<'static> {
+    // Use ChapterResponse::single/ordered or GroupedChapters for the verified catalog.
+    Err(SourceError::unimplemented())
 }
 
 fn run_get_pages(_req: &[u8]) -> u32 {
@@ -168,7 +165,7 @@ fn run_get_image_request(req: &[u8]) -> u32 {
     write_success_payload("get_image_request", c)
 }
 
-koma_source_sdk::koma_source_exports!("$NAME");
+koma_source_sdk::koma_source_exports!("$NAME", typed_chapters);
 EOF
 
 if ! grep -q "\"sources/$NAME\"" "$ROOT_DIR/Cargo.toml"; then
