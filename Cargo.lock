@@ -1175,6 +1175,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_acgn_source"
+version = "0.1.1"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "sha2",
+ "url",
+]
+
+[[package]]
 name = "koma_asmhentai_zh_source"
 version = "0.1.7"
 dependencies = [

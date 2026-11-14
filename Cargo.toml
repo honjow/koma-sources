@@ -97,6 +97,7 @@ members = [
   "sources/bilimanga",
   "sources/jinmantiantang",
   "sources/utifa",
+  "sources/acgn",
   "sources/mangapluscreators-en",
   "tools/koma-source-dev",
   "sources/mangadex-zh-hans",
