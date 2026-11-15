@@ -378,13 +378,33 @@ fn public_cover_url<'a>(url: &'a [u8], owner: &[u8], out: &'a mut [u8]) -> R<&'a
     path(SITE_COVER_PREFIX, raw, b"", out)
 }
 
-fn body_image(url: &[u8]) -> R<()> {
-    let name = url.strip_prefix(b"https://i.motiezw.com/img/")
-        .or_else(|| url.strip_prefix(b"https://w.motiezw.com/img/"))
-        .and_then(|v| v.strip_suffix(b".avif").or_else(|| v.strip_suffix(b".jpg")))
+fn body_image(url: &[u8], owner: &[u8], expected_chapter: Option<&[u8]>) -> R<()> {
+    let path = url.strip_prefix(b"https://i.motiezw.com/")
+        .or_else(|| url.strip_prefix(b"https://w.motiezw.com/"))
+        .and_then(|path| path.strip_suffix(b".avif").or_else(|| path.strip_suffix(b".jpg")))
         .ok_or("invalid_request")?;
-    if name.len() != 32 || !name.iter().all(u8::is_ascii_hexdigit) {
+    // Keep accepting saved content-hash URLs, which carry no work or chapter ID.
+    if let Some(hash) = path.strip_prefix(b"img/") {
+        return (hash.len() == 32 && hash.iter().all(u8::is_ascii_hexdigit))
+            .then_some(())
+            .ok_or("invalid_request");
+    }
+
+    // The current site also serves /bucket/work/chapter/image-id. The bucket
+    // is provider-owned. Validate IDs from the actual image URL and reader page.
+    let mut segments = path.split(|byte| *byte == b'/');
+    let (Some(bucket), Some(work), Some(chapter), Some(image), None) =
+        (segments.next(), segments.next(), segments.next(), segments.next(), segments.next())
+    else {
         return Err("invalid_request");
+    };
+    if bucket != b"0" {
+        positive(bucket)?;
+    }
+    positive(chapter)?;
+    positive(image)?;
+    if work != owner || expected_chapter.is_some_and(|expected| expected != chapter) {
+        return Err("identity_mismatch");
     }
     Ok(())
 }
@@ -969,16 +989,18 @@ fn chapters(r: &[u8]) -> R<usize> {
     )?;
     Ok(n)
 }
-fn chapter_filename(filename: &[u8]) -> R<()> {
+fn chapter_filename(filename: &[u8]) -> R<&[u8]> {
     let stem = filename.strip_suffix(b".html").ok_or("invalid_request")?;
-    positive(stem.strip_suffix(b"_2").unwrap_or(stem))?;
-    Ok(())
+    let chapter = stem.strip_suffix(b"_2").unwrap_or(stem);
+    positive(chapter)?;
+    Ok(chapter)
 }
 
 struct Chapter<'a> {
     id: &'a [u8],
     anchor: &'a [u8],
     owner: &'a [u8],
+    number: &'a [u8],
     marker: Option<&'static [u8]>,
 }
 
@@ -994,8 +1016,8 @@ fn chapter_identity(id: &[u8]) -> R<Chapter<'_>> {
     let mut parts = anchor.splitn(2, |c| *c == b'/');
     let owner = parts.next().ok_or("invalid_request")?;
     positive(owner)?;
-    chapter_filename(parts.next().ok_or("invalid_request")?)?;
-    Ok(Chapter { id, anchor, owner, marker })
+    let number = chapter_filename(parts.next().ok_or("invalid_request")?)?;
+    Ok(Chapter { id, anchor, owner, number, marker })
 }
 
 fn optional_image_owner(a: &[u8], owner: &[u8]) -> R<()> {
@@ -1033,7 +1055,8 @@ fn pages(r: &[u8]) -> R<usize> {
     optional_image_owner(a, chapter.owner)?;
     let mut pb = [0; 1024];
     let path_to_anchor = path(b"/read/", chapter.anchor, b"", &mut pb)?;
-    let d = if let Some(marker) = chapter.marker {
+    let mut next = [0; 1024];
+    let reader_path = if let Some(marker) = chapter.marker {
         // The old persisted fragment is a local instruction, never an HTTP URL.
         // The actual navigation response controls the second same-title request.
         let (_, size) = fetch_document(path_to_anchor, DocumentRequest::Neighbor)?;
@@ -1046,13 +1069,15 @@ fn pages(r: &[u8]) -> R<usize> {
         } else {
             (stem, b"_2.html".as_slice())
         };
-        let mut next = [0; 1024];
         let path_to_target = path(b"/read/", stem, suffix, &mut next)?;
         drop(probe);
-        fetch(path_to_target)?
+        path_to_target
     } else {
-        fetch(path_to_anchor)?
+        path_to_anchor
     };
+    let filename = reader_path.rsplit(|byte| *byte == b'/').next().ok_or("invalid_request")?;
+    let resolved_chapter = chapter_filename(filename)?;
+    let d = fetch(reader_path)?;
     let images = Nodes::get(&d, b".imagecontent")?;
     if images.n == 0 {
         if let Ok(content) = d.select(b"#acontentz") {
@@ -1071,7 +1096,7 @@ fn pages(r: &[u8]) -> R<usize> {
         let node = images.at(i);
         let mut ub = [0; 4096];
         let u = node.attr(b"data-src", &mut ub)?;
-        body_image(u).map_err(|_| "parse_error")?;
+        body_image(u, chapter.owner, Some(resolved_chapter)).map_err(|_| "parse_error")?;
         if i > 0 {
             w(out, &mut n, b",")?
         };
@@ -1160,9 +1185,10 @@ fn image_request(r: &[u8]) -> R<usize> {
         }
         let chapter = chapter_identity(&page[..split])?;
         optional_image_owner(a, chapter.owner)?;
-        // The provider's image path is a content hash. Bind the request to the
-        // exact known public image origins and file shape, not a fabricated CID.
-        body_image(url)?;
+        // Saved neighbor IDs hold the anchor. get_pages already checked the
+        // resolved chapter against the real navigation target before emitting these URLs.
+        let chapter_number = chapter.marker.is_none().then_some(chapter.number);
+        body_image(url, chapter.owner, chapter_number)?;
         (url, false)
     };
     let out = payload_buf();
