@@ -1,6 +1,7 @@
 {
   "identity": {
     "mihon": {
+      "samePageOrder": true,
       "sourceIds": [
         "3279300917142951720"
       ],
