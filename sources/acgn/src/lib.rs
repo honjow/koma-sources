@@ -23,7 +23,7 @@ const BASE: &str = "https://comic.acgn.cc";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "cc.acgn.koma",
     name: "動漫戲說",
-    version: "0.1.1",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
