@@ -1,4 +1,21 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "560822675588930101"
+      ],
+      "work": {
+        "pathPrefix": "/g/",
+        "pathSuffix": "/",
+        "idPrefix": "nhx:zh:"
+      },
+      "chapter": {
+        "pathPrefix": "/g/",
+        "pathSuffix": "/",
+        "idPrefix": "nhxgallery:zh:"
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "NHentai.xxx",
     "zh-Hant": "NHentai.xxx",

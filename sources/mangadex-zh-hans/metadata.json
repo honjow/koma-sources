@@ -1,4 +1,21 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "5148895169070562838"
+      ],
+      "work": {
+        "pathPrefix": "/manga/",
+        "idPrefix": "mdzh:"
+      },
+      "chapter": {
+        "pathPrefix": "/chapter/",
+        "idPrefix": "",
+        "targetIdSegment": 3
+      },
+      "samePageOrder": true
+    }
+  },
   "localizedNames": {
     "zh-Hans": "MangaDex（简体中文）",
     "zh-Hant": "MangaDex（簡體中文）",

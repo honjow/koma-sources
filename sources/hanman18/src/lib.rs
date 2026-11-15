@@ -57,7 +57,7 @@ static mut B64_BUF: [u8; B64_CAP] = [0; B64_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hanman18.koma",
     name: "HANMAN18",
-    version: "0.1.6",
+    version: "0.1.7",
     api_version: "0.2",
     language: "zh",
     author: "Koma",

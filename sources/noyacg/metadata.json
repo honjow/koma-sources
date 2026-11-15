@@ -1,3 +1,14 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "6492346234228542735"
+      ],
+      "work": {
+        "pathPrefix": "",
+        "idPrefix": "manga:"
+      }
+    }
+  },
   "homepage": "https://noymanga.com"
 }

@@ -1,4 +1,22 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "8202483679232242177"
+      ],
+      "work": {
+        "pathPrefix": "/kanmanhua/",
+        "pathSuffix": "/",
+        "idPrefix": "mh160:"
+      },
+      "chapter": {
+        "pathPrefix": "/kanmanhua/",
+        "pathSuffix": ".html",
+        "idPrefix": "mh160ch:/kanmanhua/",
+        "idSuffix": ".html"
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "漫画160",
     "zh-Hant": "漫畫160"

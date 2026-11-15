@@ -1,4 +1,20 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "8743284448117690086"
+      ],
+      "work": {
+        "pathPrefix": "/plugin.php?id=jameson_manhua&c=index&a=bofang&kuid=",
+        "idPrefix": "manga:pc-"
+      },
+      "chapter": {
+        "pathPrefix": "/plugin.php?id=jameson_manhua&a=read&zjid=",
+        "idPrefix": "/pc/view/index.php?zjid=",
+        "targetIdSegment": 2
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "zero搬运网",
     "zh-Hant": "zero搬運網",

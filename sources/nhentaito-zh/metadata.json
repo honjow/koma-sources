@@ -1,4 +1,21 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "79691962210322609"
+      ],
+      "work": {
+        "pathPrefix": "/g/",
+        "pathSuffix": "/",
+        "idPrefix": "nht:zh:"
+      },
+      "chapter": {
+        "pathPrefix": "/g/",
+        "pathSuffix": "/",
+        "idPrefix": "nhtgallery:zh:"
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "NHentai.to",
     "zh-Hant": "NHentai.to",

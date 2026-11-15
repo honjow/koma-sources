@@ -1,4 +1,15 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "4585134706567717130"
+      ],
+      "work": {
+        "pathPrefix": "/api/comic/",
+        "idPrefix": ""
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "泰拉记事社",
     "zh-Hant": "泰拉記事社",

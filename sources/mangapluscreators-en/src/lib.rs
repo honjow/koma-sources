@@ -9,7 +9,7 @@ const ASSET: &[u8] = b"https://assets.mangaplus-creators.jp";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mangapluscreators.en.koma",
     name: "MANGA Plus Creators by SHUEISHA",
-    version: "0.1.7",
+    version: "0.1.8",
     api_version: "0.2",
     language: "en",
     author: "Koma",

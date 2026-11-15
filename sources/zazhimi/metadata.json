@@ -1,3 +1,18 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "6466445276541048432"
+      ],
+      "work": {
+        "pathPrefix": "/show.php?a=",
+        "idPrefix": ""
+      },
+      "chapter": {
+        "pathPrefix": "/show.php?a=",
+        "idPrefix": ""
+      }
+    }
+  },
   "homepage": "https://www.zazhimi.net"
 }

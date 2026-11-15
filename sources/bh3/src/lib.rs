@@ -10,7 +10,7 @@ const BASE: &[u8] = b"https://comic.bh3.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.bh3.koma",
     name: "崩坏3 IP站",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh",
     author: "Koma source contributors",

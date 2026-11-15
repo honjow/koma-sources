@@ -1,4 +1,20 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "7859611418350123856"
+      ],
+      "work": {
+        "pathPrefix": "",
+        "idPrefix": "namicomi:zh-hant:"
+      },
+      "chapter": {
+        "pathPrefix": "",
+        "idPrefix": "",
+        "targetIdSegment": 3
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "NamiComi（繁体中文）",
     "zh-Hant": "NamiComi（繁體中文）",

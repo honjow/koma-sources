@@ -1,4 +1,15 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "7460126106933105633"
+      ],
+      "work": {
+        "pathPrefix": "",
+        "idPrefix": "cmm:"
+      }
+    }
+  },
   "homepage": "https://cmanhua.com",
   "wasmBuild": {"stackBytes": 262144}
 }

@@ -1,4 +1,15 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "28664779574072063"
+      ],
+      "work": {
+        "pathPrefix": "/zh-hans/v/",
+        "idPrefix": "c18:zh:"
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "色漫网",
     "zh-Hant": "色漫網",

@@ -1,4 +1,23 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "5234610795363016972"
+      ],
+      "work": {
+        "pathPrefix": "/",
+        "pathSuffix": "bz/",
+        "idPrefix": "manga:",
+        "idSuffix": "bz"
+      },
+      "chapter": {
+        "pathPrefix": "/m",
+        "idPrefix": "",
+        "pathSuffix": "/",
+        "targetIdSegment": 2
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "MangaBz",
     "zh-Hant": "MangaBz",

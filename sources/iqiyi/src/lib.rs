@@ -6,7 +6,7 @@ use koma_source_sdk::{
 };
 type E = &'static str;
 const MAX: usize = 1048576;
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.iqiyi.koma",name:"Iqiyi",version:"0.1.4",api_version:"0.2",language:"zh-Hans",author:"Koma",description:"Iqiyi Bada public metadata API; requires real host clock and entropy. Usage and per-work rating unknown.",content_rating:"safe"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.iqiyi.koma",name:"Iqiyi",version:"0.1.5",api_version:"0.2",language:"zh-Hans",author:"Koma",description:"Iqiyi Bada public metadata API; requires real host clock and entropy. Usage and per-work rating unknown.",content_rating:"safe"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,

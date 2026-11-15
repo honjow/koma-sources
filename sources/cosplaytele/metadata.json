@@ -1,1 +1,21 @@
-{"homepage":"https://cosplaytele.com","chapterOrder":"newest_first"}
+{
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "7395748658970167454"
+      ],
+      "work": {
+        "pathPrefix": "/",
+        "pathSuffix": "/",
+        "idPrefix": "cosplaytele:/",
+        "idSuffix": "/"
+      },
+      "chapter": {
+        "pathPrefix": "/",
+        "pathSuffix": "/",
+        "idPrefix": "cosplaytele-read:/",
+        "idSuffix": "/"
+      }
+    }
+  },
+"homepage":"https://cosplaytele.com","chapterOrder":"newest_first"}

@@ -1,4 +1,20 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "1939536259784675646"
+      ],
+      "work": {
+        "pathPrefix": "/book/",
+        "idPrefix": "mx:zh:"
+      },
+      "chapter": {
+        "pathPrefix": "/chapter/",
+        "idPrefix": "",
+        "targetIdSegment": 3
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "漫小肆",
     "zh-Hant": "漫小肆",

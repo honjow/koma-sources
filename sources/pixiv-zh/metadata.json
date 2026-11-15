@@ -1,4 +1,19 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "6934645150441404855"
+      ],
+      "work": {
+        "pathPrefix": "/artworks/",
+        "idPrefix": "pixiv:artwork:"
+      },
+      "chapter": {
+        "pathPrefix": "/artworks/",
+        "idPrefix": "pixivch:artwork:"
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "pixiv",
     "zh-Hant": "pixiv",

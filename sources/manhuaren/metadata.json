@@ -1,4 +1,19 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "3616827811449702173"
+      ],
+      "work": {
+        "pathPrefix": "/v1/manga/getDetail?mangaId=",
+        "idPrefix": "mhr:"
+      },
+      "chapter": {
+        "pathPrefix": "/v1/manga/getRead?mangaSectionId=",
+        "idPrefix": ""
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "漫画人",
     "zh-Hant": "漫畫人",

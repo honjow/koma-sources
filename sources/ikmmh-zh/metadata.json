@@ -1,4 +1,16 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "1793919771803569726"
+      ],
+      "work": {
+        "pathPrefix": "/book/",
+        "pathSuffix": "/",
+        "idPrefix": "ik:zh:"
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "爱看漫",
     "zh-Hant": "愛看漫",

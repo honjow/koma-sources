@@ -28,7 +28,7 @@ static mut URL_BUF: [u8; URL_CAP] = [0; URL_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.zazhimi.koma",
     name: "杂志迷",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma",

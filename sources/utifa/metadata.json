@@ -1,1 +1,18 @@
-{"homepage":"https://bx.yaimer.com","chapterOrder":"newest_first"}
+{
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "312206349505621113"
+      ],
+      "work": {
+        "pathPrefix": "",
+        "idPrefix": "utifa:"
+      },
+      "chapter": {
+        "pathPrefix": "",
+        "idPrefix": "",
+        "targetIdSegment": 2
+      }
+    }
+  },
+"homepage":"https://bx.yaimer.com","chapterOrder":"newest_first"}

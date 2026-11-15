@@ -1,4 +1,22 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "5183325399429659419",
+        "5483710122572444235"
+      ],
+      "work": {
+        "pathPrefix": "/",
+        "idPrefix": "/"
+      },
+      "chapter": {
+        "pathPrefix": "/",
+        "pathSuffix": ".html",
+        "idPrefix": "/",
+        "idSuffix": ".html"
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "六漫画",
     "zh-Hant": "六漫畫"

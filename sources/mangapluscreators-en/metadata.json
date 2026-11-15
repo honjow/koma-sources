@@ -1,4 +1,20 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "4994699950662723787"
+      ],
+      "work": {
+        "pathPrefix": "/titles/",
+        "idPrefix": "mpc:en:"
+      },
+      "chapter": {
+        "pathPrefix": "/episodes/",
+        "idPrefix": "",
+        "targetIdSegment": 3
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "MANGA Plus Creators",
     "zh-Hant": "MANGA Plus Creators",

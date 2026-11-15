@@ -1,4 +1,15 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "5768337869316468367"
+      ],
+      "work": {
+        "pathPrefix": "https://picaapi.picacomic.com/comics/",
+        "idPrefix": "picacomic:"
+      }
+    }
+  },
   "homepage": "https://manhuabika.com",
   "chapterOrder": "newest_first",
   "authentication": {

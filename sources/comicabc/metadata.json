@@ -1,4 +1,16 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "8110122805257580230"
+      ],
+      "work": {
+        "pathPrefix": "/html/",
+        "pathSuffix": ".html",
+        "idPrefix": "comicabc:manga:"
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "无限动漫",
     "zh-Hant": "無限動漫",

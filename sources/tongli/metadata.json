@@ -1,3 +1,18 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "5530823947742715441"
+      ],
+      "work": {
+        "pathPrefix": "",
+        "idPrefix": "tl:"
+      },
+      "chapter": {
+        "pathPrefix": "",
+        "idPrefix": "tlch:"
+      }
+    }
+  },
   "homepage": "https://ebook.tongli.com.tw"
 }

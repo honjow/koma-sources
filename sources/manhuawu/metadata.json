@@ -1,4 +1,20 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "3279300917142951720"
+      ],
+      "work": {
+        "pathPrefix": "/comic/",
+        "idPrefix": "mh:",
+        "idSuffix": ":0"
+      },
+      "chapter": {
+        "pathPrefix": "/chapter/",
+        "idPrefix": "ch:/index.php/chapter/"
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "漫画屋",
     "zh-Hant": "漫畫屋"

@@ -1,1 +1,22 @@
-{"localizedNames":{"zh-Hans":"漫画社","zh-Hant":"漫畫社"},"homepage":"https://www.311s.com","websitePolicy":{"homepageChoices":{"setting":"preferredMirror","options":[{"value":"https://www.311s.com","url":"https://www.311s.com/"},{"value":"https://www.m206.com","url":"https://www.m206.com/"}]}},"chapterOrder":"newest_first"}
+{
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "6230622879116184108"
+      ],
+      "work": {
+        "pathPrefix": "/comic_",
+        "idPrefix": "manga:/comic_",
+        "pathSuffix": ".html",
+        "idSuffix": ".html"
+      },
+      "chapter": {
+        "pathPrefix": "/chapter_",
+        "idPrefix": "/chapter_",
+        "pathSuffix": ".html",
+        "idSuffix": ".html",
+        "targetIdSegment": 2
+      }
+    }
+  },
+"localizedNames":{"zh-Hans":"漫画社","zh-Hant":"漫畫社"},"homepage":"https://www.311s.com","websitePolicy":{"homepageChoices":{"setting":"preferredMirror","options":[{"value":"https://www.311s.com","url":"https://www.311s.com/"},{"value":"https://www.m206.com","url":"https://www.m206.com/"}]}},"chapterOrder":"newest_first"}

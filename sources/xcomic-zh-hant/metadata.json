@@ -1,4 +1,20 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "7613068814739763778"
+      ],
+      "work": {
+        "pathPrefix": "",
+        "idPrefix": "xcomic:zh-Hant:"
+      },
+      "chapter": {
+        "pathPrefix": "",
+        "idPrefix": "",
+        "targetIdSegment": 4
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "XCOMIC（繁体中文）",
     "zh-Hant": "XCOMIC（繁體中文）",

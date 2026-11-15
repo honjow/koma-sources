@@ -14,6 +14,10 @@ Sources are compiled to WebAssembly (`wasm32-unknown-unknown`, `#![no_std]`) and
 源登记的最低 Koma 版本，打包脚本将同一值写入包清单和订阅索引。最低版本必须对应
 确实具备该能力的宿主。正式版本尚未确定时，候选包不进入公开索引。
 
+### Mihon 备份标识转换
+
+若源可读取 Mihon 扩展所记录的同一目录，在 `identity.mihon` 声明对应的十进制来源编号字符串（`sourceIds`）及 `work` 路径规则。规则去掉站内地址的 `pathPrefix` 与可选 `pathSuffix`，将剩余标识加上 `idPrefix` 与可选 `idSuffix`，交给现有详情接口。裸 ID 可用空前缀。固定查询键写进路径前缀，源记录完整地址时可声明固定 HTTPS 前缀。变量部分是普通标识或路径，一些源使用逗号分隔标识。宿主只把转换后的标识传给书源自己的接口。可选 `chapter` 使用同样规则，生成的标识须存在于该作品当前目录。章节 ID 包含可变页数时，`targetIdSegment` 可声明按冒号拆分后从 0 开始的稳定标识位置。只有确认两端图片顺序一致才设置 `samePageOrder: true`。打包器输出可选字段 `mihonImport`，旧客户端仍通过原操作浏览和阅读。
+
 ## Quick Start
 ### 验证页 UA
 

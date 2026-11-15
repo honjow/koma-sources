@@ -1,4 +1,15 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "792932060924485302"
+      ],
+      "work": {
+        "pathPrefix": "/comic/",
+        "idPrefix": "kic:"
+      }
+    }
+  },
   "homepage": "https://komiic.com/",
   "websitePolicy": {
     "homepageChoices": {

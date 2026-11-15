@@ -1,4 +1,15 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "6187036261988654925"
+      ],
+      "work": {
+        "pathPrefix": "/comicprofile.php?url=",
+        "idPrefix": "/comicprofile.php?url="
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "Comic Fury",
     "zh-Hant": "Comic Fury",

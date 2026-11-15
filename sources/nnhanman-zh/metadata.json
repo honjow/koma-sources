@@ -1,4 +1,16 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "6412117657297236190"
+      ],
+      "work": {
+        "pathPrefix": "/comic/",
+        "pathSuffix": ".html",
+        "idPrefix": "nn:zh:"
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "鸟鸟韩漫",
     "zh-Hant": "鳥鳥韓漫",

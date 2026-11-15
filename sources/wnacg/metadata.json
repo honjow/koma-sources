@@ -1,4 +1,22 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "6551136894818591762"
+      ],
+      "work": {
+        "pathPrefix": "/photos-index-aid-",
+        "pathSuffix": ".html",
+        "idPrefix": "wnacg:"
+      },
+      "chapter": {
+        "pathPrefix": "/photos-index-aid-",
+        "pathSuffix": ".html",
+        "idPrefix": "",
+        "targetIdSegment": 2
+      }
+    }
+  },
   "homepage": "https://www.wnacg.buzz",
   "chapterOrder": "newest_first",
   "authentication": {

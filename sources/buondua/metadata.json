@@ -1,4 +1,15 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "1435103006121310663"
+      ],
+      "work": {
+        "pathPrefix": "/",
+        "idPrefix": "buondua:/"
+      }
+    }
+  },
   "homepage": "https://buondua.com",
   "chapterOrder": "newest_first",
   "requestLimits": [

@@ -1,4 +1,15 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "116946528518438525"
+      ],
+      "work": {
+        "pathPrefix": "/",
+        "idPrefix": "miaoqu:"
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "喵趣漫画",
     "zh-Hant": "喵趣漫畫",

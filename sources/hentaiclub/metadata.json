@@ -1,4 +1,23 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "8618065660246087865"
+      ],
+      "work": {
+        "pathPrefix": "/",
+        "idPrefix": "hentaiclub:/",
+        "pathSuffix": ".html",
+        "idSuffix": ".html"
+      },
+      "chapter": {
+        "pathPrefix": "/",
+        "idPrefix": "hentaiclub-read:/",
+        "pathSuffix": ".html",
+        "idSuffix": ".html"
+      }
+    }
+  },
   "homepage": "https://www.hentaiclub.net",
   "chapterOrder": "newest_first",
   "requestLimits": [

@@ -1,4 +1,20 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "9103931521355991619"
+      ],
+      "work": {
+        "pathPrefix": "/comic.php?id=",
+        "idPrefix": "guazi:manga:"
+      },
+      "chapter": {
+        "pathPrefix": "/chapter.php?id=",
+        "idPrefix": "",
+        "targetIdSegment": 3
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "瓜子漫画",
     "zh-Hant": "瓜子漫畫"

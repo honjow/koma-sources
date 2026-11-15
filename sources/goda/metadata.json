@@ -1,4 +1,15 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "774030471139699415"
+      ],
+      "work": {
+        "pathPrefix": "",
+        "idPrefix": "goda:"
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "GoDa漫画",
     "zh-Hant": "GoDa漫畫",

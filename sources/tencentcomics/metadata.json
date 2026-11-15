@@ -1,4 +1,15 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "6353436350537369479"
+      ],
+      "work": {
+        "pathPrefix": "/comic/index/id/",
+        "idPrefix": "tencent:manga:"
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "腾讯动漫",
     "zh-Hant": "騰訊動漫",

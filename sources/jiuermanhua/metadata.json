@@ -1,4 +1,23 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "1520913911854846698"
+      ],
+      "work": {
+        "pathPrefix": "/manhua/",
+        "pathSuffix": "/",
+        "idPrefix": "/manhua/",
+        "idSuffix": "/"
+      },
+      "chapter": {
+        "pathPrefix": "/manhua/",
+        "pathSuffix": ".html",
+        "idPrefix": "/manhua/",
+        "idSuffix": ".html"
+      }
+    }
+  },
   "homepage": "http://www.92mh.com",
   "localizedNames": {
     "zh-Hans": "92漫画",

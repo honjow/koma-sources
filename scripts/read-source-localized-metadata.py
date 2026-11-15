@@ -145,10 +145,42 @@ def request_limits(rules):
     return rules
 
 
+def mihon_import_identity(rule):
+    if (not isinstance(rule, dict) or not {"sourceIds", "work"} <= rule.keys() <=
+            {"sourceIds", "work", "chapter", "samePageOrder"}):
+        raise ValueError("invalid identity.mihon fields")
+    ids = rule["sourceIds"]
+    if (not isinstance(ids, list) or not ids or not all(
+            isinstance(value, str) and re.fullmatch(r"-?\d{1,19}", value) for value in ids)):
+        raise ValueError("invalid identity.mihon.sourceIds")
+    for key in ("work", "chapter"):
+        if key not in rule:
+            continue
+        path = rule[key]
+        text_fields = {"pathPrefix", "pathSuffix", "idPrefix", "idSuffix"}
+        allowed = text_fields | ({"targetIdSegment"} if key == "chapter" else set())
+        if (not isinstance(path, dict) or not {"pathPrefix", "idPrefix"} <= path.keys() <= allowed or not all(
+                    isinstance(path[field], str) and re.fullmatch(r"[A-Za-z0-9._:/?=&,-]{0,128}", path[field])
+                    for field in path.keys() & text_fields) or ((path["pathPrefix"] != "" and not path["pathPrefix"].startswith("/") and not re.match(r"^https://[A-Za-z0-9.-]+/", path["pathPrefix"])) and not re.match(r"^https://[A-Za-z0-9.-]+/", path["pathPrefix"]))):
+            raise ValueError("invalid identity.mihon." + key)
+        if "targetIdSegment" in path and (type(path["targetIdSegment"]) is not int or
+                                          not 0 <= path["targetIdSegment"] <= 7):
+            raise ValueError("invalid identity.mihon.chapter.targetIdSegment")
+    if ("samePageOrder" in rule and type(rule["samePageOrder"]) is not bool or
+            rule.get("samePageOrder") and "chapter" not in rule):
+        raise ValueError("invalid identity.mihon.samePageOrder")
+    return rule
+
+
 def extract(metadata, web_origins=None):
     if not isinstance(metadata, dict):
         return {}
     result = {}
+    identity = metadata.get("identity", {})
+    if not isinstance(identity, dict):
+        raise ValueError("invalid identity fields")
+    if "mihon" in identity:
+        result["mihonImport"] = mihon_import_identity(identity["mihon"])
     if "websitePolicy" in metadata:
         policy = metadata["websitePolicy"]
         if not isinstance(policy, dict):

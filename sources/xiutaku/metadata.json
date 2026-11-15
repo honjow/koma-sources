@@ -1,4 +1,15 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "6520733892888572506"
+      ],
+      "work": {
+        "pathPrefix": "/",
+        "idPrefix": ""
+      }
+    }
+  },
   "homepage": "https://xiutaku.com",
   "chapterOrder": "newest_first",
   "requestLimits": [

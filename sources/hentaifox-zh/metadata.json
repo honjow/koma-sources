@@ -1,4 +1,21 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "3252050349835097844"
+      ],
+      "work": {
+        "pathPrefix": "/gallery/",
+        "idPrefix": "hf:zh:",
+        "pathSuffix": "/"
+      },
+      "chapter": {
+        "pathPrefix": "/gallery/",
+        "idPrefix": "hfch:zh:",
+        "pathSuffix": "/"
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "HentaiFox",
     "zh-Hant": "HentaiFox",

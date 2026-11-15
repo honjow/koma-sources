@@ -1,4 +1,20 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "5092568988625041973"
+      ],
+      "work": {
+        "pathPrefix": "/manhwa/",
+        "idPrefix": "manga:/manhwa/"
+      },
+      "chapter": {
+        "pathPrefix": "/manhwa/",
+        "idPrefix": "/manhwa/",
+        "targetIdSegment": 2
+      }
+    }
+  },
   "homepage": "https://hanman18.com",
   "chapterOrder": "oldest_first",
   "localizedNames": {

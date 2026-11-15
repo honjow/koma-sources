@@ -455,7 +455,7 @@ build_source() {
     --arg minAppVersion "$min_app_version" \
     --argjson sourceMetadata "$source_metadata" \
     --argjson distribution "$distribution" \
-    '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, pkg: $pkg, sha256: $sha256, icon: $icon, minAppVersion: $minAppVersion} + $sourceMetadata + $distribution'
+    '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, pkg: $pkg, sha256: $sha256, icon: $icon, minAppVersion: $minAppVersion} + ($sourceMetadata | del(.mihonImport)) + $distribution'
 }
 
 validate_index_packages() {

@@ -1,3 +1,19 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "2499283573021220255"
+      ],
+      "work": {
+        "pathPrefix": "/manga/",
+        "idPrefix": "mdx:"
+      },
+      "chapter": {
+        "pathPrefix": "/chapter/",
+        "idPrefix": "ch:"
+      },
+      "samePageOrder": true
+    }
+  },
   "homepage": "https://mangadex.org/"
 }

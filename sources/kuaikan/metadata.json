@@ -1,4 +1,20 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "8099870292642776005"
+      ],
+      "work": {
+        "pathPrefix": "/web/topic/",
+        "idPrefix": "kkt:"
+      },
+      "chapter": {
+        "pathPrefix": "/web/comic/",
+        "idPrefix": "",
+        "targetIdSegment": 2
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "快看漫画",
     "zh-Hant": "快看漫畫"

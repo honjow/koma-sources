@@ -1,4 +1,24 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "2198877009406729694"
+      ],
+      "work": {
+        "pathPrefix": "/detail_",
+        "pathSuffix": ".html",
+        "idPrefix": "manga:/detail_",
+        "idSuffix": ".html"
+      },
+      "chapter": {
+        "pathPrefix": "/reader/",
+        "pathSuffix": ".html",
+        "idPrefix": "/reader/",
+        "idSuffix": ".html",
+        "targetIdSegment": 2
+      }
+    }
+  },
   "localizedNames": {
     "en": "Iqiyi Bada",
     "zh-Hans": "爱奇艺叭嗒",

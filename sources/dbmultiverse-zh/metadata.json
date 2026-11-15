@@ -1,4 +1,15 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "4903395296014438593"
+      ],
+      "work": {
+        "pathPrefix": "/cn/chapters.html?comic=",
+        "idPrefix": "dbm:zh:"
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "DB Multiverse",
     "zh-Hant": "DB Multiverse",

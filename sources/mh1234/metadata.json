@@ -1,4 +1,23 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "7895725080195720063"
+      ],
+      "work": {
+        "pathPrefix": "/comic/",
+        "idPrefix": "/comic/",
+        "pathSuffix": ".html",
+        "idSuffix": ".html"
+      },
+      "chapter": {
+        "pathPrefix": "/comic/",
+        "idPrefix": "/comic/",
+        "pathSuffix": ".html",
+        "idSuffix": ".html"
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "漫画1234",
     "zh-Hant": "漫畫1234",

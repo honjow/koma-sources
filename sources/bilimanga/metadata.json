@@ -1,4 +1,22 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "7289707411592168382"
+      ],
+      "work": {
+        "pathPrefix": "/detail/",
+        "pathSuffix": ".html",
+        "idPrefix": "bilimanga:"
+      },
+      "chapter": {
+        "pathPrefix": "/read/",
+        "pathSuffix": ".html",
+        "idPrefix": "bilimanga-read:",
+        "idSuffix": ".html"
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "哔哩漫画",
     "zh-Hant": "嗶哩漫畫",

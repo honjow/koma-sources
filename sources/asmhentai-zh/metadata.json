@@ -1,4 +1,21 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "2819783147032745073"
+      ],
+      "work": {
+        "pathPrefix": "/g/",
+        "idPrefix": "asm:zh:",
+        "pathSuffix": "/"
+      },
+      "chapter": {
+        "pathPrefix": "/g/",
+        "idPrefix": "asmch:zh:",
+        "pathSuffix": "/"
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "AsmHentai",
     "zh-Hant": "AsmHentai",

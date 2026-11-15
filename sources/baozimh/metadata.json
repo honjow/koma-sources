@@ -1,4 +1,15 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "5724751873601868259"
+      ],
+      "work": {
+        "pathPrefix": "/comic/",
+        "idPrefix": "manga:"
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "包子漫画",
     "zh-Hant": "包子漫畫",

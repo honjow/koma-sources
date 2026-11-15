@@ -24,7 +24,7 @@ use koma_source_sdk::{
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.xcomic.zh.koma",
     name: "XCOMIC",
-    version: "0.1.13",
+    version: "0.1.14",
     api_version: "0.2",
     language: "zh",
     author: "Koma",

@@ -1,4 +1,23 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "293789630396851172"
+      ],
+      "work": {
+        "pathPrefix": "/manhua-",
+        "pathSuffix": "/",
+        "idPrefix": "manga:manhua-"
+      },
+      "chapter": {
+        "pathPrefix": "/m",
+        "pathSuffix": "/",
+        "idPrefix": "",
+        "targetIdSegment": 2
+      },
+      "samePageOrder": true
+    }
+  },
   "homepage": "https://www.dm5.cn",
   "localizedNames": {
     "zh-Hans": "动漫屋",

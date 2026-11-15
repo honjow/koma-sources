@@ -1,4 +1,16 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "6286738698187452081"
+      ],
+      "work": {
+        "pathPrefix": "/album/",
+        "pathSuffix": "/",
+        "idPrefix": "jmcomic:"
+      }
+    }
+  },
   "homepage": "https://18comic.vip",
   "chapterOrder": "newest_first",
   "requiredImageDecodes": [

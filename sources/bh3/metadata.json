@@ -1,4 +1,15 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "5943234929466346733"
+      ],
+      "work": {
+        "pathPrefix": "/book/",
+        "idPrefix": "bh3:"
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "崩坏3 IP站",
     "zh-Hant": "崩壞3 IP站"

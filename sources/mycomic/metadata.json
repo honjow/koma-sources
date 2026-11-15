@@ -1,1 +1,17 @@
-{"localizedNames":{"zh-Hans":"MYCOMIC","zh-Hant":"MYCOMIC","en":"MYCOMIC"},"homepage":"https://mycomic.com","websitePolicy":{"renderedDocumentFallback":{"readySelector":"div.grid > div.group, div[data-flux-card]"},"httpProfiles":[{"origin":"https://mycomic.com","profile":"chrome145"}],"webSessionAndroidAgent":true,"webFetchBridge":true}}
+{
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "9119537447562549661"
+      ],
+      "work": {
+        "pathPrefix": "/comics/",
+        "idPrefix": ""
+      },
+      "chapter": {
+        "pathPrefix": "/chapters/",
+        "idPrefix": ""
+      }
+    }
+  },
+"localizedNames":{"zh-Hans":"MYCOMIC","zh-Hant":"MYCOMIC","en":"MYCOMIC"},"homepage":"https://mycomic.com","websitePolicy":{"renderedDocumentFallback":{"readySelector":"div.grid > div.group, div[data-flux-card]"},"httpProfiles":[{"origin":"https://mycomic.com","profile":"chrome145"}],"webSessionAndroidAgent":true,"webFetchBridge":true}}

@@ -1,4 +1,19 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "524579092615598717"
+      ],
+      "work": {
+        "pathPrefix": "",
+        "idPrefix": ""
+      },
+      "chapter": {
+        "pathPrefix": "",
+        "idPrefix": ""
+      }
+    }
+  },
   "localizedNames": {
     "zh-Hans": "再漫画",
     "zh-Hant": "再漫畫",
