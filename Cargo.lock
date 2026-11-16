@@ -1855,7 +1855,7 @@ dependencies = [
 
 [[package]]
 name = "koma_wnacg_source"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",

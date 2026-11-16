@@ -636,7 +636,7 @@ fn chapters(r: &[u8], v: &Value) -> R<Value> {
     }
     Ok(json!({"chapters":out,"page":{"hasMore":false,"nextCursor":null}}))
 }
-fn uri_owner(url: &str, cid: &str) -> R<()> {
+fn uri_owner(url: &str, cid: &str, partition: &Regex) -> R<()> {
     let u = Url::parse(url).map_err(|_| E::from("invalid_request"))?;
     if !matches!(u.scheme(), "http" | "https") || !u.username().is_empty() || u.password().is_some()
     {
@@ -644,7 +644,7 @@ fn uri_owner(url: &str, cid: &str) -> R<()> {
     }
     // All 5807 frozen original URLs expose this CID partition. Only reject a
     // provable different CID in this path form; opaque other CDN layouts stay valid.
-    if let Some(c) = rx(r"^/data/(\d+)/(\d{2})/")?.captures(u.path()) {
+    if let Some(c) = partition.captures(u.path()) {
         if format!("{}{}", &c[1], &c[2]) != cid {
             return Err("invalid_request".into());
         }
@@ -658,10 +658,12 @@ fn pages(r: &[u8], v: &Value) -> R<Value> {
     let b = http(&u, &cx.base)?;
     let t = core::str::from_utf8(&b).map_err(|_| E::from("parse_error"))?;
     let re = rx(r#"(?i)//[^\s"'\\]+\.(?:jpeg|jpg|png|webp|gif)(?:\?[^\s"'\\]*)?"#)?;
+    // Compile once per chapter. Long galleries can have hundreds of images.
+    let partition = rx(r"^/data/(\d+)/(\d{2})/")?;
     let mut out = Vec::new();
     for (i, m) in re.find_iter(t).enumerate() {
         let url = image_url(m.as_str())?;
-        uri_owner(&url, &cid).map_err(|_| E::from("parse_error"))?;
+        uri_owner(&url, &cid, &partition).map_err(|_| E::from("parse_error"))?;
         out.push(json!({"id":format!("wnacg-page:{}:{}:{}",aid,cid,i),"index":i,"image":{"kind":"url","url":url}}))
     }
     if out.is_empty() {
@@ -728,7 +730,7 @@ fn image_request(r: &[u8], v: &Value) -> R<Value> {
     let u = v["args"]["url"]
         .as_str()
         .ok_or_else(|| E::from("invalid_request"))?;
-    uri_owner(u, fields[1])?;
+    uri_owner(u, fields[1], &rx(r"^/data/(\d+)/(\d{2})/")?)?;
     if let Some(route) = v["args"].get("mangaUrl") {
         let route = route.as_str().ok_or_else(|| E::from("invalid_request"))?;
         let owner = match url_aid(route, DEFAULTS[0]) {
