@@ -14,7 +14,8 @@
         "pathSuffix": ".html",
         "idPrefix": "",
         "targetIdSegment": 2
-      }
+      },
+      "samePageOrder": true
     }
   },
   "homepage": "https://www.wnacg.buzz",

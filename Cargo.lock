@@ -1264,7 +1264,7 @@ dependencies = [
 
 [[package]]
 name = "koma_copymanga_source"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1456,7 +1456,7 @@ dependencies = [
 
 [[package]]
 name = "koma_jinmantiantang_source"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "aes",
  "base64 0.22.1",
@@ -1733,7 +1733,7 @@ dependencies = [
 
 [[package]]
 name = "koma_picacomic_source"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1855,7 +1855,7 @@ dependencies = [
 
 [[package]]
 name = "koma_wnacg_source"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",

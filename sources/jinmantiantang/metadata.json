@@ -7,8 +7,16 @@
       "work": {
         "pathPrefix": "/album/",
         "pathSuffix": "/",
+        "pathTitleAfterId": true,
         "idPrefix": "jmcomic:"
-      }
+      },
+      "chapter": {
+        "pathPrefix": "/photo/",
+        "idPrefix": "",
+        "pathIdSegment": 0,
+        "targetIdSegment": 2
+      },
+      "samePageOrder": true
     }
   },
   "homepage": "https://18comic.vip",

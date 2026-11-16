@@ -7,7 +7,14 @@
       "work": {
         "pathPrefix": "https://picaapi.picacomic.com/comics/",
         "idPrefix": "picacomic:"
-      }
+      },
+      "chapter": {
+        "pathPrefix": "https://picaapi.picacomic.com/comics/",
+        "idPrefix": "",
+        "pathIdSegment": -1,
+        "targetIdSegment": 2
+      },
+      "samePageOrder": true
     }
   },
   "homepage": "https://manhuabika.com",

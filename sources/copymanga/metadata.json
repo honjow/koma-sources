@@ -1,4 +1,20 @@
 {
+  "identity": {
+    "mihon": {
+      "sourceIds": ["6696312508930833206"],
+      "work": {
+        "pathPrefix": "/comic/",
+        "idPrefix": "copymanga:"
+      },
+      "chapter": {
+        "pathPrefix": "",
+        "idPrefix": "",
+        "pathIdSegment": -1,
+        "targetIdSegment": 2
+      },
+      "samePageOrder": true
+    }
+  },
   "homepage": "https://www.mangacopy.com",
   "chapterOrder": "newest_first",
   "websitePolicy": {
