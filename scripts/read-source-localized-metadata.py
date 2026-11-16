@@ -158,14 +158,18 @@ def mihon_import_identity(rule):
             continue
         path = rule[key]
         text_fields = {"pathPrefix", "pathSuffix", "idPrefix", "idSuffix"}
-        allowed = text_fields | ({"targetIdSegment"} if key == "chapter" else set())
+        allowed = text_fields | ({"pathIdSegment", "targetIdSegment"} if key == "chapter" else {"pathTitleAfterId"})
         if (not isinstance(path, dict) or not {"pathPrefix", "idPrefix"} <= path.keys() <= allowed or not all(
                     isinstance(path[field], str) and re.fullmatch(r"[A-Za-z0-9._:/?=&,-]{0,128}", path[field])
-                    for field in path.keys() & text_fields) or ((path["pathPrefix"] != "" and not path["pathPrefix"].startswith("/") and not re.match(r"^https://[A-Za-z0-9.-]+/", path["pathPrefix"])) and not re.match(r"^https://[A-Za-z0-9.-]+/", path["pathPrefix"]))):
+                    for field in path.keys() & text_fields) or (path["pathPrefix"] != "" and not path["pathPrefix"].startswith("/") and not re.match(r"^https://[A-Za-z0-9.-]+/", path["pathPrefix"]))):
             raise ValueError("invalid identity.mihon." + key)
-        if "targetIdSegment" in path and (type(path["targetIdSegment"]) is not int or
-                                          not 0 <= path["targetIdSegment"] <= 7):
-            raise ValueError("invalid identity.mihon.chapter.targetIdSegment")
+        if ("pathTitleAfterId" in path and (type(path["pathTitleAfterId"]) is not bool or
+                path["pathTitleAfterId"] and
+                (not path["pathPrefix"].endswith("/") or path.get("pathSuffix") != "/"))):
+            raise ValueError("invalid identity.mihon.work.pathTitleAfterId")
+        for field, minimum in (("pathIdSegment", -8), ("targetIdSegment", 0)):
+            if field in path and (type(path[field]) is not int or not minimum <= path[field] <= 7):
+                raise ValueError("invalid identity.mihon.chapter." + field)
     if ("samePageOrder" in rule and type(rule["samePageOrder"]) is not bool or
             rule.get("samePageOrder") and "chapter" not in rule):
         raise ValueError("invalid identity.mihon.samePageOrder")
