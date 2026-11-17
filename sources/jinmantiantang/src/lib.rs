@@ -377,10 +377,9 @@ impl Context {
     }
     fn card(&self, v: &Value) -> R<Value> {
         let id = number_id(&v["id"])?;
+        // JM may return a real album with an empty name. Keep its ID and let
+        // the host use its existing title fallback for that individual card.
         let title = entities(strv(v, "name")?)?;
-        if title.trim().is_empty() {
-            return bad();
-        }
         let mut tags = Vec::new();
         for k in ["category", "category_sub"] {
             if let Some(t) = v[k]["title"].as_str() {
@@ -845,36 +844,43 @@ fn list(c: &Context, input: &Value, search: bool) -> R<Value> {
             }
         }
     }
-    let data = if keywords.is_empty() {
+    let category = filters["category"].as_str().unwrap_or("0");
+    // The site's Chinese translation group links to site search. The category
+    // endpoint silently returns the default feed for this otherwise valid slug.
+    let category_search = keywords.is_empty() && category == "禁漫汉化组";
+    let data = if keywords.is_empty() && !category_search {
         let time = selected(filters, "time", "", &["", "t", "w", "m"])?;
         let order = if sort == "mv" && !time.is_empty() {
             format!("mv_{}", time)
         } else {
             sort.to_string()
         };
-        let cat = filters["category"].as_str().unwrap_or("0");
-        if !cat.bytes().all(|b| b.is_ascii_digit() || b == b'_') {
-            return Err("invalid_request".into());
-        }
+        // /categories supplies opaque slugs, including letter and mixed-case
+        // values. Context::api percent-encodes them as a single query parameter.
         c.api(
             "categories/filter",
             &[
                 ("page", page.to_string()),
-                ("c", cat.to_string()),
+                ("c", category.to_string()),
                 ("o", order),
             ],
         )?
     } else {
-        let ty = selected(
-            filters,
-            "type",
-            "site",
-            &["site", "work", "author", "tag", "character"],
-        )?;
+        let (query, ty) = if category_search {
+            (category.to_string(), "site")
+        } else {
+            let ty = selected(
+                filters,
+                "type",
+                "site",
+                &["site", "work", "author", "tag", "character"],
+            )?;
+            (keywords.join(" +"), ty)
+        };
         c.api(
             "search",
             &[
-                ("search_query", keywords.join(" +")),
+                ("search_query", query),
                 ("o", sort.to_string()),
                 ("search_type", ty.to_string()),
                 ("page", page.to_string()),
