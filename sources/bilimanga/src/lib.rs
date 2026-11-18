@@ -1,7 +1,6 @@
 #![no_std]
 // Independent Rust port of Keiyoushi BiliManga, Apache-2.0,
 // ref 16cde44564d45c3fa9c14371b4d9152606a9821d.
-// The guest search capability isolates the site-issued cookies from Web and account sessions.
 use koma_source_sdk::{
     host,
     json_utils::*,
@@ -187,12 +186,11 @@ fn absolute<'a>(p: &[u8], b: &'a mut [u8]) -> R<&'a [u8]> {
     };
     Ok(&b[..n])
 }
-enum DocumentRequest<'a> {
+enum DocumentRequest {
     Direct,
     Neighbor,
-    Guest { cookies: &'a [&'a [u8]], revalidate: bool },
 }
-fn write_document_request(req: &mut [u8], n: &mut usize, p: &[u8], mode: DocumentRequest<'_>) -> R<()> {
+fn write_document_request(req: &mut [u8], n: &mut usize, p: &[u8], mode: DocumentRequest) -> R<()> {
     let mut u = [0; 8192];
     let u = path(BASE, p, b"", &mut u)?;
     w(req, n, b"{\"method\":\"GET\",\"url\":")?;
@@ -212,23 +210,6 @@ fn write_document_request(req: &mut [u8], n: &mut usize, p: &[u8], mode: Documen
         DocumentRequest::Direct => w(req, n, b",\"Cookie\":\"night=1\"")?,
         // The adjacent reader probe does not add the source's night cookie.
         DocumentRequest::Neighbor => (),
-        DocumentRequest::Guest { cookies, revalidate } => {
-            if 7 + cookies.iter().map(|c| c.len() + 2).sum::<usize>() > 8192 {
-                return Err("search_ticket_missing");
-            }
-            w(req, n, b",\"Cookie\":\"night=1")?;
-            for cookie in cookies {
-                w(req, n, b"; ")?;
-                if !append_json_escaped(req, n, cookie) {
-                    return Err("capacity_exceeded");
-                }
-            }
-            w(req, n, b"\"")?;
-            if revalidate {
-                w(req, n, b",\"Cache-Control\":\"no-cache\"")?;
-            }
-            return w(req, n, b"},\"guestSearch\":true}");
-        }
     }
     w(req, n, b"}}")
 }
@@ -246,7 +227,7 @@ fn parse_document(body: &[u8]) -> R<Node> {
     }
     Ok(root)
 }
-fn fetch_document(p: &[u8], mode: DocumentRequest<'_>) -> R<(&'static [u8], usize)> {
+fn fetch_document(p: &[u8], mode: DocumentRequest) -> R<(&'static [u8], usize)> {
     let req = http_req_buf();
     let mut n = 0;
     write_document_request(req, &mut n, p, mode)?;
@@ -275,20 +256,15 @@ fn result(op: &str, r: R<usize>) -> u32 {
             "unsupported",
             "目前的應用程式版本不支援嗶哩漫畫的請求限速，更新後即可使用",
         ),
-        Err("unsupported_search_session") => write_error(
-            op,
-            "unsupported",
-            "目前的應用程式版本不支援網站的游客搜尋，請更新後重試",
-        ),
         Err("desktop_reader") => write_error(
             op,
             "chapter_unavailable",
             "網站將這次請求識別為電腦端，未提供章節圖片。可在手機原生瀏覽器開啟原網頁",
         ),
-        Err("search_ticket_missing") => write_error(
+        Err("search_captcha_required") => write_error(
             op,
-            "parse_error",
-            "未取得網站的游客搜尋憑證，請稍後重試",
+            "challenge_required",
+            "請在驗證頁搜尋同一關鍵字並輸入圖片驗證碼，完成後回來重試",
         ),
         Err(c) => write_error(
             op,
@@ -571,14 +547,6 @@ fn write_manga_list(r: &[u8], doc: &Node, kind: ListKind) -> R<usize> {
     )?;
     Ok(n)
 }
-const GUARD_CSS: &[u8] = b"/search.html?search_guard=css";
-const GUARD_JS: &[u8] = b"/search.html?search_guard=js";
-const GUARD_REDEEM: &[u8] = b"/search.html?search_guard=redeem";
-const SEARCH_CSS: &[u8] = b"jieqiSearchCss=";
-const SEARCH_JS: &[u8] = b"jieqiSearchJs=";
-const SEARCH_TICKET: &[u8] = b"jieqiSearchTicket=";
-const COOKIE_CAPACITY: usize = 4096 + 32;
-
 fn has_search_next(label: &[u8]) -> bool {
     let start = "第".as_bytes();
     let Some(at) = find_subslice(label, start) else { return false; };
@@ -589,90 +557,7 @@ fn has_search_next(label: &[u8]) -> bool {
     end.and_then(|i| positive(&tail[..i]).ok()).is_some_and(|last| current < last)
 }
 
-fn cookie_pair<'a>(pair: &'a [u8], name: &[u8]) -> R<&'a [u8]> {
-    let value = pair.strip_prefix(name).ok_or("search_ticket_missing")?;
-    if value.is_empty() || value.len() > 4096 || !value.iter().all(|b| {
-        matches!(b, b'!' | b'#'..=b'+' | b'-'..=b':' | b'<'..=b'[' | b']'..=b'~')
-    }) {
-        return Err("search_ticket_missing");
-    }
-    Ok(pair)
-}
-fn ensure_guard_target(envelope: &[u8], path: &[u8]) -> R<()> {
-    let mut buf = [0; 128];
-    let target = protocol::text(envelope, b"guestSearchUrl", &mut buf)
-        .map_err(|_| "search_ticket_missing")?.ok_or("search_ticket_missing")?;
-    if target.strip_prefix(BASE) != Some(path) {
-        return Err("search_ticket_missing");
-    }
-    Ok(())
-}
-fn guard_header_cookie<'a>(envelope: &[u8], key: &[u8], out: &'a mut [u8]) -> R<&'a [u8]> {
-    let pair = protocol::text(envelope, b"guestSearchCookie", out)
-        .map_err(|_| "search_ticket_missing")?.ok_or("search_ticket_missing")?;
-    cookie_pair(pair, key)
-}
-fn guard_script_cookie(body: &[u8]) -> R<&[u8]> {
-    let prefix = b"cookie=\"";
-    let start = find_subslice(body, prefix).ok_or("search_ticket_missing")? + prefix.len();
-    let rest = &body[start..];
-    let end = find_subslice(rest, b"\";").ok_or("search_ticket_missing")?;
-    let mut parts = rest[..end].split(|b| *b == b';');
-    let pair = cookie_pair(parts.next().ok_or("search_ticket_missing")?, SEARCH_JS)?;
-    for part in parts {
-        let Some(at) = part.iter().position(|b| *b == b'=') else { continue; };
-        let key = trim_ascii(&part[..at]);
-        let value = trim_ascii(&part[at + 1..]);
-        if key.eq_ignore_ascii_case(b"Path") && value != b"/" && value != br"\/" {
-            return Err("search_ticket_missing");
-        }
-        if key.eq_ignore_ascii_case(b"Domain") {
-            let host = value.strip_prefix(b".").unwrap_or(value);
-            if !host.eq_ignore_ascii_case(b"www.bilimanga.net") && !host.eq_ignore_ascii_case(b"bilimanga.net") {
-                return Err("search_ticket_missing");
-            }
-        }
-        if key.eq_ignore_ascii_case(b"Max-Age") && positive(value).is_err() {
-            return Err("search_ticket_missing");
-        }
-    }
-    Ok(pair)
-}
-
-fn bootstrap_guest<'a>(css: &'a mut [u8], js: &'a mut [u8]) -> R<(&'a [u8], &'a [u8])> {
-    let req = http_req_buf();
-    let mut n = 0;
-    w(req, &mut n, b"{\"version\":1,\"requests\":[")?;
-    write_document_request(req, &mut n, GUARD_CSS, DocumentRequest::Guest { cookies: &[], revalidate: false })?;
-    w(req, &mut n, b",")?;
-    write_document_request(req, &mut n, GUARD_JS, DocumentRequest::Guest { cookies: &[], revalidate: false })?;
-    w(req, &mut n, b"]}")?;
-    let response = send_http(&req[..n])?;
-    if protocol::direct(response, b"ok").map_err(|_| "network_error")? != Some(b"true") {
-        return Err("network_error");
-    }
-    let array = protocol::direct(response, b"responses").map_err(|_| "network_error")?.ok_or("network_error")?;
-    let mut responses = JsonArrayIter::from_raw_array(array).ok_or("network_error")?;
-    let css_response = responses.next_object().ok_or("network_error")?;
-    let js_response = responses.next_object().ok_or("network_error")?;
-    if responses.next_object().is_some() {
-        return Err("network_error");
-    }
-    protocol::body(css_response, body_buf())?;
-    ensure_guard_target(css_response, GUARD_CSS)?;
-    let css_pair = guard_header_cookie(css_response, SEARCH_CSS, css)?;
-    let size = protocol::body(js_response, body_buf())?;
-    ensure_guard_target(js_response, GUARD_JS)?;
-    let js_pair = guard_script_cookie(&body_buf()[..size])?;
-    js[..js_pair.len()].copy_from_slice(js_pair);
-    Ok((css_pair, &js[..js_pair.len()]))
-}
-
 fn keyword_search(r: &[u8], query: &[u8]) -> R<usize> {
-    if (!protocol::feature(r, b"source_bilimanga_guest_search_v1")
-        && !protocol::feature(r, b"source_anonymous_http_v1")) || !protocol::feature(r, b"source_http_batch_v1") {
-        return Err("unsupported_search_session");
-    }
     let mut route = [0; 6144];
     let mut n = 0;
     w(&mut route, &mut n, b"/search/")?;
@@ -682,35 +567,34 @@ fn keyword_search(r: &[u8], query: &[u8]) -> R<usize> {
     w(&mut route, &mut n, b"_")?;
     num(&mut route, &mut n, request_page_number(r))?;
     w(&mut route, &mut n, b".html")?;
-    let route = &route[..n];
+    let doc = fetch(&route[..n])?;
+    // A successful HTTP response can be the site's form. The existing
+    // WebView verification flow lets the user complete it and share the
+    // same-origin search session with the retry.
+    if doc.select(b"form input[name=search_code]").is_ok()
+        && doc.select(b"form img[src*='/checkcode.php']").is_ok()
+    {
+        return Err("search_captcha_required");
+    }
 
-    // These public visitor cookies belong only to this source call. Never
-    // persist them or mix in authenticated WebView/account cookies.
-    let mut css = [0; COOKIE_CAPACITY];
-    let mut js = [0; COOKIE_CAPACITY];
-    let mut ticket = [0; COOKIE_CAPACITY];
-    let (css, js) = bootstrap_guest(&mut css, &mut js)?;
-    let (redeem, _) = fetch_document(GUARD_REDEEM, DocumentRequest::Guest { cookies: &[css, js], revalidate: true })?;
-    ensure_guard_target(redeem, GUARD_REDEEM)?;
-    let ticket = guard_header_cookie(redeem, SEARCH_TICKET, &mut ticket)?;
-    let (response, size) = fetch_document(route, DocumentRequest::Guest { cookies: &[css, js, ticket], revalidate: false })?;
-    let mut target = [0; 8192];
-    let target = protocol::text(response, b"guestSearchUrl", &mut target)
-        .map_err(|_| "network_error")?.ok_or("network_error")?;
-    let target = target.strip_prefix(BASE).ok_or("parse_error")?;
-    let doc = parse_document(&body_buf()[..size])?;
-    if let Ok(id) = detail_id(target) {
+    // The site can redirect an exact match straight to a detail document.
+    // The public catalogue link identifies the work when the transport
+    // follows that redirect without returning its final URL.
+    if doc.select(b"h1.book-title").is_ok() {
+        let mut url = [0; 256];
+        let catalogue = doc.select(b".book-detail-btn a#btnReadBook")?.attr(b"href", &mut url)?;
+        let id = catalogue.strip_prefix(BASE).unwrap_or(catalogue)
+            .strip_prefix(b"/read/").and_then(|path| path.strip_suffix(b"/catalog"))
+            .ok_or("parse_error")?;
+        positive(id).map_err(|_| "parse_error")?;
         let out = payload_buf();
         let mut n = 0;
         w(out, &mut n, b"{\"items\":[")?;
         write_detail_fields(r, id, out, &mut n, &doc)?;
         w(out, &mut n, b"],\"page\":{\"nextCursor\":null,\"hasMore\":false}}")?;
-        Ok(n)
-    } else if target.starts_with(b"/search/") && target.ends_with(b".html") {
-        write_manga_list(r, &doc, ListKind::Search)
-    } else {
-        Err("parse_error")
+        return Ok(n);
     }
+    write_manga_list(r, &doc, ListKind::Search)
 }
 
 fn detail(r: &[u8]) -> R<usize> {

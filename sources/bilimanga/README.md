@@ -7,17 +7,22 @@
 | 行为 | 上游与 Koma 适配 |
 | --- | --- |
 | 浏览与分页 | `BiliManga.getPopularManga`、`getLatestUpdates`、`mangaPageParse`。`get_manga_list` 的 `list` 沿用 11 个热门榜、最新和 10 个分类字段，从 `args.page.cursor` 读页数。榜单按 50 项，分类按真实当前页与尾页。 |
-| 作品地址与游客搜索 | `getMangaByUrl` 对应搜索框的同站 `/detail/{id}.html`，与 `get_manga` 共用 `write_detail_fields`。`ensureSearchTicket` 对应 `keyword_search`，CSS/JS 并发，同次调用仅消费网站签发的三个匿名 Cookie，redeem 无缓存，跟随宿主核验过的同域结果。最终详情和普通结果各自解析。游客 Cookie 不写存储，不使用 WebView 或账号会话。原扩展可复用进程间隔内的 CSS/JS Cookie，本移植按单次搜索隔离保存，redeem 每次执行。 |
+| 作品地址与关键词搜索 | 同站的作品地址仍直接解析详情。关键词依据 [Keiyoushi 1aba299d](https://github.com/keiyoushi/extensions-source/commit/1aba299dd03549a98d6f4461f6022d1e9adf04c0) 的 `searchDocument` 直接 GET `/search/{关键词}_{页}.html`。收到图片验证码表单时沿用宿主网页验证，用户在同站网页按相同关键词搜索、输入验证码并完成后，宿主沿原查询重试。区分普通结果页和精确命中跳转的详情。 |
 | 目录 | `fetchMangaUpdate` 对应 `chapters`。按原分卷、锚点、标题和顺序返回。不按网页标题的总话数补造目录。保留原生成的 `#prev`、`#next` 章节身份。 |
 | 正文 | `ChapterInterceptor`、`getPageList` 对应 `pages`。片段仅是本地跳转指示，第一跳不增加 `night=1`。次跳由网页给出的同书导航解析为 `_2.html`。缺失或非同书导航明确失败，不猜章节号。页面位置、原始图片地址、重复页与附页均保留。已实测的桌面浏览提示保留具体原因。书架续读时宿主可能传 `source://` 内部定位串，正文请求只把它当无 URL，不参与作品路由校验；作品身份仍由 `mangaId` 约束。 |
 | 封面与图片 | `KeiSource` 的 `Fetch.IMAGE` 对应 `write_cover` 和 `image_request`。同站封面按路径作品归属。正文沿用网页的原地址，在页表和取图时共用校验，仅接受已确认的两个 HTTPS 图片域。兼容旧的 `/img/<内容摘要>.<格式>` 与站点现行的 `/<分桶>/<作品>/<章节>/<图片编号>.<格式>`，保留 AVIF 和 JPEG。现行路径校验作品，生成页表时也核对实际打开的章节；旧 `#prev`、`#next` 页身份仍保留原锚点，取图时按已核对的页表 URL 请求。公开图片头不携游客、登录或夜间 Cookie。 官网 `c.motiezw.com` 的作品封面先校验路径作品归属，再使用官网同域的 `/files/cartoon/image/` 对应地址，保留尺寸后缀与时间戳。浏览、详情及已保存 CDN 地址共用此转换，正文仍沿用实际图片 CDN。 |
 | 设置 | `POPULAR_MANGA_DISPLAY`、`RATE_LIMIT`、`DESCRIPTION`。热门默认周点击榜。请求速率默认 10/10，由 Koma 宿主共享限速并在进程重启后应用新设置。简介默认显示公告、别名、小说链接。速率在宿主读取时校验，源设置仍是文本字段。 |
 
-浏览与阅读需要宿主 `source_rate_limit_bilimanga_v1`，游客关键词另需
-`source_bilimanga_guest_search_v1` 和 `source_http_batch_v1`。这些能力缺失时会在发出网络前提示。
-最低 Koma 版本为 1.2.1。每部作品的目录更新时间映射到该作的章节日期，按 UTC+08:00
+浏览与阅读继续使用宿主书源限速。关键词搜索复用现有的同源网页会话，不再请求旧
+`search_guard` 换票端点。网站当前标示验证通过后 30 分钟内可继续搜索，到期会再次提示。
+上游可选的图片验证码自动识别需要读取验证码图像字节，当前 Koma 书源 HTTP
+接口返回文本，本版采用上游默认的手动验证。书源包声明最低 Koma 版本为 1.4.1。每部作品的目录更新时间映射到该作的章节日期，按 UTC+08:00
 午夜输出。缺失或无效日期省略字段。相关作品保留 Komikku 专用差异。
 
 原网页与 WASM 已对照六个榜单／分类页面、173 部不同列表作品、50 部详情与目录、9754 个
 目录位置、16 个正常章节的 413 个图片位置，以及真实游客搜索的结果页和详情跳转。素材出处见
 [ASSET_SOURCES.md](ASSET_SOURCES.md)。设备验收和公开登记单独记录。
+
+## 0.1.8 搜寻验证码
+
+2026-11-19 在 237 的 Koma 1.5.4（23）通过本地导入验证。源内搜索「芙莉蓮」弹出同站网页，在网页搜索并完成图片验证码后点击「完成并重试」，原查询返回作品和封面；继续搜「魔法」直接返回多条结果。《葬送的芙莉蓮》详情与 147 章目录可打开，第 127 话 P1 的图片 CDN 在收到响应头后传输超时。已验证范围是搜索、详情和目录。旧宿主仅按已有能力核对，本轮未实机运行。
