@@ -1,4 +1,18 @@
 {
+  "localizedNames": {
+    "zh-Hans": "包子漫画",
+    "zh-Hant": "包子漫畫",
+    "en": "Baozimh"
+  },
+  "homepage": "https://www.baozimh.com/",
+  "websitePolicy": {
+    "publicWorkUrlDomains": [
+      "baozimh.com",
+      "baozicdn.com",
+      "bzcdn.net"
+    ],
+    "webSessionAndroidAgent": true
+  },
   "identity": {
     "mihon": {
       "sourceIds": [
@@ -15,22 +29,8 @@
         "targetIdSegment": 2
       },
       "samePageOrder": true
-    }
-  },
-  "localizedNames": {
-    "zh-Hans": "包子漫画",
-    "zh-Hant": "包子漫畫",
-    "en": "Baozimh"
-  },
-  "homepage": "https://www.baozimh.com/",
-  "websitePolicy": {
-    "publicWorkUrlDomains": [
-      "baozimh.com",
-      "baozicdn.com",
-      "bzcdn.net"
-    ],
-    "webSessionAndroidAgent": true,
-    "chapterIdentity": {
+    },
+    "chapter": {
       "workPrefix": "manga:",
       "chapterPrefix": "chapter:",
       "chapterSeparator": ":",

@@ -130,5 +130,19 @@ class HomepageMetadataTest(unittest.TestCase):
                     self.assertNotIn('webSessionOrigins', actual)
 
 
+    def test_chapter_identity_projects_to_the_same_legacy_rule(self):
+        for name in ['baozimh', 'mh1234']:
+            raw = json.loads((ROOT / 'sources' / name / 'metadata.json').read_text())
+            chapter = raw['identity']['chapter']
+            old = {key: value for key, value in raw.items() if key != 'identity'}
+            old['identity'] = {key: value for key, value in raw['identity'].items() if key != 'chapter'}
+            old['websitePolicy'] = {**old.get('websitePolicy', {}), 'chapterIdentity': chapter}
+            with self.subTest(source=name):
+                self.assertEqual(metadata.extract(raw), metadata.extract(old))
+                with self.assertRaises(ValueError):
+                    metadata.extract({**old, 'identity': raw['identity']})
+                with self.assertRaises(ValueError):
+                    metadata.extract({**raw, 'identity': {'chapter': {'workPrefix': 'manga:'}}})
+
 if __name__ == '__main__':
     unittest.main()

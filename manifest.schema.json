@@ -71,7 +71,10 @@
         "dnsBootstrap": { "type": "object" },
         "preserveRouteCover": { "type": "boolean" },
         "routeCoverPlaceholderSuffix": { "type": "string" },
-        "chapterIdentity": { "type": "object" },
+        "chapterIdentity": {
+          "type": "object",
+          "description": "Chapter ID compatibility wire field. Authors declare identity.chapter in metadata.json."
+        },
         "publicWorkUrlDomains": { "type": "array" }
       }
     },

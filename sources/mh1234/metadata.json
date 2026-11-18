@@ -1,4 +1,11 @@
 {
+  "localizedNames": {
+    "zh-Hans": "漫画1234",
+    "zh-Hant": "漫畫1234",
+    "en": "MH1234"
+  },
+  "homepage": "https://m.wmh1234.com",
+  "chapterOrder": "oldest_first",
   "identity": {
     "mihon": {
       "sourceIds": [
@@ -16,17 +23,8 @@
         "pathSuffix": ".html",
         "idSuffix": ".html"
       }
-    }
-  },
-  "localizedNames": {
-    "zh-Hans": "漫画1234",
-    "zh-Hant": "漫畫1234",
-    "en": "MH1234"
-  },
-  "homepage": "https://m.wmh1234.com",
-  "chapterOrder": "oldest_first",
-  "websitePolicy": {
-    "chapterIdentity": {
+    },
+    "chapter": {
       "workPrefix": "/comic/",
       "workSuffix": ".html",
       "chapterPrefix": "/comic/",

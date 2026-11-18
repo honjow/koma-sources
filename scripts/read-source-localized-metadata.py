@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Project explicit display names and optional navigation homepage metadata.
+"""Project author metadata into the installed source manifest.
 
-Preserve existing localizedNames spelling and values. homepage is independent of
-webSessionOrigins and never grants cookie/session permissions. Unrelated fields
-are ignored rather than merged into generated manifests or indexes.
+Navigation, access and content identity have distinct owners. The archive
+projection retains the legacy wire names accepted by released clients.
 """
 from pathlib import Path
 import json
@@ -145,6 +144,50 @@ def request_limits(rules):
     return rules
 
 
+def project_website_policy(metadata):
+    policy = metadata.get("websitePolicy", {})
+    if not isinstance(policy, dict):
+        raise ValueError("invalid websitePolicy")
+    if "identity" not in metadata:
+        return metadata.get("websitePolicy")
+
+    identity = metadata["identity"]
+    if not isinstance(identity, dict) or not identity or set(identity) - {"chapter", "mihon"}:
+        raise ValueError("invalid identity fields")
+    if "chapter" not in identity:
+        return metadata.get("websitePolicy")
+    if "chapterIdentity" in policy:
+        raise ValueError("declare the chapter rule only in identity.chapter")
+
+    # Match the installed host's existing chapterIdentity contract for the
+    # author-facing rule. Old author metadata retains its original projection.
+    chapter = identity["chapter"]
+    required = {"workPrefix", "chapterPrefix", "chapterSeparator"}
+    suffixes = {"workSuffix", "chapterSuffix"}
+    known = required | suffixes | {"titleSeparator", "encodedLegacy"}
+    if not isinstance(chapter, dict) or not required <= chapter.keys() <= known:
+        raise ValueError("invalid identity.chapter fields")
+
+    def token(value):
+        return isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9/_:.-]{1,32}", value)
+
+    if not all(token(chapter[key]) for key in (required | suffixes) & chapter.keys()):
+        raise ValueError("invalid identity.chapter token")
+    if "encodedLegacy" in chapter:
+        legacy = chapter["encodedLegacy"]
+        if ("titleSeparator" in chapter or not isinstance(legacy, dict)
+                or set(legacy) != {"prefix", "separator", "hexSuffixLength"}
+                or not token(legacy["prefix"]) or not token(legacy["separator"])
+                or type(legacy["hexSuffixLength"]) is not int
+                or not 1 <= legacy["hexSuffixLength"] <= 64):
+            raise ValueError("invalid identity.chapter.encodedLegacy")
+    elif chapter.get("titleSeparator") not in ("#", "|", "~"):
+        raise ValueError("identity.chapter requires a titleSeparator or encodedLegacy")
+
+    # v1 clients consume this key for details, reader and library refresh.
+    return {**policy, "chapterIdentity": chapter}
+
+
 def mihon_import_identity(rule):
     if (not isinstance(rule, dict) or not {"sourceIds", "work"} <= rule.keys() <=
             {"sourceIds", "work", "chapter", "samePageOrder"}):
@@ -185,16 +228,11 @@ def extract(metadata, web_origins=None):
     if not isinstance(metadata, dict):
         return {}
     result = {}
-    identity = metadata.get("identity", {})
-    if not isinstance(identity, dict):
-        raise ValueError("invalid identity fields")
-    if "mihon" in identity:
-        result["mihonImport"] = mihon_import_identity(identity["mihon"])
-    if "websitePolicy" in metadata:
-        policy = metadata["websitePolicy"]
-        if not isinstance(policy, dict):
-            raise ValueError("invalid websitePolicy")
+    policy = project_website_policy(metadata)
+    if policy is not None:
         result["websitePolicy"] = policy
+    if "mihon" in metadata.get("identity", {}):
+        result["mihonImport"] = mihon_import_identity(metadata["identity"]["mihon"])
     if "requestLimits" in metadata:
         result["requestLimits"] = request_limits(metadata["requestLimits"])
     if "requiredImageDecodes" in metadata:
