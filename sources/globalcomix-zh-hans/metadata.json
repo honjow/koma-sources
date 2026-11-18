@@ -4,5 +4,6 @@
     "zh-Hant": "GlobalComix",
     "en": "GlobalComix"
   },
+  "comments": {"version": 1, "scopes": ["chapter"]},
   "homepage": "https://globalcomix.com"
 }

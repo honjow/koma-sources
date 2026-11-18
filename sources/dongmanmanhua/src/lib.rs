@@ -922,8 +922,11 @@ fn detail(r: &[u8]) -> Result<usize, &'static str> {
     let d = aside.select(b"p.summary")?;
     let desc = d.text(&mut db)?;
     let mut sb = [0; 1024];
-    let st = aside.select(b"p.day_info")?;
-    let status = st.text(&mut sb)?;
+    // Activity series such as 咚咚社 omit the update-day field entirely.
+    let status = match aside.select(b"p.day_info") {
+        Ok(st) => st.text(&mut sb)?,
+        Err(_) => b"",
+    };
     let status = if contains_bytes(status, "更新".as_bytes()) {
         b"ongoing".as_slice()
     } else if contains_bytes(status, "完结".as_bytes()) {
@@ -1191,3 +1194,10 @@ fn run_get_settings(_: &[u8]) -> u32 {
     write_error("get_settings", "unimplemented", "not supported")
 }
 koma_source_sdk::koma_source_exports!("dongmanmanhua", typed_chapters, write_chapter_error);
+
+mod comments;
+koma_source_sdk::koma_source_comments_export!(run_get_comments);
+
+fn run_get_comments(request: &[u8]) -> u32 {
+    execute(koma_source_sdk::comments::OPERATION, comments::load(request, payload_buf()))
+}

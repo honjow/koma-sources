@@ -22,6 +22,7 @@
     "zh-Hant": "嗶哩漫畫",
     "en": "BiliManga"
   },
+  "comments": {"version": 1, "scopes": ["manga"]},
   "homepage": "https://www.bilimanga.net",
   "chapterOrder": "newest_first",
   "requestLimits": [

@@ -23,6 +23,17 @@
     "author": { "type": "string" },
     "contentRating": { "type": "string", "description": "Source-wide content rating" },
     "homepage": { "type": "string" },
+    "comments": {
+      "type": "object",
+      "description": "Optional read-only comment capability supplied by the installed source.",
+      "required": ["version", "scopes"],
+      "additionalProperties": false,
+      "properties": {
+        "version": { "const": 1 },
+        "scopes": { "type": "array", "minItems": 1, "uniqueItems": true,
+          "items": { "enum": ["manga", "chapter"] } }
+      }
+    },
     "mihonImport": {
       "type": "object",
       "required": ["sourceIds", "work"],

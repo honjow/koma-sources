@@ -10,7 +10,7 @@ const BASE: &[u8] = b"https://comicfury.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.comicfury.zh.koma",
     name: "Comic Fury",
-    version: "0.1.10",
+    version: "0.1.11",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -1473,3 +1473,10 @@ fn image_request(r: &[u8]) -> Result<usize, &'static str> {
     Ok(n)
 }
 koma_source_sdk::koma_source_exports!("comicfury_zh");
+
+mod comments;
+koma_source_sdk::koma_source_comments_export!(run_get_comments);
+
+fn run_get_comments(request: &[u8]) -> u32 {
+    execute(koma_source_sdk::comments::OPERATION, comments::load(request, payload_buf()))
+}

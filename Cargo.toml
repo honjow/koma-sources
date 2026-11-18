@@ -84,6 +84,7 @@ members = [
   "sources/hanman18",
   "sources/tongli",
   "sources/example-demo",
+  "sources/tapastic",
   "sources/tencentcomics",
   "sources/kuaikan",
   "sources/webtoons",

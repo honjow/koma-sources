@@ -4,6 +4,7 @@
     "zh-Hant": "LINE WEBTOON（繁體中文）",
     "en": "LINE WEBTOON (Traditional Chinese)"
   },
+  "comments": {"version": 1, "scopes": ["chapter"]},
   "homepage": "https://www.webtoons.com",
   "chapterOrder": "newest_first"
 }

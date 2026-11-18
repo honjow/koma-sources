@@ -14,6 +14,10 @@ Sources are compiled to WebAssembly (`wasm32-unknown-unknown`, `#![no_std]`) and
 源登记的最低 Koma 版本，打包脚本将同一值写入包清单和订阅索引。最低版本必须对应
 确实具备该能力的宿主。正式版本尚未确定时，候选包不进入公开索引。
 
+### 原站只读评论
+
+读取原站评论的源在 `metadata.json` 的 `comments` 声明 `version: 1` 及真实支持的 `manga`、`chapter`，用 `koma_source_comments_export!` 导出读取操作。请求、响应、分页及旧版兼容按 [原站评论 ABI](https://github.com/honjow/Koma/blob/master/docs/source-runtime-abi.md#原站评论)。章末吐槽原有设置继续生效。
+
 ### 历史作品与章节标识
 
 新增声明用 `identity.chapter` 描述书源更新前后的章节标识关系。打包器将声明写入已发布客户端读取的 `websitePolicy.chapterIdentity`，字段和值保持一致。旧写法仍可用，每个书源只声明一份。此规则用于衔接已有阅读进度和下载。

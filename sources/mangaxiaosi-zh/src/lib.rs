@@ -18,7 +18,7 @@ fn request_origin(r: &[u8]) -> &'static [u8] {
         _ => WEB,
     }
 }
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.mangaxiaosi.zh.koma",name:"Manga Xiao Si",version:"0.1.9",api_version:"0.2",language:"zh",author:"Koma",description:"Manga Xiao Si published finite rank and query catalogue. Per-work rating, picture availability and usage unknown.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.mangaxiaosi.zh.koma",name:"Manga Xiao Si",version:"0.1.10",api_version:"0.2",language:"zh",author:"Koma",description:"Manga Xiao Si published finite rank and query catalogue. Per-work rating, picture availability and usage unknown.",content_rating:"nsfw"};
 #[allow(dead_code)]
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
@@ -532,6 +532,7 @@ fn image_path(v: &[u8]) -> R<&[u8]> {
         .or_else(|| v.strip_prefix(b"https://www.jjmhw10.top/static/upload/book/"))
         // Current reference mirror returns this exact origin; work/chapter ownership remains mandatory.
         .or_else(|| v.strip_prefix(b"https://www.jjmhw11.top/static/upload/book/"))
+        .or_else(|| v.strip_prefix(b"https://www.jjmhw12.top/static/upload/book/"))
         .ok_or("image host")?;
     if p.is_empty()
         || p.len() > 900
@@ -1163,3 +1164,5 @@ pub extern "C" fn koma_source_alloc(len: u32) -> u32 {
 pub extern "C" fn koma_source_free(ptr: u32) {
     response_buffer().free(ptr)
 }
+
+mod comments;

@@ -41,3 +41,5 @@ Search 用原客户端两个分支：official 然后 all，span30。保留原顺
 原 Browse 末端已亲看恢复，50 项源 registry 与进入前完整相同（包括 ID、enabled 和顺序），原 OverrideTimeout=10000ms / AWAKE 已读回。原件在 Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/` 的 `onmyoji010-peace-{detail,chapters,involution}237-001`、`onmyoji010-peace-involution-page2-237-001`、`onmyoji010-natural-return237-001` 与 `onmyoji010-session-restored237-002`。只接受具名章首两页及自然返回，不扩大到全部六页、其他作品、下载、冷启动或整源通过。
 
 Root 已亲审本条首两页原图及精确记录；结论仅限上述具名路径，原未闭边界保持。
+
+作品评论和章节评论使用原站 `/comment/apps/web/`。章节按原站请求同时携带作品和章节 ID，首页显示原站置顶，后续按原站的 `start` 和 `count` 翻页。

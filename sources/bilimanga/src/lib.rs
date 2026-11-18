@@ -193,7 +193,7 @@ enum DocumentRequest {
 fn write_document_request(req: &mut [u8], n: &mut usize, p: &[u8], mode: DocumentRequest) -> R<()> {
     let mut u = [0; 8192];
     let u = path(BASE, p, b"", &mut u)?;
-    w(req, n, b"{\"method\":\"GET\",\"url\":")?;
+    w(req, n, b"{\"version\":1,\"method\":\"GET\",\"url\":")?;
     q(req, n, u)?;
     w(req, n, b",\"headers\":{\"User-Agent\":")?;
     q(req, n, UA)?;
@@ -1098,3 +1098,10 @@ fn run_get_image_request(r: &[u8]) -> u32 {
     result("get_image_request", image_request(r))
 }
 koma_source_sdk::koma_source_exports!("bilimanga_source");
+
+mod comments;
+koma_source_sdk::koma_source_comments_export!(run_get_comments);
+
+fn run_get_comments(request: &[u8]) -> u32 {
+    result(koma_source_sdk::comments::OPERATION, comments::load(request, payload_buf()))
+}

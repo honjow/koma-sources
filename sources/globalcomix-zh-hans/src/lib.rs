@@ -1124,3 +1124,10 @@ fn run_get_settings(r: &[u8]) -> u32 {
 }
 
 koma_source_sdk::koma_source_exports!("globalcomix_zh_hans", typed_chapters, write_chapter_error);
+
+mod comments;
+koma_source_sdk::koma_source_comments_export!(run_get_comments);
+
+fn run_get_comments(request: &[u8]) -> u32 {
+    execute(koma_source_sdk::comments::OPERATION, comments::load(request, payload_buf()))
+}

@@ -4,5 +4,6 @@
     "zh-Hant": "MangaBall",
     "en": "MangaBall"
   },
+  "comments": {"version": 1, "scopes": ["manga", "chapter"]},
   "homepage": "https://mangaball.com"
 }

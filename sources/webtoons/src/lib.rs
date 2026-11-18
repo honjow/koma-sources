@@ -35,7 +35,7 @@ static mut SELECT_BUFFER: [u8; 4096] = [0; 4096];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.webtoons.koma",
     name: "WEBTOON (English)",
-    version: "0.1.9",
+    version: "0.1.10",
     api_version: "0.2",
     language: "en",
     author: "Koma source contributors",
@@ -1531,3 +1531,18 @@ fn run_get_settings(req: &[u8]) -> u32 {
 }
 
 koma_source_sdk::koma_source_exports!("webtoons");
+
+mod comments;
+koma_source_sdk::koma_source_comments_export!(run_get_comments);
+
+fn run_get_comments(request: &[u8]) -> u32 {
+    let query = koma_source_sdk::comments::request(request);
+    let chapter = query.as_ref().map_err(|code| *code).and_then(|query| {
+        let manga = manga_id_parts(query.manga_id).ok_or("invalid_request")?;
+        let (title, episode, route) = chapter_id_parts(query.chapter_id.ok_or("invalid_request")?)
+            .ok_or("invalid_request")?;
+        if manga != (title, route) { return Err("invalid_request"); }
+        Ok(comments::Chapter { title, episode, canvas: route.starts_with(b"canvas/"), traditional_chinese: false })
+    });
+    comments::run(chapter, query.ok().and_then(|query| query.cursor))
+}

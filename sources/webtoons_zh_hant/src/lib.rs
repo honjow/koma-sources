@@ -11,7 +11,7 @@ const MOBILE: &[u8] = b"https://m.webtoons.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.webtoons.zh-hant.koma",
     name: "LINE WEBTOON (Traditional Chinese)",
-    version: "0.1.12",
+    version: "0.1.13",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma source contributors",
@@ -1411,3 +1411,26 @@ fn run_get_settings(r: &[u8]) -> u32 {
     write_success_payload("get_settings", n)
 }
 koma_source_sdk::koma_source_exports!("webtoons_zh_hant");
+
+#[path = "../../webtoons/src/comments.rs"]
+mod comments;
+koma_source_sdk::koma_source_comments_export!(run_get_comments);
+
+fn run_get_comments(request: &[u8]) -> u32 {
+    let query = koma_source_sdk::comments::request(request);
+    let chapter = query.as_ref().map_err(|code| *code).and_then(|query| {
+        let (kind, manga_title, manga_path) = manga_parts(query.manga_id).map_err(|_| "invalid_request")?;
+        let (title, episode, chapter_path) = chapter_route(chapters_id(request).map_err(|_| "invalid_request")?)
+            .map_err(|_| "invalid_request")?;
+        let root = manga_path.strip_suffix(b"/list").ok_or("invalid_request")?;
+        let same_path = chapter_path.strip_prefix(root).is_some_and(|rest| rest.starts_with(b"/"));
+        // Translated CANVAS uses its English canonical viewer with a zh-hant readingLanguageCode.
+        let translated = kind == b"canvas" && root.strip_prefix(b"/zh-hant/").is_some_and(|path| {
+            chapter_path.strip_prefix(b"/en/").and_then(|english| english.strip_prefix(path))
+                .is_some_and(|rest| rest.starts_with(b"/"))
+        });
+        if manga_title != title || !(same_path || translated) { return Err("invalid_request"); }
+        Ok(comments::Chapter { title, episode, canvas: kind == b"canvas", traditional_chinese: true })
+    });
+    comments::run(chapter, query.ok().and_then(|query| query.cursor))
+}

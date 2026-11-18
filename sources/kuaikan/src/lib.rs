@@ -8,7 +8,7 @@ use koma_source_sdk::{fetch_error_code, FetchError};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.kuaikan.koma",
     name: "快看漫画",
-    version: "0.1.8",
+    version: "0.1.9",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -620,3 +620,14 @@ fn run_get_settings(_r: &[u8]) -> u32 {
     write_error("get_settings", "not_implemented", "not supported")
 }
 koma_source_sdk::koma_source_exports!("kuaikan");
+
+mod comments;
+
+fn run_get_comments(request: &[u8]) -> u32 {
+    let op = koma_source_sdk::comments::OPERATION;
+    match comments::load(request) {
+        Ok(size) => write_success_payload(op, size),
+        Err(error) => fail_web(op, error),
+    }
+}
+koma_source_sdk::koma_source_comments_export!(run_get_comments);

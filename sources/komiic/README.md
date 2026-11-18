@@ -70,3 +70,5 @@ GET 和 [Keiyoushi](https://github.com/keiyoushi/extensions-source/blob/main/src
 返回图片，不能把页面图改写到 `img.komiic.com`/`img.komiic.cc` 子域：该子域在
 部分直连网络不可达，也会偏离参考实现。封面仍按镜像把 `public.komiic.com` 改写为
 `public.komiic.cc`；普通网页入口由 `homepageChoices` 跟随镜像。
+
+作品评论复用官网的 `getMessagesByComicId`，通过当前选择的镜像和既有会话访问。一页返回 30 条，读取多一条判断是否还有下一页。官网留言按作品查询，关联章节的书签不会被解释为独立的章节讨论。

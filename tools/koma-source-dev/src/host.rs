@@ -356,6 +356,7 @@ pub fn run_operation(wasm_path: &Path, op: &str, request_json: &str) -> Result<s
         "get_manga" => "koma_source_get_manga",
         "get_chapters" => "koma_source_get_chapters",
         "get_pages" => "koma_source_get_pages",
+        "get_comments" => "koma_source_get_comments",
         "get_listings" => "koma_source_get_listings",
         "get_manga_list" => "koma_source_get_manga_list",
         "get_home" => "koma_source_get_home",

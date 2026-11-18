@@ -6,7 +6,7 @@ use koma_source_sdk::{
     json_utils::*,
     source::{SourceCapabilities, SourceInfo},
 };
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.pixiv.zh.koma",name:"pixiv",version:"0.1.16",api_version:"0.2",language:"zh",author:"Koma",description:"支持浏览和搜索漫画作品与系列。",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.pixiv.zh.koma",name:"pixiv",version:"0.1.17",api_version:"0.2",language:"zh",author:"Koma",description:"支持浏览和搜索漫画作品与系列。",content_rating:"nsfw"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -1521,3 +1521,10 @@ pub extern "C" fn koma_source_alloc(len: u32) -> u32 {
 pub extern "C" fn koma_source_free(ptr: u32) {
     response_buffer().free(ptr)
 }
+
+mod comments;
+
+fn run_get_comments(request: &[u8]) -> u32 {
+    execute(koma_source_sdk::comments::OPERATION, comments::load(request))
+}
+export_op!(koma_source_get_comments, "get_comments", run_get_comments);

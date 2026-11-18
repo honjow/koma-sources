@@ -235,6 +235,15 @@ def extract(metadata, web_origins=None):
         result["mihonImport"] = mihon_import_identity(metadata["identity"]["mihon"])
     if "requestLimits" in metadata:
         result["requestLimits"] = request_limits(metadata["requestLimits"])
+    if "comments" in metadata:
+        comments = metadata["comments"]
+        if (not isinstance(comments, dict) or set(comments) != {"version", "scopes"}
+                or type(comments["version"]) is not int or comments["version"] != 1
+                or not isinstance(comments["scopes"], list) or not comments["scopes"]
+                or any(scope not in ("manga", "chapter") for scope in comments["scopes"])
+                or len(set(comments["scopes"])) != len(comments["scopes"])):
+            raise ValueError("invalid comments capability")
+        result["comments"] = comments
     if "requiredImageDecodes" in metadata:
         kinds = metadata["requiredImageDecodes"]
         if not isinstance(kinds, list) or any(kind != "jm_stripes_v1" for kind in kinds):

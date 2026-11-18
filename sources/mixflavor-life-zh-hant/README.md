@@ -46,3 +46,5 @@ base `d5ee46d9821c40c2931161517d27027671e6f0c9`；獨立clone `/private/tmp/Koma
 ## 公開封面請求（0.1.4）
 
 支持 source_public_cover_user_agent_v1 的宿主在瀏覽、搜尋及詳情直接收到原封面 URI 及與舊圖片計畫完全相同的文章 Referer 和 User-Agent。目錄、搜尋沿用原卡片 CDN 圖，詳情沿用已驗證的原正文首圖；來源及圖片參數原樣保留。舊宿主及既有記錄沿用 get_image_request，原 CDN 卡片零文章請求，舊 upload 首圖仍需原文章校驗。閱讀圖片照常校驗作品身份、範圍、原圖 URI 和頁序。
+
+作品评论使用綜合口味公开 WordPress 评论接口，按顶层留言分页。

@@ -3,7 +3,7 @@ use koma_source_sdk::json_utils::*;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO:SourceInfo=SourceInfo{
- id:"com.mixflavor.life.zh-hant.koma",name:"綜合口味・生活小漫畫",version:"0.1.4",api_version:"0.2",language:"zh-Hant",author:"Koma",
+ id:"com.mixflavor.life.zh-hant.koma",name:"綜合口味・生活小漫畫",version:"0.1.5",api_version:"0.2",language:"zh-Hant",author:"Koma",
  description:"綜合口味作者網站的生活小漫畫，依原分類分頁瀏覽，不收錄同時標為開箱心得或食的文章。每篇獨立閱讀，作品評級尚未確認。",content_rating:"unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
@@ -1756,3 +1756,11 @@ export_op!(
     "get_image_request",
     run_get_image_request
 );
+
+mod comments;
+
+#[no_mangle]
+pub extern "C" fn koma_source_get_comments(ptr: u32, len: u32) -> u32 {
+    let response = checked_request(ptr, len).ok_or("invalid_request").and_then(comments::load);
+    result(koma_source_sdk::comments::OPERATION, response)
+}

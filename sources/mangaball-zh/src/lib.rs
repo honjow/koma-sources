@@ -1295,3 +1295,10 @@ fn settings_schema(r: &[u8]) -> Result<usize, &'static str> {
 }
 fn run_get_settings(r: &[u8]) -> u32 {execute("get_settings",settings_schema(r))}
 koma_source_sdk::koma_source_exports!("mangaball_zh", typed_chapters, write_chapter_error);
+
+mod comments;
+koma_source_sdk::koma_source_comments_export!(run_get_comments);
+
+fn run_get_comments(request: &[u8]) -> u32 {
+    execute(koma_source_sdk::comments::OPERATION, comments::load(request, payload_buf()))
+}

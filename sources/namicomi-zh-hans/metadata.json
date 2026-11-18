@@ -20,5 +20,6 @@
     "zh-Hant": "NamiComi（簡體中文）",
     "en": "NamiComi (Simplified Chinese)"
   },
+  "comments": {"version": 1, "scopes": ["chapter"]},
   "homepage": "https://namicomi.com"
 }

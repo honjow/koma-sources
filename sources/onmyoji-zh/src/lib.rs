@@ -5,7 +5,7 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.netease.onmyoji.zh.koma",
     name: "阴阳师漫画屋",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -1051,3 +1051,10 @@ export_op!(
     "get_image_request",
     run_get_image_request
 );
+
+mod comments;
+koma_source_sdk::koma_source_comments_export!(run_get_comments);
+
+fn run_get_comments(request: &[u8]) -> u32 {
+    result(koma_source_sdk::comments::OPERATION, comments::load(request, payload_buf()))
+}

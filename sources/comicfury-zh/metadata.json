@@ -15,6 +15,7 @@
     "zh-Hant": "Comic Fury",
     "en": "Comic Fury"
   },
+  "comments": {"version": 1, "scopes": ["chapter"]},
   "homepage": "https://comicfury.com",
   "chapterOrder": "newest_first"
 }

@@ -4,6 +4,7 @@ pub mod chapters;
 pub mod gallery_titles;
 
 pub mod source_protocol;
+pub mod comments;
 
 pub mod host {
     pub const LOG_INFO: u32 = 1;

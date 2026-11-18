@@ -27,3 +27,5 @@ Android CookieManager 的清 Cookie 动作不是普通可保存设置，本源�
 ## Mihon 恢复
 
 上游动漫屋扩展把作品和章节链接去掉站点前缀保存，原章节 `/m{cid}/` 对应本源章节 ID `chapter:{work}:{cid}:{pages}` 的第 3 段。双方正文使用同一章节的站点图片顺序，章末评论在正文之后。Koma 按目录实际图片数校验页码。参考 [Mihon 动漫屋扩展](https://github.com/keiyoushi/extensions-source/blob/main/src/zh/dm5/src/eu/kanade/tachiyomi/extension/zh/dm5/Dm5.kt) 的 `chapterListParse` 和 `getPageList`。
+
+半模态章节评论使用原章节页的讨论 ID，再按官网 `pagerdata.ashx` 的分页取评论。按原站顺序保留作者、正文和时间。章末吐槽的开关及原页表继续使用既有规则。

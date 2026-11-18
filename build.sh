@@ -130,6 +130,7 @@ bilimanga|bilimanga|true|1.4.1
 jinmantiantang|jinmantiantang|true|1.4.3
 utifa|utifa|true|1.2.0
 acgn|acgn|false|1.4.0
+tapastic|tapastic|true|1.2.0
 mangapluscreators-en|mangapluscreators-en|false|0.1.1
 '
 
@@ -455,7 +456,7 @@ build_source() {
     --arg minAppVersion "$min_app_version" \
     --argjson sourceMetadata "$source_metadata" \
     --argjson distribution "$distribution" \
-    '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, pkg: $pkg, sha256: $sha256, icon: $icon, minAppVersion: $minAppVersion} + ($sourceMetadata | del(.mihonImport)) + $distribution'
+    '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, pkg: $pkg, sha256: $sha256, icon: $icon, minAppVersion: $minAppVersion} + ($sourceMetadata | del(.mihonImport, .comments)) + $distribution'
 }
 
 validate_index_packages() {

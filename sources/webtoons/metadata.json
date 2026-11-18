@@ -4,6 +4,7 @@
     "zh-Hant": "WEBTOON（英語）",
     "en": "WEBTOON (English)"
   },
+  "comments": {"version": 1, "scopes": ["chapter"]},
   "homepage": "https://www.webtoons.com",
   "chapterOrder": "oldest_first"
 }

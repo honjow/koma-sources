@@ -1,6 +1,7 @@
 #![no_std]
 
 extern crate koma_source_sdk;
+koma_source_sdk::koma_source_comments_export!(run_get_comments);
 
 use koma_source_sdk::chapters::{Chapter, ChapterNumber, ChapterPage, ChapterPlacement, ChapterResult, GroupedChapters};
 use koma_source_sdk::host::{self, http_request, log_info};
@@ -967,8 +968,9 @@ fn blank_json_text(raw: &[u8]) -> bool {
 // The adopted source fetches comments as its final image, not as part of the
 // chapter page list. Keep HTTP/errmsg failure local to this requested text page;
 // the original URL pages remain readable and this page can use normal retry.
-fn render_comments(chapter_id: &[u8], payload: &mut [u8], c: &mut usize)
-    -> Result<(), (&'static str, &'static str)> {
+type ZaiError = (&'static str, &'static str);
+
+fn fetch_comment_list(chapter_id: &[u8]) -> Result<&'static [u8], ZaiError> {
     let slash = find_subslice(chapter_id,b"/").ok_or(("invalid_request","bad chapterId format"))?;
     let url = scratch_a(); let mut n = 0;
     if !(write_bytes(url,&mut n,API_URL) && write_bytes(url,&mut n,b"/viewpoint/list?comicId=")
@@ -980,27 +982,40 @@ fn render_comments(chapter_id: &[u8], payload: &mut [u8], c: &mut usize)
     let errmsg = extract_json_string(data,b"errmsg").unwrap_or(b"");
     if !blank_json_text(errmsg) { return Err(("source_error","chapter comments API returned an error")); }
     let data = extract_json_data_object(data).ok_or(("parse_error","missing comments data"))?;
-    let list = match json_object_member(data,b"list") {
-        None | Some(b"null") => b"".as_slice(),
-        Some(v) => array_content(v).ok_or(("parse_error","invalid comments list"))?,
+    match json_object_member(data,b"list") {
+        None | Some(b"null") => Ok(b""),
+        Some(v) => array_content(v).ok_or(("parse_error","invalid comments list")),
+    }
+}
+
+fn comment_entry_text(item: &[u8]) -> Result<&[u8], ZaiError> {
+    let row = array_content(item).ok_or(("parse_error", "invalid comment row"))?;
+    let mut pos = 0;
+    let mut last = None;
+    while let Some(value) = next_array_value(row, &mut pos).map_err(|_| ("parse_error", "invalid comment row"))? {
+        last = Some(value);
+    }
+    last.ok_or(("parse_error", "empty comment row"))
+}
+
+fn write_comment_text(payload: &mut [u8], c: &mut usize, text: &[u8]) -> Result<(), ZaiError> {
+    let written = if text.first() == Some(&b'"') && text.last() == Some(&b'"') {
+        write_bytes(payload, c, text)
+    } else {
+        if matches!(text.first(), Some(b'[' | b'{')) { return Err(("parse_error", "comment text is not primitive")); }
+        write_bytes(payload, c, b"\"") && append_json_escaped(payload, c, text) && write_bytes(payload, c, b"\"")
     };
+    if written { Ok(()) } else { Err(("internal_error", "comments payload overflow")) }
+}
+
+fn render_comments(chapter_id: &[u8], payload: &mut [u8], c: &mut usize) -> Result<(), ZaiError> {
+    let list = fetch_comment_list(chapter_id)?;
     let overflow = ("internal_error","comments payload overflow");
     if !write_bytes(payload,c,b"{\"image\":{\"kind\":\"text\",\"text\":{\"template\":\"zaimanhua-chapter-comments\",\"paragraphs\":[") { return Err(overflow); }
     let mut pos = 0; let mut count = 0;
     while let Some(item) = next_array_value(list,&mut pos).map_err(|_| ("parse_error","invalid comment entry"))? {
-        let row = array_content(item).ok_or(("parse_error","invalid comment row"))?;
-        let mut p = 0; let mut last = None;
-        while let Some(v) = next_array_value(row,&mut p).map_err(|_| ("parse_error","invalid comment row"))? { last = Some(v); }
-        let last = last.ok_or(("parse_error","empty comment row"))?;
-        if count > 0 && !write_bytes(payload,c,b",") { return Err(overflow); }
-        // A serialized JSON string already represents ordinary Unicode, including
-        // surrogate-pair emoji. Copy it once; do not HTML-decode or double-unescape.
-        if last.first() == Some(&b'"') && last.last() == Some(&b'"') {
-            if !write_bytes(payload,c,last) { return Err(overflow); }
-        } else {
-            if last.first() == Some(&b'[') || last.first() == Some(&b'{') { return Err(("parse_error","comment text is not primitive")); }
-            if !(write_bytes(payload,c,b"\"") && append_json_escaped(payload,c,last) && write_bytes(payload,c,b"\"")) { return Err(overflow); }
-        }
+        if count > 0 && !write_bytes(payload, c, b",") { return Err(overflow); }
+        write_comment_text(payload, c, comment_entry_text(item)?)?;
         count += 1;
     }
     if count == 0 && !write_bytes(payload,c,"\"没有吐槽\"".as_bytes()) { return Err(overflow); }
@@ -1014,6 +1029,61 @@ fn run_get_settings(req: &[u8]) -> u32 {
     payload_buf()[..data.len()].copy_from_slice(data);
     write_success_payload("get_settings",data.len())
 }
+fn fetch_readable_chapter(chapter_id: &[u8]) -> Result<&'static [u8], ZaiError> {
+    let url = scratch_a();
+    let mut len = 0;
+    if !(write_bytes(url, &mut len, API_URL) && write_bytes(url, &mut len, b"/comic/chapter/")
+        && write_bytes(url, &mut len, chapter_id) && write_bytes(url, &mut len, b"?_v=2.2.5")) {
+        return Err(("internal_error", "url overflow"));
+    }
+    let json = fetch_json_with_platform(&url[..len], Some(b"h5")).map_err(fetch_error_code)?;
+    let chapter = extract_data_inner_object(json).ok_or(("parse_error", "no page data"))?;
+    let can_read = extract_json_bool(chapter, b"canRead")
+        .or_else(|| extract_json_string(chapter, b"canRead").map(|v| v != b"false"))
+        .unwrap_or(true);
+    if !can_read { return Err(("permission_denied", "user cannot read this chapter")); }
+    Ok(chapter)
+}
+
+fn read_comments(input: &[u8], out: &mut [u8]) -> Result<usize, ZaiError> {
+    let args = koma_source_sdk::comments::request(input).map_err(|code| (code, "invalid comments request"))?;
+    let chapter = args.chapter_id.ok_or(("unsupported_operation", "chapter comments required"))?;
+    let slash = find_subslice(chapter, b"/").ok_or(("invalid_request", "invalid chapter identity"))?;
+    let id = &chapter[slash + 1..];
+    if chapter[..slash] != *args.manga_id || slash == 0 || id.is_empty() ||
+        !chapter[..slash].iter().all(u8::is_ascii_digit) || !id.iter().all(u8::is_ascii_digit) ||
+        args.cursor.is_some() {
+        return Err(("invalid_request", "invalid chapter comments identity"));
+    }
+    fetch_readable_chapter(chapter)?;
+    let list = fetch_comment_list(chapter)?;
+    let overflow = ("result_too_large", "comments response too large");
+    let mut pos = 0;
+    let mut c = 0;
+    let mut count = 0;
+    if !write_bytes(out, &mut c, b"{\"items\":[") { return Err(overflow); }
+    while let Some(item) = next_array_value(list, &mut pos).map_err(|_| ("parse_error", "invalid comment entry"))? {
+        if (count > 0 && !write_bytes(out, &mut c, b",")) ||
+            !write_bytes(out, &mut c, br#"{"id":""#) || !write_usize(out, &mut c, count) ||
+            !write_bytes(out, &mut c, br#"","author":"","content":"#) {
+            return Err(overflow);
+        }
+        write_comment_text(out, &mut c, comment_entry_text(item)?)?;
+        if !write_bytes(out, &mut c, b"}") { return Err(overflow); }
+        count += 1;
+    }
+    if !write_bytes(out, &mut c, b"]}") { return Err(overflow); }
+    Ok(c)
+}
+
+fn run_get_comments(input: &[u8]) -> u32 {
+    use koma_source_sdk::comments::OPERATION;
+    match read_comments(input, payload_buf()) {
+        Ok(len) => write_success_payload(OPERATION, len),
+        Err((code, message)) => write_error(OPERATION, code, message),
+    }
+}
+
 fn run_get_pages(req: &[u8]) -> u32 {
     let chapter_id = match extract_json_string(req, b"chapterId") {
         Some(v) => v,
@@ -1025,43 +1095,10 @@ fn run_get_pages(req: &[u8]) -> u32 {
         None => return write_error("get_pages", "invalid_request", "bad chapterId format"),
     };
 
-    // API: /comic/chapter/{mangaId}/{chapterId}?_v=2.2.5
-    let url_buf = scratch_a();
-    let mut url_cursor = 0usize;
-    let ok = write_bytes(url_buf, &mut url_cursor, API_URL)
-        && write_bytes(url_buf, &mut url_cursor, b"/comic/chapter/")
-        && write_bytes(url_buf, &mut url_cursor, chapter_id)
-        && write_bytes(url_buf, &mut url_cursor, b"?_v=2.2.5");
-    if !ok {
-        return write_error("get_pages", "internal_error", "url overflow");
-    }
-    let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
-
-    let api_json = match fetch_json_with_platform(url_bytes, Some(b"h5")) {
-        Ok(v) => v,
-        Err(e) => {
-            let (c, m) = fetch_error_code(e);
-            return write_error("get_pages", c, m);
-        }
+    let images_obj = match fetch_readable_chapter(chapter_id) {
+        Ok(value) => value,
+        Err((code, message)) => return write_error("get_pages", code, message),
     };
-
-    let images_obj = match extract_data_inner_object(api_json) {
-        Some(o) => o,
-        None => return write_error("get_pages", "parse_error", "no page data"),
-    };
-
-    // The API returns canRead as a JSON boolean. Older parsing only handled
-    // quoted strings, which let canRead:false chapters through as empty pages.
-    let can_read = extract_json_bool(images_obj, b"canRead")
-        .or_else(|| extract_json_string(images_obj, b"canRead").map(|v| v != b"false"))
-        .unwrap_or(true);
-    if !can_read {
-        return write_error(
-            "get_pages",
-            "permission_denied",
-            "user cannot read this chapter",
-        );
-    }
 
     // Extract page_url_hd array. Fall back to the normal page_url list if the
     // HD list exists but is empty.

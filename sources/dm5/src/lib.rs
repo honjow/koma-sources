@@ -1,6 +1,8 @@
 #![no_std]
 
 extern crate koma_source_sdk;
+mod comments;
+koma_source_sdk::koma_source_comments_export!(comments::run);
 
 use koma_source_sdk::host::{self, http_request, log_info};
 use koma_source_sdk::json_utils::{
@@ -24,7 +26,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.dm5.koma",
     name: "DM5",
-    version: "0.1.29",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -910,12 +912,12 @@ fn comment_unescape<'a>(s: &[u8], out: &'a mut [u8]) -> Result<&'a [u8], &'stati
 // semantics; CR is numeric-escaped to avoid HTML input newline normalization.
 static mut COMMENT_TEXT: [u8; 65536] = [0; 65536];
 static mut COMMENT_HTML: [u8; 4 * 65536 + 16] = [0; 4 * 65536 + 16];
-fn write_plain_comment(output: &mut [u8], cursor: &mut usize, poster: &[u8], content: &[u8]) -> bool {
+fn write_comment_fields(output: &mut [u8], cursor: &mut usize, fields: &[&[u8]]) -> bool {
     let text = unsafe { &mut *core::ptr::addr_of_mut!(COMMENT_TEXT) };
     let html = unsafe { &mut *core::ptr::addr_of_mut!(COMMENT_HTML) };
     let mut n = 0;
     if !write_bytes(html, &mut n, b"<div>") { return false; }
-    for (index, raw) in [poster, content].iter().enumerate() {
+    for (index, raw) in fields.iter().enumerate() {
         if index > 0 && !write_bytes(html, &mut n, b": ") { return false; }
         let decoded = match comment_unescape(raw, text) { Ok(v) => v, Err(_) => return false };
         for &b in decoded {
@@ -1069,20 +1071,10 @@ fn run_get_pages(req: &[u8]) -> u32 {
     }
     if comments {
         for page in 1..=comment_pages {
-            let mut url = [0u8; 1024]; let mut u = 0;
-            let ok = write_bytes(&mut url, &mut u, BASE_URL)
-                && write_bytes(&mut url, &mut u, b"/m") && write_bytes(&mut url, &mut u, cid)
-                && write_bytes(&mut url, &mut u, b"/pagerdata.ashx?pageindex=") && write_usize(&mut url, &mut u, page)
-                && write_bytes(&mut url, &mut u, b"&pagesize=") && write_usize(&mut url, &mut u, comment_pages)
-                && write_bytes(&mut url, &mut u, b"&tid=") && write_bytes(&mut url, &mut u, &topic_store[..topic_len])
-                && write_bytes(&mut url, &mut u, b"&cid=") && write_bytes(&mut url, &mut u, cid)
-                && write_bytes(&mut url, &mut u, b"&t=9");
-            if !ok { return write_error("get_pages", "internal_error", "comment URL overflow"); }
-            let len = match fetch_body(&url[..u], Some(BASE_URL)) {
-                Ok(n) => n,
-                Err(e) => { let (code, msg) = fetch_error_code(e); return write_error("get_pages", code, msg); }
+            let body = match comments::fetch_rows(cid, &topic_store[..topic_len], page, comment_pages) {
+                Ok(body) => body,
+                Err((code, message)) => return write_error("get_pages", code, message),
             };
-            let body = trim_ascii(unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), len) });
             if !body.ends_with(b"]") { return write_error("get_pages", "parse_error", "invalid chapter comments"); }
             let mut rows = match JsonArrayIter::from_raw_array(body) {
                 Some(v) => v, None => return write_error("get_pages", "parse_error", "invalid chapter comments"),
@@ -1106,7 +1098,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
                 let content = match extract_json_string(row, b"PostContent") { Some(v) => v, None => return write_error("get_pages", "parse_error", "comment text missing") };
                 if (count > 0 && !write_bytes(payload, &mut c, b","))
                     || !write_bytes(payload, &mut c, b"\"")
-                    || !write_plain_comment(payload, &mut c, poster, content)
+                    || !write_comment_fields(payload, &mut c, &[poster, content])
                     || !write_bytes(payload, &mut c, b"\"") {
                     return write_error("get_pages", "parse_error", "comment text could not be decoded");
                 }

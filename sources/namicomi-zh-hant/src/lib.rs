@@ -1443,3 +1443,11 @@ fn run_get_settings(r: &[u8]) -> u32 {
     match result{Ok(())=>write_success_payload("get_settings",n),Err(e)=>write_error("get_settings","internal_error",e)}
 }
 koma_source_sdk::koma_source_exports!("namicomi-zh-hant", typed_chapters, write_chapter_error);
+
+#[path = "../../namicomi-zh-hans/src/comments.rs"]
+mod comments;
+koma_source_sdk::koma_source_comments_export!(run_get_comments);
+
+fn run_get_comments(request: &[u8]) -> u32 {
+    execute(koma_source_sdk::comments::OPERATION, comments::load(request, payload_buf()))
+}

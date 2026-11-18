@@ -10,6 +10,8 @@ mod strict_json;
 mod browse;
 mod recommendations;
 mod session;
+mod comments;
+koma_source_sdk::koma_source_comments_export!(comments::run);
 
 use koma_source_sdk::host::{http_request, log_info};
 use koma_source_sdk::json_utils::{

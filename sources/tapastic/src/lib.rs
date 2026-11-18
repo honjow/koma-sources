@@ -17,6 +17,7 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use url::Url;
 
+mod comments;
 mod dom;
 use dom::Node;
 
@@ -31,7 +32,7 @@ const UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:105.0) Gecko/2010
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.tapas.koma",
     name: "Tapas",
-    version: "0.1.0",
+    version: "0.1.1",
     api_version: "0.2",
     language: "en",
     author: "Koma",
@@ -55,6 +56,7 @@ koma_source_sdk::koma_source_buffers! {payload:1024*1024,http_out:3*1024*1024,bo
 koma_source_sdk::koma_source_helpers!();
 koma_source_sdk::koma_source_exports!("tapas_source");
 koma_source_sdk::koma_source_authentication_exports!("tapas_source");
+koma_source_sdk::koma_source_comments_export!(run_get_comments);
 
 type Result<T> = core::result::Result<T, &'static str>;
 
@@ -269,7 +271,11 @@ fn search(request: &[u8], args: &Value) -> Result<Value> {
             let id = positive(&anchor.attr("data-series-id")?.ok_or("parse_error")?)
                 .map_err(|_| "parse_error")?;
             let cover = item.one(".item__thumb img, .thumb-wrap img");
-            let title = cover
+            // Match the reference: only the legacy .item__thumb image supplies
+            // the title. Current .thumb-wrap alt may contain highlight sentinels;
+            // use the visible title text for that layout instead.
+            let title = item
+                .one(".item__thumb img")
                 .as_ref()
                 .map(|img| img.attr("alt"))
                 .transpose()?
@@ -619,6 +625,7 @@ fn run(op: &str, request: &[u8]) -> u32 {
             "get_manga" => Ok(json!({"manga":manga_detail(mid(&args)?)?})),
             "get_chapters" => chapters(request, &full, &args),
             "get_pages" => pages(request, &full, &args),
+            "get_comments" => comments::load(request, &args),
             "get_image_request" => image(&args),
             "get_settings" => Ok(settings(request)),
             "get_authentication" => Ok(
@@ -685,4 +692,8 @@ fn run_authenticate(r: &[u8]) -> u32 {
 }
 fn run_logout(r: &[u8]) -> u32 {
     run("logout", r)
+}
+
+fn run_get_comments(request: &[u8]) -> u32 {
+    run(koma_source_sdk::comments::OPERATION, request)
 }
