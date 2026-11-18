@@ -1,0 +1,13 @@
+{
+  "homepage": "https://www.woimh.com",
+  "localizedNames": {
+    "zh-Hans": "我爱漫画",
+    "zh-Hant": "我愛漫畫"
+  },
+  "comments": {
+    "version": 1,
+    "scopes": [
+      "manga"
+    ]
+  }
+}
