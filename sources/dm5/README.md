@@ -22,3 +22,8 @@ Android CookieManager 的清 Cookie 动作不是普通可保存设置，本源�
 ## 0.1.26：目录边界和停止提供
 
 章节列表容器内含嵌套封面和信息 div；以完整匹配容器为界，保留原章节身份、顺序与显式排序，结构缺失、未闭合或无法识别时仍失败。仅无目录且本作品详情主栏明确显示站点不再提供该作品时返回 `not_found`；核作品路径及名称，不扫描推荐区，也不让警告覆盖有效目录。
+
+
+## Mihon 恢复
+
+上游动漫屋扩展把作品和章节链接去掉站点前缀保存，原章节 `/m{cid}/` 对应本源章节 ID `chapter:{work}:{cid}:{pages}` 的第 3 段。双方正文使用同一章节的站点图片顺序，章末评论在正文之后。Koma 按目录实际图片数校验页码。参考 [Mihon 动漫屋扩展](https://github.com/keiyoushi/extensions-source/blob/main/src/zh/dm5/src/eu/kanade/tachiyomi/extension/zh/dm5/Dm5.kt) 的 `chapterListParse` 和 `getPageList`。
