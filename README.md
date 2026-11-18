@@ -84,4 +84,10 @@ cargo build --locked --release -p koma-source-dev
 
 完整写源说明见 [docs/WRITING_A_SOURCE.md](docs/WRITING_A_SOURCE.md)，贡献流程和源码规则见 [CONTRIBUTING.md](CONTRIBUTING.md)，最小示例见 [sources/example-demo](sources/example-demo)。也可以在独立仓库中生成同样结构的索引，供用户自行添加。
 
+## 上游与致谢
+
+多项书源的移植和维护参考了 [Keiyoushi Extensions 源码](https://github.com/keiyoushi/extensions-source)中的站点实现。拷贝漫画书源参考了 [coffee522 的 CopyManga 扩展](https://github.com/coffee522/extensions-copymanga)。感谢上游扩展的原作者、维护者和社区贡献者。
+
+各书源的参考版本、许可与素材来源见 [`sources/`](sources/) 下对应目录的 README、`NOTICE`、`LICENSE` 和 `ASSET_SOURCES.md` 等文件。
+
 漫画、图片及相关内容的权利归原权利人所有。
