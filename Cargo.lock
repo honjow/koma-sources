@@ -1300,10 +1300,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_digimonweb_zh_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "koma_dm5_source"
 version = "0.1.30"
 dependencies = [
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_dogemanga_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
 ]
 
 [[package]]
@@ -1563,6 +1583,16 @@ name = "koma_majsoul_zh_source"
 version = "0.1.1"
 dependencies = [
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_manben_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
 ]
 
 [[package]]
@@ -1993,6 +2023,16 @@ name = "koma_xkcd_zh_source"
 version = "0.1.8"
 dependencies = [
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_xsnvshen_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
 ]
 
 [[package]]
