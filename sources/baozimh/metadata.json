@@ -7,7 +7,14 @@
       "work": {
         "pathPrefix": "/comic/",
         "idPrefix": "manga:"
-      }
+      },
+      "chapter": {
+        "pathPrefix": "/user/page_direct?comic_id=",
+        "pathWorkIdSeparator": "&section_slot=0&chapter_slot=",
+        "idPrefix": "",
+        "targetIdSegment": 2
+      },
+      "samePageOrder": true
     }
   },
   "localizedNames": {

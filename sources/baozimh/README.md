@@ -83,3 +83,7 @@ Home栏目身份修订：仅四原栏目增加home:popular/cn/jp/kr稳定id，�
 - **原件**：`/private/tmp/koma-baozi-dafeng-image-20261024/` 内 `page.body`、`runtime-script.body`、`cdn-static-decoded.txt`、`probe-results.json`、`same-first-image-candidate-receipt.json`、`head-rsa-first-receipt.json`、`verify-0.1.10.cjs` 与 `candidate-0.1.10-verification.json`；Mac取样、离线Host和Native证据严格分开。
 
 搜索先解码请求中的 JSON 转义，再按既有站点请求规则编码用户输入；空查询、缺失查询、网页验证和其余行为保持原合同。
+
+## 0.1.25 备份续读与长章节
+
+Mihon 旧目录地址的作品 ID、正文分组和章节槽位对应 Koma 目录中的同章 ID。由包清单声明转换，标题的简繁差异和 ID 的标题后缀不影响匹配。Mihon 的 App 镜像返回整章，Koma 使用的网页镜像每份文档最多提供 50 张新图。按页面链接补齐同章后续文档，并去除分页边界重复的图片，沿用已有图片 ID 和页序。

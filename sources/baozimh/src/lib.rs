@@ -878,6 +878,18 @@ fn probe_image_head(parts: &[&[u8]]) -> Result<bool, ()> {
         && json_object_member(response, b"bodyText") == Some(br#""""#.as_slice()))
 }
 
+fn reader_part_url(dst: &mut [u8], slug: &[u8], slot: &[u8], part: usize) -> Option<usize> {
+    let mut cursor = 0;
+    let ok = write_bytes(dst, &mut cursor, READER_BASE)
+        && write_bytes(dst, &mut cursor, b"/comic/chapter/")
+        && write_bytes(dst, &mut cursor, slug)
+        && write_bytes(dst, &mut cursor, b"/0_")
+        && write_bytes(dst, &mut cursor, slot)
+        && (part == 1 || write_bytes(dst, &mut cursor, b"_") && write_usize(dst, &mut cursor, part))
+        && write_bytes(dst, &mut cursor, b".html");
+    if ok { Some(cursor) } else { None }
+}
+
 fn run_get_pages(req: &[u8]) -> u32 {
     let raw_chapter_id = match extract_json_string(req, b"chapterId") {
         Some(v) => v,
@@ -901,20 +913,12 @@ fn run_get_pages(req: &[u8]) -> u32 {
     let full_slot = &rest[colon_idx + 1..];
     let slot = full_slot.split(|c| *c == b'#').next().unwrap_or(full_slot);
 
-    let url_buf = scratch_a();
-    let mut url_cursor = 0usize;
-    if !(write_bytes(url_buf, &mut url_cursor, READER_BASE)
-        && write_bytes(url_buf, &mut url_cursor, b"/comic/chapter/")
-        && write_bytes(url_buf, &mut url_cursor, slug)
-        && write_bytes(url_buf, &mut url_cursor, b"/0_")
-        && write_bytes(url_buf, &mut url_cursor, slot)
-        && write_bytes(url_buf, &mut url_cursor, b".html"))
-    {
+    let mut url = [0u8; 4352];
+    let mut part = 1;
+    let Some(mut url_length) = reader_part_url(&mut url, slug, slot, part) else {
         return write_error("get_pages", "internal_error", "url overflow");
-    }
-    let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
-
-    let html_len = match fetch_html(url_bytes,req) {
+    };
+    let html_len = match fetch_html(&url[..url_length], req) {
         Ok(n) => n,
         Err(e) => return write_fetch_error("get_pages", e),
     };
@@ -924,48 +928,14 @@ fn run_get_pages(req: &[u8]) -> u32 {
         Ok(d) => OwnedDescriptor(d),
         Err(_) => return write_error("get_pages", "parse_error", "html_parse failed"),
     };
-    // The count-only pass allocates no child handles. Native SelectAll returns
-    // the full count even when the caller provides zero output capacity.
-    let count = html_select_all(document.0.raw(), b"amp-img.comic-contain__item", &mut scratch_a()[..0]);
-    if count < 0 {
-        return write_error("get_pages", "parse_error", "image selection failed");
-    }
-    let total = count as usize;
-    let descriptor_bytes = match total.checked_mul(4) {
-        Some(bytes) if bytes <= BODY_CAP => bytes,
-        _ => return write_error("get_pages", "source_error", "chapter cannot fit current response capacity"),
-    };
-    // Lexbor owns its DOM/attribute storage after parsing; the original HTML
-    // body is no longer needed. Reuse it, without adding a fixed page limit.
-    let handles = &mut body_buf()[..descriptor_bytes];
-    let selected = if total == 0 { 0 } else {
-        html_select_all(document.0.raw(), b"amp-img.comic-contain__item", handles)
-    };
-    if selected < 0 {
-        // Native SelectAll error paths allocate no descriptors.
-        return write_error("get_pages", "parse_error", "image selection failed");
-    }
-    let descriptors = PageDescriptors {
-        bytes: handles,
-        // Only these entries were written/allocated by the actual second call.
-        count: (selected as usize).min(descriptor_bytes / 4),
-    };
-    if selected as usize != total {
-        return write_error("get_pages", "parse_error", "image selection changed");
-    }
-
-    // Keep the original first URI alive while later attributes use the other
-    // half of the existing HTTP buffer. HEAD replies use their own small buffer.
-    let (first_uri_buffer, page_uri_buffer) = http_out().split_at_mut(NATIVE_RESULT_CAP);
-    let first_uri = if total == 0 { &[] as &[u8] } else {
-        let hd = match descriptors.get(0) {
-            Some(value) => value,
-            None => return write_error("get_pages", "parse_error", "missing image descriptor"),
-        };
-        match attr_into(hd, b"src", first_uri_buffer) {
-            Some(value) => value,
-            None => return write_error("get_pages", "parse_error", "missing image src"),
-        }
+    let mut first_uri_buffer = [0u8; 4096];
+    let first_image = html_select(document.0, b"amp-img.comic-contain__item").ok().map(OwnedDescriptor);
+    let first_uri = match first_image {
+        Some(image) => match attr_into(image.0, b"src", &mut first_uri_buffer) {
+            Some(uri) if uri.len() < 4096 => uri,
+            _ => b"",
+        },
+        None => b"",
     };
     if host::check_cancel() { return write_error("get_pages", "cancelled", "cancelled"); }
     let mut probes = 0;
@@ -996,51 +966,132 @@ fn run_get_pages(req: &[u8]) -> u32 {
         return write_error("get_pages", "internal_error", "payload overflow");
     }
 
-    let mut written = 0usize;
-
-    for i in 0..total {
-        if host::check_cancel() { return write_error("get_pages", "cancelled", "cancelled"); }
-        let hd = match descriptors.get(i) {
-            Some(value) => value,
-            None => return write_error("get_pages", "parse_error", "missing image descriptor"),
-        };
-        // The old HTTP envelope has been consumed; reuse that full buffer.
-        let img_src = match attr_into(hd, b"src", page_uri_buffer) {
-            Some(value) => value,
-            None => return write_error("get_pages", "parse_error", "missing image src"),
-        };
-        if img_src.len() == NATIVE_RESULT_CAP {
-            // Attr reports copied bytes, not original length. A saturated 1MiB
-            // URI cannot fit the same-sized complete result envelope.
-            return write_error("get_pages", "source_error", "image URI cannot fit current response capacity");
+    // The next document repeats up to four images from the previous part.
+    // Compare source URIs at the boundary so those previews do not shift saved pages.
+    const PART_OVERLAP: usize = 4;
+    let mut tail = [[0u8; 1024]; PART_OVERLAP];
+    let mut tail_lengths = [0usize; PART_OVERLAP];
+    let mut written = 0;
+    let mut document = document;
+    loop {
+        // The count-only pass allocates no child handles. Native SelectAll returns
+        // the full count even when the caller provides zero output capacity.
+        let count = html_select_all(document.0.raw(), b"amp-img.comic-contain__item", &mut scratch_a()[..0]);
+        if count < 0 {
+            return write_error("get_pages", "parse_error", "image selection failed");
         }
-        {
-            if written > 0 {
-                if !write_bytes(payload, &mut c, b",") {
+        let total = count as usize;
+        if total == 0 && part > 1 {
+            return write_error("get_pages", "parse_error", "empty chapter continuation");
+        }
+        let descriptor_bytes = match total.checked_mul(4) {
+            Some(bytes) if bytes <= BODY_CAP => bytes,
+            _ => return write_error("get_pages", "source_error", "chapter cannot fit current response capacity"),
+        };
+        // Lexbor owns its DOM/attribute storage after parsing; the original HTML
+        // body is no longer needed. Reuse it, without adding a fixed page limit.
+        let handles = &mut body_buf()[..descriptor_bytes];
+        let selected = if total == 0 { 0 } else {
+            html_select_all(document.0.raw(), b"amp-img.comic-contain__item", handles)
+        };
+        if selected < 0 {
+            // Native SelectAll error paths allocate no descriptors.
+            return write_error("get_pages", "parse_error", "image selection failed");
+        }
+        let descriptors = PageDescriptors {
+            bytes: handles,
+            // Only these entries were written/allocated by the actual second call.
+            count: (selected as usize).min(descriptor_bytes / 4),
+        };
+        if selected as usize != total {
+            return write_error("get_pages", "parse_error", "image selection changed");
+        }
+
+        // The old HTTP envelope has been consumed before writing its image entries.
+        let page_uri_buffer = &mut http_out()[..NATIVE_RESULT_CAP];
+        let mut overlap = part > 1;
+        for i in 0..total {
+            if host::check_cancel() { return write_error("get_pages", "cancelled", "cancelled"); }
+            let hd = match descriptors.get(i) {
+                Some(value) => value,
+                None => return write_error("get_pages", "parse_error", "missing image descriptor"),
+            };
+            let img_src = match attr_into(hd, b"src", page_uri_buffer) {
+                Some(value) => value,
+                None => return write_error("get_pages", "parse_error", "missing image src"),
+            };
+            if img_src.len() == NATIVE_RESULT_CAP {
+                // Attr reports copied bytes, not original length. A saturated 1MiB
+                // URI cannot fit the same-sized complete result envelope.
+                return write_error("get_pages", "source_error", "image URI cannot fit current response capacity");
+            }
+            let uri = img_src.split(|byte| *byte == b'?').next().unwrap_or(img_src);
+            if overlap && tail.iter().zip(tail_lengths).any(|(previous, len)| &previous[..len] == uri) {
+                continue;
+            }
+            overlap = false;
+            let tail_index = written % PART_OVERLAP;
+            tail_lengths[tail_index] = 0;
+            if uri.len() <= tail[tail_index].len() {
+                tail[tail_index][..uri.len()].copy_from_slice(uri);
+                tail_lengths[tail_index] = uri.len();
+            }
+            {
+                if written > 0 {
+                    if !write_bytes(payload, &mut c, b",") {
+                        return write_error("get_pages", "internal_error", "payload overflow");
+                    }
+                }
+                let ok2 = write_bytes(payload, &mut c, br#"{"id":"page:"#)
+                    && append_json_escaped(payload, &mut c, slug)
+                    && write_bytes(payload, &mut c, b":")
+                    && append_json_escaped(payload, &mut c, slot)
+                    && write_bytes(payload, &mut c, b":")
+                    && write_page_ordinal(payload, &mut c, written)
+                    && write_bytes(payload, &mut c, br#"","index":"#)
+                    && write_usize(payload, &mut c, written)
+                    && write_bytes(payload, &mut c, br#","image":{"kind":"url","url":""#)
+                    && match selection.as_ref().and_then(|selected| selected.rewrite(img_src)) {
+                        Some(rewritten) => append_json_escaped(payload, &mut c, rewritten.prefix)
+                            && append_json_escaped(payload, &mut c, rewritten.suffix)
+                            && append_json_escaped(payload, &mut c, rewritten.tail),
+                        None => append_json_escaped(payload, &mut c, img_src),
+                    }
+                    && write_bytes(payload, &mut c, br#""}}"#);
+                if !ok2 {
                     return write_error("get_pages", "internal_error", "payload overflow");
                 }
+                written += 1;
             }
-            let ok2 = write_bytes(payload, &mut c, br#"{"id":"page:"#)
-                && append_json_escaped(payload, &mut c, slug)
-                && write_bytes(payload, &mut c, b":")
-                && append_json_escaped(payload, &mut c, slot)
-                && write_bytes(payload, &mut c, b":")
-                && write_page_ordinal(payload, &mut c, written)
-                && write_bytes(payload, &mut c, br#"","index":"#)
-                && write_usize(payload, &mut c, written)
-                && write_bytes(payload, &mut c, br#","image":{"kind":"url","url":""#)
-                && match selection.as_ref().and_then(|selected| selected.rewrite(img_src)) {
-                    Some(rewritten) => append_json_escaped(payload, &mut c, rewritten.prefix)
-                        && append_json_escaped(payload, &mut c, rewritten.suffix)
-                        && append_json_escaped(payload, &mut c, rewritten.tail),
-                    None => append_json_escaped(payload, &mut c, img_src),
-                }
-                && write_bytes(payload, &mut c, br#""}}"#);
-            if !ok2 {
-                return write_error("get_pages", "internal_error", "payload overflow");
-            }
-            written += 1;
         }
+
+        drop(descriptors);
+
+        // The site splits long chapters into 50-image documents. Follow only
+        // its link to the next part of this same chapter, with stable page IDs.
+        let Some(next_url) = reader_part_url(&mut url, slug, slot, part + 1) else {
+            break;
+        };
+        let next = html_select(document.0, b"a#next-chapter").ok().map(OwnedDescriptor);
+        let mut href_buffer = [0u8; 4352];
+        let href = next.as_ref().and_then(|node| attr_into(node.0, b"href", &mut href_buffer));
+        if href != Some(&url[..next_url]) && href != Some(&url[READER_BASE.len()..next_url]) {
+            break;
+        }
+        drop(next);
+        drop(document);
+        part += 1;
+        url_length = next_url;
+        let html_len = match fetch_html(&url[..url_length], req) {
+            Ok(n) => n,
+            Err(e) => return write_fetch_error("get_pages", e),
+        };
+        let html_bytes = &body_buf()[..html_len];
+
+        document = match html_parse(html_bytes) {
+            Ok(d) => OwnedDescriptor(d),
+            Err(_) => return write_error("get_pages", "parse_error", "html_parse failed"),
+        };
     }
 
     if !write_bytes(payload, &mut c, b"]}") {

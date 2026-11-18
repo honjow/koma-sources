@@ -158,7 +158,7 @@ def mihon_import_identity(rule):
             continue
         path = rule[key]
         text_fields = {"pathPrefix", "pathSuffix", "idPrefix", "idSuffix"}
-        allowed = text_fields | ({"pathIdSegment", "targetIdSegment"} if key == "chapter" else {"pathTitleAfterId"})
+        allowed = text_fields | ({"pathIdSegment", "targetIdSegment", "pathWorkIdSeparator"} if key == "chapter" else {"pathTitleAfterId"})
         if (not isinstance(path, dict) or not {"pathPrefix", "idPrefix"} <= path.keys() <= allowed or not all(
                     isinstance(path[field], str) and re.fullmatch(r"[A-Za-z0-9._:/?=&,-]{0,128}", path[field])
                     for field in path.keys() & text_fields) or (path["pathPrefix"] != "" and not path["pathPrefix"].startswith("/") and not re.match(r"^https://[A-Za-z0-9.-]+/", path["pathPrefix"]))):
@@ -167,6 +167,11 @@ def mihon_import_identity(rule):
                 path["pathTitleAfterId"] and
                 (not path["pathPrefix"].endswith("/") or path.get("pathSuffix") != "/"))):
             raise ValueError("invalid identity.mihon.work.pathTitleAfterId")
+        if "pathWorkIdSeparator" in path and (
+                not path["pathPrefix"] or "pathIdSegment" in path or
+                not isinstance(path["pathWorkIdSeparator"], str) or
+                not re.fullmatch(r"[A-Za-z0-9._:/?=&,-]{1,128}", path["pathWorkIdSeparator"])):
+            raise ValueError("invalid identity.mihon.chapter.pathWorkIdSeparator")
         for field, minimum in (("pathIdSegment", -8), ("targetIdSegment", 0)):
             if field in path and (type(path[field]) is not int or not minimum <= path[field] <= 7):
                 raise ValueError("invalid identity.mihon.chapter." + field)
