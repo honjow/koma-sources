@@ -1,0 +1,11 @@
+{
+  "homepage": "https://mikagogo.com",
+  "localizedNames": {
+    "zh-Hans": "米卡插画",
+    "zh-Hant": "米卡插畫"
+  },
+  "comments": {
+    "version": 1,
+    "scopes": ["manga"]
+  }
+}

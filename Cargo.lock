@@ -1228,6 +1228,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_budingmanhua_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "koma_buondua_source"
 version = "0.1.4"
 dependencies = [
@@ -1662,6 +1672,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_mikagogo_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "koma_mixflavor_life_zh_hant_source"
 version = "0.1.5"
 dependencies = [
@@ -1776,6 +1796,16 @@ name = "koma_protectors_zh_source"
 version = "0.1.1"
 dependencies = [
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_relamanhua_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
 ]
 
 [[package]]
@@ -1936,6 +1966,17 @@ dependencies = [
  "koma_source_sdk",
  "regex",
  "unicode_titlecase",
+]
+
+[[package]]
+name = "koma_xipimanhua_source"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
 ]
 
 [[package]]

@@ -56,6 +56,10 @@ fjumonkey-zh-hant|fjumonkey-zh-hant|false|0.1.1
 immark-zh-hant|immark-zh-hant|false|0.1.1
 mixflavor-life-zh-hant|mixflavor-life-zh-hant|false|0.1.1
 mycomic|mycomic|true|1.4.2
+relamanhua|relamanhua|true|1.4.1
+mikagogo|mikagogo|true|1.4.1
+xipimanhua|xipimanhua|true|1.4.1
+budingmanhua|budingmanhua|true|1.4.1
 rumanhua|rumanhua|false|1.4.1
 dumanwu|dumanwu|false|1.4.1
 jisumanhua|jisumanhua|true|1.4.1

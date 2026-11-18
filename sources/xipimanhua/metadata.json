@@ -1,0 +1,5 @@
+{
+  "homepage": "https://m.hipmh.com",
+  "localizedNames": {"zh-Hans":"嬉皮漫画","zh-Hant":"嬉皮漫畫","en":"Xipi Manhua"},
+  "requestLimits": [{"group":"xipi-api","hosts":["hipapi1.s3file.top"],"permits":4,"periodMs":1000}]
+}

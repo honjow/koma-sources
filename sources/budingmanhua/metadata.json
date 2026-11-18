@@ -1,0 +1,13 @@
+{
+  "homepage": "https://hxy4.com",
+  "localizedNames": {
+    "zh-Hans": "布丁漫画",
+    "zh-Hant": "布丁漫畫"
+  },
+  "comments": {
+    "version": 1,
+    "scopes": [
+      "manga"
+    ]
+  }
+}
