@@ -17,7 +17,7 @@ fn selected_base(r: &[u8]) -> &'static [u8] {
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "org.goda.koma",
     name: "GoDa漫画",
-    version: "0.1.9",
+    version: "0.1.10",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -32,7 +32,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     listings: true,
     manga_list: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: true,
     image_request: true,
     credentials: false,
@@ -690,6 +690,43 @@ fn cover_url<'a>(s: &[u8], o: &'a mut [u8]) -> Result<&'a [u8], &'static str> {
         Ok(&o[..s.len()])
     }
 }
+fn category_filters_supported(request: &[u8]) -> bool {
+    use koma_source_sdk::source_protocol::feature;
+    feature(request, b"source_filter_fetching_v1")
+        && feature(request, b"source_listing_filter_scope_v1")
+}
+
+fn is_category_route(route: &[u8]) -> bool {
+    if route == b"/manga" {
+        return true;
+    }
+    route.strip_prefix(b"/manga-genre/")
+        .or_else(|| route.strip_prefix(b"/manga-tag/"))
+        .is_some_and(|slug| !slug.is_empty() && slug.len() <= 96
+            && slug.iter().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_')))
+}
+
+fn append_browse_route(
+    request: &[u8],
+    route: &mut [u8],
+    size: &mut usize,
+) -> Result<(), &'static str> {
+    let category = category_filters_supported(request)
+        .then(|| json_object_member(args(request), b"filters"))
+        .flatten()
+        .and_then(|filters| string(filters, b"category"))
+        .unwrap_or(b"popular");
+    let path: &[u8] = if category == b"popular" {
+        b"/hots"
+    } else if is_category_route(category) {
+        category
+    } else {
+        return Err("invalid category path");
+    };
+    bytes(route, size, path)?;
+    bytes(route, size, b"/page/")
+}
+
 fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
     let pg = page(r)?;
     let mut route = [0; 8192];
@@ -707,7 +744,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
         bytes(&mut route, &mut n, b"?page=")?
     } else {
         match string(args(r), b"listingId").unwrap_or(b"popular") {
-            b"popular" => bytes(&mut route, &mut n, b"/hots/page/")?,
+            b"popular" => append_browse_route(r, &mut route, &mut n)?,
             b"latest" => bytes(&mut route, &mut n, b"/newss/page/")?,
             _ => return Err("unknown listing"),
         }
@@ -1177,16 +1214,76 @@ fn run_get_chapters(r: &[u8]) -> u32 {
 fn run_get_pages(r: &[u8]) -> u32 {
     execute("get_pages", pages(r))
 }
-fn run_get_listings(_: &[u8]) -> u32 {
-    let p=b"{\"listings\":[{\"id\":\"popular\",\"name\":\"Popular\"},{\"id\":\"latest\",\"name\":\"Latest\"}]}";
+fn run_get_listings(r: &[u8]) -> u32 {
+    let p: &[u8] = if category_filters_supported(r) {
+        br#"{"listings":[{"id":"popular","name":"Popular"},{"id":"latest","name":"Latest","supportsFilters":false}]}"#
+    } else {
+        br#"{"listings":[{"id":"popular","name":"Popular"},{"id":"latest","name":"Latest"}]}"#
+    };
     payload_buf()[..p.len()].copy_from_slice(p);
     write_success_payload("get_listings", p.len())
 }
 fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_implemented", "not supported")
 }
-fn run_get_filters(_: &[u8]) -> u32 {
-    write_error("get_filters", "not_implemented", "not supported")
+fn category_filter_schema(request: &[u8]) -> Result<usize, &'static str> {
+    let out = payload_buf();
+    let mut size = 0;
+    if !category_filters_supported(request) {
+        bytes(out, &mut size, br#"{"filters":[]}"#)?;
+        return Ok(size);
+    }
+
+    bytes(out, &mut size,
+        r#"{"supportsFilterFetching":true,"filters":[{"id":"category","name":"分类","type":"select","scope":"browse","default":"popular""#.as_bytes())?;
+    if json_object_member(args(request), b"fetchFilterData") == Some(b"true") {
+        // A deferred select row must mount with its real options: the 1.5.5
+        // sheet retains the menu builder for a row that is already visible.
+        bytes(out, &mut size, r#","options":[{"value":"popular","label":"默认热门"}"#.as_bytes())?;
+        let home = fetch(selected_base(request), b"/hots/page/1")?;
+        let links = Nodes::get(&home, b"main .container .scrollbar-hide a")?;
+        let mut seen = [[0u8; 128]; 128];
+        let mut count = 0;
+        for index in 0..links.n {
+            let link = selected(&links, index);
+            let mut raw = [0; 128];
+            let Some(route) = link.optional_attr(b"href", &mut raw)? else { continue; };
+            if !is_category_route(route) {
+                continue;
+            }
+            let mut key = [0; 128];
+            key[..route.len()].copy_from_slice(route);
+            if seen[..count].contains(&key) {
+                continue;
+            }
+            let mut label = [0; 256];
+            let label = link.text(&mut label)?;
+            let label = trim_ascii(label.strip_prefix(b"#").unwrap_or(label));
+            if label.is_empty() {
+                continue;
+            }
+            if count == seen.len() {
+                return Err("category options capacity");
+            }
+            seen[count] = key;
+            count += 1;
+            bytes(out, &mut size, br#",{"value":"#)?;
+            q(out, &mut size, route)?;
+            bytes(out, &mut size, br#","label":"#)?;
+            q(out, &mut size, label)?;
+            bytes(out, &mut size, b"}")?;
+        }
+        if count == 0 {
+            return Err("category options missing");
+        }
+        bytes(out, &mut size, b"]")?;
+    }
+    bytes(out, &mut size, b"}]}")?;
+    Ok(size)
+}
+
+fn run_get_filters(request: &[u8]) -> u32 {
+    execute("get_filters", category_filter_schema(request))
 }
 fn run_get_settings(_: &[u8]) -> u32 {
     let p = r#"{"settings":[{"id":"preferredMirror","name":"首选镜像","kind":"select","default":"https://baozimh.org","options":[{"value":"https://baozimh.org","label":"baozimh.org"},{"value":"https://godamh.com","label":"godamh.com"},{"value":"https://m.baozimh.one","label":"m.baozimh.one"},{"value":"https://bzmh.org","label":"bzmh.org"},{"value":"https://g-mh.org","label":"g-mh.org"},{"value":"https://m.g-mh.org","label":"m.g-mh.org"}]}]}"#.as_bytes();
