@@ -1,0 +1,12 @@
+{
+  "homepage": "https://www.kanman.com",
+  "chapterOrder": "newest_first",
+  "identity": {
+    "mihon": {
+      "sourceIds": ["3710922009941786183"],
+      "work": {"pathPrefix": "/", "pathSuffix": "/", "idPrefix": ""},
+      "chapter": {"pathPrefix": "/", "idPrefix": "/"},
+      "samePageOrder": true
+    }
+  }
+}

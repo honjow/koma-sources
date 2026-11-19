@@ -1,0 +1,6 @@
+Behavior ported from Keiyoushi extensions-source, src/zh/kanman, at
+8947c372cd87f546a0b80cb0e4b0a5a8add5ef88 under Apache License 2.0.
+https://github.com/keiyoushi/extensions-source/tree/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/src/zh/kanman
+
+Changes: Rust and Koma WASM ABI port, self-contained browse cursors, typed
+catalog, and structured handling of chapters locked by the site.
