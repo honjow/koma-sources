@@ -97,6 +97,7 @@ members = [
   "sources/manhuawu",
   "sources/manwamanhua",
   "sources/iqiyi",
+  "sources/jiulingmanhua",
   "sources/jiuermanhua",
   "sources/manhuadui",
   "sources/zazhimi",

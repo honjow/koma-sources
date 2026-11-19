@@ -129,6 +129,7 @@ dongmanmanhua|dongmanmanhua|false|0.1.0
 manhuawu|manhuawu|false|1.4.2
 manwamanhua|manwamanhua|true|1.5.5
 iqiyi|iqiyi|false|0.1.4
+jiulingmanhua|jiulingmanhua|true|1.4.1
 jiuermanhua|jiuermanhua|true|0.1.0
 zazhimi|zazhimi|false|0.1.0
 mh1234|mh1234|false|1.4.1
