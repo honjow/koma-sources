@@ -32,10 +32,6 @@ koma_source_sdk::koma_source_helpers!();
 // Keep decoded multipart content out of the form scratch buffer and bounded WASM stack.
 static mut SEARCH_QUERY: [u8; 16384] = [0; 16384];
 
-// icon.jpg: unmodified 600x600 TongLiComic publisher profile JPEG.
-// Official account declared by https://www.tongli.com.tw/Epaper_PreView.aspx?E=20240531113412
-// and linked back to tongli.com.tw by https://www.facebook.com/TongLiComic .
-// Preserve original artwork and canvas; no crop, repaint, added mask, shadow or background.
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.tongli.koma",
     name: "東立",

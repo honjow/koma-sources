@@ -1682,7 +1682,7 @@ dependencies = [
 
 [[package]]
 name = "koma_manhuawu_source"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1934,7 +1934,7 @@ dependencies = [
 
 [[package]]
 name = "koma_tongli_source"
-version = "0.1.11"
+version = "0.1.12"
 dependencies = [
  "koma_source_sdk",
 ]
