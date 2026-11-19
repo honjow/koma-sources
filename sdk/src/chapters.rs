@@ -472,3 +472,56 @@ fn check_capacity(fits: bool) -> Result<(), SourceError> {
         Err(SourceError::internal_error("payload overflow"))
     }
 }
+
+/// Parse an explicitly numbered Chinese chapter heading. The title's
+/// display number is separate from catalog order and request identity.
+pub fn numbered_chapter_heading(title: &[u8]) -> Option<usize> {
+    let title = core::str::from_utf8(title).ok()?.trim();
+    let title = title.strip_prefix('第').unwrap_or(title);
+    let mut n = 0usize;
+    let mut pending = 0usize;
+    let mut any = false;
+    for ch in title.chars() {
+        if ch.is_ascii_digit() {
+            pending = pending
+                .checked_mul(10)?
+                .checked_add(ch as usize - '0' as usize)?;
+            any = true;
+        } else {
+            let d = match ch {
+                '零' | '〇' => Some(0),
+                '一' => Some(1),
+                '二' | '两' | '兩' => Some(2),
+                '三' => Some(3),
+                '四' => Some(4),
+                '五' => Some(5),
+                '六' => Some(6),
+                '七' => Some(7),
+                '八' => Some(8),
+                '九' => Some(9),
+                _ => None,
+            };
+            if let Some(d) = d {
+                pending = pending.checked_mul(10)?.checked_add(d)?;
+                any = true;
+            } else if matches!(ch, '十' | '百' | '千') {
+                let unit = match ch {
+                    '十' => 10,
+                    '百' => 100,
+                    _ => 1000,
+                };
+                n = n.checked_add(pending.max(1).checked_mul(unit)?)?;
+                pending = 0;
+                any = true;
+            } else {
+                // An explicit chapter suffix is required; do not number specials by their position.
+                return if any && matches!(ch, '话' | '話' | '章' | '回') {
+                    n.checked_add(pending)
+                } else {
+                    None
+                };
+            }
+        }
+    }
+    None
+}

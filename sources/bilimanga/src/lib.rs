@@ -3,11 +3,13 @@
 // ref 16cde44564d45c3fa9c14371b4d9152606a9821d.
 use koma_source_sdk::{
     host,
+    http::{CallError, Client, Request, RequireSuccess, Response},
     json_utils::*,
     source::{SourceCapabilities, SourceInfo},
 };
 use koma_source_sdk::source_protocol as protocol;
 mod schema;
+mod search_captcha;
 const BASE: &[u8] = b"https://www.bilimanga.net";
 // This is Mihon's default mobile browser profile. Its global UA can be customized
 // by its user; the Koma source uses the verified default with matching client hints.
@@ -189,11 +191,17 @@ fn absolute<'a>(p: &[u8], b: &'a mut [u8]) -> R<&'a [u8]> {
 enum DocumentRequest {
     Direct,
     Neighbor,
+    Search {
+        track_document_challenge: bool,
+        include_response_url: bool,
+    },
 }
-fn write_document_request(req: &mut [u8], n: &mut usize, p: &[u8], mode: DocumentRequest) -> R<()> {
+fn write_document_request(req: &mut [u8], n: &mut usize, p: &[u8], mode: DocumentRequest, method: &[u8]) -> R<()> {
     let mut u = [0; 8192];
-    let u = path(BASE, p, b"", &mut u)?;
-    w(req, n, b"{\"version\":1,\"method\":\"GET\",\"url\":")?;
+    let u = if p.starts_with(BASE) && p.get(BASE.len()) == Some(&b'/') { p } else { path(BASE, p, b"", &mut u)? };
+    w(req, n, br#"{"version":1,"method":"#)?;
+    q(req, n, method)?;
+    w(req, n, br#","url":"#)?;
     q(req, n, u)?;
     w(req, n, b",\"headers\":{\"User-Agent\":")?;
     q(req, n, UA)?;
@@ -207,18 +215,31 @@ fn write_document_request(req: &mut [u8], n: &mut usize, p: &[u8], mode: Documen
         br#","Accept-Language":"zh","Sec-CH-UA-Mobile":"?1","Sec-CH-UA-Platform":"\"Android\"","Sec-Fetch-Site":"same-origin","Sec-Fetch-Mode":"navigate","Sec-Fetch-User":"?1","Sec-Fetch-Dest":"document","Upgrade-Insecure-Requests":"1""#,
     )?;
     match mode {
-        DocumentRequest::Direct => w(req, n, b",\"Cookie\":\"night=1\"")?,
+        DocumentRequest::Direct | DocumentRequest::Search { .. } => w(req, n, b",\"Cookie\":\"night=1\"")?,
         // The adjacent reader probe does not add the source's night cookie.
         DocumentRequest::Neighbor => (),
     }
-    w(req, n, b"}}")
+    w(req, n, b"}")?;
+    if let DocumentRequest::Search { track_document_challenge, include_response_url } = mode {
+        if track_document_challenge {
+            w(req, n, br#","wantChallengeRequestId":"document""#)?;
+        }
+        if include_response_url {
+            w(req, n, br#","responseMetadata":{"finalUrl":true}"#)?;
+        }
+    }
+    w(req, n, b"}")
 }
-fn send_http(request: &[u8]) -> R<&'static [u8]> {
+fn send_http(request: &[u8]) -> R<Response<'static>> {
     if host::check_cancel() {
         return Err("cancelled");
     }
-    let n = host::http_request(request, http_out()).map_err(|_| "network_error")?;
-    Ok(&http_out()[..n])
+    Client::<CallError>::new(&[&RequireSuccess])
+        .send(Request::from_json(request), http_out())
+        .map_err(|error| match error {
+            CallError::Rejected(code) => code,
+            _ => "network_error",
+        })
 }
 fn parse_document(body: &[u8]) -> R<Node> {
     let root = Node::parse(body)?;
@@ -227,12 +248,12 @@ fn parse_document(body: &[u8]) -> R<Node> {
     }
     Ok(root)
 }
-fn fetch_document(p: &[u8], mode: DocumentRequest) -> R<(&'static [u8], usize)> {
+fn fetch_document(p: &[u8], mode: DocumentRequest) -> R<(Response<'static>, usize)> {
     let req = http_req_buf();
     let mut n = 0;
-    write_document_request(req, &mut n, p, mode)?;
+    write_document_request(req, &mut n, p, mode, b"GET")?;
     let response = send_http(&req[..n])?;
-    let size = protocol::body(response, body_buf())?;
+    let size = response.decode_body_into(body_buf())?;
     Ok((response, size))
 }
 fn fetch(p: &[u8]) -> R<Node> {
@@ -260,11 +281,6 @@ fn result(op: &str, r: R<usize>) -> u32 {
             op,
             "chapter_unavailable",
             "網站將這次請求識別為電腦端，未提供章節圖片。可在手機原生瀏覽器開啟原網頁",
-        ),
-        Err("search_captcha_required") => write_error(
-            op,
-            "challenge_required",
-            "請在驗證頁搜尋同一關鍵字並輸入圖片驗證碼，完成後回來重試",
         ),
         Err(c) => write_error(
             op,
@@ -418,12 +434,18 @@ fn card(o: &mut [u8], n: &mut usize, id: &[u8], title: &[u8], cover: &[u8], dire
     write_cover(o, n, cover, id, direct_headers)?;
     w(o, n, b",\"contentRating\":\"suggestive\"}")
 }
-fn list(r: &[u8], search: bool) -> R<usize> {
+struct SearchChallenge {
+    request_id: [u8; 64],
+    request_id_len: usize,
+}
+
+fn list(r: &[u8], search_challenge: Option<&mut SearchChallenge>) -> R<usize> {
     require_request_policy(r)?;
     let a = args(r);
     let mut qb = [0; 16384];
     let query = trim_ascii(protocol::text(a, b"query", &mut qb)?.unwrap_or(b""));
-    if search && !query.is_empty() {
+    let search = search_challenge.is_some();
+    if let Some(challenge) = search_challenge.filter(|_| !query.is_empty()) {
         // Public canonical work links resolve directly, before visitor search.
         if let Ok(id) = canonical_detail_id(query) {
             let out = payload_buf();
@@ -433,7 +455,7 @@ fn list(r: &[u8], search: bool) -> R<usize> {
             w(out, &mut n, b"],\"page\":{\"nextCursor\":null,\"hasMore\":false}}")?;
             return Ok(n);
         }
-        return keyword_search(r, query);
+        return keyword_search(r, query, challenge);
     }
     let page = request_page_number(r);
     let mut p = [0; 2048];
@@ -557,7 +579,109 @@ fn has_search_next(label: &[u8]) -> bool {
     end.and_then(|i| positive(&tail[..i]).ok()).is_some_and(|last| current < last)
 }
 
-fn keyword_search(r: &[u8], query: &[u8]) -> R<usize> {
+fn automatic_search_enabled(r: &[u8]) -> bool {
+    let settings = json_object_member(r, b"settings").unwrap_or(b"{}");
+    protocol::direct(settings, b"SOLVE_CAPTCHA").ok().flatten().is_some_and(|value| matches!(value, b"true" | b"\"true\""))
+        && protocol::feature(r, b"source_http_bytes_v1")
+        && protocol::feature(r, b"source_http_cookie_session_v1")
+}
+
+fn search_http(r: &[u8], target: &[u8], form: Option<&[u8]>, image: bool) -> R<Response<'static>> {
+    let req = http_req_buf();
+    let mut n = 0;
+    write_document_request(req, &mut n, target, DocumentRequest::Search {
+        track_document_challenge: protocol::feature(r, b"source_http_challenge_cause_v1"),
+        include_response_url: !image && protocol::feature(r, b"source_http_response_metadata_v1"),
+    }, if form.is_some() { b"POST" } else { b"GET" })?;
+    // All requests of this flow use the source's own native HTTP Cookie jar.
+    // The source sees image bytes but never extracts a browser/account cookie.
+    n -= 1;
+    w(req, &mut n, br#","session":"source""#)?;
+    if image {
+        w(req, &mut n, br#","responseKind":"bodyBytes""#)?;
+    }
+    if let Some(form) = form {
+        // Content-Type must be in the existing headers object.
+        let headers_end = find_subslice(&req[..n], b"},").unwrap_or(n - 1);
+        const CONTENT_TYPE: &[u8] = br#","Content-Type":"application/x-www-form-urlencoded""#;
+        if n + CONTENT_TYPE.len() > req.len() { return Err("capacity_exceeded"); }
+        req.copy_within(headers_end..n, headers_end + CONTENT_TYPE.len());
+        req[headers_end..headers_end + CONTENT_TYPE.len()].copy_from_slice(CONTENT_TYPE);
+        n += CONTENT_TYPE.len();
+        w(req, &mut n, br#","body":"#)?;
+        q(req, &mut n, form)?;
+    }
+    w(req, &mut n, b"}")?;
+    send_http(&req[..n])
+}
+
+fn search_document(r: &[u8], route: &[u8], challenge: &mut SearchChallenge) -> R<(Response<'static>, Node)> {
+    let automatic = automatic_search_enabled(r);
+    let (mut response, size) = if automatic {
+        let response = search_http(r, route, None, false)?;
+        let size = response.decode_body_into(body_buf())?;
+        (response, size)
+    } else {
+        fetch_document(route, DocumentRequest::Search {
+            track_document_challenge: protocol::feature(r, b"source_http_challenge_cause_v1"),
+            include_response_url: protocol::feature(r, b"source_http_response_metadata_v1"),
+        })?
+    };
+    let mut doc = parse_document(&body_buf()[..size])?;
+    // Upstream makes at most three recognition/submission attempts. Exhaustion
+    // preserves the final form as a normal manual verification request.
+    for attempt in 0..=3 {
+        let Ok(form) = doc.select(b"form:has(input[name=search_code])") else { return Ok((response, doc)); };
+        if let Ok(Some(id)) = protocol::text(response.as_json(), b"challengeRequestId", &mut challenge.request_id) {
+            challenge.request_id_len = id.len();
+        }
+        if !automatic || attempt == 3 { return Err("search_captcha_required"); }
+        let mut current_url = [0; 8192];
+        let location = response.final_url(&mut current_url).ok().flatten().unwrap_or(route);
+        let mut action_buf = [0; 8192];
+        let action = form.attr(b"action", &mut action_buf).unwrap_or(b"");
+        let action = if action.is_empty() { location } else { action };
+        let mut target_buf = [0; 8192];
+        let target = absolute(action, &mut target_buf)?;
+        if !target.starts_with(BASE) || target.get(BASE.len()) != Some(&b'/') { return Err("parse_error"); }
+        let mut image_buf = [0; 8192];
+        let image = form.select(b"img")?.attr(b"src", &mut image_buf)?;
+        let mut image_url = [0; 8192];
+        let image = absolute(image, &mut image_url)?;
+        if !image.starts_with(BASE) || image.get(BASE.len()) != Some(&b'/') { return Err("parse_error"); }
+        let image_response = search_http(r, image, None, true)?;
+        static mut IMAGE: [u8; 65536] = [0; 65536];
+        let image = unsafe { &mut *core::ptr::addr_of_mut!(IMAGE) };
+        let size = image_response.body_bytes_into(image)?;
+        let code = match search_captcha::solve(&image[..size]) {
+            Ok(code) => code,
+            Err(_) => return Err("search_captcha_required"),
+        };
+        let hidden = Nodes::get(&form, b"input[type=hidden]")?;
+        let mut body = [0; 16384];
+        let mut n = 0;
+        for i in 0..hidden.n {
+            let node = hidden.at(i);
+            let mut name_buf = [0; 1024];
+            let mut value_buf = [0; 4096];
+            let name = node.attr(b"name", &mut name_buf)?;
+            let value = node.attr(b"value", &mut value_buf)?;
+            if i > 0 { w(&mut body, &mut n, b"&")?; }
+            if !write_url_encoded(&mut body, &mut n, name) { return Err("capacity_exceeded"); }
+            w(&mut body, &mut n, b"=")?;
+            if !write_url_encoded(&mut body, &mut n, value) { return Err("capacity_exceeded"); }
+        }
+        if n > 0 { w(&mut body, &mut n, b"&")?; }
+        w(&mut body, &mut n, b"search_code=")?;
+        w(&mut body, &mut n, &code)?;
+        response = search_http(r, target, Some(&body[..n]), false)?;
+        let size = response.decode_body_into(body_buf())?;
+        doc = parse_document(&body_buf()[..size])?;
+    }
+    Err("search_captcha_required")
+}
+
+fn keyword_search(r: &[u8], query: &[u8], challenge: &mut SearchChallenge) -> R<usize> {
     let mut route = [0; 6144];
     let mut n = 0;
     w(&mut route, &mut n, b"/search/")?;
@@ -567,26 +691,29 @@ fn keyword_search(r: &[u8], query: &[u8]) -> R<usize> {
     w(&mut route, &mut n, b"_")?;
     num(&mut route, &mut n, request_page_number(r))?;
     w(&mut route, &mut n, b".html")?;
-    let doc = fetch(&route[..n])?;
-    // A successful HTTP response can be the site's form. The existing
-    // WebView verification flow lets the user complete it and share the
-    // same-origin search session with the retry.
-    if doc.select(b"form input[name=search_code]").is_ok()
-        && doc.select(b"form img[src*='/checkcode.php']").is_ok()
-    {
-        return Err("search_captcha_required");
-    }
+    let (response, doc) = search_document(r, &route[..n], challenge)?;
 
     // The site can redirect an exact match straight to a detail document.
     // The public catalogue link identifies the work when the transport
     // follows that redirect without returning its final URL.
     if doc.select(b"h1.book-title").is_ok() {
-        let mut url = [0; 256];
-        let catalogue = doc.select(b".book-detail-btn a#btnReadBook")?.attr(b"href", &mut url)?;
-        let id = catalogue.strip_prefix(BASE).unwrap_or(catalogue)
-            .strip_prefix(b"/read/").and_then(|path| path.strip_suffix(b"/catalog"))
-            .ok_or("parse_error")?;
-        positive(id).map_err(|_| "parse_error")?;
+        let mut final_url = [0; 8192];
+        let id = response.final_url(&mut final_url).ok().flatten()
+            .and_then(|url| canonical_detail_id(url).ok());
+        let mut catalogue_url = [0; 256];
+        let id = match id {
+            Some(id) => id,
+            // Old hosts do not report the destination, so keep the existing
+            // public catalogue link as the fallback identity.
+            None => {
+                let catalogue = doc.select(b".book-detail-btn a#btnReadBook")?.attr(b"href", &mut catalogue_url)?;
+                let id = catalogue.strip_prefix(BASE).unwrap_or(catalogue)
+                    .strip_prefix(b"/read/").and_then(|path| path.strip_suffix(b"/catalog"))
+                    .ok_or("parse_error")?;
+                positive(id).map_err(|_| "parse_error")?;
+                id
+            }
+        };
         let out = payload_buf();
         let mut n = 0;
         w(out, &mut n, b"{\"items\":[")?;
@@ -1001,13 +1128,35 @@ fn run_search(r: &[u8]) -> u32 {
     if let Err(c) = protocol::request(r) {
         return write_error("search", c, "invalid request");
     }
-    result("search", list(r, true))
+    let mut challenge = SearchChallenge { request_id: [0; 64], request_id_len: 0 };
+    let search = list(r, Some(&mut challenge));
+    if matches!(search, Err("search_captcha_required")) {
+        let request_id = &challenge.request_id[..challenge.request_id_len];
+        let message = if request_id.is_empty() {
+            "請在驗證頁搜尋同一關鍵字並輸入圖片驗證碼，完成後回來重試"
+        } else {
+            "請輸入圖片驗證碼，完成後回來重試"
+        };
+        const SEARCH_DOCUMENT: &[u8] = b"search_document";
+        // A resume keeps the exact HTTP request so the Host can still consume
+        // its staged response. A repeated validation can report the existing
+        // error but never yields another checkpoint for the same completion.
+        if protocol::feature(r, b"source_interaction_resume_v1")
+            && protocol::interaction_resume_state(r, b"verification") != Some(SEARCH_DOCUMENT)
+        {
+            return response_buffer().write_interaction_error(
+                "search", "challenge_required", message, request_id, SEARCH_DOCUMENT,
+            );
+        }
+        return response_buffer().write_challenge("search", message, request_id);
+    }
+    result("search", search)
 }
 fn run_get_manga_list(r: &[u8]) -> u32 {
     if let Err(c) = protocol::request(r) {
         return write_error("get_manga_list", c, "invalid request");
     }
-    result("get_manga_list", list(r, false))
+    result("get_manga_list", list(r, None))
 }
 fn run_get_manga(r: &[u8]) -> u32 {
     if let Err(c) = protocol::request(r) {
@@ -1046,8 +1195,18 @@ fn run_get_filters(r: &[u8]) -> u32 {
     };
     fixed("get_filters", schema::FILTERS.as_bytes())
 }
-fn run_get_settings(_: &[u8]) -> u32 {
-    fixed("get_settings", schema::SETTINGS.as_bytes())
+fn run_get_settings(r: &[u8]) -> u32 {
+    if !protocol::feature(r, b"source_http_bytes_v1") || !protocol::feature(r, b"source_http_cookie_session_v1") {
+        return fixed("get_settings", schema::SETTINGS.as_bytes());
+    }
+    let out = payload_buf();
+    let schema = schema::SETTINGS.as_bytes();
+    let mut n = 0;
+    if w(out, &mut n, &schema[..schema.len() - 2]).is_err() ||
+        w(out, &mut n, r#",{"id":"SOLVE_CAPTCHA","name":"自動輸入搜尋驗證碼","kind":"toggle","default":"false","description":"搜尋需要驗證碼時自動識別並提交；關閉時在網頁手動驗證"}]}"#.as_bytes()).is_err() {
+        return write_error("get_settings", "capacity_exceeded", "settings exceed buffer");
+    }
+    write_success_payload("get_settings", n)
 }
 fn image_request(r: &[u8]) -> R<usize> {
     require_request_policy(r)?;

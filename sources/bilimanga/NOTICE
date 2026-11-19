@@ -1,0 +1,10 @@
+Koma BiliManga source
+
+Derived in part from Keiyoushi extensions-source, licensed under Apache-2.0.
+SearchCaptcha.kt and the searchDocument/SOLVE_CAPTCHA flow are ported from:
+https://github.com/keiyoushi/extensions-source/tree/1aba299dd03549a98d6f4461f6022d1e9adf04c0/src/zh/bilimanga
+
+The numeric templates and recognition algorithm in src/search_captcha.rs are
+adapted to Rust/WASM. PNG decoding, bounded buffers and calls to the Koma HTTP
+SDK replace Android Bitmap and OkHttp. Other reference revisions and behavior
+are documented in README.md. The Apache-2.0 license is included as LICENSE.
