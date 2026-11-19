@@ -2,6 +2,7 @@
 use koma_image_sdk as host;
 
 mod artwork;
+mod adaptive;
 use artwork::Pair;
 
 const BYTES_PER_PIXEL: usize = 4;
@@ -325,7 +326,7 @@ fn prepare_corner(width: usize, height: usize, side: Side) -> Result<Option<Corn
         )
     });
     if corner_width == 0 {
-        return Ok(None);
+        return adaptive::prepare(width, height, side);
     }
     if host::cancelled() {
         return Err(());
@@ -400,7 +401,9 @@ fn prepare_corner(width: usize, height: usize, side: Side) -> Result<Option<Corn
         )?;
     }
     if !changed {
-        return Ok(None);
+        // Existing matches take priority; only unmatched corners enter
+        // the scaled-logo path, preserving previously restored pixels.
+        return adaptive::prepare(width, height, side);
     }
     if side == Side::Left {
         corner.reverse_rows();

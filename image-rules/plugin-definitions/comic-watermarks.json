@@ -1,6 +1,6 @@
 {
   "id": "comic-watermarks",
-  "version": 4,
+  "version": 5,
   "meta": {
     "name": "漫画水印清理",
     "description": "清理漫画页中已收录的水印，尽量保留正文细节。",
