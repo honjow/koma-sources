@@ -1,6 +1,7 @@
 #![no_std]
 // Keiyoushi BH3.kt, Apache-2.0, revision 10f06eb833af5990bc5470c84c5e93edc159ad4e.
 // Public BH3 source upgrade. No accounts, scripts, redirects or retries.
+use koma_source_sdk::chapters::{Chapter, ChapterNumber, ChapterPage, ChapterPlacement, ChapterResult, GroupedChapters};
 use koma_source_sdk::{
     host,
     json_utils::*,
@@ -10,7 +11,7 @@ const BASE: &[u8] = b"https://comic.bh3.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.bh3.koma",
     name: "崩坏3 IP站",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma source contributors",
@@ -766,7 +767,8 @@ fn explicit_number(title: &[u8]) -> Option<usize> {
         None
     }
 }
-fn chapters(r: &[u8]) -> Result<usize, &'static str> {
+fn run_get_chapters(r: &[u8]) -> ChapterResult<'static, &'static str> {
+    const MAX_CHAPTERS: usize = 2048;
     let id = manga_id(r)?;
     let mut url = [0; 512];
     let body = http(route(id, None, b"/get_chapter", &mut url)?, false)?;
@@ -776,13 +778,15 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
     {
         return Err("invalid chapter JSON");
     }
-    let b = payload_buf();
-    let mut n = 0;
+    let mut catalog = GroupedChapters::new(payload_buf(), r).map_err(|e| e.message())?;
+    let mut id_buf = [0; 64];
+    let mut manga_len = 0;
+    bytes(&mut id_buf, &mut manga_len, b"bh3:")?;
+    bytes(&mut id_buf, &mut manga_len, id)?;
     let mut p = ws(body, start + 1);
     let mut count = 0;
-    bytes(b, &mut n, b"{\"chapters\":[")?;
     while body.get(p) != Some(&b']') {
-        if count >= 2048 {
+        if count >= MAX_CHAPTERS {
             return Err("too many chapters");
         }
         let e = json_value_end(body, p, 0).ok_or("invalid chapter JSON")?;
@@ -815,43 +819,25 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
         if title.is_empty() {
             return Err("missing chapter title");
         }
-        if count > 0 {
-            bytes(b, &mut n, b",")?;
-        }
-        bytes(b, &mut n, b"{\"id\":\"bh3ch:")?;
-        bytes(b, &mut n, book)?;
-        bytes(b, &mut n, b":")?;
-        bytes(b, &mut n, chapter)?;
-        bytes(b, &mut n, b"\",\"mangaId\":\"bh3:")?;
-        bytes(b, &mut n, id)?;
-        bytes(b, &mut n, b"\",\"title\":")?;
-        q(b, &mut n, title)?;
-        bytes(b, &mut n, b",\"index\":")?;
-        if !write_usize(b, &mut n, count) {
-            return Err("payload overflow");
-        }
-        bytes(b, &mut n, b",\"chapterNumber\":")?;
-        if let Some(v) = explicit_number(title) {
-            if !write_usize(b, &mut n, v) {
-                return Err("payload overflow");
-            }
-            bytes(b, &mut n, b",\"readingGroup\":\"chapter\",\"continuationEligible\":true")?;
-        } else {
-            bytes(b, &mut n, b"null,\"readingGroup\":\"unknown\",\"continuationEligible\":false")?;
-        }
-        bytes(
-            b,
-            &mut n,
-            b",\"volumeNumber\":null,\"language\":\"zh\",\"publishedAt\":",
-        )?;
-        if let Some(raw) = string(obj, b"timestamp") {
-            let mut date = [0; 128];
-            let date = unescape(raw, &mut date)?;
-            q(b, &mut n, date)?;
-        } else {
-            bytes(b, &mut n, b"null")?;
-        }
-        bytes(b, &mut n, b",\"uploadDate\":null}")?;
+        let mut chapter_buf = [0; 64];
+        let mut chapter_len = 0;
+        bytes(&mut chapter_buf, &mut chapter_len, b"bh3ch:")?;
+        bytes(&mut chapter_buf, &mut chapter_len, book)?;
+        bytes(&mut chapter_buf, &mut chapter_len, b":")?;
+        bytes(&mut chapter_buf, &mut chapter_len, chapter)?;
+        let mut date = [0; 128];
+        let mut row = Chapter::new(&chapter_buf[..chapter_len], &id_buf[..manga_len], title);
+        row.index = Some(count);
+        row.chapter_number = explicit_number(title).map(ChapterNumber::Integer);
+        row.language = Some(b"zh");
+        row.published_at = string(obj, b"timestamp").map(|raw| unescape(raw, &mut date)).transpose()?;
+        // The site's directory is newest-first, including prologues and finales.
+        catalog
+            .push(row, ChapterPlacement::InGroup {
+                group: b"source-catalog",
+                position: (MAX_CHAPTERS - count - 1) as u64,
+            })
+            .map_err(|e| e.message())?;
         count += 1;
         p = ws(body, e);
         if body.get(p) == Some(&b',') {
@@ -863,12 +849,11 @@ fn chapters(r: &[u8]) -> Result<usize, &'static str> {
     if count == 0 {
         return Err("public chapters missing");
     }
-    bytes(
-        b,
-        &mut n,
-        b"],\"page\":{\"nextCursor\":null,\"hasMore\":false}}",
-    )?;
-    Ok(n)
+    catalog.finish(ChapterPage::Complete).map_err(|e| e.message())
+}
+
+fn write_chapter_error(error: &'static str) -> u32 {
+    execute("get_chapters", Err(error))
 }
 fn pages(r: &[u8]) -> Result<usize, &'static str> {
     let (book, chapter) = chapter_id(r)?;
@@ -932,9 +917,6 @@ fn run_get_manga_list(r: &[u8]) -> u32 {
 fn run_get_manga(r: &[u8]) -> u32 {
     execute("get_manga", detail(r))
 }
-fn run_get_chapters(r: &[u8]) -> u32 {
-    execute("get_chapters", chapters(r))
-}
 fn run_get_pages(r: &[u8]) -> u32 {
     execute("get_pages", pages(r))
 }
@@ -960,4 +942,4 @@ fn run_get_filters(_: &[u8]) -> u32 {
 fn run_get_settings(_: &[u8]) -> u32 {
     write_error("get_settings", "unsupported", "settings unsupported")
 }
-koma_source_sdk::koma_source_exports!("bh3");
+koma_source_sdk::koma_source_exports!("bh3", typed_chapters, write_chapter_error);

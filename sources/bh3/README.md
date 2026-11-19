@@ -29,3 +29,5 @@ Keiyoushi 当前 protobuf 源 5943234929466346733，zh.bh3 1.6.0/106000，固定
 只接受当前包上述具名章节首两页及自然返回/进度保存；未核图片缓存来源，不声称无缓存在线首取、全部 27 页、其他章节、下载、cold 或整源通过。无登录、匿名建号、收藏、重试、持久状态注入或源/App/Kit 代码变化。
 
 原件在 Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/：bh3012-public-list237-001、bh3012-detail237-001、bh3012-first237-001、bh3012-second237-001、bh3012-natural-return237-001、bh3012-session-restored237-001。恢复回执记录原 Browse 末端及 AWAKE/OverrideTimeout=10000ms；52 项 registry 全字节相同，原 reader 43 条 progress/17 条 sourceHistory/54 条 chapters 各对象逐项保持，只自然新增本书 progress 与 chapter 各一条，未删除或覆盖原 ComicABC 进度。租约 119ec760 已释放，全部设备回执关闭哈希。
+
+0.1.4 目录延续已固定的 Keiyoushi 参考及原站 `/book/:id/get_chapter` 顺序，沿阅读页的下一话链接从旧到新建立阅读位置，包括序章、最终话和无编号正文。Koma `get_chapters` 保留原返回方向、原 ID 和显示话号。

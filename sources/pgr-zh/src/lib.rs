@@ -1,11 +1,12 @@
 #![no_std]
+use koma_source_sdk::chapters::{Chapter, ChapterNumber, ChapterPage, ChapterPlacement, ChapterResult, GroupedChapters};
 use koma_source_sdk::json_utils::*;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.kurogame.pgr.zh.koma",
     name: "战双帕弥什官方漫画",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -909,68 +910,45 @@ fn explicit_chapter(label: &[u8]) -> Option<usize> {
     total.checked_add(section)?.checked_add(digit.unwrap_or(0))
         .filter(|v| *v > 0)
 }
-fn run_get_chapters(req: &[u8]) -> u32 {
-    fn inner(req: &[u8]) -> R<usize> {
-        let mid = ident(string(req, b"mangaId")?, MP, 1)?.0;
-        owner(req, mid)?;
-        let len = fetch_list()?;
-        book(len, mid)?;
-        let len = fetch_chapters(mid)?;
-        let mut it = JsonArrayIter::from_raw_array(&chapters_buf()[..len]).ok_or("parse_error")?;
-        let p = payload_buf();
-        let mut c = 0;
-        let mut count = 0;
-        w(p, &mut c, b"{\"chapters\":[")?;
-        while let Some(v) = it.next_object() {
-            if count > 0 {
-                w(p, &mut c, b",")?
-            }
-            let cid = number(member(v, b"comicsChapterId")?)?;
-            w(p, &mut c, b"{\"id\":")?;
-            idout(p, &mut c, CP, mid, Some(cid), None)?;
-            w(p, &mut c, b",\"mangaId\":")?;
-            idout(p, &mut c, MP, mid, None, None)?;
-            w(p, &mut c, b",\"title\":\"")?;
-            if !append_json_unescaped_then_escaped(p, &mut c, string(v, b"chapter")?) {
-                return Err("capacity_exceeded");
-            }
-            w(p, &mut c, b" ")?;
-            if !append_json_unescaped_then_escaped(p, &mut c, string(v, b"title")?) {
-                return Err("capacity_exceeded");
-            }
-            w(p, &mut c, b"\",\"chapterNumber\":")?;
-            let mut label = [0; 4096];
-            let label_len = raw_string(string(v, b"chapter")?, &mut label)?;
-            if let Some(number) = explicit_chapter(&label[..label_len]) {
-                n(p, &mut c, number)?;
-                w(p, &mut c, b",\"readingGroup\":\"chapter\",\"continuationEligible\":true")?;
-            } else {
-                w(p, &mut c, b"null,\"readingGroup\":\"special\",\"continuationEligible\":false")?;
-            }
-            w(p, &mut c, b",\"volumeNumber\":null,\"publishedAt\":")?;
-            let raw = string(v, b"createdAt")?;
-            let mut date = [0; 64];
-            let date_len = raw_string(raw, &mut date)?;
-            if date_only(&date[..date_len]) {
-                q_text(p, &mut c, &date[..date_len])?
-            } else {
-                w(p, &mut c, b"null")?
-            }
-            w(
-                p,
-                &mut c,
-                b",\"updatedAt\":null,\"language\":\"zh\",\"pageCount\":null}",
-            )?;
-            count += 1;
-        }
-        w(
-            p,
-            &mut c,
-            b"],\"page\":{\"hasMore\":false,\"nextCursor\":null}}",
-        )?;
-        Ok(c)
+fn run_get_chapters(args: &[u8], req: &[u8]) -> ChapterResult<'static, &'static str> {
+    let mid = ident(string(args, b"mangaId")?, MP, 1)?.0;
+    owner(args, mid)?;
+    let len = fetch_list()?;
+    book(len, mid)?;
+    let len = fetch_chapters(mid)?;
+    let mut it = JsonArrayIter::from_raw_array(&chapters_buf()[..len]).ok_or("parse_error")?;
+    let mut catalog = GroupedChapters::new(payload_buf(), req).map_err(|_| "capacity_exceeded")?;
+    let mut manga = [0u8; 64];
+    let mut manga_len = 0;
+    idout(&mut manga, &mut manga_len, MP, mid, None, None)?;
+    let mut count = 0;
+    while let Some(v) = it.next_object() {
+        let cid = number(member(v, b"comicsChapterId")?)?;
+        let mut id = [0u8; 64];
+        let mut id_len = 0;
+        idout(&mut id, &mut id_len, CP, mid, Some(cid), None)?;
+        let mut title = [0u8; 8193];
+        let label_len = raw_string(string(v, b"chapter")?, &mut title[..4096])?;
+        title[label_len] = b' ';
+        let title_len = raw_string(string(v, b"title")?, &mut title[label_len + 1..])?;
+        let end = label_len + 1 + title_len;
+        let mut date = [0u8; 64];
+        let date_len = raw_string(string(v, b"createdAt")?, &mut date)?;
+        let mut chapter = Chapter::new(&id[1..id_len - 1], &manga[1..manga_len - 1], &title[..end]);
+        chapter.chapter_number = explicit_chapter(&title[..label_len]).map(ChapterNumber::Integer);
+        chapter.published_at = date_only(&date[..date_len]).then_some(&date[..date_len]);
+        chapter.language = Some(b"zh");
+        // fetch_chapters has already validated every page of the original asc
+        // catalog; numeric labels are display metadata only.
+        catalog
+            .push(chapter, ChapterPlacement::InGroup {
+                group: b"source-catalog",
+                position: count,
+            })
+            .map_err(|_| "capacity_exceeded")?;
+        count += 1;
     }
-    result("get_chapters", inner(req))
+    catalog.finish(ChapterPage::Complete).map_err(|_| "capacity_exceeded")
 }
 fn pages(req: &[u8]) -> R<usize> {
     let (mid, cid, _) = ident(string(req, b"chapterId")?, CP, 2)?;
@@ -1172,6 +1150,9 @@ pub extern "C" fn koma_source_free(ptr: u32) {
 }
 macro_rules! export_op {
     ($f:ident,$op:literal,$run:ident) => {
+        export_op!($f, $op, |input, _request| $run(input));
+    };
+    ($f:ident,$op:literal,|$input:ident,$request:ident| $action:expr) => {
         #[no_mangle]
         pub extern "C" fn $f(ptr: u32, len: u32) -> u32 {
             let req = match checked_request(ptr, len) {
@@ -1195,13 +1176,20 @@ macro_rules! export_op {
             {
                 return write_error($op, "invalid_request", "operation mismatch");
             }
-            $run(args)
+            let $input = args;
+            let $request = req;
+            $action
         }
     };
 }
 export_op!(koma_source_search, "search", run_search);
 export_op!(koma_source_get_manga, "get_manga", run_get_manga);
-export_op!(koma_source_get_chapters, "get_chapters", run_get_chapters);
+export_op!(koma_source_get_chapters, "get_chapters", |args, request| {
+    match run_get_chapters(args, request) {
+        Ok(chapters) => chapters.write(response_buffer()),
+        Err(error) => result("get_chapters", Err(error)),
+    }
+});
 export_op!(koma_source_get_pages, "get_pages", run_get_pages);
 export_op!(koma_source_get_listings, "get_listings", run_get_listings);
 export_op!(
