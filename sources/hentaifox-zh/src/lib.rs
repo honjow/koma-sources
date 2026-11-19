@@ -1,4 +1,5 @@
 #![no_std]
+mod browse;
 // Independent published anonymous Chinese metadata source. No auth/retry/dummy.
 use koma_source_sdk::host::HtmlDescriptor;
 use koma_source_sdk::{
@@ -13,7 +14,7 @@ const WEB: &[u8] = b"https://hentaifox.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hentaifox.zh.koma",
     name: "HentaiFox",
-    version: "0.1.6",
+    version: "0.1.7",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -30,7 +31,7 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     manga_list: true,
     image_request: true,
     home: false,
-    filters: false,
+    filters: true,
     settings: true,
     credentials: false,
 };
@@ -444,6 +445,12 @@ const UA: &[u8] =
     b"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0";
 static mut BODY_LEN: usize = 0;
 fn fetch(url: &[u8]) -> R<Owned> {
+    fetch_html(url, None, None)
+}
+
+type Xhr<'a> = (&'a [u8], Option<&'a [u8]>, Option<&'a [u8]>);
+
+fn fetch_html(url: &[u8], xhr: Option<Xhr<'_>>, guest_cookie: Option<&mut [u8]>) -> R<Owned> {
     if host::check_cancel() {
         return Err("cancelled");
     };
@@ -454,13 +461,32 @@ fn fetch(url: &[u8]) -> R<Owned> {
     let mut n = 0;
     bytes(d, &mut n, b"{\"version\":1,\"url\":")?;
     q(d, &mut n, url)?;
-    bytes(d,&mut n,b",\"method\":\"GET\",\"headers\":{\"Referer\":\"https://hentaifox.com/\",\"Origin\":\"https://hentaifox.com\",\"Cache-Control\":\"max-age=600\",\"User-Agent\":")?;
+    if let Some((form, _, _)) = xhr {
+        bytes(d, &mut n, br#","method":"POST","body":"#)?;
+        q(d, &mut n, form)?;
+    } else {
+        bytes(d, &mut n, br#","method":"GET""#)?;
+    }
+    bytes(d, &mut n, br#","headers":{"Referer":"https://hentaifox.com/","Origin":"https://hentaifox.com","User-Agent":"#)?;
     q(d, &mut n, UA)?;
-    bytes(
-        d,
-        &mut n,
-        b"},\"timeoutMs\":15000,\"responseKind\":\"bodyText\"}",
-    )?;
+    if let Some((_, csrf, cookie)) = xhr {
+        bytes(d, &mut n, br#","Content-Type":"application/x-www-form-urlencoded","X-Requested-With":"XMLHttpRequest""#)?;
+        if let Some(token) = csrf {
+            bytes(d, &mut n, br#","X-Csrf-Token":"#)?;
+            q(d, &mut n, token)?;
+        }
+        if let Some(cookie) = cookie {
+            bytes(d, &mut n, br#","Cookie":"#)?;
+            q(d, &mut n, cookie)?;
+        }
+    } else if guest_cookie.is_none() {
+        bytes(d, &mut n, br#","Cache-Control":"max-age=600""#)?;
+    }
+    bytes(d, &mut n, b"}")?;
+    if guest_cookie.is_some() {
+        bytes(d, &mut n, br#","guestSearch":true"#)?;
+    }
+    bytes(d, &mut n, br#","timeoutMs":15000,"responseKind":"bodyText"}"#)?;
     let z = host::http_request(&d[..n], http_out()).map_err(|_| "transport error")?;
     if z >= MAX {
         return Err("HTTP envelope capacity");
@@ -479,9 +505,22 @@ fn fetch(url: &[u8]) -> R<Owned> {
         }
     }
     let st = num(status.ok_or("HTTP status missing")?)?;
+    if st == 403 && (url.ends_with(b"/includes/sidebar.php") || url.ends_with(b"/includes/user_favs.php")) {
+        return Err("site session rejected");
+    }
+    if st == 401 && url.ends_with(b"/includes/user_favs.php") {
+        return Err("auth_required");
+    }
     if !(200..300).contains(&st) {
         return Err("HTTP status error");
     };
+    if let Some(out) = guest_cookie {
+        let value = uq(required(e, b"guestSearchCookie")?, out)?;
+        let pair = value.strip_prefix(b"PHPSESSID=").ok_or("missing guest session")?;
+        if pair.is_empty() || !pair.iter().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b',')) {
+            return Err("invalid guest session");
+        }
+    }
     let n =
         koma_source_sdk::decode_json_body_into(e, body_buf()).map_err(|_| "HTTP body decode")?;
     if n >= MAX {
@@ -648,28 +687,32 @@ fn emit_card(out: &mut [u8], n: &mut usize, d: HtmlDescriptor, req: &[u8]) -> R<
     let wid = number(id).ok_or("work number")?;
     let mut t = [0; 4096];
     let title = safe_text(d, b".caption a", &mut t)?;
-    let mut shortened = [0; 4096];
-    let title = koma_source_sdk::gallery_titles::display(req, title, &mut shortened)?;
     let im = child(d, b".inner_thumb img")?;
     let mut raw = [0; 1024];
     let mut b = [0; 1024];
-    let u = absolute(imgattr(im.0, &mut raw)?, &mut b)?;
-    checked_image_path(u)?;
-    bytes(out, n, b"{\"id\":\"hf:zh:")?;
-    bytes(out, n, id)?;
-    bytes(out, n, b"\",\"title\":")?;
-    q(out, n, title)?;
-    bytes(out, n, b",\"cover\":{\"kind\":\"url\",\"url\":")?;
-    q(out, n, u)?;
-    bytes(out, n, b"},\"contentRating\":\"unknown\"}")?;
+    let url = absolute(imgattr(im.0, &mut raw)?, &mut b)?;
+    emit_gallery(out, n, id, title, Some(url), req)?;
     Ok(wid)
+}
+
+fn emit_gallery(out: &mut [u8], n: &mut usize, id: &[u8], title: &[u8], image: Option<&[u8]>, req: &[u8]) -> R<()> {
+    let mut shortened = [0; 4096];
+    let title = koma_source_sdk::gallery_titles::display(req, title, &mut shortened)?;
+    bytes(out, n, br#"{"id":"hf:zh:"#)?;
+    bytes(out, n, id)?;
+    bytes(out, n, br#"","title":"#)?;
+    q(out, n, title)?;
+    if let Some(url) = image {
+        checked_image_path(url)?;
+        bytes(out, n, br#","cover":{"kind":"url","url":"#)?;
+        q(out, n, url)?;
+        bytes(out, n, b"}")?;
+    }
+    bytes(out, n, br#","contentRating":"unknown"}"#)
 }
 // Published query normalization: non-ASCII/punctuation runs preceding ASCII terms become '+'.
 fn normalized<'a>(s: &[u8], out: &'a mut [u8]) -> R<&'a [u8]> {
     let s = trim_ascii(s);
-    if s.is_empty() {
-        return Err("empty query");
-    };
     let mut i = 0;
     let mut n = 0;
     while i < s.len() {
@@ -689,7 +732,6 @@ fn normalized<'a>(s: &[u8], out: &'a mut [u8]) -> R<&'a [u8]> {
             }
         }
     }
-    bytes(out, &mut n, b"+chinese")?;
     Ok(&out[..n])
 }
 fn query_encoded(out: &mut [u8], n: &mut usize, s: &[u8]) -> R<()> {
@@ -727,109 +769,6 @@ fn page(r: &[u8], query: &[u8]) -> R<usize> {
     };
     Ok(p)
 }
-fn list_url<'a>(query: &[u8], p: usize, search: bool, out: &'a mut [u8]) -> R<&'a [u8]> {
-    let mut n = 0;
-    if search {
-        bytes(out, &mut n, b"https://hentaifox.com/search/?q=")?;
-        query_encoded(out, &mut n, query)?;
-        bytes(out, &mut n, b"&sort=popular&page=")?;
-        wn(out, &mut n, p)?
-    } else {
-        bytes(
-            out,
-            &mut n,
-            b"https://hentaifox.com/language/chinese/popular/pag/",
-        )?;
-        wn(out, &mut n, p)?;
-        bytes(out, &mut n, b"/")?
-    };
-    Ok(&out[..n])
-}
-fn list(r: &[u8], search: bool) -> R<usize> {
-    let mut qb = [0; 2048];
-    let query = if search {
-        uq(required(args(r)?, b"query")?, &mut qb)?
-    } else {
-        b""
-    };
-    if !search && text(args(r)?, b"listingId")? != b"listing:popular" {
-        return Err("listing identity");
-    };
-    let p = page(r, query)?;
-    let mut nb = [0; 4096];
-    let norm = if search {
-        normalized(query, &mut nb)?
-    } else {
-        b""
-    };
-    let mut ub = [0; 8192];
-    let doc = fetch(list_url(norm, p, search, &mut ub)?)?;
-    let cards = All::new(doc.0, b".lc_galleries .thumb")?;
-    if cards.len == 0 {
-        let mut h = [0; 4096];
-        let heading = safe_text(doc.0, b"h1.tag_info", &mut h)?;
-        if !search || !contains_bytes(heading, b"- 0 results") {
-            return Err("empty or gated listing");
-        }
-    };
-    let out = payload_buf();
-    let mut n = 0;
-    bytes(out, &mut n, b"{\"items\":[")?;
-    let mut count = 0;
-    let mut seen = [0usize; 1000];
-    for i in 0..cards.len {
-        let d = cards.at(i);
-        let mut h = [0; 256];
-        let id =
-            number(work_href(sa(d, b".inner_thumb a", b"href", &mut h)?)?).ok_or("work number")?;
-        if seen[..i].contains(&id) {
-            return Err("same page duplicate");
-        };
-        seen[i] = id;
-        if !chinese(d)? {
-            continue;
-        };
-        if count > 0 {
-            bytes(out, &mut n, b",")?
-        };
-        emit_card(out, &mut n, d, r)?;
-        count += 1
-    }
-    let next = All::new(
-        doc.0,
-        b".pagination li.active + li:not(.disabled) a.page-link",
-    )?;
-    if next.len > 1 {
-        return Err("ambiguous next");
-    };
-    bytes(out, &mut n, b"],\"page\":{")?;
-    if next.len == 1 {
-        let mut h = [0; 8192];
-        let mut a = [0; 8192];
-        let actual = absolute(attr(next.at(0), b"href", &mut h)?, &mut a)?;
-        let np = p.checked_add(1).ok_or("page overflow")?;
-        if np > 10000 {
-            return Err("page capacity");
-        };
-        let mut expected = [0; 8192];
-        if actual != list_url(norm, np, search, &mut expected)? {
-            return Err("next ownership");
-        };
-        let mut c = [0; 8192];
-        let mut k = 0;
-        wn(&mut c, &mut k, np)?;
-        bytes(&mut c, &mut k, b":")?;
-        if !write_url_encoded(&mut c, &mut k, query) {
-            return Err("cursor capacity");
-        };
-        bytes(out, &mut n, b"\"nextCursor\":")?;
-        q(out, &mut n, &c[..k])?;
-        bytes(out, &mut n, b",\"hasMore\":true}}")?
-    } else {
-        bytes(out, &mut n, b"\"nextCursor\":null,\"hasMore\":false}}")?
-    };
-    Ok(n)
-}
 // Repeated hidden IDs are legitimate in retained HTML only when all declarations agree.
 fn input<'a>(d: HtmlDescriptor, k: &[u8], b: &'a mut [u8]) -> R<&'a [u8]> {
     let mut sel = [0; 128];
@@ -853,15 +792,8 @@ fn detail_doc(id: &[u8]) -> R<Owned> {
     if input(d.0, b"gallery_id", &mut i)? != id {
         return Err("detail ownership");
     };
-    let langs = All::new(d.0, b"ul.languages a")?;
-    let mut cn = false;
-    for j in 0..langs.len {
-        let mut b = [0; 256];
-        cn |= attr(langs.at(j), b"href", &mut b)? == b"/language/chinese/"
-    }
-    if !cn {
-        return Err("detail not Chinese");
-    };
+    // Ranked, random and direct-ID results can be galleries outside the Chinese catalogue.
+    // Their exact provider identity is checked above, independently of the browsing language.
     Ok(d)
 }
 fn cover<'a>(d: HtmlDescriptor, b: &'a mut [u8]) -> R<&'a [u8]> {
@@ -1127,8 +1059,17 @@ fn image_request(r: &[u8]) -> R<usize> {
         let idx = number(&v[p + 1..]).ok_or("page index")?;
         let d = detail_doc(id)?;
         let count = collect(d.0, id)?;
-        if idx >= count || unsafe { url != &PAGES[idx][..PAGE_LEN[idx]] } {
-            return Err("page image ownership");
+        if idx >= count {
+            return Err("page index ownership");
+        }
+        let declared_url = unsafe { &PAGES[idx][..PAGE_LEN[idx]] };
+        // Like the cover, a page may be served by more than one site CDN host.
+        // Both hosts remain allowlisted and the full gallery/page path must match.
+        if path != checked_image_path(declared_url)? {
+            return Err("page image path ownership");
+        }
+        if url != declared_url {
+            host::log_info(b"HentaiFox page image matched same path on another site CDN host");
         }
     };
     let out = payload_buf();
@@ -1145,14 +1086,15 @@ fn execute(op: &str, r: R<usize>) -> u32 {
         Ok(n) => write_success_payload(op, n),
         Err("network_error") => write_error(op, "network_error", "Network request failed"),
         Err("timeout") => write_error(op, "timeout", "Network request timed out"),
+        Err("auth_required") => write_error(op, "auth_required", "请先在网页中登录 HentaiFox"),
         Err(e) => write_error(op, "source_contract_error", e),
     }
 }
 fn run_search(r: &[u8]) -> u32 {
-    execute("search", list(r, true))
+    execute("search", browse::list(r, true))
 }
 fn run_get_manga_list(r: &[u8]) -> u32 {
-    execute("get_manga_list", list(r, false))
+    execute("get_manga_list", browse::list(r, false))
 }
 fn run_get_manga(r: &[u8]) -> u32 {
     execute("get_manga", detail(r, false))
@@ -1167,7 +1109,7 @@ fn run_get_image_request(r: &[u8]) -> u32 {
     execute("get_image_request", image_request(r))
 }
 fn run_get_listings(_: &[u8]) -> u32 {
-    let s="{\"listings\":[{\"id\":\"listing:popular\",\"name\":\"中文人气\",\"kind\":\"popular\",\"supportsPaging\":true}]}".as_bytes();
+    let s = r#"{"listings":[{"id":"listing:popular","name":"中文人气","kind":"popular","supportsPaging":true},{"id":"listing:latest","name":"最近更新","kind":"latest","supportsPaging":true}]}"#.as_bytes();
     payload_buf()[..s.len()].copy_from_slice(s);
     write_success_payload("get_listings", s.len())
 }
@@ -1184,8 +1126,13 @@ fn run_get_settings(req: &[u8]) -> u32 {
     }
     write_success_payload("get_settings", n)
 }
-fn run_get_filters(_: &[u8]) -> u32 {
-    write_error("get_filters", "not_supported", "not supported")
+fn run_get_authentication(_: &[u8]) -> u32 {
+    let response = br#"{"authentication":{"kind":"web","loginUrl":"https://hentaifox.com/login/"},"authenticated":false}"#;
+    payload_buf()[..response.len()].copy_from_slice(response);
+    write_success_payload("get_authentication", response.len())
+}
+fn run_get_filters(r: &[u8]) -> u32 {
+    execute("get_filters", browse::filter_schema(r))
 }
 // Source-local ABI gate. Check before the SDK helper forms a slice.
 fn checked_request(ptr: u32, len: u32) -> Option<&'static [u8]> {
@@ -1209,7 +1156,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 pub extern "C" fn koma_source_info() -> u32 {
     response_buffer().write_success_parts("source_info", &[
  b"{\"sourceInfo\":{\"id\":\"", SOURCE_INFO.id.as_bytes(), b"\",\"name\":\"", SOURCE_INFO.name.as_bytes(), b"\",\"version\":\"", SOURCE_INFO.version.as_bytes(), b"\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"",SOURCE_INFO.description.as_bytes(),
- "\",\"contentRating\":\"nsfw\",\"localizedNames\":{\"zh-Hans\":\"HentaiFox\",\"zh-Hant\":\"HentaiFox\",\"en\":\"HentaiFox\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes()
+ "\",\"contentRating\":\"nsfw\",\"localizedNames\":{\"zh-Hans\":\"HentaiFox\",\"zh-Hant\":\"HentaiFox\",\"en\":\"HentaiFox\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":true,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes()
  ])
 }
 macro_rules! export_op {
@@ -1236,6 +1183,7 @@ export_op!(
 export_op!(koma_source_get_home, "get_home", run_get_home);
 export_op!(koma_source_get_filters, "get_filters", run_get_filters);
 export_op!(koma_source_get_settings, "get_settings", run_get_settings);
+export_op!(koma_source_get_authentication, "get_authentication", run_get_authentication);
 export_op!(
     koma_source_get_image_request,
     "get_image_request",
