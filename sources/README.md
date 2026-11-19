@@ -89,6 +89,7 @@
 | 图标 | 目录 | 名称 | 备注 |
 |---|---|---|---|
 | <img src="3hentai-zh/icon.png" width="24" alt=""> | 3hentai-zh | 3Hentai |  |
+| <img src="jiulingmanhua/icon.png" width="24" alt=""> | jiulingmanhua | 90漫画网 | 公开目录、搜索与逐页阅读 |
 | <img src="yiqiqimanhua/icon.png" width="24" alt=""> | yiqiqimanhua | 177漫画 | WordPress 公开图集 |
 | <img src="picacomic/icon.png" width="24" alt=""> | picacomic | 哔咔漫画 | 浏览与阅读需账号登录；含 DNS 引导策略 |
 | <img src="budingmanhua/icon.png" width="24" alt=""> | budingmanhua | 布丁漫画 | 公开目录，含成人内容 |

@@ -1,0 +1,10 @@
+{
+  "homepage": "https://m.90mh.cc",
+  "localizedNames": {
+    "zh-Hans": "90漫画网",
+    "zh-Hant": "90漫畫網"
+  },
+  "requestLimits": [
+    {"group": "jiulingmanhua", "hosts": ["www.90mh.cc", "m.90mh.cc"], "permits": 2, "periodMs": 1000}
+  ]
+}
