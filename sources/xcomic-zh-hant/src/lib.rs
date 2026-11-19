@@ -24,7 +24,7 @@ use koma_source_sdk::{
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.xcomic.zh-hant.koma",
     name: "XCOMIC",
-    version: "0.1.15",
+    version: "0.1.16",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -1219,6 +1219,84 @@ fn filter_host(r: &[u8]) -> bool {
         while let Ok(Some(v))=a.next() { if v==br#""source_filter_scope_header_v1""# {return true;} } false
     })
 }
+fn append_filter_choices(
+    out: &mut [u8], n: &mut usize, filters: &[u8], id: &[u8], key: &[u8],
+    allowed: &[&[u8]], error: E,
+) -> Result<(), E> {
+    if let Some(raw) = member(filters, id)?.filter(|value| *value != b"null") {
+        let mut values = Array::new(raw)?;
+        let mut first = true;
+        while let Some(value) = values.next()? {
+            let value = quoted(value)?;
+            if !allowed.contains(&value) {
+                return Err(error);
+            }
+            bytes(out, n, b",")?;
+            if first {
+                q(out, n, key)?;
+                bytes(out, n, b":[")?;
+                first = false;
+            }
+            q(out, n, value)?;
+        }
+        if !first {
+            bytes(out, n, b"]")?;
+        }
+    }
+    Ok(())
+}
+
+fn append_static_filters(out: &mut [u8], n: &mut usize, filters: &[u8]) -> Result<(), E> {
+    let mut field = [0u8; 1024];
+    if let Some(raw) = optional_text(filters, b"year")? {
+        let year = core::str::from_utf8(unescape(raw, &mut field)?).map_err(|_| "invalid year")?.trim();
+        let (minimum, maximum) = if let Some((start, end)) = year.split_once('-') {
+            (start.trim().parse::<i32>().ok(), end.trim().parse::<i32>().ok())
+        } else {
+            let year = year.parse::<i32>().ok();
+            (year, year)
+        };
+        for (key, year) in [(b"releaseYearMin", minimum), (b"releaseYearMax", maximum)] {
+            if let Some(year) = year {
+                bytes(out, n, b",")?;
+                q(out, n, key)?;
+                bytes(out, n, b":")?;
+                bytes(out, n, year.to_string().as_bytes())?;
+            }
+        }
+    }
+    let mut chapter_count = |id: &[u8]| -> Result<Option<i32>, E> {
+        let Some(raw) = optional_text(filters, id)? else { return Ok(None) };
+        let text = core::str::from_utf8(unescape(raw, &mut field)?).map_err(|_| "invalid chapter count")?;
+        Ok(text.trim().parse::<i32>().ok().map(|value| value.max(1)))
+    };
+    let chapters = match (chapter_count(b"chapMin")?, chapter_count(b"chapMax")?) {
+        (Some(min), Some(max)) => Some(alloc::format!("{min}-{max}")),
+        (Some(min), None) => Some(min.to_string()),
+        (None, Some(max)) => Some(alloc::format!("1-{max}")),
+        (None, None) => None,
+    };
+    if let Some(chapters) = chapters {
+        bytes(out, n, b",\"chapCount\":")?;
+        q(out, n, chapters.as_bytes())?;
+    }
+    let languages: &[&[u8]] = &[
+        b"en", b"fr", b"pt", b"ko", b"ja", b"id", b"zh", b"zh_hk", b"af", b"sq",
+        b"ar", b"az", b"eu", b"be", b"bn", b"bg", b"my", b"km", b"ca", b"ceb",
+        b"hr", b"cv", b"cs", b"da", b"nl", b"eo", b"et", b"fil", b"fi", b"gl",
+        b"ka", b"de", b"el", b"gu", b"he", b"hi", b"hu", b"is", b"ga", b"it",
+        b"jv", b"kk", b"la", b"lv", b"lt", b"ms", b"ml", b"mr", b"mo", b"mn",
+        b"ne", b"no", b"fa", b"pl", b"pt_br", b"ro", b"ru", b"sr", b"sh", b"si",
+        b"sk", b"sl", b"es", b"es_419", b"ss", b"sv", b"ta", b"te", b"th", b"tr",
+        b"uk", b"ur", b"uz", b"vi", b"zu", b"_t",
+    ];
+    append_filter_choices(out, n, filters, b"originalLanguage", b"incOLangs", languages, "invalid original language")?;
+    let statuses: &[&[u8]] = &[
+        b"releasing", b"completed", b"hiatus", b"cancelled", b"upcoming", b"unknown",
+    ];
+    append_filter_choices(out, n, filters, b"originalStatus", b"origStatus", statuses, "invalid original status")
+}
+
 fn list(r: &[u8], search: bool) -> Result<usize, E> {
     let cleaner = title_cleaner(r)?;
     let a = args(r)?;
@@ -1268,6 +1346,12 @@ fn list(r: &[u8], search: bool) -> Result<usize, E> {
     // omitted/default request; only explicit true opts out of its genre list.
     if json_object_member(r,b"settings").and_then(|s|json_object_member(s,b"IGNORE_GENRE_BLOCKLIST"))==Some(b"true") {
         bytes(&mut vars,&mut v,b",\"ignoreGlobalGenres\":true")?;
+    }
+    // Apply the same selected values to items and pager, including empty words.
+    if filter_host(r) {
+        if let Some(filters) = member(a, b"filters")?.filter(|value| *value != b"null") {
+            append_static_filters(&mut vars, &mut v, filters)?;
+        }
     }
     bytes(&mut vars,&mut v,b"}}")?;
     let data = query(TITLE_BROWSE_QUERY, &vars[..v])?;
@@ -1762,9 +1846,115 @@ fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_implemented", "not supported")
 }
 fn run_get_filters(r: &[u8]) -> u32 {
-    let schema = if filter_host(r) { br#"{"filters":[{"id":"sort","name":"Order by","type":"select","options":[{"value":"field_score","label":"Rating Score"},{"value":"field_update","label":"Latest Update"},{"value":"field_create","label":"Recently Added"},{"value":"field_name_asc","label":"Name A-Z"},{"value":"field_name_desc","label":"Name Z-A"},{"value":"field_follow","label":"Most Follows"},{"value":"field_review","label":"Most Reviews"},{"value":"field_comment","label":"Most Comments"},{"value":"field_chapter","label":"Most Chapters"}]}]}"#.as_slice() } else { br#"{"filters":[]}"#.as_slice() };
+    // Omitted scope exposes the same values in ordinary browse and search.
+    let schema = if filter_host(r) {
+        r###"{"filters":[
+            {"id":"sort","name":"Order by","type":"select","options":[
+                {"value":"field_score","label":"Rating Score"},
+                {"value":"field_update","label":"Latest Update"},
+                {"value":"field_create","label":"Recently Added"},
+                {"value":"field_name_asc","label":"Name A-Z"},
+                {"value":"field_name_desc","label":"Name Z-A"},
+                {"value":"field_follow","label":"Most Follows"},
+                {"value":"field_review","label":"Most Reviews"},
+                {"value":"field_comment","label":"Most Comments"},
+                {"value":"field_chapter","label":"Most Chapters"}
+            ]},
+            {"id":"year","name":"年份或年份範圍","type":"text"},
+            {"id":"chapMin","name":"最少章節數","type":"text"},
+            {"id":"chapMax","name":"最多章節數","type":"text"},
+            {"id":"originalStatus","name":"原作狀態","type":"multiselect","options":[
+                {"value":"releasing","label":"連載中"},
+                {"value":"completed","label":"已完結"},
+                {"value":"hiatus","label":"暫停更新"},
+                {"value":"cancelled","label":"已取消"},
+                {"value":"upcoming","label":"即將推出"},
+                {"value":"unknown","label":"未知"}
+            ]},
+            {"id":"originalLanguage","name":"原作語言","type":"multiselect","options":[
+                {"label":"英語","value":"en"},
+                {"label":"法語","value":"fr"},
+                {"label":"葡萄牙語","value":"pt"},
+                {"label":"韓語","value":"ko"},
+                {"label":"日語","value":"ja"},
+                {"label":"印度尼西亞語","value":"id"},
+                {"label":"中文","value":"zh"},
+                {"label":"繁體中文","value":"zh_hk"},
+                {"label":"南非荷蘭語","value":"af"},
+                {"label":"阿爾巴尼亞語","value":"sq"},
+                {"label":"阿拉伯語","value":"ar"},
+                {"label":"阿塞拜疆語","value":"az"},
+                {"label":"巴斯克語","value":"eu"},
+                {"label":"白俄羅斯語","value":"be"},
+                {"label":"孟加拉語","value":"bn"},
+                {"label":"保加利亞語","value":"bg"},
+                {"label":"緬甸語","value":"my"},
+                {"label":"高棉語","value":"km"},
+                {"label":"加泰羅尼亞語","value":"ca"},
+                {"label":"宿務語","value":"ceb"},
+                {"label":"克羅地亞語","value":"hr"},
+                {"label":"楚瓦什語","value":"cv"},
+                {"label":"捷克語","value":"cs"},
+                {"label":"丹麥語","value":"da"},
+                {"label":"荷蘭語","value":"nl"},
+                {"label":"世界語","value":"eo"},
+                {"label":"愛沙尼亞語","value":"et"},
+                {"label":"菲律賓語","value":"fil"},
+                {"label":"芬蘭語","value":"fi"},
+                {"label":"加利西亞語","value":"gl"},
+                {"label":"格魯吉亞語","value":"ka"},
+                {"label":"德語","value":"de"},
+                {"label":"希臘語","value":"el"},
+                {"label":"古吉拉特語","value":"gu"},
+                {"label":"希伯來語","value":"he"},
+                {"label":"印地語","value":"hi"},
+                {"label":"匈牙利語","value":"hu"},
+                {"label":"冰島語","value":"is"},
+                {"label":"愛爾蘭語","value":"ga"},
+                {"label":"義大利語","value":"it"},
+                {"label":"爪哇語","value":"jv"},
+                {"label":"哈薩克語","value":"kk"},
+                {"label":"拉丁語","value":"la"},
+                {"label":"拉脫維亞語","value":"lv"},
+                {"label":"立陶宛語","value":"lt"},
+                {"label":"馬來語","value":"ms"},
+                {"label":"馬拉雅拉姆語","value":"ml"},
+                {"label":"馬拉地語","value":"mr"},
+                {"label":"摩爾多瓦語","value":"mo"},
+                {"label":"蒙古語","value":"mn"},
+                {"label":"尼泊爾語","value":"ne"},
+                {"label":"挪威語","value":"no"},
+                {"label":"波斯語","value":"fa"},
+                {"label":"波蘭語","value":"pl"},
+                {"label":"巴西葡萄牙語","value":"pt_br"},
+                {"label":"羅馬尼亞語","value":"ro"},
+                {"label":"俄語","value":"ru"},
+                {"label":"塞爾維亞語","value":"sr"},
+                {"label":"塞爾維亞－克羅埃西亞語","value":"sh"},
+                {"label":"僧伽羅語","value":"si"},
+                {"label":"斯洛伐克語","value":"sk"},
+                {"label":"斯洛文尼亞語","value":"sl"},
+                {"label":"西班牙語","value":"es"},
+                {"label":"拉丁美洲西班牙語","value":"es_419"},
+                {"label":"斯瓦蒂語","value":"ss"},
+                {"label":"瑞典語","value":"sv"},
+                {"label":"泰米爾語","value":"ta"},
+                {"label":"泰盧固語","value":"te"},
+                {"label":"泰語","value":"th"},
+                {"label":"土耳其語","value":"tr"},
+                {"label":"烏克蘭語","value":"uk"},
+                {"label":"烏爾都語","value":"ur"},
+                {"label":"烏茲別克語","value":"uz"},
+                {"label":"越南語","value":"vi"},
+                {"label":"祖魯語","value":"zu"},
+                {"label":"其他","value":"_t"}
+            ]}
+        ]}"###.as_bytes()
+    } else {
+        br#"{"filters":[]}"#.as_slice()
+    };
     payload_buf()[..schema.len()].copy_from_slice(schema);
-    write_success_payload("get_filters",schema.len())
+    write_success_payload("get_filters", schema.len())
 }
 fn run_get_settings(req: &[u8]) -> u32 {
     let schema = r#"{"settings":[{"id":"REMOVE_TITLE_VERSION","name":"Remove Version Information From Entry Titles","kind":"toggle","default":"false","description":"This removes version tags like '(Official)' or '(Yaoi)' from entry titles."},{"id":"IGNORE_GENRE_BLOCKLIST","name":"Ignore WebView Genre Blocklist","kind":"toggle","default":"false"},{"id":"GROUP_BY_SOURCE","name":"Group Chapters By Edition","kind":"toggle","default":"false","description":"Sort chapters by edition label, then chapter number."}]}"#.as_bytes();
