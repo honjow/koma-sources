@@ -21,5 +21,29 @@
     "zh-Hant": "HentaiFox",
     "en": "HentaiFox"
   },
-  "homepage": "https://hentaifox.com"
+  "homepage": "https://hentaifox.com",
+  "authentication": {
+    "kind": "web",
+    "loginUrl": "https://hentaifox.com/login/"
+  },
+  "websitePolicy": {
+    "guestHttp": {
+      "origin": "https://hentaifox.com",
+      "exactPaths": [
+        "/language/chinese/popular/pag/1/"
+      ],
+      "numberedPaths": [],
+      "cookies": [
+        {
+          "name": "PHPSESSID"
+        }
+      ],
+      "captures": [
+        {
+          "path": "/language/chinese/popular/pag/1/",
+          "name": "PHPSESSID"
+        }
+      ]
+    }
+  }
 }
