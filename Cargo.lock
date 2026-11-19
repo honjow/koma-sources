@@ -1208,7 +1208,7 @@ dependencies = [
 
 [[package]]
 name = "koma_bikamanhua_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1486,7 +1486,7 @@ dependencies = [
 
 [[package]]
 name = "koma_ikanmh_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1553,7 +1553,7 @@ dependencies = [
 
 [[package]]
 name = "koma_kanman_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1694,6 +1694,16 @@ name = "koma_manhuagui_source"
 version = "0.1.13"
 dependencies = [
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_manhuamanga_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
 ]
 
 [[package]]
@@ -2084,6 +2094,16 @@ dependencies = [
 
 [[package]]
 name = "koma_xsnvshen_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
+name = "koma_yiqiqimanhua_source"
 version = "0.1.0"
 dependencies = [
  "dlmalloc",

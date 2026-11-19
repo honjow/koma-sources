@@ -28,6 +28,8 @@ members = [
   "sources/oldmasterq-zh-hant",
   "sources/namepara-zh-hant",
   "sources/mycomic",
+  "sources/manhuamanga",
+  "sources/yiqiqimanhua",
   "sources/ikanmh",
   "sources/tibiucomics",
   "sources/kanman",

@@ -1,10 +1,7 @@
 # 书源图标
 
-官网页头声明的图标原件：https://www.ikanmh.xyz/static/images/favicon.ico。
-官网存档取回地址：https://web.archive.org/web/20250209091657id_/https://www.ikanmh.xyz/static/images/favicon.ico。
+[官网原件](https://ikanmh.xyz/static/images/header-logo.png) 的 SHA-256 为 `4501d99402795bca69161e1ffbc6e4150292912732199b3f0cd96cc640170e26`。
 
-原件 SHA-256：`a90ee6230965a6f9325de3ad25a121c6dfa2799ea8f189fc2458502f8b169b29`。
+截取官网页眉的红印和塔形标记，以透明方形画布居中。原图的印章纹理和字形保留。与旧 32 像素 favicon 相比，新的原件更清晰。
 
-保留最大 32×32 正方形图层，将 ICO 无损转成 PNG。
-
-最终候选仍须核对深浅背景和 App 书源列表。
+已比对浅、深背景下的实际安装包，在 237 的书源管理列表核对了新版图标和版本。

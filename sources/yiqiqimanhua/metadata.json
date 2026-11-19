@@ -1,0 +1,15 @@
+{
+  "homepage": "https://www.177pica.com/",
+  "localizedNames": {
+    "zh-Hans": "177漫画",
+    "zh-Hant": "177漫畫"
+  },
+  "identity": {
+    "mihon": {
+      "sourceIds": ["4420888243278089080"],
+      "work": {"pathPrefix": "", "idPrefix": "manga:"},
+      "chapter": {"pathPrefix": "", "idPrefix": "chapter:"},
+      "samePageOrder": true
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "homepage": "https://www.mh03.com/",
+  "localizedNames": {
+    "zh-Hans": "漫画manga",
+    "zh-Hant": "漫畫manga"
+  },
+  "identity": {
+    "mihon": {
+      "sourceIds": ["325122966187249774"],
+      "work": {"pathPrefix": "/comic_", "pathSuffix": ".html", "idPrefix": "manga:/comic_", "idSuffix": ".html"},
+      "chapter": {"pathPrefix": "/chapter_", "pathSuffix": ".html", "idPrefix": "chapter:/chapter_", "idSuffix": ".html"},
+      "samePageOrder": true
+    }
+  },
+  "chapterOrder": "newest_first",
+  "requestLimits": [
+    {"group": "manhuamanga", "hosts": ["www.mh03.com"], "permits": 2, "periodMs": 1000}
+  ]
+}
