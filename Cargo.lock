@@ -1485,6 +1485,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_ikanmh_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "koma_ikmmh_zh_source"
 version = "0.1.4"
 dependencies = [
@@ -1943,6 +1953,16 @@ name = "koma_terrahistoricus_source"
 version = "0.1.9"
 dependencies = [
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_tibiucomics_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
 ]
 
 [[package]]

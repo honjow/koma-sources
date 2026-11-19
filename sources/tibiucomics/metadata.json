@@ -1,0 +1,12 @@
+{
+  "homepage": "https://comic.tibiu.net",
+  "requestLimits": [{"group":"tibiu-web","hosts":["comic.tibiu.net"],"permits":2,"periodMs":1000}],
+  "identity": {
+    "mihon": {
+      "sourceIds": ["6028517731014373149"],
+      "work": {"pathPrefix":"/comic/","idPrefix":""},
+      "chapter": {"pathPrefix":"/chapter/","idPrefix":"/chapter/"},
+      "samePageOrder": true
+    }
+  }
+}

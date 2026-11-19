@@ -1,0 +1,7 @@
+Behavior ported from Keiyoushi extensions-source at
+8947c372cd87f546a0b80cb0e4b0a5a8add5ef88 under Apache License 2.0:
+https://github.com/keiyoushi/extensions-source/tree/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/src/zh/tibiucomics
+https://github.com/keiyoushi/extensions-source/tree/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/lib-multisrc/mccms
+
+Changes: Rust and Koma WASM ABI port; adapt detail resolution to a stable
+work ID, use typed chapter placements, and report unavailable reader pages.

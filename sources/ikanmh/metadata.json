@@ -1,0 +1,22 @@
+{
+  "homepage": "https://ikanmh.xyz",
+  "localizedNames": { "zh-Hans": "漫小肆韩漫", "zh-Hant": "漫小肆韓漫", "en": "Ikanmh" },
+  "chapterOrder": "newest_first",
+  "identity": {
+    "mihon": {
+      "sourceIds": ["8826152585666516354"],
+      "work": { "pathPrefix": "/book/", "idPrefix": "/book/" },
+      "chapter": { "pathPrefix": "/chapter/", "idPrefix": "/chapter/" }
+    }
+  },
+  "websitePolicy": {
+    "homepageChoices": {
+      "setting": "preferredMirror",
+      "options": [
+        { "value": "https://ikanmh.xyz", "url": "https://ikanmh.xyz/" },
+        { "value": "https://ikanmh.cc", "url": "https://ikanmh.cc/" },
+        { "value": "https://www.jjmhw12.top", "url": "https://www.jjmhw12.top/" }
+      ]
+    }
+  }
+}
