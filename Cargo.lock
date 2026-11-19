@@ -1906,6 +1906,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_reversed_strips_processor"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+]
+
+[[package]]
+name = "koma_roumanwu_source"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "dlmalloc",
+ "koma_source_sdk",
+ "md-5",
+ "percent-encoding",
+ "serde",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "koma_rumanhua_source"
 version = "0.1.0"
 dependencies = [

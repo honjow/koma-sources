@@ -1,0 +1,31 @@
+{
+  "homepage": "https://rouman5.com",
+  "chapterOrder": "newest_first",
+  "requiredImageDecodes": ["wasm_image_v1"],
+  "wasmBuild": {"imageProcessorCrate": "koma_reversed_strips_processor"},
+  "identity": {
+    "mihon": {
+      "sourceIds": ["3647420805839021718"],
+      "work": {"pathPrefix": "/books/", "idPrefix": "/books/"},
+      "chapter": {"pathPrefix": "/books/", "idPrefix": "/books/"}
+    }
+  },
+  "websitePolicy": {
+    "httpProfiles": [
+      {"origin": "https://roum29.xyz", "pathPrefix": "/books/", "profile": "chrome145"}
+    ],
+    "homepageChoices": {
+      "setting": "baseUrl",
+      "options": [
+        {"value": "https://rouman5.com", "url": "https://rouman5.com"},
+        {"value": "https://roum29.xyz", "url": "https://roum29.xyz"},
+        {"value": "https://rou.video", "url": "https://rou.video"},
+        {"value": "https://rouvb2.xyz", "url": "https://rouvb2.xyz"},
+        {"value": "https://rouman5.com/", "url": "https://rouman5.com"},
+        {"value": "https://roum29.xyz/", "url": "https://roum29.xyz"},
+        {"value": "https://rou.video/", "url": "https://rou.video"},
+        {"value": "https://rouvb2.xyz/", "url": "https://rouvb2.xyz"}
+      ]
+    }
+  }
+}

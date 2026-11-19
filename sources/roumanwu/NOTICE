@@ -1,0 +1,8 @@
+Behavior adapted from Keiyoushi extensions-source, src/zh/roumanwu at
+8947c372cd87f546a0b80cb0e4b0a5a8add5ef88 under Apache License 2.0.
+https://github.com/keiyoushi/extensions-source/tree/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/src/zh/roumanwu
+
+Changes: Rust and Koma WASM ABI port, stable work and chapter identity,
+incomplete-document recovery using an official alternate domain, and an
+isolated pixel processor for reversed image strips. Site icon provenance
+and treatment are recorded in ASSET_SOURCES.md.

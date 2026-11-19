@@ -66,6 +66,7 @@ manben|manben|false|1.4.1
 digimonweb-zh|digimonweb-zh|false|1.4.1
 xsnvshen|xsnvshen|true|1.4.1
 dogemanga|dogemanga|true|1.4.1
+roumanwu|roumanwu|true|1.5.5
 relamanhua|relamanhua|true|1.4.1
 mikagogo|mikagogo|true|1.4.1
 xipimanhua|xipimanhua|true|1.4.1
