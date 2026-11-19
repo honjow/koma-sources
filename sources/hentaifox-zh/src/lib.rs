@@ -13,7 +13,7 @@ const WEB: &[u8] = b"https://hentaifox.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hentaifox.zh.koma",
     name: "HentaiFox",
-    version: "0.1.5",
+    version: "0.1.6",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -512,7 +512,7 @@ fn absolute<'a>(u: &[u8], b: &'a mut [u8]) -> R<&'a [u8]> {
     bytes(b, &mut n, u)?;
     Ok(&b[..n])
 }
-fn image_url(u: &[u8]) -> R<()> {
+fn checked_image_path(u: &[u8]) -> R<&[u8]> {
     let t = u.strip_prefix(b"https://").ok_or("image scheme")?;
     let p = t.iter().position(|x| *x == b'/').ok_or("image path")?;
     let h = &t[..p];
@@ -535,7 +535,7 @@ fn image_url(u: &[u8]) -> R<()> {
     {
         return Err("image path");
     };
-    Ok(())
+    Ok(path)
 }
 fn ident(v: &[u8]) -> R<&[u8]> {
     if v.is_empty() || v.len() > 15 || v[0] == b'0' || number(v).is_none() {
@@ -604,7 +604,12 @@ fn imgattr<'a>(d: HtmlDescriptor, b: &'a mut [u8]) -> R<&'a [u8]> {
         b"srcset",
         b"src",
     ] {
-        let n = host::html_attr(d, k, b).map_err(|_| "image attribute")?;
+        let n = match host::html_attr(d, k, b) {
+            Ok(n) => n,
+            // Koma's DOM host returns -1 for a missing optional attribute.
+            Err(-1) => continue,
+            Err(_) => return Err("image attribute"),
+        };
         if n >= b.len() {
             return Err("image capacity");
         };
@@ -649,7 +654,7 @@ fn emit_card(out: &mut [u8], n: &mut usize, d: HtmlDescriptor, req: &[u8]) -> R<
     let mut raw = [0; 1024];
     let mut b = [0; 1024];
     let u = absolute(imgattr(im.0, &mut raw)?, &mut b)?;
-    image_url(u)?;
+    checked_image_path(u)?;
     bytes(out, n, b"{\"id\":\"hf:zh:")?;
     bytes(out, n, id)?;
     bytes(out, n, b"\",\"title\":")?;
@@ -863,7 +868,7 @@ fn cover<'a>(d: HtmlDescriptor, b: &'a mut [u8]) -> R<&'a [u8]> {
     let im = child(d, b".gallery_top .cover img")?;
     let mut raw = [0; 1024];
     let u = absolute(imgattr(im.0, &mut raw)?, b)?;
-    image_url(u)?;
+    checked_image_path(u)?;
     Ok(u)
 }
 fn anchor_name<'a>(d: HtmlDescriptor, b: &'a mut [u8]) -> R<&'a [u8]> {
@@ -994,7 +999,7 @@ fn page_base<'a>(d: HtmlDescriptor, id: &[u8], b: &'a mut [u8]) -> R<&'a [u8]> {
     if expected != c {
         return Err("cover load ownership");
     };
-    image_url(&b[..n])?;
+    checked_image_path(&b[..n])?;
     Ok(&b[..n])
 }
 fn collect(d: HtmlDescriptor, id: &[u8]) -> R<usize> {
@@ -1054,7 +1059,7 @@ fn collect(d: HtmlDescriptor, id: &[u8]) -> R<usize> {
         wn(&mut url, &mut n, seq)?;
         bytes(&mut url, &mut n, b".")?;
         bytes(&mut url, &mut n, ext)?;
-        image_url(&url[..n])?;
+        checked_image_path(&url[..n])?;
         unsafe {
             PAGES[count][..n].copy_from_slice(&url[..n]);
             PAGE_LEN[count] = n
@@ -1100,7 +1105,7 @@ fn image_request(r: &[u8]) -> R<usize> {
     let a = args(r)?;
     let mut ub = [0; 2048];
     let url = uq(required(a, b"url")?, &mut ub)?;
-    image_url(url)?;
+    let path = checked_image_path(url)?;
     let pid = text(a, b"pageId")?;
     if let Some(id) = pid.strip_prefix(b"hf:zh:") {
         let id = ident(id)?;
@@ -1111,7 +1116,8 @@ fn image_request(r: &[u8]) -> R<usize> {
         let actual = cover(d.0, &mut cb)?;
         let mut th = [0; 1024];
         let thumb = make(&[base, b"thumb.jpg"], &mut th)?;
-        if url != actual && url != thumb {
+        // The list and verified detail may use different replicas of this thumbnail.
+        if url != actual && path != checked_image_path(thumb)? {
             return Err("cover ownership");
         }
     } else {

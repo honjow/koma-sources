@@ -1,5 +1,14 @@
 # 無限動漫 / ComicABC 0.1.9
 
+## 0.1.14 站点目录改版
+
+热门与最新页读取 `main.comic-updates` 下的新卡片，搜索页读取
+`main.comic-search-results` 中的结果。封面取站点的 `data-cc-src`；
+作品 ID 沿用详情链接，标准分页继续识别真实的下一页链接。旧页面判断保留。
+这里的变更只作用于目录及搜索。201 原生旧包收到完整 HTTP 200 后在目录解析报错；
+候选保持 15 秒请求预算，在同一设备同一网络恢复热门、最近更新、封面和搜索。
+此前 237 的 15 秒和 30 秒对照均没有收到完整响应，属该次独立网络条件。
+
 当前生产提案完整继承已验 019 owner，标准入口 `bash build.sh --source comicabc`，使用当前仓库 SDK 和必需 icon 合同。lib/records/s2t 与可信 owner 全 bytes 保持，不取别的 prototype 或更改 parser；旧目录 159/159 与原日文 P2/29 具名有限验收、后图标更新/cold 只属旧 Native WASM dc474ff2。新 standard WASM 必须单独绑定/兼容回放/Root 审核，不冒继承旧 Native。
 
 官网原 favicon32 与出处原 bytes 完整沿用；小图适用性仍按 Root 已验具名画面，App 显示圆角裁剪独立保留。本提案不加底板/阴影/遮罩、不加工图片、不联网/设备或发布。

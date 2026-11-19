@@ -15,7 +15,7 @@ const BASE: &[u8] = b"https://www.8comic.com";
 const READER: &[u8] = b"https://articles.onemoreplace.tw";
 const UA:&[u8]=b"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36";
 const MOBILE_UA: &[u8] = UA;
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.comicabc.koma",name:"無限動漫",version:"0.1.13",api_version:"0.2",language:"zh",author:"Koma",description:"ComicABC public Chinese catalogues and bounded literal-record pages; no accounts or JavaScript execution.",content_rating:"safe"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.comicabc.koma",name:"無限動漫",version:"0.1.14",api_version:"0.2",language:"zh",author:"Koma",description:"ComicABC public Chinese catalogues and bounded literal-record pages; no accounts or JavaScript execution.",content_rating:"safe"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -441,13 +441,20 @@ fn list(r: &[u8], op: &str) -> u32 {
         Ok(x) => x,
         Err(e) => return failure(op, e),
     };
-    let selector = if latest {
+    let legacy_selector = if latest {
         b".container .row .cat2_list a" as &[u8]
     } else {
         b".container .row a.comicpic_col6"
     };
+    // The site uses article cards in listings and linked cards in search.
+    let modern_root = b"main.comic-updates[data-update-version='1']";
+    let modern_selector: &[u8] = if query.is_empty() {
+        b"main.comic-updates article.cu-card a.cu-cover"
+    } else {
+        b"main.comic-search-results a.cu-card"
+    };
     // Match upstream behavior: one first-page simplified-to-traditional retry only on an empty result.
-    if !query.is_empty() && page == 1 && !has(d.0, selector) {
+    if !query.is_empty() && page == 1 && !has(d.0, legacy_selector) && !has(d.0, modern_selector) {
         let mut converted = [0; 4096];
         if let Some(t) = traditional(query, &mut converted) {
             if t != query {
@@ -459,11 +466,18 @@ fn list(r: &[u8], op: &str) -> u32 {
             }
         }
     }
+    let modern = has(d.0, modern_root);
+    let selector = if modern { modern_selector } else { legacy_selector };
     let nodes = match Selection::new(d.0, selector) {
         Ok(x) => x,
         Err(e) => return source_error(op, "parse_error", e),
     };
-    if nodes.len == 0 && (query.is_empty() || !has(d.0, b".container .row")) {
+    let known_search = if modern {
+        has(d.0, b"main.comic-search-results[data-update-scope='search']")
+    } else {
+        has(d.0, b".container .row")
+    };
+    if nodes.len == 0 && (query.is_empty() || !known_search) {
         return source_error(op, "parse_error", "missing public catalogue");
     }
     let out = payload_buf();
@@ -485,11 +499,18 @@ fn list(r: &[u8], op: &str) -> u32 {
             Some(x) => x,
             None => return source_error(op, "parse_error", "invalid catalogue ID"),
         };
-        let title = match child_text(node, b"li.nowraphide", &mut t) {
+        let title = if modern && query.is_empty() {
+            html_attr(node, b"title", &mut t).ok().map(|n| t[..n].trim_ascii())
+        } else {
+            child_text(node, if modern { b".cu-title" } else { b"li.nowraphide" }, &mut t)
+        };
+        let title = match title {
             Some(x) if !x.is_empty() => x,
             _ => return source_error(op, "parse_error", "missing title"),
         };
-        let image = match child_attr(node, b"img", b"src", &mut c)
+        // Modern cards use a shared placeholder in src and the actual cover in data-cc-src.
+        let image_attr: &[u8] = if modern { b"data-cc-src" } else { b"src" };
+        let image = match child_attr(node, b"img", image_attr, &mut c)
             .and_then(|x| cover(x, &mut normalized))
         {
             Some(x) => x,
