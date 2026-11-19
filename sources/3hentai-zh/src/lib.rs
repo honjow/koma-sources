@@ -12,7 +12,7 @@ const WEB: &[u8] = b"https://3hentai.net";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hentai3.zh.koma",
     name: "3Hentai",
-    version: "0.1.8",
+    version: "0.1.9",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -579,21 +579,38 @@ fn own_asset(s: &[u8], id: &[u8]) -> R<()> {
     }
     Ok(())
 }
-fn cn(d: HtmlDescriptor) -> R<()> {
-    let langs = All::new(d, b"#main-info a[href*='/language/']")?;
-    let mut found = false;
-    for i in 0..langs.len {
-        let mut b = [0u8; 1024];
-        let s = attr(langs.at(i), b"href", &mut b)?;
-        if s == b"https://3hentai.net/language/chinese" {
-            found = true
+fn has_chinese_language(d: HtmlDescriptor) -> bool {
+    host::html_select(d, b"#main-info a[href='https://3hentai.net/language/chinese']")
+        .map(Owned)
+        .is_ok()
+}
+
+fn emit_description(d: HtmlDescriptor, total: usize, out: &mut [u8], n: &mut usize) -> R<()> {
+    let mut text = [0u8; 8192];
+    let mut len = 0;
+    if has_chinese_language(d) {
+        bytes(&mut text, &mut len, b"Language: Chinese (provider declaration); ")?;
+    } else {
+        let languages = All::new(d, b"#main-info a[href^='https://3hentai.net/language/']")?;
+        for i in 0..languages.len {
+            let mut label = [0u8; 1024];
+            let Ok(value) = txt(languages.at(i), &mut label) else { continue };
+            if value.is_empty() {
+                continue;
+            }
+            let separator = if len == 0 { b"Language: ".as_slice() } else { b", " };
+            bytes(&mut text, &mut len, separator)?;
+            bytes(&mut text, &mut len, value)?;
+        }
+        if len > 0 {
+            bytes(&mut text, &mut len, b" (provider declaration); ")?;
         }
     }
-    if !found {
-        return Err("work Chinese language missing");
-    }
-    Ok(())
+    bytes(&mut text, &mut len, b"Pages: ")?;
+    wn(&mut text, &mut len, total)?;
+    q(out, n, &text[..len])
 }
+
 fn detail_doc(id: &[u8]) -> R<Owned> {
     let mut u = [0u8; 512];
     let doc = fetch(work_url(id, &mut u)?)?;
@@ -602,7 +619,8 @@ fn detail_doc(id: &[u8]) -> R<Owned> {
     if uri != work_url(id, &mut u)? {
         return Err("detail work owner");
     }
-    cn(doc.0)?;
+    // Only explicit work/chapter IDs use this route. Browse and search
+    // restrict language in their requests, while related works may be mixed.
     Ok(doc)
 }
 fn title<'a>(d: HtmlDescriptor, b: &'a mut [u8]) -> R<&'a [u8]> {
@@ -646,10 +664,6 @@ fn count(d: HtmlDescriptor) -> R<usize> {
     result.ok_or("page count missing")
 }
 fn emit_work(out: &mut [u8], n: &mut usize, id: &[u8], t: &[u8], c: &[u8], req: &[u8]) -> R<()> {
-    let mut w = [0u8; 512];
-    bytes(out, n, b"{\"id\":\"h3:zh:")?;
-    bytes(out, n, id)?;
-    bytes(out, n, b"\",\"title\":")?;
     // Keep Koma's adopted full title default; fixed reference defaults short.
     // Only an explicit false requests the fixed shortenTitle algorithm.
     let short = json_object_member(req, b"settings")
@@ -657,13 +671,78 @@ fn emit_work(out: &mut [u8], n: &mut usize, id: &[u8], t: &[u8], c: &[u8], req: 
         == Some(b"false");
     let mut shown = [0u8; 4096];
     let t = koma_source_sdk::gallery_titles::display_short(short, t, &mut shown)?;
-    q(out, n, t)?;
-    bytes(out, n, b",\"url\":")?;
-    q(out, n, work_url(id, &mut w)?)?;
-    bytes(out, n, b",\"cover\":{\"kind\":\"url\",\"url\":")?;
-    q(out, n, c)?;
-    bytes(out, n, b"},\"contentRating\":\"unknown\"}")
+    emit_work_card(out, n, id, t, Some(c))
 }
+
+fn emit_work_card(
+    out: &mut [u8], n: &mut usize, id: &[u8], title: &[u8], cover: Option<&[u8]>,
+) -> R<()> {
+    let mut url = [0u8; 512];
+    bytes(out, n, b"{\"id\":\"h3:zh:")?;
+    bytes(out, n, id)?;
+    bytes(out, n, b"\",\"title\":")?;
+    q(out, n, title)?;
+    bytes(out, n, b",\"url\":")?;
+    q(out, n, work_url(id, &mut url)?)?;
+    if let Some(cover) = cover {
+        bytes(out, n, b",\"cover\":{\"kind\":\"url\",\"url\":")?;
+        q(out, n, cover)?;
+        bytes(out, n, b"}")?;
+    }
+    bytes(out, n, b",\"contentRating\":\"unknown\"}")
+}
+
+fn related_cover<'a>(card: HtmlDescriptor, url: &'a mut [u8]) -> Option<&'a [u8]> {
+    let image = Owned(host::html_select(card, b"img").ok()?);
+    let mut lazy = [0u8; 2048];
+    let value = match attr(image.0, b"data-src", &mut lazy) {
+        Ok(value) if !value.is_empty() => make(&[value], url).ok()?,
+        _ => attr(image.0, b"src", url).ok()?,
+    };
+    let (_, file) = asset(value).ok()?;
+    matches!(file, b"cover.jpg" | b"thumb.jpg").then_some(value)
+}
+
+fn emit_related(d: HtmlDescriptor, current: &[u8], out: &mut [u8], n: &mut usize) -> R<()> {
+    // Use the parent document already downloaded by get_manga. Upstream uses
+    // the complete card titles here, independently of the detail title preference.
+    let cards = All::new(d, b"#similar-content .doujin-col .doujin a.cover")?;
+    let mut seen = [[0u8; 20]; 100];
+    let mut emitted = 0;
+    for index in 0..cards.len {
+        let card = cards.at(index);
+        let mut href = [0u8; 1024];
+        let mut uri = [0u8; 1024];
+        let Ok(id) = attr(card, b"href", &mut href)
+            .and_then(|raw| absolute(raw, &mut uri))
+            .and_then(work_href)
+        else { continue };
+        let mut identity = [0u8; 20];
+        identity[..id.len()].copy_from_slice(id);
+        if id == current || seen[..emitted].contains(&identity) {
+            continue;
+        }
+        let mut title = [0u8; 4096];
+        let Ok(title) = st(card, b".title", &mut title) else { continue };
+        if title.is_empty() {
+            continue;
+        }
+        let mut cover = [0u8; 2048];
+        let separator = if emitted == 0 { b",\"relatedManga\":[".as_slice() } else { b"," };
+        bytes(out, n, separator)?;
+        emit_work_card(out, n, id, title, related_cover(card, &mut cover))?;
+        seen[emitted] = identity;
+        emitted += 1;
+        if emitted == seen.len() {
+            break;
+        }
+    }
+    if emitted > 0 {
+        bytes(out, n, b"]")?;
+    }
+    Ok(())
+}
+
 fn cursor_page(s: &[u8], latest: bool) -> R<usize> {
     let v = s
         .strip_prefix(b"https://3hentai.net/language/chinese/")
@@ -990,13 +1069,9 @@ fn detail(r: &[u8]) -> R<usize> {
     if an > 0 {
         q(out, &mut n, &author[..an])?
     };
-    bytes(
-        out,
-        &mut n,
-        b"],\"description\":\"Language: Chinese (provider declaration); Pages: ",
-    )?;
-    wn(out, &mut n, total)?;
-    bytes(out, &mut n, b"\",\"tags\":[")?;
+    bytes(out, &mut n, b"],\"description\":")?;
+    emit_description(d.0, total, out, &mut n)?;
+    bytes(out, &mut n, b",\"tags\":[")?;
     let tags = All::new(d.0, b"#main-info a[href*='/tags/']")?;
     for i in 0..tags.len {
         let mut b = [0u8; 1024];
@@ -1009,7 +1084,16 @@ fn detail(r: &[u8]) -> R<usize> {
         }
         q(out, &mut n, v)?
     }
-    bytes(out, &mut n, b"]}}")?;
+    bytes(out, &mut n, b"]")?;
+    if koma_source_sdk::source_protocol::feature(r, b"source_related_manga_v1") {
+        // A malformed optional section or output limit cannot fail the detail.
+        let before_related = n;
+        let limit = out.len() - 2;
+        if emit_related(d.0, id, &mut out[..limit], &mut n).is_err() {
+            n = before_related;
+        }
+    }
+    bytes(out, &mut n, b"}}")?;
     Ok(n)
 }
 fn chapters(r: &[u8]) -> R<usize> {
@@ -1022,7 +1106,11 @@ fn chapters(r: &[u8]) -> R<usize> {
     bytes(o, &mut n, id)?;
     bytes(o, &mut n, b"\",\"mangaId\":\"h3:zh:")?;
     bytes(o, &mut n, id)?;
-    bytes(o,&mut n,b"\",\"title\":\"Chapter\",\"chapterNumber\":null,\"volumeNumber\":null,\"language\":\"zh\"}]}")?;
+    bytes(o, &mut n, b"\",\"title\":\"Chapter\",\"chapterNumber\":null,\"volumeNumber\":null")?;
+    if has_chinese_language(d.0) {
+        bytes(o, &mut n, b",\"language\":\"zh\"")?;
+    }
+    bytes(o, &mut n, b"}]}")?;
     Ok(n)
 }
 fn pages(r: &[u8]) -> R<usize> {
@@ -1239,7 +1327,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
-    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.hentai3.zh.koma\",\"name\":\"3Hentai\",\"version\":\"0.1.8\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"3Hentai\",\"zh-Hant\":\"3Hentai\",\"en\":\"3Hentai\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":true,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
+    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.hentai3.zh.koma\",\"name\":\"3Hentai\",\"version\":\"0.1.9\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"3Hentai\",\"zh-Hant\":\"3Hentai\",\"en\":\"3Hentai\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":true,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
 }
 macro_rules! export_op {
     ($f:ident,$op:literal,$run:ident) => {
