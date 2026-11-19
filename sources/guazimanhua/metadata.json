@@ -19,5 +19,6 @@
     "zh-Hans": "瓜子漫画",
     "zh-Hant": "瓜子漫畫"
   },
-  "homepage": "https://www.guazimanhua.com"
+  "homepage": "https://www.guazimanhua.com",
+  "chapterOrder": "newest_first"
 }

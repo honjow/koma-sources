@@ -1,5 +1,8 @@
 //! Guazimanhua public HTML source. See NOTICE for the upstream parser reference.
 #![no_std]
+use koma_source_sdk::chapters::{
+    Chapter, ChapterNumber, ChapterPage, ChapterPlacement, ChapterResult, GroupedChapters,
+};
 use koma_source_sdk::host::{
     html_attr, html_close, html_parse, html_select, html_text, http_request, HtmlDescriptor,
 };
@@ -14,7 +17,7 @@ const UA: &[u8] = b"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.guazimanhua.koma",
     name: "瓜子漫画",
-    version: "0.1.8",
+    version: "0.1.9",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -531,8 +534,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
     }
     write_success_payload("get_manga", n)
 }
-// Only explicit leading chapter ordinals participate in ordinary continuation.
-// Do not infer chapter numbers from array positions, site IDs, or release dates.
+// Display numbers only. The catalog's positions follow the site's reader links.
 fn chapter_ordinal(title: &[u8]) -> Option<usize> {
     let title = trim_ascii(title);
     let title = title.strip_prefix("第".as_bytes()).unwrap_or(title);
@@ -614,90 +616,111 @@ fn confirmed_no_chapters(doc: HtmlDescriptor, id: &[u8]) -> bool {
     }
     matches == 1
 }
-fn run_get_chapters(req: &[u8]) -> u32 {
-    let id = match extract_json_string(req, b"mangaId").and_then(|b| numeric_id(b, b"guazi:manga:"))
-    {
-        Some(x) => x,
-        None => return write_error("get_chapters", "invalid_request", "invalid manga ID"),
-    };
+fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, (&'static str, &'static str)> {
+    let id = extract_json_string(req, b"mangaId")
+        .and_then(|value| numeric_id(value, b"guazi:manga:"))
+        .ok_or(("invalid_request", "invalid manga ID"))?;
     let mut url = [0u8; 512];
     let n = site_url(b"/comic.php?id=", id, &mut url);
-    let d = match fetch(&url[..n]) {
-        Ok(x) => x,
-        Err(e) => {
-            let (c, m) = fetch_error_code(e);
-            return write_error("get_chapters", c, m);
-        }
-    };
-    let rows = match Selection::new(
-        d.0,
+    let doc = fetch(&url[..n]).map_err(fetch_error_code)?;
+    let rows = Selection::new(
+        doc.0,
         b"section.mobile-comic-all-chapters div.mobile-chapter-grid a",
-    ) {
-        Ok(x) => x,
-        Err(m) => return write_error("get_chapters", "parse_error", m),
-    };
+    )
+    .map_err(|message| ("parse_error", message))?;
     if rows.len == 0 {
         drop(rows);
-        if confirmed_no_chapters(d.0, id) {
-            return write_error("get_chapters", "no_chapters", "site reports no chapters");
-        }
-        return write_error("get_chapters", "parse_error", "chapter directory missing");
+        return Err(if confirmed_no_chapters(doc.0, id) {
+            ("no_chapters", "site reports no chapters")
+        } else {
+            ("parse_error", "chapter directory missing")
+        });
     }
-    let out = payload_buf();
-    let mut n = 0;
-    if !write_bytes(out, &mut n, b"{\"items\":[") {
-        return write_error("get_chapters", "internal_error", "overflow");
+    let sdk_error = |error: koma_source_sdk::source::SourceError| (error.code(), error.message());
+    let mut catalog = GroupedChapters::new(payload_buf(), req).map_err(sdk_error)?;
+    let mut manga = [0u8; 32];
+    let mut manga_len = 0;
+    if !write_bytes(&mut manga, &mut manga_len, b"guazi:manga:")
+        || !write_bytes(&mut manga, &mut manga_len, id)
+    {
+        return Err(("internal_error", "manga ID overflow"));
     }
+    let mut resume_after = extract_json_string(req, b"cursor");
+    let mut last_id = [0u8; 12];
+    let mut last_len = 0;
+    let mut response_size_budget = PAYLOAD_CAP - 1024;
     for i in 0..rows.len {
         let mut href = [0u8; 512];
         let mut title = [0u8; 4096];
-        let h = match html_attr(rows.at(i), b"href", &mut href) {
-            Ok(n) => &href[..n],
-            Err(_) => return write_error("get_chapters", "parse_error", "missing chapter link"),
-        };
-        let c = match path_id(h, b"/chapter.php?id=") {
-            Some(x) => x,
-            None => return write_error("get_chapters", "parse_error", "invalid chapter link"),
-        };
-        let t = match html_text(rows.at(i), &mut title) {
-            Ok(n) => trim_ascii(&title[..n]),
-            Err(_) => return write_error("get_chapters", "parse_error", "missing chapter title"),
-        };
-        if i > 0 && !write_bytes(out, &mut n, b",") {
-            return write_error("get_chapters", "internal_error", "overflow");
-        }
-        let ok = write_bytes(out, &mut n, br#"{"id":"guazi:chapter:"#)
-            && write_bytes(out, &mut n, id)
-            && write_bytes(out, &mut n, b":")
-            && write_bytes(out, &mut n, c)
-            && write_bytes(out, &mut n, br#"","mangaId":"guazi:manga:"#)
-            && write_bytes(out, &mut n, id)
-            && write_bytes(out, &mut n, br#"","title":"#)
-            && quoted_guazi_display_text(out, &mut n, t)
-            && write_bytes(out, &mut n, br#", "chapterNumber":"#)
-            && if let Some(number) = chapter_ordinal(t) {
-                write_usize(out, &mut n, number)
-                    && write_bytes(
-                        out,
-                        &mut n,
-                        br#", "readingGroup":"chapter","continuationEligible":true"#,
-                    )
-            } else {
-                write_bytes(
-                    out,
-                    &mut n,
-                    br#"null,"readingGroup":"special","continuationEligible":false"#,
-                )
+        let href_len = html_attr(rows.at(i), b"href", &mut href)
+            .map_err(|_| ("parse_error", "missing chapter link"))?;
+        let code = path_id(&href[..href_len], b"/chapter.php?id=")
+            .ok_or(("parse_error", "invalid chapter link"))?;
+        if let Some(cursor) = resume_after {
+            if cursor == code {
+                resume_after = None;
             }
-            && write_bytes(out, &mut n, br#", "volumeNumber":null,"language":"zh"}"#);
-        if !ok {
-            return write_error("get_chapters", "internal_error", "overflow");
+            continue;
+        }
+        let title_len = html_text(rows.at(i), &mut title)
+            .map_err(|_| ("parse_error", "missing chapter title"))?;
+        let title = trim_ascii(&title[..title_len]);
+        let mut chapter_id = [0u8; 48];
+        let mut chapter_id_len = 0;
+        if !write_bytes(&mut chapter_id, &mut chapter_id_len, b"guazi:chapter:")
+            || !write_bytes(&mut chapter_id, &mut chapter_id_len, id)
+            || !write_bytes(&mut chapter_id, &mut chapter_id_len, b":")
+            || !write_bytes(&mut chapter_id, &mut chapter_id_len, code)
+        {
+            return Err(("internal_error", "chapter ID overflow"));
+        }
+        let mut decoded = [0u8; 4096];
+        let display_title = chapter_display_text(title, &mut decoded);
+        let mut chapter = Chapter::new(&chapter_id[..chapter_id_len], &manga[..manga_len], display_title);
+        // Keep long catalogs under the runtime response limit. IDs are
+        // bounded above, and JSON escaping can use at most six bytes per
+        // input byte. Resume at the last sent site ID, even if newer links
+        // were added before it in the meantime.
+        let row_budget = 384 + display_title.len() * 6;
+        if row_budget > response_size_budget && last_len > 0 {
+            return catalog.finish(ChapterPage::NextCursor(&last_id[..last_len])).map_err(sdk_error);
+        }
+        response_size_budget -= row_budget;
+        chapter.chapter_number = chapter_ordinal(title).map(ChapterNumber::Integer);
+        chapter.language = Some(b"zh");
+        // The DOM is newest first. The site's reader follows these same links
+        // in the other direction, including entries without displayed numbers.
+        catalog
+            .push(chapter, ChapterPlacement::InGroup {
+                group: b"source-catalog",
+                position: (rows.len - i - 1) as u64,
+            })
+            .map_err(sdk_error)?;
+        last_len = code.len();
+        last_id[..last_len].copy_from_slice(code);
+    }
+    if resume_after.is_some() {
+        return Err(("parse_error", "chapter cursor disappeared"));
+    }
+    catalog.finish(ChapterPage::Complete).map_err(sdk_error)
+}
+
+fn chapter_display_text<'a>(text: &'a [u8], decoded: &'a mut [u8]) -> &'a [u8] {
+    if !text.windows(2).any(|pair| pair == b"&#") {
+        return text;
+    }
+    let encoded = scratch_b();
+    let mut length = 0;
+    if quoted_guazi_display_text(encoded, &mut length, text) {
+        if let Some(value) = decode_string(&encoded[1..length - 1], decoded) {
+            return value;
         }
     }
-    if !page_tail(out, &mut n, false, 1) {
-        return write_error("get_chapters", "internal_error", "overflow");
-    }
-    write_success_payload("get_chapters", n)
+    text
+}
+
+fn write_chapter_error((code, message): (&'static str, &'static str)) -> u32 {
+    write_error("get_chapters", code, message)
 }
 fn run_get_pages(req: &[u8]) -> u32 {
     let (m, c) = match extract_json_string(req, b"chapterId").and_then(chapter_parts) {
@@ -822,4 +845,4 @@ fn run_get_filters(_r: &[u8]) -> u32 {
 fn run_get_settings(_r: &[u8]) -> u32 {
     write_error("get_settings", "unimplemented", "not supported")
 }
-koma_source_sdk::koma_source_exports!("guazimanhua");
+koma_source_sdk::koma_source_exports!("guazimanhua", typed_chapters, write_chapter_error);
