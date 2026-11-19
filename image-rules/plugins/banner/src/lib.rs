@@ -1,6 +1,7 @@
 //! External edge-signature processor; parameters are supplied by the subscription pack.
 use koma_image_sdk as host;
 use serde_json::Value;
+mod adaptive;
 #[derive(Clone)] struct Sig { w:i32, h:i32, rgb:Vec<u8> }
 fn num(v:&Value,k:&str)->Result<i32,()> { i32::try_from(v.get(k).and_then(Value::as_i64).ok_or(())?).map_err(|_|()) }
 fn parse_sig(v:&Value)->Result<Sig,()> {
@@ -153,8 +154,8 @@ fn run()->Result<i32,()> {
     let (iw,ih)=unsafe{(host::width(),host::height())}; if iw<=0 || ih<=0 {return Err(());} let nw=if iw>640 && iw<800 {iw} else {640}; let narrow=if nw==640 {original.clone()} else {scaled(&original,nw)};
     let bh=((160.0_f32)*(nw as f32/640.0_f32)).round().max(1.0) as i32; let mut nb=narrow.clone();nb.h=bh.min(nb.h);nb.rgb.truncate(nb.h as usize*3);
     let tops=[&current,&old,&narrow];let bottoms=[&old,&current,&nb];let mut top=0;let mut bottom=0;
-    while top<ih {let mut used=0;for s in tops {if matches(s,(iw-s.w).div_euclid(2),top,iw,ih,18)? {used=s.h;break;}} if used==0 && narrow.w==iw {used=short_narrow_top(&original,&narrow,top,ih)?;} if used==0 {used=scaled_centered_top(&current,iw,ih,top)?;} if used==0 {break;}top+=used;if single {break;}}
-    if !(single && top>0) {while top+bottom<ih {let mut used=0;for s in bottoms {let y=ih-s.h-bottom;if y>=top && matches(s,(iw-s.w).div_euclid(2),y,iw,ih,18)? {used=s.h;break;}} if used==0 {break;}bottom+=used;if single {break;}}}
+    while top<ih {let mut used=0;for s in tops {if matches(s,(iw-s.w).div_euclid(2),top,iw,ih,18)? {used=s.h;break;}} if used==0 && narrow.w==iw {used=short_narrow_top(&original,&narrow,top,ih)?;} if used==0 {used=scaled_centered_top(&current,iw,ih,top)?;} if used==0 {used=adaptive::crop(iw,ih-top,true,top)?;} if used==0 {break;}top+=used;if single {break;}}
+    if !(single && top>0) {while top+bottom<ih {let mut used=adaptive::crop(iw,ih-top-bottom,false,top)?;if used==0 {for s in bottoms {let y=ih-s.h-bottom;if y>=top && matches(s,(iw-s.w).div_euclid(2),y,iw,ih,18)? {used=s.h;break;}}} if used==0 {break;}bottom+=used;if single {break;}}}
     if top==0 && bottom==0 {return Ok(0);} let oh=ih-top-bottom;if oh<=0 {return Ok(0);} host::create(iw,oh)?;
     let mut row=vec![0;(iw as usize).checked_mul(4).ok_or(())?];for y in 0..oh {if host::cancelled(){return Err(());}host::region(0,top+y,iw,1,&mut row)?;host::write(y,iw,1,&row)?;} Ok(1)
 }
