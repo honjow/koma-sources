@@ -28,6 +28,7 @@ members = [
   "sources/oldmasterq-zh-hant",
   "sources/namepara-zh-hant",
   "sources/mycomic",
+  "sources/bikamanhua",
   "sources/manben",
   "sources/digimonweb-zh",
   "sources/xsnvshen",

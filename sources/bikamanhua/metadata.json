@@ -1,0 +1,13 @@
+{
+  "homepage": "https://m.bikamanhua.com",
+  "localizedNames": { "zh-Hans": "哔咔漫画（同名站）", "zh-Hant": "嗶咔漫畫（同名站）", "en": "Bika Manhua (Namesake)" },
+  "chapterOrder": "newest_first",
+  "identity": { "mihon": { "sourceIds": ["8976260719331701966"],
+    "work": { "pathPrefix": "/", "idPrefix": "/" },
+    "chapter": { "pathPrefix": "/", "idPrefix": "/" }
+  } },
+  "requestLimits": [
+    { "group": "bika-requests", "hosts": ["m.bikamanhua.com"], "permits": 2, "periodMs": 1000 },
+    { "group": "bika-search", "hosts": ["m.bikamanhua.com"], "requestHeaders": ["sec-fetch-user"], "permits": 1, "periodMs": 1500 }
+  ]
+}
