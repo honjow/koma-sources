@@ -102,6 +102,7 @@
 | <img src="ikanmh/icon.png" width="24" alt=""> | ikanmh | 漫小肆韩漫 | 漫小肆的独立移动源，支持三个入口 |
 | <img src="mikagogo/icon.png" width="24" alt=""> | mikagogo | 米卡插画 | 公开图集及作品评论 |
 | <img src="relamanhua/icon.png" width="24" alt=""> | relamanhua | 热辣漫画 | 公开目录，含成人内容 |
+| <img src="roumanwu/icon.png" width="24" alt=""> | roumanwu | 肉漫屋 | 公开目录与章节，要求 Koma 1.5.5 |
 | <img src="hentaiclub/icon.png" width="24" alt=""> | hentaiclub | 绅士会所 | 含成人内容 |
 | <img src="wnacg/icon.png" width="24" alt=""> | wnacg | 紳士漫畫 | 公开相册与合集，部分内容需登录 |
 | <img src="xipimanhua/icon.png" width="24" alt=""> | xipimanhua | 嬉皮漫画 | 公开目录，含成人内容 |

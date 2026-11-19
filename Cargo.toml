@@ -38,6 +38,8 @@ members = [
   "sources/digimonweb-zh",
   "sources/xsnvshen",
   "sources/dogemanga",
+  "image-processors/reversed-strips",
+  "sources/roumanwu",
   "sources/relamanhua",
   "sources/mikagogo",
   "sources/xipimanhua",
