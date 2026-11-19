@@ -246,7 +246,9 @@ def extract(metadata, web_origins=None):
         result["comments"] = comments
     if "requiredImageDecodes" in metadata:
         kinds = metadata["requiredImageDecodes"]
-        if not isinstance(kinds, list) or any(kind != "jm_stripes_v1" for kind in kinds):
+        if (not isinstance(kinds, list)
+                or any(kind not in ("jm_stripes_v1", "wasm_image_v1") for kind in kinds)
+                or len(set(kinds)) > 1):
             raise ValueError("invalid requiredImageDecodes: unsupported decoder kind")
         result["requiredImageDecodes"] = sorted(set(kinds))
     if "authentication" in metadata:

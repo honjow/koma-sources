@@ -121,6 +121,7 @@ zerobyw|zerobyw|true|0.1.0
 manhuashe|manhuashe|true|1.4.1
 dongmanmanhua|dongmanmanhua|false|0.1.0
 manhuawu|manhuawu|false|1.4.2
+manwamanhua|manwamanhua|true|1.5.5
 iqiyi|iqiyi|false|0.1.4
 jiuermanhua|jiuermanhua|true|0.1.0
 zazhimi|zazhimi|false|0.1.0
@@ -353,9 +354,32 @@ build_source() {
     web_session_origins="$(jq -ce 'if type == "array" and all(.[]; type == "string" and test("^https://[A-Za-z0-9.-]+(:[0-9]+)?$")) then . else error("invalid web session origins") end' "$src_path/web-session-origins.json")"
   fi
 
-  # Create manifest.json
   local pkg_dir="$OUTPUT_DIR/pkg/$name"
   mkdir -p "$pkg_dir"
+
+  local processor_crate="" wasm_hash=""
+  if [[ -f "$src_path/metadata.json" ]]; then
+    processor_crate="$(jq -r '.wasmBuild.imageProcessorCrate // ""' "$src_path/metadata.json")" || return 1
+  fi
+  if jq -e '.requiredImageDecodes | arrays | index("wasm_image_v1") != null' <<< "$source_metadata" >/dev/null; then
+    if [[ ! "$processor_crate" =~ ^[a-zA-Z0-9][a-zA-Z0-9_-]*$ ]] || [[ -z "$min_app_version" ]]; then
+      log "ERROR: $name requires wasmBuild.imageProcessorCrate and minAppVersion"; return 1
+    fi
+    CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS="${CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS:+$CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS }-C target-feature=-reference-types -C link-arg=--strip-all -C link-arg=--max-memory=8388608" \
+      cargo build --locked --release --target wasm32-unknown-unknown -p "$processor_crate" >&2 || return 1
+    local processor_wasm="${CARGO_TARGET_DIR:-$SCRIPT_DIR/target}/wasm32-unknown-unknown/release/${processor_crate//-/_}.wasm"
+    wasm_hash="$(python3 "$SCRIPT_DIR/scripts/bundle-source-image-processor.py" "$wasm_file" "$processor_wasm" "$pkg_dir/source.wasm")" || return 1
+    source_metadata="$(jq -c --arg hash "$wasm_hash" '. + {wasmSha256: $hash}' <<< "$source_metadata")" || return 1
+    if [[ "$wasm_limit" -gt 0 && "$(wc -c < "$pkg_dir/source.wasm")" -gt "$wasm_limit" ]]; then
+      log "ERROR: $name bundled WASM exceeds its declared size limit"; return 1
+    fi
+  elif [[ -n "$processor_crate" ]]; then
+    log "ERROR: $name declares an image processor crate without wasm_image_v1"; return 1
+  else
+    cp "$wasm_file" "$pkg_dir/source.wasm"
+  fi
+
+  # Create manifest.json
   
   jq -n \
     --arg id "$src_id" \
@@ -372,9 +396,6 @@ build_source() {
     --argjson webSessionOrigins "$web_session_origins" \
     '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, minAppVersion: $minAppVersion, icon: $icon} + $sourceMetadata + (if ($webSessionOrigins | length) > 0 then {webSessionOrigins: $webSessionOrigins} else {} end)' \
     > "$pkg_dir/manifest.json"
-
-  # Copy wasm
-  cp "$wasm_file" "$pkg_dir/source.wasm"
   
   # Required identity asset; preserve the actual filename and original bytes.
   cp "$src_path/$icon_name" "$pkg_dir/$icon_name"

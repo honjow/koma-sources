@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+  "image-processors/iv-cbc",
   "sources/cosplaytele",
   "sources/buondua",
   "sources/xiutaku",
@@ -88,6 +89,7 @@ members = [
   "sources/dongmanmanhua",
   "sources/manhuashe",
   "sources/manhuawu",
+  "sources/manwamanhua",
   "sources/iqiyi",
   "sources/jiuermanhua",
   "sources/manhuadui",

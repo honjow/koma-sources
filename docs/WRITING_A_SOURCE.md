@@ -93,6 +93,24 @@ bytes using the same extension.
 3. 实现后沿同一调用链复核。删改或适配写明代码位置及依据；漏项标为
    未完成。交付验证沿用项目现行规则。
 
+## Required image processors
+
+When a source must restore encoded responses or rearrange decoded pixels, use
+the [source-owned image processor ABI](https://github.com/honjow/Koma/blob/master/docs/source-runtime-abi.md#书源随包图片还原-v1).
+Declare `requiredImageDecodes: ["wasm_image_v1"]` in `metadata.json` and set
+the registry's minimum app version to the first release supporting the ABI.
+Define a separate Rust workspace `cdylib` outside
+`sources/` and set `wasmBuild.imageProcessorCrate` to its Cargo package
+name. Keep its exported library name equal to the default Cargo name. The
+standard build compiles it with an 8 MiB guest memory limit, embeds it in
+`source.wasm`, and hashes the complete file after embedding. Include the
+embedded module in any `wasmBuild.maxBytes` limit.
+
+Use the same `get_image_request` handler for covers and pages. Return optional
+`requiredImageDecode` stages in the resolved descriptor and check
+`source_required_image_decode_wasm_v1` before emitting them. Verify normal
+images, each required stage, and the actual offline download in the host.
+
 ## Architecture
 
 ```

@@ -1496,6 +1496,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_iv_cbc_processor"
+version = "0.1.0"
+dependencies = [
+ "aes",
+]
+
+[[package]]
 name = "koma_jinmantiantang_source"
 version = "0.1.9"
 dependencies = [
@@ -1678,6 +1685,16 @@ name = "koma_manhuawu_source"
 version = "0.1.15"
 dependencies = [
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_manwamanhua_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
 ]
 
 [[package]]

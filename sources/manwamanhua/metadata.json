@@ -1,0 +1,26 @@
+{
+  "homepage": "https://manwacn.cc",
+  "chapterOrder": "newest_first",
+  "requiredImageDecodes": [
+    "wasm_image_v1"
+  ],
+  "wasmBuild": {
+    "imageProcessorCrate": "koma_iv_cbc_processor"
+  },
+  "requestLimits": [
+    {
+      "group": "manwamanhua-web",
+      "hosts": [
+        "manwacn.cc"
+      ],
+      "permits": 2,
+      "periodMs": 1000
+    }
+  ],
+  "comments": {
+    "version": 1,
+    "scopes": [
+      "manga"
+    ]
+  }
+}

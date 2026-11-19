@@ -1,0 +1,10 @@
+[package]
+name = "koma_iv_cbc_processor"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+aes = { version = "0.8.4", default-features = false }

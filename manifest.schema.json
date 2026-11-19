@@ -14,6 +14,12 @@
     "version": { "type": "string", "description": "Semver version string" },
     "lang": { "type": "string", "description": "Language code: zh, en, ja, multi, etc." },
     "nsfw": { "type": "boolean", "default": false },
+    "wasmSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "requiredImageDecodes": {
+      "type": "array",
+      "maxItems": 1,
+      "items": { "enum": ["jm_stripes_v1", "wasm_image_v1"] }
+    },
     "minAppVersion": {
       "type": "string",
       "pattern": "^(0|[1-9][0-9]{0,8})\\.(0|[1-9][0-9]{0,8})\\.(0|[1-9][0-9]{0,8})$",
