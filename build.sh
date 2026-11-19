@@ -108,7 +108,7 @@ baozimh|baozimh|false|1.4.1
 mangadex|mangadex|true|0.1.0
 mangabz|mangabz|false|1.4.1
 manhuaren|manhuaren|false|1.4.1
-manhuadui|manhuadui|true|0.1.0
+manhuadui|manhuadui|true|1.4.2
 zaimanhua|zaimanhua|false|0.1.0
 happymh|happymh|false|0.1.0
 manhuagui|manhuagui|true|1.4.1
@@ -120,7 +120,7 @@ comicabc|comicabc|false|0.1.0
 zerobyw|zerobyw|true|0.1.0
 manhuashe|manhuashe|true|1.4.1
 dongmanmanhua|dongmanmanhua|false|0.1.0
-manhuawu|manhuawu|false|1.4.1
+manhuawu|manhuawu|false|1.4.2
 iqiyi|iqiyi|false|0.1.4
 jiuermanhua|jiuermanhua|true|0.1.0
 zazhimi|zazhimi|false|0.1.0

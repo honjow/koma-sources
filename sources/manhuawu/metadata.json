@@ -31,6 +31,10 @@
     ],
     "systemWebAgentOrigins": [
       "https://www.mhua5.com"
-    ]
+    ],
+    "renderedDocumentFallback": {
+      "readySelector": ".common-comic-item .comic__title, .de-info__box .comic-title, .chapter__list-box li, img[data-original]"
+    },
+    "webFetchBridge": true
   }
 }

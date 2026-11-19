@@ -39,6 +39,8 @@ fn html_select_all(descriptor: i32, selector: &[u8], out: &mut [u8]) -> i32 {
 static mut SELECT_ALL_BUF: [u8; 16000] = [0; 16000];
 
 const BASE_URL: &[u8] = b"https://www.ykmh.net";
+// Request the mobile catalog directly so the visible verification document can serve the same GET.
+const BROWSE_URL: &[u8] = b"https://m.ykmh.net";
 koma_source_sdk::koma_source_buffers! {
     payload: 1024 * 1024,
     http_out: 2 * 1024 * 1024,
@@ -51,7 +53,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.manhuadui.koma",
     name: "优酷漫画",
-    version: "0.1.5",
+    version: "0.1.7",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -156,6 +158,13 @@ fn fetch_body(url: &[u8]) -> Result<usize, (&'static str, &'static str)> {
             _ => "unknown",
         };
         diagnostic_error(b"transport_envelope", code);
+    }
+    // A positive host signal distinguishes the site's verification page from
+    // an ordinary access denial. Each public list/search operation makes one GET.
+    if matches!(status, 401 | 403 | 503) &&
+        extract_json_string(response, b"accessSignal") == Some(b"challenge_required") {
+        diagnostic_error(b"http_status", "challenge_required");
+        return Err(("challenge_required", "website verification required"));
     }
     let error = match status {
         200..=299 => None,
@@ -322,7 +331,13 @@ fn parse_list(html: &[u8], operation: &str, page: usize) -> u32 {
     };
 
     let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
-    let count = html_select_all(document.0.raw(), b"li.list-comic", select_buf);
+    // The mobile list and search endpoints use different card layouts.
+    let card_selector: &[u8] = if operation == "search" {
+        b"li.list-comic, div.itemBox"
+    } else {
+        b"li.list-comic"
+    };
+    let count = html_select_all(document.0.raw(), card_selector, select_buf);
 
     let payload = payload_buf();
     let mut c = 0usize;
@@ -356,9 +371,15 @@ fn parse_list(html: &[u8], operation: &str, page: usize) -> u32 {
         let mut cover_buf = [0u8; 1024];
 
         let mut title = None;
-        if let Ok(desc) = html_select(item_desc, b"h3 > a") {
+        if let Ok(desc) = html_select(item_desc, b"a.txtA, .itemTxt > a.title") {
             let owned = OwnedDescriptor(desc);
             title = text_into(owned.0, &mut title_buf).map(trim_ascii);
+        }
+        if title.is_none() {
+            if let Ok(desc) = html_select(item_desc, b"h3 > a") {
+                let owned = OwnedDescriptor(desc);
+                title = text_into(owned.0, &mut title_buf).map(trim_ascii);
+            }
         }
         if title.is_none() {
             if let Ok(desc) = html_select(item_desc, b"p > a") {
@@ -371,7 +392,7 @@ fn parse_list(html: &[u8], operation: &str, page: usize) -> u32 {
         }
 
         let mut href = None;
-        if let Ok(desc) = html_select(item_desc, b"a.comic_img") {
+        if let Ok(desc) = html_select(item_desc, b"a.comic_img, a.ImgA, .itemTxt > a.title") {
             let owned = OwnedDescriptor(desc);
             href = attr_into(owned.0, b"href", &mut href_buf);
         }
@@ -462,7 +483,7 @@ fn run_search(req: &[u8]) -> u32 {
 
     let url_buf = scratch_a();
     let mut c = 0usize;
-    if !(write_bytes(url_buf, &mut c, BASE_URL)
+    if !(write_bytes(url_buf, &mut c, BROWSE_URL)
         && write_bytes(url_buf, &mut c, b"/search/?keywords=")
         && write_url_encoded(url_buf, &mut c, query)
         && write_bytes(url_buf, &mut c, b"&page=")
@@ -489,7 +510,7 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
 
     let url_buf = scratch_a();
     let mut c = 0usize;
-    if !(write_bytes(url_buf, &mut c, BASE_URL)
+    if !(write_bytes(url_buf, &mut c, BROWSE_URL)
         && write_bytes(url_buf, &mut c, b"/list/click/?page=")
         && write_usize(url_buf, &mut c, page))
     {

@@ -4,5 +4,11 @@
     "zh-Hant": "優酷漫畫",
     "en": "YKMH"
   },
-  "homepage": "https://www.ykmh.net"
+  "homepage": "https://www.ykmh.net",
+  "websitePolicy": {
+    "webFetchBridge": true,
+    "renderedDocumentFallback": {
+      "readySelector": "li.list-comic a.comic_img, li.list-comic a.txtA, div.itemBox .itemTxt > a.title"
+    }
+  }
 }
