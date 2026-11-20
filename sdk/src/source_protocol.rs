@@ -229,7 +229,7 @@ pub fn request(s: &[u8]) -> R<()> {
     // Even optional identity keys may not be duplicated, null, or non-string.
     Ok(())
 }
-pub fn body(response: &[u8], out: &mut [u8]) -> R<usize> {
+pub(crate) fn require_http_success(response: &[u8]) -> R<()> {
     let status = direct(response, b"status").map_err(|_| "network_error")?;
     let status = match status {
         Some(v) if v.iter().all(|c| c.is_ascii_digit()) && !v.is_empty() => {
@@ -255,6 +255,15 @@ pub fn body(response: &[u8], out: &mut [u8]) -> R<usize> {
     if status.is_none() {
         return Err("network_error");
     }
+    Ok(())
+}
+
+pub fn body(response: &[u8], out: &mut [u8]) -> R<usize> {
+    require_http_success(response)?;
+    decode_http_body(response, out)
+}
+
+pub(crate) fn decode_http_body(response: &[u8], out: &mut [u8]) -> R<usize> {
     crate::decode_json_body_into(response, out).map_err(|e| match e {
         FetchError::Network => "network_error",
         FetchError::NotFound => "not_found",
@@ -263,6 +272,19 @@ pub fn body(response: &[u8], out: &mut [u8]) -> R<usize> {
         FetchError::ServerError => "server_error",
     })
 }
+/// A source checkpoint echoed by a host after its foreground interaction completed.
+pub fn interaction_resume_state<'a>(request: &'a [u8], kind: &[u8]) -> Option<&'a [u8]> {
+    if !feature(request, b"source_interaction_resume_v1") {
+        return None;
+    }
+    let hints = direct(request, b"hostHints").ok()??;
+    let resume = direct(hints, b"interactionResume").ok()??;
+    if raw_string(resume, b"kind").ok()?? != kind {
+        return None;
+    }
+    raw_string(resume, b"state").ok()?
+}
+
 pub fn feature(r: &[u8], name: &[u8]) -> bool {
     let Ok(Some(v)) = direct(r, b"hostFeatures") else {
         return false;

@@ -2,6 +2,7 @@
 
 pub mod chapters;
 pub mod gallery_titles;
+pub mod http;
 
 pub mod source_protocol;
 pub mod comments;
@@ -1221,6 +1222,48 @@ pub mod result {
                     message.as_bytes(),
                     br#"","challengeRequestId":""#,
                     request_id,
+                    ERROR_SUFFIX,
+                ],
+            )
+        }
+
+        /// Return a source checkpoint with an existing interaction error.
+        /// The checkpoint describes where to resume, without granting a session.
+        pub fn write_interaction_error(
+            &mut self,
+            operation: &str,
+            code: &str,
+            message: &str,
+            request_id: &[u8],
+            state: &[u8],
+        ) -> u32 {
+            if !matches!(code, "challenge_required" | "auth_required")
+                || state.is_empty()
+                || state.len() > 128
+                || !state.iter().all(|b| b.is_ascii_alphanumeric() || matches!(*b, b'_' | b'.' | b':' | b'-'))
+            {
+                return self.write_error(operation, code, message);
+            }
+            let valid_id = request_id.len() <= 64
+                && request_id.iter().all(|b| b.is_ascii_alphanumeric() || *b == b'-');
+            let (id_key, id): (&[u8], &[u8]) = if valid_id && !request_id.is_empty() {
+                (br#"","challengeRequestId":""#, request_id)
+            } else {
+                (b"", b"")
+            };
+            self.write_parts(
+                false,
+                &[
+                    RESPONSE_PREFIX_ERROR,
+                    operation.as_bytes(),
+                    ERROR_PREFIX,
+                    code.as_bytes(),
+                    ERROR_MESSAGE_PREFIX,
+                    message.as_bytes(),
+                    id_key,
+                    id,
+                    br#"","interactionState":""#,
+                    state,
                     ERROR_SUFFIX,
                 ],
             )
