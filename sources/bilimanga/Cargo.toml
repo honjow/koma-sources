@@ -7,3 +7,4 @@ crate-type = ["cdylib"]
 [dependencies]
 koma_source_sdk = { path = "../../sdk" }
 miniz_oxide = { version = "=0.8.9", default-features = false }
+dlmalloc = { version = "=0.2.14", features = ["global"] }
