@@ -86,6 +86,10 @@
         "mobileWebAndroidAgentOrigins": { "type": "array" },
         "publicCookieOverrides": { "type": "array" },
         "guestHttp": { "type": "object" },
+        "responseUrlOrigins": {
+          "type": "array", "minItems": 1, "maxItems": 8, "uniqueItems": true,
+          "items": { "$ref": "#/properties/webSessionOrigins/items" }
+        },
         "dnsBootstrap": { "type": "object" },
         "preserveRouteCover": { "type": "boolean" },
         "routeCoverPlaceholderSuffix": { "type": "string" },
