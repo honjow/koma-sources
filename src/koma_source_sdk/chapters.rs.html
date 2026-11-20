@@ -472,4 +472,57 @@
 <a href=#472 id=472 data-nosnippet>472</a>        <span class="prelude-val">Err</span>(SourceError::internal_error(<span class="string">"payload overflow"</span>))
 <a href=#473 id=473 data-nosnippet>473</a>    }
 <a href=#474 id=474 data-nosnippet>474</a>}
+<a href=#475 id=475 data-nosnippet>475</a>
+<a href=#476 id=476 data-nosnippet>476</a><span class="doccomment">/// Parse an explicitly numbered Chinese chapter heading. The title's
+<a href=#477 id=477 data-nosnippet>477</a>/// display number is separate from catalog order and request identity.
+<a href=#478 id=478 data-nosnippet>478</a></span><span class="kw">pub fn </span>numbered_chapter_heading(title: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Option</span>&lt;usize&gt; {
+<a href=#479 id=479 data-nosnippet>479</a>    <span class="kw">let </span>title = core::str::from_utf8(title).ok()<span class="question-mark">?</span>.trim();
+<a href=#480 id=480 data-nosnippet>480</a>    <span class="kw">let </span>title = title.strip_prefix(<span class="string">'第'</span>).unwrap_or(title);
+<a href=#481 id=481 data-nosnippet>481</a>    <span class="kw">let </span><span class="kw-2">mut </span>n = <span class="number">0usize</span>;
+<a href=#482 id=482 data-nosnippet>482</a>    <span class="kw">let </span><span class="kw-2">mut </span>pending = <span class="number">0usize</span>;
+<a href=#483 id=483 data-nosnippet>483</a>    <span class="kw">let </span><span class="kw-2">mut </span>any = <span class="bool-val">false</span>;
+<a href=#484 id=484 data-nosnippet>484</a>    <span class="kw">for </span>ch <span class="kw">in </span>title.chars() {
+<a href=#485 id=485 data-nosnippet>485</a>        <span class="kw">if </span>ch.is_ascii_digit() {
+<a href=#486 id=486 data-nosnippet>486</a>            pending = pending
+<a href=#487 id=487 data-nosnippet>487</a>                .checked_mul(<span class="number">10</span>)<span class="question-mark">?
+<a href=#488 id=488 data-nosnippet>488</a>                </span>.checked_add(ch <span class="kw">as </span>usize - <span class="string">'0' </span><span class="kw">as </span>usize)<span class="question-mark">?</span>;
+<a href=#489 id=489 data-nosnippet>489</a>            any = <span class="bool-val">true</span>;
+<a href=#490 id=490 data-nosnippet>490</a>        } <span class="kw">else </span>{
+<a href=#491 id=491 data-nosnippet>491</a>            <span class="kw">let </span>d = <span class="kw">match </span>ch {
+<a href=#492 id=492 data-nosnippet>492</a>                <span class="string">'零' </span>| <span class="string">'〇' </span>=&gt; <span class="prelude-val">Some</span>(<span class="number">0</span>),
+<a href=#493 id=493 data-nosnippet>493</a>                <span class="string">'一' </span>=&gt; <span class="prelude-val">Some</span>(<span class="number">1</span>),
+<a href=#494 id=494 data-nosnippet>494</a>                <span class="string">'二' </span>| <span class="string">'两' </span>| <span class="string">'兩' </span>=&gt; <span class="prelude-val">Some</span>(<span class="number">2</span>),
+<a href=#495 id=495 data-nosnippet>495</a>                <span class="string">'三' </span>=&gt; <span class="prelude-val">Some</span>(<span class="number">3</span>),
+<a href=#496 id=496 data-nosnippet>496</a>                <span class="string">'四' </span>=&gt; <span class="prelude-val">Some</span>(<span class="number">4</span>),
+<a href=#497 id=497 data-nosnippet>497</a>                <span class="string">'五' </span>=&gt; <span class="prelude-val">Some</span>(<span class="number">5</span>),
+<a href=#498 id=498 data-nosnippet>498</a>                <span class="string">'六' </span>=&gt; <span class="prelude-val">Some</span>(<span class="number">6</span>),
+<a href=#499 id=499 data-nosnippet>499</a>                <span class="string">'七' </span>=&gt; <span class="prelude-val">Some</span>(<span class="number">7</span>),
+<a href=#500 id=500 data-nosnippet>500</a>                <span class="string">'八' </span>=&gt; <span class="prelude-val">Some</span>(<span class="number">8</span>),
+<a href=#501 id=501 data-nosnippet>501</a>                <span class="string">'九' </span>=&gt; <span class="prelude-val">Some</span>(<span class="number">9</span>),
+<a href=#502 id=502 data-nosnippet>502</a>                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#503 id=503 data-nosnippet>503</a>            };
+<a href=#504 id=504 data-nosnippet>504</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(d) = d {
+<a href=#505 id=505 data-nosnippet>505</a>                pending = pending.checked_mul(<span class="number">10</span>)<span class="question-mark">?</span>.checked_add(d)<span class="question-mark">?</span>;
+<a href=#506 id=506 data-nosnippet>506</a>                any = <span class="bool-val">true</span>;
+<a href=#507 id=507 data-nosnippet>507</a>            } <span class="kw">else if </span><span class="macro">matches!</span>(ch, <span class="string">'十' </span>| <span class="string">'百' </span>| <span class="string">'千'</span>) {
+<a href=#508 id=508 data-nosnippet>508</a>                <span class="kw">let </span>unit = <span class="kw">match </span>ch {
+<a href=#509 id=509 data-nosnippet>509</a>                    <span class="string">'十' </span>=&gt; <span class="number">10</span>,
+<a href=#510 id=510 data-nosnippet>510</a>                    <span class="string">'百' </span>=&gt; <span class="number">100</span>,
+<a href=#511 id=511 data-nosnippet>511</a>                    <span class="kw">_ </span>=&gt; <span class="number">1000</span>,
+<a href=#512 id=512 data-nosnippet>512</a>                };
+<a href=#513 id=513 data-nosnippet>513</a>                n = n.checked_add(pending.max(<span class="number">1</span>).checked_mul(unit)<span class="question-mark">?</span>)<span class="question-mark">?</span>;
+<a href=#514 id=514 data-nosnippet>514</a>                pending = <span class="number">0</span>;
+<a href=#515 id=515 data-nosnippet>515</a>                any = <span class="bool-val">true</span>;
+<a href=#516 id=516 data-nosnippet>516</a>            } <span class="kw">else </span>{
+<a href=#517 id=517 data-nosnippet>517</a>                <span class="comment">// An explicit chapter suffix is required; do not number specials by their position.
+<a href=#518 id=518 data-nosnippet>518</a>                </span><span class="kw">return if </span>any &amp;&amp; <span class="macro">matches!</span>(ch, <span class="string">'话' </span>| <span class="string">'話' </span>| <span class="string">'章' </span>| <span class="string">'回'</span>) {
+<a href=#519 id=519 data-nosnippet>519</a>                    n.checked_add(pending)
+<a href=#520 id=520 data-nosnippet>520</a>                } <span class="kw">else </span>{
+<a href=#521 id=521 data-nosnippet>521</a>                    <span class="prelude-val">None
+<a href=#522 id=522 data-nosnippet>522</a>                </span>};
+<a href=#523 id=523 data-nosnippet>523</a>            }
+<a href=#524 id=524 data-nosnippet>524</a>        }
+<a href=#525 id=525 data-nosnippet>525</a>    }
+<a href=#526 id=526 data-nosnippet>526</a>    <span class="prelude-val">None
+<a href=#527 id=527 data-nosnippet>527</a></span>}
 </code></pre></div></section></main></body></html>

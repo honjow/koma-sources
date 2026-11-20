@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ChapterNumber","ChapterOrder","ChapterPage","ChapterPlacement"],"fn":["reading_order_supported"],"struct":["Chapter","ChapterExclusions","ChapterResponse","DecimalChapterNumber","GroupedChapters"],"type":["ChapterResult"]};
+window.SIDEBAR_ITEMS = {"enum":["ChapterNumber","ChapterOrder","ChapterPage","ChapterPlacement"],"fn":["numbered_chapter_heading","reading_order_supported"],"struct":["Chapter","ChapterExclusions","ChapterResponse","DecimalChapterNumber","GroupedChapters"],"type":["ChapterResult"]};
