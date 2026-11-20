@@ -8,7 +8,8 @@ mod access_signal;
 mod cdn_selection;
 
 use koma_source_sdk::chapters::{
-    reading_order_supported, Chapter, ChapterNumber, ChapterPage, ChapterPlacement, ChapterResult, GroupedChapters,
+    numbered_chapter_heading, reading_order_supported, Chapter, ChapterNumber, ChapterPage, ChapterPlacement,
+    ChapterResult, GroupedChapters,
 };
 use koma_source_sdk::host::{
     self, HtmlDescriptor, html_attr, html_close, html_parse, html_select, html_text, http_request,
@@ -613,10 +614,11 @@ fn reference_title_has_digit(title: &[u8]) -> bool {
     core::str::from_utf8(title).map(|s| s.chars().any(|c| ND.iter().any(|(a,b)| (*a..=*b).contains(&(c as u32))))).unwrap_or(false)
 }
 
-// The site lists recent chapters separately, in reverse order. Only its
-// complete main catalog can verify that a chapter slot is a reading position.
+// The site splits the complete catalogue between the initial panel and its
+// expanded remainder. The separate latest panel is a reversed duplicate.
 fn main_catalog_len(document: HtmlDescriptor, slug: &[u8]) -> Option<usize> {
-    const SELECTOR: &[u8] = b"#chapter-items a.comics-chapters__item";
+    const SELECTOR: &[u8] =
+        b"#chapter-items a.comics-chapters__item, #chapters_other_list a.comics-chapters__item";
     let count = usize::try_from(html_select_all(document.raw(), SELECTOR, &mut [])).ok()?;
     if count == 0 {
         return None;
@@ -785,7 +787,17 @@ fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, ChapterError> {
             return Err(SourceError::internal_error("chapter ID overflow").into());
         }
         let mut chapter = Chapter::new(&id[..id_len], manga_id, title.unwrap_or(b"Chapter"));
-        chapter.chapter_number = complete_title.and_then(chapter_number::title_chapter_number).map(ChapterNumber::Text);
+        chapter.chapter_number = complete_title.and_then(|name| {
+            chapter_number::title_chapter_number(name).map(ChapterNumber::Text).or_else(|| {
+                // Preserve the existing Arabic notation rules. The alternate
+                // heading form is the site's written Chinese numeral.
+                let label = name.strip_prefix("第".as_bytes())?;
+                if label.first()?.is_ascii() {
+                    return None;
+                }
+                numbered_chapter_heading(name).map(ChapterNumber::Integer)
+            })
+        });
 
         let reading_order = verified_catalog_len.and_then(|len| {
             main_chapter_slot(complete_href?, slug).filter(|slot| *slot < len)
