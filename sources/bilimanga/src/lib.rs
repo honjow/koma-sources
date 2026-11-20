@@ -594,9 +594,21 @@ fn automatic_search_enabled(r: &[u8]) -> bool {
 fn search_http(r: &[u8], target: &[u8], form: Option<&[u8]>, image: bool) -> R<Response<'static>> {
     let req = http_req_buf();
     if image && protocol::feature(r, b"source_http_body_v1") && protocol::feature(r, b"source_body_v1") {
+        // Preserve the already-verified search image request identity. Changing
+        // only the data channel must not silently change the site's headers.
         let headers = [Header { name: b"User-Agent", value: UA },
             Header { name: b"Referer", value: b"https://www.bilimanga.net/" },
-            Header { name: b"Accept", value: IMAGE_ACCEPT }];
+            Header { name: b"Accept", value: DOCUMENT_ACCEPT },
+            Header { name: b"Sec-CH-UA", value: CHROME_BRANDS },
+            Header { name: b"Accept-Language", value: b"zh" },
+            Header { name: b"Sec-CH-UA-Mobile", value: b"?1" },
+            Header { name: b"Sec-CH-UA-Platform", value: b"\"Android\"" },
+            Header { name: b"Sec-Fetch-Site", value: b"same-origin" },
+            Header { name: b"Sec-Fetch-Mode", value: b"navigate" },
+            Header { name: b"Sec-Fetch-User", value: b"?1" },
+            Header { name: b"Sec-Fetch-Dest", value: b"document" },
+            Header { name: b"Upgrade-Insecure-Requests", value: b"1" },
+            Header { name: b"Cookie", value: b"night=1" }];
         let mut request = RequestSpec::get(target);
         request.headers = &headers; request.response = ResponseKind::BodyRef;
         request.session = SessionRef::SourceCookies;
