@@ -7,7 +7,7 @@
 | 行为 | 上游与 Koma 适配 |
 | --- | --- |
 | 浏览与分页 | `BiliManga.getPopularManga`、`getLatestUpdates`、`mangaPageParse`。`get_manga_list` 的 `list` 沿用 11 个热门榜、最新和 10 个分类字段，从 `args.page.cursor` 读页数。榜单按 50 项，分类按真实当前页与尾页。 |
-| 作品地址与关键词搜索 | 同站的作品地址仍直接解析详情。关键词依据 [Keiyoushi 1aba299d](https://github.com/keiyoushi/extensions-source/commit/1aba299dd03549a98d6f4461f6022d1e9adf04c0) 的 `searchDocument` 直接 GET `/search/{关键词}_{页}.html`。收到图片验证码表单时沿用宿主网页验证，支持 HTTP 200 文档因果标识的宿主直接打开本次搜索的验证码页。用户输入验证码并完成后，宿主沿原查询重试。旧宿主仍从网站首页进入，需在网页再次搜索。区分普通结果页和精确命中跳转的详情。 |
+| 作品地址与关键词搜索 | 同站的作品地址仍直接解析详情。关键词依据 [Keiyoushi 1aba299d](https://github.com/keiyoushi/extensions-source/commit/1aba299dd03549a98d6f4461f6022d1e9adf04c0) 的 `searchDocument` 直接 GET `/search/{关键词}_{页}.html`。收到图片验证码表单时沿用宿主网页验证，支持 HTTP 200 文档因果标识的宿主直接打开本次搜索的验证码页。用户输入验证码后，支持网页就绪声明的宿主看到搜索结果或直接跳转的作品详情，自动关闭并沿原查询重试。旧宿主仍可手动完成。区分普通结果页和精确命中跳转的详情。 |
 | 目录 | `fetchMangaUpdate` 对应 `chapters`。按原分卷、锚点、标题和顺序返回。不按网页标题的总话数补造目录。保留原生成的 `#prev`、`#next` 章节身份。 |
 | 正文 | `ChapterInterceptor`、`getPageList` 对应 `pages`。片段仅是本地跳转指示，第一跳不增加 `night=1`。次跳由网页给出的同书导航解析为 `_2.html`。缺失或非同书导航明确失败，不猜章节号。页面位置、原始图片地址、重复页与附页均保留。已实测的桌面浏览提示保留具体原因。书架续读时宿主可能传 `source://` 内部定位串，正文请求只把它当无 URL，不参与作品路由校验；作品身份仍由 `mangaId` 约束。 |
 | 封面与图片 | `KeiSource` 的 `Fetch.IMAGE` 对应 `write_cover` 和 `image_request`。同站封面按路径作品归属。正文沿用网页的原地址，在页表和取图时共用校验，仅接受已确认的两个 HTTPS 图片域。兼容旧的 `/img/<内容摘要>.<格式>` 与站点现行的 `/<分桶>/<作品>/<章节>/<图片编号>.<格式>`，保留 AVIF 和 JPEG。现行路径校验作品，生成页表时也核对实际打开的章节；旧 `#prev`、`#next` 页身份仍保留原锚点，取图时按已核对的页表 URL 请求。公开图片头不携游客、登录或夜间 Cookie。 官网 `c.motiezw.com` 的作品封面先校验路径作品归属，再使用官网同域的 `/files/cartoon/image/` 对应地址，保留尺寸后缀与时间戳。浏览、详情及已保存 CDN 地址共用此转换，正文仍沿用实际图片 CDN。 |

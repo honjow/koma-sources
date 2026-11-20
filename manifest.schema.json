@@ -81,6 +81,7 @@
       "properties": {
         "homepageChoices": { "type": "object" },
         "httpProfiles": { "type": "array" },
+        "webSessionReadySelector": { "type": "string", "minLength": 1, "maxLength": 256 },
         "systemWebAgentOrigins": { "type": "array" },
         "mobileWebAndroidAgentOrigins": { "type": "array" },
         "publicCookieOverrides": { "type": "array" },

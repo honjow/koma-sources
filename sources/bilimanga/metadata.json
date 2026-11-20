@@ -38,6 +38,7 @@
     }
   ],
   "websitePolicy": {
+    "webSessionReadySelector": ".book-detail-btn #btnReadBook, #pagelink, a.book-layout",
     "publicCookieOverrides": [
       {
         "origin": "https://www.bilimanga.net",
