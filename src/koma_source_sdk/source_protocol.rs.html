@@ -229,7 +229,7 @@
 <a href=#229 id=229 data-nosnippet>229</a>    <span class="comment">// Even optional identity keys may not be duplicated, null, or non-string.
 <a href=#230 id=230 data-nosnippet>230</a>    </span><span class="prelude-val">Ok</span>(())
 <a href=#231 id=231 data-nosnippet>231</a>}
-<a href=#232 id=232 data-nosnippet>232</a><span class="kw">pub fn </span>body(response: <span class="kw-2">&amp;</span>[u8], out: <span class="kw-2">&amp;mut </span>[u8]) -&gt; R&lt;usize&gt; {
+<a href=#232 id=232 data-nosnippet>232</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>require_http_success(response: <span class="kw-2">&amp;</span>[u8]) -&gt; R&lt;()&gt; {
 <a href=#233 id=233 data-nosnippet>233</a>    <span class="kw">let </span>status = direct(response, <span class="string">b"status"</span>).map_err(|<span class="kw">_</span>| <span class="string">"network_error"</span>)<span class="question-mark">?</span>;
 <a href=#234 id=234 data-nosnippet>234</a>    <span class="kw">let </span>status = <span class="kw">match </span>status {
 <a href=#235 id=235 data-nosnippet>235</a>        <span class="prelude-val">Some</span>(v) <span class="kw">if </span>v.iter().all(|c| c.is_ascii_digit()) &amp;&amp; !v.is_empty() =&gt; {
@@ -255,41 +255,63 @@
 <a href=#255 id=255 data-nosnippet>255</a>    <span class="kw">if </span>status.is_none() {
 <a href=#256 id=256 data-nosnippet>256</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"network_error"</span>);
 <a href=#257 id=257 data-nosnippet>257</a>    }
-<a href=#258 id=258 data-nosnippet>258</a>    <span class="kw">crate</span>::decode_json_body_into(response, out).map_err(|e| <span class="kw">match </span>e {
-<a href=#259 id=259 data-nosnippet>259</a>        FetchError::Network =&gt; <span class="string">"network_error"</span>,
-<a href=#260 id=260 data-nosnippet>260</a>        FetchError::NotFound =&gt; <span class="string">"not_found"</span>,
-<a href=#261 id=261 data-nosnippet>261</a>        FetchError::RateLimit =&gt; <span class="string">"rate_limit"</span>,
-<a href=#262 id=262 data-nosnippet>262</a>        FetchError::ClientError =&gt; <span class="string">"client_error"</span>,
-<a href=#263 id=263 data-nosnippet>263</a>        FetchError::ServerError =&gt; <span class="string">"server_error"</span>,
-<a href=#264 id=264 data-nosnippet>264</a>    })
-<a href=#265 id=265 data-nosnippet>265</a>}
-<a href=#266 id=266 data-nosnippet>266</a><span class="kw">pub fn </span>feature(r: <span class="kw-2">&amp;</span>[u8], name: <span class="kw-2">&amp;</span>[u8]) -&gt; bool {
-<a href=#267 id=267 data-nosnippet>267</a>    <span class="kw">let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(v)) = direct(r, <span class="string">b"hostFeatures"</span>) <span class="kw">else </span>{
-<a href=#268 id=268 data-nosnippet>268</a>        <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#269 id=269 data-nosnippet>269</a>    };
-<a href=#270 id=270 data-nosnippet>270</a>    <span class="kw">let </span>v = v.trim_ascii();
-<a href=#271 id=271 data-nosnippet>271</a>    <span class="kw">if </span>v.first() != <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="string">b'['</span>) || v.last() != <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="string">b']'</span>) {
-<a href=#272 id=272 data-nosnippet>272</a>        <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#273 id=273 data-nosnippet>273</a>    }
-<a href=#274 id=274 data-nosnippet>274</a>    <span class="kw">let </span><span class="kw-2">mut </span>i = ws(v, <span class="number">1</span>);
-<a href=#275 id=275 data-nosnippet>275</a>    <span class="kw">let </span><span class="kw-2">mut </span>found = <span class="bool-val">false</span>;
-<a href=#276 id=276 data-nosnippet>276</a>    <span class="kw">while </span>v.get(i) != <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="string">b']'</span>) {
-<a href=#277 id=277 data-nosnippet>277</a>        <span class="kw">let </span><span class="prelude-val">Ok</span>(e) = end(v, i, <span class="number">0</span>) <span class="kw">else </span>{ <span class="kw">return </span><span class="bool-val">false </span>};
-<a href=#278 id=278 data-nosnippet>278</a>        <span class="kw">if </span>v.get(i) != <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="string">b'"'</span>) {
-<a href=#279 id=279 data-nosnippet>279</a>            <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#280 id=280 data-nosnippet>280</a>        };
-<a href=#281 id=281 data-nosnippet>281</a>        <span class="kw">let </span><span class="kw-2">mut </span>b = [<span class="number">0</span>; <span class="number">128</span>];
-<a href=#282 id=282 data-nosnippet>282</a>        <span class="kw">let </span><span class="prelude-val">Ok</span>(t) = decode_json_content(<span class="kw-2">&amp;</span>v[i + <span class="number">1</span>..e - <span class="number">1</span>], <span class="kw-2">&amp;mut </span>b) <span class="kw">else </span>{
-<a href=#283 id=283 data-nosnippet>283</a>            <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#284 id=284 data-nosnippet>284</a>        };
-<a href=#285 id=285 data-nosnippet>285</a>        found |= t == name;
-<a href=#286 id=286 data-nosnippet>286</a>        i = ws(v, e);
-<a href=#287 id=287 data-nosnippet>287</a>        <span class="kw">match </span>v.get(i) {
-<a href=#288 id=288 data-nosnippet>288</a>            <span class="prelude-val">Some</span>(<span class="string">b','</span>) =&gt; i = ws(v, i + <span class="number">1</span>),
-<a href=#289 id=289 data-nosnippet>289</a>            <span class="prelude-val">Some</span>(<span class="string">b']'</span>) =&gt; <span class="kw">break</span>,
-<a href=#290 id=290 data-nosnippet>290</a>            <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="bool-val">false</span>,
-<a href=#291 id=291 data-nosnippet>291</a>        }
-<a href=#292 id=292 data-nosnippet>292</a>    }
-<a href=#293 id=293 data-nosnippet>293</a>    found
-<a href=#294 id=294 data-nosnippet>294</a>}
+<a href=#258 id=258 data-nosnippet>258</a>    <span class="prelude-val">Ok</span>(())
+<a href=#259 id=259 data-nosnippet>259</a>}
+<a href=#260 id=260 data-nosnippet>260</a>
+<a href=#261 id=261 data-nosnippet>261</a><span class="kw">pub fn </span>body(response: <span class="kw-2">&amp;</span>[u8], out: <span class="kw-2">&amp;mut </span>[u8]) -&gt; R&lt;usize&gt; {
+<a href=#262 id=262 data-nosnippet>262</a>    require_http_success(response)<span class="question-mark">?</span>;
+<a href=#263 id=263 data-nosnippet>263</a>    decode_http_body(response, out)
+<a href=#264 id=264 data-nosnippet>264</a>}
+<a href=#265 id=265 data-nosnippet>265</a>
+<a href=#266 id=266 data-nosnippet>266</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>decode_http_body(response: <span class="kw-2">&amp;</span>[u8], out: <span class="kw-2">&amp;mut </span>[u8]) -&gt; R&lt;usize&gt; {
+<a href=#267 id=267 data-nosnippet>267</a>    <span class="kw">crate</span>::decode_json_body_into(response, out).map_err(|e| <span class="kw">match </span>e {
+<a href=#268 id=268 data-nosnippet>268</a>        FetchError::Network =&gt; <span class="string">"network_error"</span>,
+<a href=#269 id=269 data-nosnippet>269</a>        FetchError::NotFound =&gt; <span class="string">"not_found"</span>,
+<a href=#270 id=270 data-nosnippet>270</a>        FetchError::RateLimit =&gt; <span class="string">"rate_limit"</span>,
+<a href=#271 id=271 data-nosnippet>271</a>        FetchError::ClientError =&gt; <span class="string">"client_error"</span>,
+<a href=#272 id=272 data-nosnippet>272</a>        FetchError::ServerError =&gt; <span class="string">"server_error"</span>,
+<a href=#273 id=273 data-nosnippet>273</a>    })
+<a href=#274 id=274 data-nosnippet>274</a>}
+<a href=#275 id=275 data-nosnippet>275</a><span class="doccomment">/// A source checkpoint echoed by a host after its foreground interaction completed.
+<a href=#276 id=276 data-nosnippet>276</a></span><span class="kw">pub fn </span>interaction_resume_state&lt;<span class="lifetime">'a</span>&gt;(request: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[u8], kind: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>[u8]&gt; {
+<a href=#277 id=277 data-nosnippet>277</a>    <span class="kw">if </span>!feature(request, <span class="string">b"source_interaction_resume_v1"</span>) {
+<a href=#278 id=278 data-nosnippet>278</a>        <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#279 id=279 data-nosnippet>279</a>    }
+<a href=#280 id=280 data-nosnippet>280</a>    <span class="kw">let </span>hints = direct(request, <span class="string">b"hostHints"</span>).ok()<span class="question-mark">??</span>;
+<a href=#281 id=281 data-nosnippet>281</a>    <span class="kw">let </span>resume = direct(hints, <span class="string">b"interactionResume"</span>).ok()<span class="question-mark">??</span>;
+<a href=#282 id=282 data-nosnippet>282</a>    <span class="kw">if </span>raw_string(resume, <span class="string">b"kind"</span>).ok()<span class="question-mark">?? </span>!= kind {
+<a href=#283 id=283 data-nosnippet>283</a>        <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#284 id=284 data-nosnippet>284</a>    }
+<a href=#285 id=285 data-nosnippet>285</a>    raw_string(resume, <span class="string">b"state"</span>).ok()<span class="question-mark">?
+<a href=#286 id=286 data-nosnippet>286</a></span>}
+<a href=#287 id=287 data-nosnippet>287</a>
+<a href=#288 id=288 data-nosnippet>288</a><span class="kw">pub fn </span>feature(r: <span class="kw-2">&amp;</span>[u8], name: <span class="kw-2">&amp;</span>[u8]) -&gt; bool {
+<a href=#289 id=289 data-nosnippet>289</a>    <span class="kw">let </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(v)) = direct(r, <span class="string">b"hostFeatures"</span>) <span class="kw">else </span>{
+<a href=#290 id=290 data-nosnippet>290</a>        <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#291 id=291 data-nosnippet>291</a>    };
+<a href=#292 id=292 data-nosnippet>292</a>    <span class="kw">let </span>v = v.trim_ascii();
+<a href=#293 id=293 data-nosnippet>293</a>    <span class="kw">if </span>v.first() != <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="string">b'['</span>) || v.last() != <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="string">b']'</span>) {
+<a href=#294 id=294 data-nosnippet>294</a>        <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#295 id=295 data-nosnippet>295</a>    }
+<a href=#296 id=296 data-nosnippet>296</a>    <span class="kw">let </span><span class="kw-2">mut </span>i = ws(v, <span class="number">1</span>);
+<a href=#297 id=297 data-nosnippet>297</a>    <span class="kw">let </span><span class="kw-2">mut </span>found = <span class="bool-val">false</span>;
+<a href=#298 id=298 data-nosnippet>298</a>    <span class="kw">while </span>v.get(i) != <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="string">b']'</span>) {
+<a href=#299 id=299 data-nosnippet>299</a>        <span class="kw">let </span><span class="prelude-val">Ok</span>(e) = end(v, i, <span class="number">0</span>) <span class="kw">else </span>{ <span class="kw">return </span><span class="bool-val">false </span>};
+<a href=#300 id=300 data-nosnippet>300</a>        <span class="kw">if </span>v.get(i) != <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="string">b'"'</span>) {
+<a href=#301 id=301 data-nosnippet>301</a>            <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#302 id=302 data-nosnippet>302</a>        };
+<a href=#303 id=303 data-nosnippet>303</a>        <span class="kw">let </span><span class="kw-2">mut </span>b = [<span class="number">0</span>; <span class="number">128</span>];
+<a href=#304 id=304 data-nosnippet>304</a>        <span class="kw">let </span><span class="prelude-val">Ok</span>(t) = decode_json_content(<span class="kw-2">&amp;</span>v[i + <span class="number">1</span>..e - <span class="number">1</span>], <span class="kw-2">&amp;mut </span>b) <span class="kw">else </span>{
+<a href=#305 id=305 data-nosnippet>305</a>            <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#306 id=306 data-nosnippet>306</a>        };
+<a href=#307 id=307 data-nosnippet>307</a>        found |= t == name;
+<a href=#308 id=308 data-nosnippet>308</a>        i = ws(v, e);
+<a href=#309 id=309 data-nosnippet>309</a>        <span class="kw">match </span>v.get(i) {
+<a href=#310 id=310 data-nosnippet>310</a>            <span class="prelude-val">Some</span>(<span class="string">b','</span>) =&gt; i = ws(v, i + <span class="number">1</span>),
+<a href=#311 id=311 data-nosnippet>311</a>            <span class="prelude-val">Some</span>(<span class="string">b']'</span>) =&gt; <span class="kw">break</span>,
+<a href=#312 id=312 data-nosnippet>312</a>            <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="bool-val">false</span>,
+<a href=#313 id=313 data-nosnippet>313</a>        }
+<a href=#314 id=314 data-nosnippet>314</a>    }
+<a href=#315 id=315 data-nosnippet>315</a>    found
+<a href=#316 id=316 data-nosnippet>316</a>}
 </code></pre></div></section></main></body></html>

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["body","complete","direct","feature","raw_string","request","text"]};
+window.SIDEBAR_ITEMS = {"fn":["body","complete","direct","feature","interaction_resume_state","raw_string","request","text"]};

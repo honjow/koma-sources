@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["CallError"],"struct":["Chain","Client","Request","RequireSuccess","Response"],"trait":["Interceptor"]};
