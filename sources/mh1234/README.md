@@ -1,4 +1,10 @@
-# 漫画1234 0.1.2
+# 漫画1234
+
+## 0.1.15 源目录显示顺序
+
+对照 Keiyoushi 的 `parseChapterList`，详情目录按 `.mint-chapter-grid a` 的网页顺序输出并声明新版在前。阅读位置仍从旧向新，用于开始阅读及跨章。保留章节 ID、作品身份、同号和无号条目，原站补录造成的标题错位也不作为修改章节身份的依据。
+
+## 0.1.2 源码恢复
 
 当前源码采用已审canonical SDK8506的完整012 owner，继承011 listings/身份与请求字符串/目录及正文完整性后继，并由共享SDK传播HTTP状态错误；不采用已拒源内重复HTTP wrapper。构建入口为仓根 `./build.sh --source mh1234`，新构建WASM未自动继承旧Native接受。
 

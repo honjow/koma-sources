@@ -707,9 +707,8 @@ fn run_get_manga(req: &[u8]) -> u32 {
     write_success_payload("get_manga", c)
 }
 
-// Metadata is emitted only when the Host declares support. The ordinal is
-// the actual oldest-first source grid order verified against the site's reader
-// menu, not a guessed chapter/volume number; duplicate and special titles stay.
+// The catalogue preserves the site grid order for display. The reader uses
+// its own oldest-first ordinal; duplicate and special titles keep their slots.
 fn supports_reading_order(req: &[u8]) -> bool {
     json_object_member(req, b"hostFeatures").map(|v| {
         let v = trim_ascii(v);
@@ -783,8 +782,9 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         return write_error("get_chapters", "internal_error", "payload overflow");
     }
     let mut written = 0;
-    // The public catalogue is newest first; preserve the source's existing oldest-first contract.
-    for i in (0..batch.count).rev() {
+    // The site shows the newest entries first, as does the upstream extension.
+    let reading_order = supports_reading_order(req);
+    for i in 0..batch.count {
         if host::check_cancel() {
             return write_error("get_chapters", "cancelled", "host cancelled");
         }
@@ -817,7 +817,7 @@ fn run_get_chapters(req: &[u8]) -> u32 {
                 write_bytes(payload, &mut c, b"\"") && write_usize(payload, &mut c, n) && write_bytes(payload, &mut c, b"\"")
             } else { write_bytes(payload, &mut c, b"null") } &&
             write_bytes(payload, &mut c, br#","volumeNumber":null"#) &&
-            (!supports_reading_order(req) || (write_bytes(payload, &mut c, br#","readingGroup":"main","continuationEligible":true,"readingOrder":"#) && write_usize(payload, &mut c, written))) &&
+            (!reading_order || (write_bytes(payload, &mut c, br#","readingGroup":"main","continuationEligible":true,"readingOrder":"#) && write_usize(payload, &mut c, batch.count - i - 1))) &&
             write_bytes(payload, &mut c, br#","language":"zh","publishedAt":null,"updatedAt":null,"pageCount":null}"#);
         if !ok {
             return write_error("get_chapters", "internal_error", "payload overflow");
