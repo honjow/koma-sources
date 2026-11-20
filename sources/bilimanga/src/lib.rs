@@ -189,6 +189,7 @@ fn absolute<'a>(p: &[u8], b: &'a mut [u8]) -> R<&'a [u8]> {
 enum DocumentRequest {
     Direct,
     Neighbor,
+    Search { track_document_challenge: bool },
 }
 fn write_document_request(req: &mut [u8], n: &mut usize, p: &[u8], mode: DocumentRequest) -> R<()> {
     let mut u = [0; 8192];
@@ -207,11 +208,15 @@ fn write_document_request(req: &mut [u8], n: &mut usize, p: &[u8], mode: Documen
         br#","Accept-Language":"zh","Sec-CH-UA-Mobile":"?1","Sec-CH-UA-Platform":"\"Android\"","Sec-Fetch-Site":"same-origin","Sec-Fetch-Mode":"navigate","Sec-Fetch-User":"?1","Sec-Fetch-Dest":"document","Upgrade-Insecure-Requests":"1""#,
     )?;
     match mode {
-        DocumentRequest::Direct => w(req, n, b",\"Cookie\":\"night=1\"")?,
+        DocumentRequest::Direct | DocumentRequest::Search { .. } => w(req, n, b",\"Cookie\":\"night=1\"")?,
         // The adjacent reader probe does not add the source's night cookie.
         DocumentRequest::Neighbor => (),
     }
-    w(req, n, b"}}")
+    w(req, n, b"}")?;
+    if let DocumentRequest::Search { track_document_challenge: true } = mode {
+        w(req, n, br#","wantChallengeRequestId":"document""#)?;
+    }
+    w(req, n, b"}")
 }
 fn send_http(request: &[u8]) -> R<&'static [u8]> {
     if host::check_cancel() {
@@ -260,11 +265,6 @@ fn result(op: &str, r: R<usize>) -> u32 {
             op,
             "chapter_unavailable",
             "網站將這次請求識別為電腦端，未提供章節圖片。可在手機原生瀏覽器開啟原網頁",
-        ),
-        Err("search_captcha_required") => write_error(
-            op,
-            "challenge_required",
-            "請在驗證頁搜尋同一關鍵字並輸入圖片驗證碼，完成後回來重試",
         ),
         Err(c) => write_error(
             op,
@@ -418,12 +418,18 @@ fn card(o: &mut [u8], n: &mut usize, id: &[u8], title: &[u8], cover: &[u8], dire
     write_cover(o, n, cover, id, direct_headers)?;
     w(o, n, b",\"contentRating\":\"suggestive\"}")
 }
-fn list(r: &[u8], search: bool) -> R<usize> {
+struct SearchChallenge {
+    request_id: [u8; 64],
+    request_id_len: usize,
+}
+
+fn list(r: &[u8], search_challenge: Option<&mut SearchChallenge>) -> R<usize> {
     require_request_policy(r)?;
     let a = args(r);
     let mut qb = [0; 16384];
     let query = trim_ascii(protocol::text(a, b"query", &mut qb)?.unwrap_or(b""));
-    if search && !query.is_empty() {
+    let search = search_challenge.is_some();
+    if let Some(challenge) = search_challenge.filter(|_| !query.is_empty()) {
         // Public canonical work links resolve directly, before visitor search.
         if let Ok(id) = canonical_detail_id(query) {
             let out = payload_buf();
@@ -433,7 +439,7 @@ fn list(r: &[u8], search: bool) -> R<usize> {
             w(out, &mut n, b"],\"page\":{\"nextCursor\":null,\"hasMore\":false}}")?;
             return Ok(n);
         }
-        return keyword_search(r, query);
+        return keyword_search(r, query, challenge);
     }
     let page = request_page_number(r);
     let mut p = [0; 2048];
@@ -557,7 +563,7 @@ fn has_search_next(label: &[u8]) -> bool {
     end.and_then(|i| positive(&tail[..i]).ok()).is_some_and(|last| current < last)
 }
 
-fn keyword_search(r: &[u8], query: &[u8]) -> R<usize> {
+fn keyword_search(r: &[u8], query: &[u8], challenge: &mut SearchChallenge) -> R<usize> {
     let mut route = [0; 6144];
     let mut n = 0;
     w(&mut route, &mut n, b"/search/")?;
@@ -567,13 +573,19 @@ fn keyword_search(r: &[u8], query: &[u8]) -> R<usize> {
     w(&mut route, &mut n, b"_")?;
     num(&mut route, &mut n, request_page_number(r))?;
     w(&mut route, &mut n, b".html")?;
-    let doc = fetch(&route[..n])?;
-    // A successful HTTP response can be the site's form. The existing
-    // WebView verification flow lets the user complete it and share the
-    // same-origin search session with the retry.
+    let mode = DocumentRequest::Search {
+        track_document_challenge: protocol::feature(r, b"source_http_challenge_cause_v1"),
+    };
+    let (response, size) = fetch_document(&route[..n], mode)?;
+    let doc = parse_document(&body_buf()[..size])?;
+    // HTTP 200 can carry the website's CAPTCHA form. Bind the explicit
+    // challenge to this search GET so the WebView opens that form directly.
     if doc.select(b"form input[name=search_code]").is_ok()
         && doc.select(b"form img[src*='/checkcode.php']").is_ok()
     {
+        if let Ok(Some(id)) = protocol::text(response, b"challengeRequestId", &mut challenge.request_id) {
+            challenge.request_id_len = id.len();
+        }
         return Err("search_captcha_required");
     }
 
@@ -1001,13 +1013,24 @@ fn run_search(r: &[u8]) -> u32 {
     if let Err(c) = protocol::request(r) {
         return write_error("search", c, "invalid request");
     }
-    result("search", list(r, true))
+    let mut challenge = SearchChallenge { request_id: [0; 64], request_id_len: 0 };
+    let search = list(r, Some(&mut challenge));
+    if matches!(search, Err("search_captcha_required")) {
+        let request_id = &challenge.request_id[..challenge.request_id_len];
+        let message = if request_id.is_empty() {
+            "請在驗證頁搜尋同一關鍵字並輸入圖片驗證碼，完成後回來重試"
+        } else {
+            "請輸入圖片驗證碼，完成後回來重試"
+        };
+        return response_buffer().write_challenge("search", message, request_id);
+    }
+    result("search", search)
 }
 fn run_get_manga_list(r: &[u8]) -> u32 {
     if let Err(c) = protocol::request(r) {
         return write_error("get_manga_list", c, "invalid request");
     }
-    result("get_manga_list", list(r, false))
+    result("get_manga_list", list(r, None))
 }
 fn run_get_manga(r: &[u8]) -> u32 {
     if let Err(c) = protocol::request(r) {

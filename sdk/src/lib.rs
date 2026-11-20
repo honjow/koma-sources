@@ -1204,6 +1204,28 @@ pub mod result {
             )
         }
 
+        pub fn write_challenge(&mut self, operation: &str, message: &str, request_id: &[u8]) -> u32 {
+            if request_id.is_empty() || request_id.len() > 64
+                || !request_id.iter().all(|byte| byte.is_ascii_alphanumeric() || *byte == b'-')
+            {
+                return self.write_error(operation, "challenge_required", message);
+            }
+            self.write_parts(
+                false,
+                &[
+                    RESPONSE_PREFIX_ERROR,
+                    operation.as_bytes(),
+                    ERROR_PREFIX,
+                    b"challenge_required",
+                    ERROR_MESSAGE_PREFIX,
+                    message.as_bytes(),
+                    br#"","challengeRequestId":""#,
+                    request_id,
+                    ERROR_SUFFIX,
+                ],
+            )
+        }
+
         pub fn free(&mut self, result_ptr: u32) {
             if result_ptr == self.last_response {
                 self.last_response = 0;
