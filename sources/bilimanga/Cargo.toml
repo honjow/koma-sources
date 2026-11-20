@@ -4,6 +4,9 @@ version = "0.1.12"
 edition = "2021"
 [lib]
 crate-type = ["cdylib"]
+[features]
+# Integration example for SDK data/image delivery; public builds keep direct images.
+host-body-example = []
 [dependencies]
 koma_source_sdk = { path = "../../sdk" }
 miniz_oxide = { version = "=0.8.9", default-features = false }

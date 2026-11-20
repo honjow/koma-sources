@@ -7,7 +7,8 @@ static ALLOCATOR: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
 // ref 16cde44564d45c3fa9c14371b4d9152606a9821d.
 use koma_source_sdk::{
     host,
-    http::{CallError, Client, Request, RequireSuccess, Response},
+    http::{CallError, Client, Request, RequireSuccess, Response, RequestSpec, ResponseKind, Header},
+    session::SessionRef,
     json_utils::*,
     source::{SourceCapabilities, SourceInfo},
 };
@@ -592,6 +593,15 @@ fn automatic_search_enabled(r: &[u8]) -> bool {
 
 fn search_http(r: &[u8], target: &[u8], form: Option<&[u8]>, image: bool) -> R<Response<'static>> {
     let req = http_req_buf();
+    if image && protocol::feature(r, b"source_http_body_v1") && protocol::feature(r, b"source_body_v1") {
+        let headers = [Header { name: b"User-Agent", value: UA },
+            Header { name: b"Referer", value: b"https://www.bilimanga.net/" },
+            Header { name: b"Accept", value: IMAGE_ACCEPT }];
+        let mut request = RequestSpec::get(target);
+        request.headers = &headers; request.response = ResponseKind::BodyRef;
+        request.session = SessionRef::SourceCookies;
+        return send_http(request.encode(req)?.as_json());
+    }
     let mut n = 0;
     write_document_request(req, &mut n, target, DocumentRequest::Search {
         track_document_challenge: protocol::feature(r, b"source_http_challenge_cause_v1"),
@@ -656,7 +666,13 @@ fn search_document(r: &[u8], route: &[u8], challenge: &mut SearchChallenge) -> R
         let image_response = search_http(r, image, None, true)?;
         static mut IMAGE: [u8; 65536] = [0; 65536];
         let image = unsafe { &mut *core::ptr::addr_of_mut!(IMAGE) };
-        let size = image_response.body_bytes_into(image)?;
+        let size = if protocol::feature(r, b"source_http_body_v1") && protocol::feature(r, b"source_body_v1") {
+            let reference = image_response.body_ref()?;
+            if reference.len() > image.len() { reference.close()?; return Err("capacity_exceeded"); }
+            let size = reference.read(0, image, http_out());
+            let closed = reference.close();
+            closed?; size?
+        } else { image_response.body_bytes_into(image)? };
         let code = match search_captcha::solve(&image[..size]) {
             Ok(code) => code,
             Err(_) => return Err("search_captcha_required"),
@@ -1252,6 +1268,29 @@ fn image_request(r: &[u8]) -> R<usize> {
         w(out, &mut n, br#""cross-site","Sec-Fetch-Storage-Access":"active""#)?;
     }
     w(out, &mut n, b"}}")?;
+    #[cfg(feature = "host-body-example")]
+    if protocol::feature(r, b"source_image_body_v1") && protocol::feature(r, b"source_http_body_v1") {
+        // Compile-time SDK integration example only. Keep the ordinary release
+        // on native image streaming; no per-page source HTTP queue is imposed.
+        let mut request = RequestSpec::get(url);
+        let headers = [Header { name: b"User-Agent", value: UA },
+            Header { name: b"Referer", value: b"https://www.bilimanga.net/" },
+            Header { name: b"Accept", value: IMAGE_ACCEPT }];
+        request.headers = &headers; request.response = ResponseKind::BodyRef; request.response_headers = true;
+        let response = send_http(request.encode(http_req_buf())?.as_json())?;
+        let input = response.body_ref()?;
+        let mut output = koma_source_sdk::body::BodyRef::create()?;
+        let mut offset = 0;
+        while offset < input.len() {
+            let chunk = &mut body_buf()[..65536.min(input.len() - offset)];
+            let length = input.read(offset, chunk, http_out())?;
+            if length == 0 { return Err("invalid_response"); }
+            output.write(offset, &chunk[..length], http_out())?;
+            offset += length;
+        }
+        input.close()?;
+        return output.image_result(payload_buf());
+    }
     Ok(n)
 }
 fn run_get_image_request(r: &[u8]) -> u32 {
