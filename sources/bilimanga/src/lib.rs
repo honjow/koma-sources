@@ -1272,12 +1272,12 @@ fn image_request(r: &[u8]) -> R<usize> {
     if protocol::feature(r, b"source_image_body_v1") && protocol::feature(r, b"source_http_body_v1") {
         // Compile-time SDK integration example only. Keep the ordinary release
         // on native image streaming; no per-page source HTTP queue is imposed.
-        let mut request = RequestSpec::get(url);
-        let headers = [Header { name: b"User-Agent", value: UA },
-            Header { name: b"Referer", value: b"https://www.bilimanga.net/" },
-            Header { name: b"Accept", value: IMAGE_ACCEPT }];
-        request.headers = &headers; request.response = ResponseKind::BodyRef; request.response_headers = true;
-        let response = send_http(request.encode(http_req_buf())?.as_json())?;
+        // Reuse every normal image header, including the site's client hints.
+        let request = http_req_buf();
+        let mut request_len = 0;
+        w(request, &mut request_len, &out[..n - 1])?;
+        w(request, &mut request_len, br#","method":"GET","responseKind":"bodyRef","responseMetadata":{"headers":true},"timeoutMs":60000}"#)?;
+        let response = send_http(&request[..request_len])?;
         let input = response.body_ref()?;
         let mut output = koma_source_sdk::body::BodyRef::create()?;
         let mut offset = 0;

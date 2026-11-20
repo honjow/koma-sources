@@ -32,6 +32,7 @@ pub enum Body<'a> {
     Empty,
     Text(&'a [u8]),
     Bytes(&'a [u8]),
+    Reference(&'a BodyRef),
 }
 pub enum ResponseKind {
     Text,
@@ -65,7 +66,7 @@ impl<'a> RequestSpec<'a> {
             body: Body::Empty,
             response: ResponseKind::Text,
             session: SessionRef::BrowserGrant,
-            timeout_ms: 20000,
+            timeout_ms: 15000,
             final_url: false,
             response_headers: false,
         }
@@ -108,6 +109,10 @@ impl<'a> RequestSpec<'a> {
             Body::Bytes(value) => {
                 w.raw(b",\"requestBytes\":")?;
                 w.base64(value)?;
+            }
+            Body::Reference(value) => {
+                w.raw(b",\"requestBodyRef\":")?;
+                w.string(value.id())?;
             }
         }
         match self.response {

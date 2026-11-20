@@ -13,6 +13,9 @@ impl<'a> Context<'a> {
     /// Absence means unknown on older hosts; never fabricate a supported limit.
     pub fn limit(&self, group: &[u8], name: &[u8]) -> Option<usize> {
         let caps = p::direct(self.request, b"hostCapabilities").ok()??;
+        if p::direct(caps, b"version").ok()?? != b"1" {
+            return None;
+        }
         let group = p::direct(caps, group).ok()??;
         core::str::from_utf8(p::direct(group, name).ok()??)
             .ok()?
