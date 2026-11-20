@@ -1,4 +1,8 @@
 #![no_std]
+// Workspace builds can enable miniz_oxide's alloc feature through another source.
+// Keep the decoder's fixed buffers, and supply the same allocator as other no_std sources.
+#[global_allocator]
+static ALLOCATOR: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
 // Independent Rust port of Keiyoushi BiliManga, Apache-2.0,
 // ref 16cde44564d45c3fa9c14371b4d9152606a9821d.
 use koma_source_sdk::{
