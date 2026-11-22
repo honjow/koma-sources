@@ -702,15 +702,19 @@ fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, ChapterError> {
     };
     let mut catalog = GroupedChapters::new(payload_buf(), req)
         .map_err(|e| ChapterError::Source(e.code(), e.message()))?;
-    let mut last = None;
+    // BookVol is oldest-first (the reference reverses it for newest-first UI).
+    // Display numbers detect known gaps only; readable unknowns keep their row.
+    let mut last_number: Option<usize> = None;
     let mut run_start = 0;
     for (index, obj) in core::iter::from_fn(|| root.next_object()).enumerate() {
         if contains_bytes(obj, br#""IsUpcoming":true"#) {
-            last = None;
+            last_number = None;
+            run_start = index + 1;
             continue;
         }
         let Some(book_id) = extract_json_string(obj, b"BookID") else {
-            last = None;
+            last_number = None;
+            run_start = index + 1;
             continue;
         };
         let vol = extract_json_string(obj, b"Vol").unwrap_or(b"");
@@ -738,21 +742,30 @@ fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, ChapterError> {
         chapter.chapter_number = number.map(ChapterNumber::Integer);
         chapter.language = Some(b"zh");
         chapter.scanlator = Some("東立".as_bytes());
-        let position = if readable && is_serial == b"true" { number } else { None };
-        // Some serials expose chapter 1 plus only the latest few chapters.
-        // Connect consecutive, readable explicit chapters, preserving gaps.
-        if last.and_then(|v: usize| v.checked_add(1)) != position || position.is_none() {
-            run_start = index;
+        // Unknown/SP/split labels retain their provider position and clear the
+        // numeric comparison. Only adjacent explicit numbers establish a gap;
+        // never invent chapter 37 for 37(front)/37(back) to connect chapter 38.
+        if readable && is_serial == b"true" {
+            if let (Some(previous), Some(current)) = (last_number, number) {
+                if current != previous && previous.checked_add(1) != Some(current) {
+                    run_start = index;
+                }
+            }
+            last_number = number;
         }
-        last = position;
         let mut group = [0; 32];
         let mut group_len = 0;
         if !write_usize(&mut group, &mut group_len, run_start) {
             return Err(ChapterError::Source("internal_error", "overflow"));
         }
-        let placement = match position.and_then(|value| u32::try_from(value).ok()) {
-            Some(position) => ChapterPlacement::InGroup { group: &group[..group_len], position: u64::from(position) },
-            None => ChapterPlacement::ManualOnly,
+        let placement = if readable {
+            ChapterPlacement::InGroup { group: &group[..group_len], position: index as u64 }
+        } else {
+            // Preserve the existing lock representation and body authorization.
+            // Later readable entries must not bridge a locked provider row.
+            last_number = None;
+            run_start = index + 1;
+            ChapterPlacement::ManualOnly
         };
         catalog.push(chapter, placement).map_err(|e| ChapterError::Source(e.code(), e.message()))?;
     }

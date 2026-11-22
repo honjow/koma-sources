@@ -14,4 +14,8 @@
 
 ## 章节续读
 
-连载目录只连接连续且可读的明确话号。公开目录只列第 1 话与近期数话时，自动续读在缺话处停止，付费及地区限制保持原规则。
+0.1.13：`run_get_chapters`以完整BookVol原数组index为阅读ordinal，方向为旧到新。依据是当前官方book页原样消费数组并将末项作newestBookID，以及固定Keiyoushi Tongli.kt（blob `eeead276de06a6211cf51cc90a3d597a82d9a525`）取完数组后统一reversed供Mihon最新在前展示；TongliDto.kt仅过滤IsUpcoming、依据IsFree／IsPurchased加锁，没有以话号或isSerial排除。原API请求及返回／显示顺序保持，不添加全表metadata方向特例。
+
+缺号、SP、前后篇、同号不同ID以及可读nonserial卷册都使用实际位置，不按标题补号或猜先后；原显示chapterNumber提取保持。明确话号只用于相邻明确条目的缺口比较：数字不连续（重复号除外）在后者切段；未知号保留本组位置并重置比较锚点，不能仅凭未知号两侧的显示数字推断缺章。相邻1→251、1→6、1→36仍断开；6→7→SP、36→第37話(前)→第37話(後)→38按原数组成链，不补造37。跨未知条目判断真实缺口必须另有provider事实。
+
+锁定、预告及无有效ID仍切断前后可读段，保留ID、title、mangaId、锁标识和原选项。正文授权和地区限制独立保留，不把目录顺序当内容授权；SDK ManualOnly输出及全锁表的既有App回退未改。真实公开免费nonserial卷册尚未取得，其一般路径以明确构造验证，不能冒充真实目录或设备验收。
