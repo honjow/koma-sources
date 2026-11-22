@@ -5,7 +5,7 @@ use koma_source_sdk::{build_get_request, build_post_request, decode_json_body_in
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.tipo.ipmini.zh-hant.koma",
     name: "IP手札mini! 官方直達專欄",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -403,6 +403,37 @@ fn attr(doc: host::HtmlDescriptor, sel: &[u8], key: &[u8], dst: &mut [u8]) -> R<
     r
 }
 
+// listChangePage writes these submit parameters with .val() immediately before
+// submitting. Normal official page 1/2 DOMs have no value attributes. Their
+// absence is allowed only on the unique named hidden controls below; explicit
+// values still must agree. The visible pagination, next and card-count checks
+// in catalogue_page remain authoritative for the returned page's identity.
+fn pagination_input(doc: host::HtmlDescriptor, name: &[u8], id: &[u8], expected: &[u8]) -> R<()> {
+    let mut sel = [0; 256];
+    let mut c = 0;
+    w(&mut sel, &mut c, b"form#contentSearchForm input[name='")?;
+    w(&mut sel, &mut c, name)?;
+    w(&mut sel, &mut c, b"']")?;
+    if count(doc, &sel[..c])? != 1 {
+        return Err("parse_error");
+    }
+    w(&mut sel, &mut c, b"[type='hidden'][id='")?;
+    w(&mut sel, &mut c, id)?;
+    w(&mut sel, &mut c, b"']")?;
+    if count(doc, &sel[..c])? != 1 {
+        return Err("parse_error");
+    }
+    w(&mut sel, &mut c, b"[value]")?;
+    if count(doc, &sel[..c])? == 1 {
+        let mut value = [0; 32];
+        let len = attr(doc, &sel[..c], b"value", &mut value)?;
+        if &value[..len] != expected {
+            return Err("parse_error");
+        }
+    }
+    Ok(())
+}
+
 const LIST: &[u8] = b"https://www.tipo.gov.tw/tw/tipo1/295.html";
 const DETAIL: &[u8] = b"https://cloud.tipo.gov.tw/S400/article/columnist/";
 const IMAGE: &[u8] = b"https://cloud.tipo.gov.tw/S400/bapi/article/columnist/";
@@ -578,8 +609,6 @@ fn catalogue_page(which: usize, query: Option<&[u8]>) -> R<Page> {
             (b"q_xbody", b""),
             (b"q_xpostDate_start", b""),
             (b"q_xpostDate_end", b""),
-            (b"nowPage", if which == 1 { b"1" } else { b"2" }),
-            (b"pageSize", b"12"),
         ] {
             let mut c = 0;
             w(&mut sel, &mut c, b"form#contentSearchForm input[name='")?;
@@ -590,6 +619,8 @@ fn catalogue_page(which: usize, query: Option<&[u8]>) -> R<Page> {
                 return Err("parse_error");
             }
         }
+        pagination_input(doc, b"nowPage", b"listNowPage", if which == 1 { b"1" } else { b"2" })?;
+        pagination_input(doc, b"pageSize", b"listPageSize", b"12")?;
         let l = text(doc, b".pagination .total > span:nth-of-type(1)", &mut b)?;
         let total = number(trim_ascii(&b[..l]))?;
         // Only an explicit search may legitimately return zero rows; preserve
