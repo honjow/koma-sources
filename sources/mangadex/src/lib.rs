@@ -618,6 +618,7 @@ struct ChapterTraversal {
     hosted: bool,
     external: bool,
     other: bool,
+    positions: Option<chapter_chronology::Positions>,
 }
 
 fn chapter_traversal(req: &[u8]) -> Option<ChapterTraversal> {
@@ -627,7 +628,8 @@ fn chapter_traversal(req: &[u8]) -> Option<ChapterTraversal> {
     if let Some(raw) = cursor {
         if raw != b"null" {
             let text = core::str::from_utf8(nonempty_title_string(raw)?).ok()?;
-            if let Some(state) = text.strip_prefix("mdxc1:") {
+            if let Some(state) = text.strip_prefix("mdxc2:").or_else(|| text.strip_prefix("mdxc1:")) {
+                let positioned = text.starts_with("mdxc2:");
                 let mut fields = state.split(':');
                 let page_text = fields.next()?;
                 if page_text.is_empty() || !page_text.bytes().all(|byte| byte.is_ascii_digit()) { return None; }
@@ -637,17 +639,54 @@ fn chapter_traversal(req: &[u8]) -> Option<ChapterTraversal> {
                 let hosted = flag()?;
                 let external = flag()?;
                 let other = flag()?;
+                let positions = if positioned { Some(chapter_chronology::Positions::read_cursor(&mut fields)?) } else { None };
                 if page == 0 || fields.next().is_some() { return None; }
-                return Some(ChapterTraversal { page, known, hosted, external, other });
+                return Some(ChapterTraversal { page, known, hosted, external, other, positions });
             }
             if text.is_empty() || !text.bytes().all(|byte| byte.is_ascii_digit()) { return None; }
             let page = text.parse::<usize>().ok()?;
             if page == 0 { return None; }
-            return Some(ChapterTraversal { page, known: page == 1, hosted: false, external: false, other: false });
+            return Some(ChapterTraversal { page, known: page == 1, hosted: false, external: false, other: false, positions: None });
         }
     }
     let page = koma_source_sdk::json_utils::request_page_number(req);
-    Some(ChapterTraversal { page, known: page == 1, hosted: false, external: false, other: false })
+    Some(ChapterTraversal { page, known: page == 1, hosted: false, external: false, other: false, positions: None })
+}
+
+// Match the upstream volume/chapter ordering on every filtered prefix page.
+fn chapter_feed_url(req: &[u8], manga: &[u8], language: &[u8], offset: usize, out: &mut [u8]) -> Result<usize, ChapterError> {
+    let mut n = 0;
+    if !(write_bytes(out, &mut n, API_BASE) && write_bytes(out, &mut n, b"/manga/")
+        && write_bytes(out, &mut n, manga) && write_bytes(out, &mut n, b"/feed?limit=100&offset=")
+        && write_usize(out, &mut n, offset) && write_bytes(out, &mut n, b"&translatedLanguage%5B%5D=")
+        && write_url_encoded(out, &mut n, language)
+        && write_bytes(out, &mut n, b"&order%5Bvolume%5D=desc&order%5Bchapter%5D=desc")) {
+        return Err(("internal_error", "url overflow"));
+    }
+    if exclusion_host(req) && !write_bytes(out, &mut n, b"&includeUnavailable=1&includes%5B%5D=scanlation_group") { return Err(("internal_error", "url overflow")); }
+    if !blacklist::append(out, &mut n, req, b"blockedGroups_en", b"blockedUploader_en") { return Err(("invalid_request", "invalid blacklist or URL capacity")); }
+    Ok(n)
+}
+
+fn rebuild_chapter_positions(req: &[u8], manga: &[u8], language: &[u8], before: usize) -> Result<chapter_chronology::Positions, ChapterError> {
+    let invalid = ("parse_error", "invalid chapter position prefix");
+    let mut positions = None;
+    for offset in (0..before).step_by(100) {
+        if host::check_cancel() { return Err(("cancelled", "request cancelled")); }
+        let mut url = [0; 32768];
+        let len = chapter_feed_url(req, manga, language, offset, &mut url)?;
+        let body = fetch_json(&url[..len]).map_err(fetch_error_code)?;
+        let number = |key: &[u8]| api_number(body, key).and_then(|v| core::str::from_utf8(v).ok()?.parse::<usize>().ok());
+        let total = number(b"total").ok_or(invalid)?;
+        if number(b"offset") != Some(offset) || number(b"limit") != Some(100) || total <= before { return Err(invalid); }
+        if positions.is_none() { positions = Some(chapter_chronology::Positions::new(total).map_err(|_| invalid)?); }
+        let state = positions.as_mut().ok_or(invalid)?;
+        state.begin_page(offset, total).map_err(|_| invalid)?;
+        let mut rows = api_array(body, b"data").ok_or(invalid)?; let mut count = 0;
+        while let Some(row) = rows.next_object() { state.observe(row).map_err(|_| invalid)?; count += 1; }
+        if count != 100 { return Err(invalid); }
+    }
+    positions.ok_or(invalid)
 }
 
 // The host merges exclusions across pages only after the full traversal succeeds.
@@ -667,7 +706,7 @@ fn collect_chapter_exclusions(req: &[u8], manga: &[u8],
         if !(write_bytes(&mut url,&mut n,API_BASE) && write_bytes(&mut url,&mut n,b"/manga/")
             && write_bytes(&mut url,&mut n,manga) && write_bytes(&mut url,&mut n,b"/feed?limit=100&offset=")
             && write_usize(&mut url,&mut n,offset) && write_bytes(&mut url,&mut n,b"&translatedLanguage%5B%5D=")
-            && write_url_encoded(&mut url,&mut n,language) && write_bytes(&mut url,&mut n,b"&order%5Bchapter%5D=desc")) {
+            && write_url_encoded(&mut url,&mut n,language) && write_bytes(&mut url,&mut n,b"&order%5Bvolume%5D=desc&order%5Bchapter%5D=desc")) {
             return Err(("internal_error", "url overflow"));
         }
         if exclusion_host(req) && !write_bytes(&mut url, &mut n, b"&includeUnavailable=1") { return Err(("internal_error", "url overflow")); }
@@ -757,27 +796,17 @@ fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, ChapterError> {
         Some(value) => value,
         None => return Err(("invalid_request", "invalid page")),
     };
+    if exact_chapter.is_none() && offset > 0 && traversal.positions.is_none() {
+        traversal.positions = Some(rebuild_chapter_positions(req, uuid, language, offset)?);
+    }
     let url_buf = scratch_a();
     let mut url_cursor = 0usize;
-    let ok = if let Some(chapter_uuid) = exact_chapter {
-        write_bytes(url_buf, &mut url_cursor, API_BASE)
-            && write_bytes(url_buf, &mut url_cursor, b"/chapter/")
-            && write_bytes(url_buf, &mut url_cursor, chapter_uuid)
-    } else { write_bytes(url_buf, &mut url_cursor, API_BASE)
-        && write_bytes(url_buf, &mut url_cursor, b"/manga/")
-        && write_bytes(url_buf, &mut url_cursor, uuid)
-        && write_bytes(url_buf, &mut url_cursor, b"/feed?limit=100&offset=")
-        && write_usize(url_buf, &mut url_cursor, offset)
-        && write_bytes(url_buf, &mut url_cursor, b"&translatedLanguage%5B%5D=")
-        && write_url_encoded(url_buf, &mut url_cursor, language)
-        && write_bytes(url_buf, &mut url_cursor, b"&order%5Bchapter%5D=desc") };
-    // Keep default visible chapters: request unavailable metadata so explicit exclusions
-    // prevent retained chapters reappearing; additional feed pages may be needed.
-    // Unlike the reference, external and zero-page chapters remain excluded; no permission is granted.
+    if let Some(chapter_uuid) = exact_chapter {
+        if !(write_bytes(url_buf, &mut url_cursor, API_BASE) && write_bytes(url_buf, &mut url_cursor, b"/chapter/")
+            && write_bytes(url_buf, &mut url_cursor, chapter_uuid)) { return Err(("internal_error", "url overflow")); }
+    } else { url_cursor = chapter_feed_url(req, uuid, language, offset, url_buf)?; }
+    // Keep the existing unavailable/external/blacklist permissions and projection.
     let include_unavailable = exclusion_host(req) && matches!(json_object_member(req, b"settings").and_then(|v| json_object_member(v, b"includeUnavailable_en")), Some(b"true") | Some(br#""true""#));
-    if exact_chapter.is_none() && exclusion_host(req) && !write_bytes(url_buf, &mut url_cursor, b"&includeUnavailable=1&includes%5B%5D=scanlation_group") { return Err(("internal_error", "url overflow")); }
-    if exact_chapter.is_none() && !blacklist::append(url_buf, &mut url_cursor, req, b"blockedGroups_en", b"blockedUploader_en") { return Err(("invalid_request", "invalid blacklist or URL capacity")); }
-    if !ok { return Err(("internal_error", "url overflow")); }
     let url_bytes = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_cursor) };
 
     let api_json = match fetch_json(url_bytes) {
@@ -794,6 +823,13 @@ fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, ChapterError> {
             response_offset.saturating_add(100) < total,
         _ => return Err(("parse_error", "invalid feed pagination")),
     }};
+
+    if exact_chapter.is_none() {
+        let total = pagination_number(b"total").ok_or(("parse_error", "missing feed total"))?;
+        if traversal.positions.is_none() { traversal.positions = Some(chapter_chronology::Positions::new(total).map_err(|message| ("parse_error", message))?); }
+        traversal.positions.as_ref().ok_or(("parse_error", "missing positions"))?.begin_page(offset, total).map_err(|message| ("parse_error", message))?;
+    }
+    let mut provider_count = 0usize;
 
     let mut exact_item = if let Some(chapter_uuid) = exact_chapter {
         let item = match json_object_member(api_json, b"data") {
@@ -822,11 +858,14 @@ fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, ChapterError> {
         }
     } else { None };
 
-    let mut written = 0usize;
     let hidden = unsafe { &mut *core::ptr::addr_of_mut!(EXCLUDED_CHAPTERS) };
     let mut hidden_count = 0;
     while let Some(obj) = exact_item.take().or_else(|| iter.as_mut().and_then(|it| it.next_object())) {
-        if written >= 100 { break; }
+        provider_count += 1;
+        if provider_count > 100 { return Err(("parse_error", "feed page count exceeds limit")); }
+        let reading_position = if exact_chapter.is_none() {
+            traversal.positions.as_mut().ok_or(("parse_error", "missing positions"))?.observe(obj).map_err(|message| ("parse_error", message))?
+        } else { 0 };
         let ch_id = match api_string(obj, b"id") {
             Some(v) => v,
             None => { traversal.other = true; continue; },
@@ -904,15 +943,18 @@ fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, ChapterError> {
         }
         let mut group = [0; 296];
         let placement = if exact_chapter.is_none() && !unavailable && lang == language {
-            chapter_chronology::placement(obj, uuid, &mut group)
+            chapter_chronology::placement(obj, uuid, &mut group, reading_position)
         } else {
             ChapterPlacement::ManualOnly
         };
         catalog.push(chapter, placement).map_err(|e| (e.code(), e.message()))?;
-        written += 1;
         traversal.hosted = true;
     }
 
+    if exact_chapter.is_none() {
+        let total = traversal.positions.as_ref().ok_or(("parse_error", "missing positions"))?.total;
+        if provider_count != total.saturating_sub(offset).min(100) { return Err(("parse_error", "incomplete feed page")); }
+    }
     let should_exclude = exact_chapter.is_none()
         && (blacklist::active(req, b"blockedGroups_en", b"blockedUploader_en") || hidden_count > 0);
     if should_exclude {
@@ -924,16 +966,17 @@ fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, ChapterError> {
     if !has_more && traversal.known && traversal.external && !traversal.hosted && !traversal.other {
         return Err(("unsupported", "external chapters are not hosted by this source"));
     }
-    let mut cursor = [0; 64];
+    let mut cursor = [0; 1024];
     let page = if has_more {
         let next = page.checked_add(1).ok_or(("invalid_request", "invalid page"))?;
         let mut len = 0;
-        if !(write_bytes(&mut cursor, &mut len, b"mdxc1:")
+        if !(write_bytes(&mut cursor, &mut len, b"mdxc2:")
             && write_usize(&mut cursor, &mut len, next)
             && write_bytes(&mut cursor, &mut len, if traversal.known { b":1" } else { b":0" })
             && write_bytes(&mut cursor, &mut len, if traversal.hosted { b":1" } else { b":0" })
             && write_bytes(&mut cursor, &mut len, if traversal.external { b":1" } else { b":0" })
-            && write_bytes(&mut cursor, &mut len, if traversal.other { b":1" } else { b":0" }))
+            && write_bytes(&mut cursor, &mut len, if traversal.other { b":1" } else { b":0" })
+            && traversal.positions.as_ref().ok_or(("parse_error", "missing positions"))?.append_cursor(&mut cursor, &mut len))
         {
             return Err(("internal_error", "overflow"));
         }

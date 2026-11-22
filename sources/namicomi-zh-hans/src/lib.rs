@@ -1139,15 +1139,35 @@ fn emit_chapter(
     catalog.push(chapter, placement).map_err(|e| e.message())
 }
 
-fn provider_number(attrs: &[u8], key: &[u8]) -> Result<Option<f64>, E> {
-    Ok(chapter_number(member(attrs, key)?)?
-        .and_then(|value| core::str::from_utf8(value).ok()?.parse().ok()))
-}
-
-fn provider_coordinate(entity: &[u8]) -> Result<Option<(f64, f64)>, E> {
-    let attrs = required(entity, b"attributes")?;
-    let volume = provider_number(attrs, b"volume")?.unwrap_or(0.0);
-    Ok(provider_number(attrs, b"chapter")?.map(|chapter| (volume, chapter)))
+fn chapter_edition(entity: &[u8], title: &[u8], out: &mut [u8]) -> Result<usize, E> {
+    let mut organizations: [&[u8]; 8] = [b""; 8];
+    let mut count = 0;
+    let mut uploader = None;
+    let mut rels = Array::new(required(entity, b"relationships")?)?;
+    while let Some(rel) = rels.next()? {
+        match text(rel, b"type")? {
+            b"organization" => {
+                let organization = id(text(rel, b"id")?)?;
+                if count == organizations.len() || organizations[..count].contains(&organization) { return Err("invalid chapter organizations"); }
+                organizations[count] = organization; count += 1;
+            }
+            b"user" => {
+                let user = text(rel, b"id")?;
+                if user.is_empty() || user.len() > 64 || user.iter().any(|c| !c.is_ascii_alphanumeric() && *c != b'-') { return Err("invalid chapter uploader"); }
+                uploader = Some(user);
+            }
+            _ => {}
+        }
+    }
+    let mut n = 0;
+    bytes(out, &mut n, MP)?; bytes(out, &mut n, title)?;
+    if count > 0 {
+        organizations[..count].sort_unstable(); bytes(out, &mut n, b":organizations")?;
+        for organization in &organizations[..count] { bytes(out, &mut n, b":")?; bytes(out, &mut n, organization)?; }
+    } else if let Some(user) = uploader {
+        bytes(out, &mut n, b":uploader:")?; bytes(out, &mut n, user)?;
+    } else { bytes(out, &mut n, b":uncredited")?; }
+    Ok(n)
 }
 fn chapters(r: &[u8]) -> ChapterResult<'static, E> {
     let title = manga_id(r)?;
@@ -1253,25 +1273,16 @@ fn chapters(r: &[u8]) -> ChapterResult<'static, E> {
     let mut catalog = GroupedChapters::new(payload_buf(), r).map_err(|e| e.message())?;
     let mut emitted = 0;
     let mut run_start = 0;
-    let mut previous = None;
-    let mut previous_verified = None;
-    // The API explicitly orders by volume and chapter, descending. Hidden
-    // chapters and ambiguous coordinates break the readable sequence.
+    // Complete API order gives every hosted entry a position, including null
+    // and repeated display numbers. Real publisher/permission changes split runs.
     for (index, rr) in records[..count].iter().enumerate() {
         let raw = record(*rr, chbytes);
-        let coordinate = provider_coordinate(raw)?;
-        let next = if index + 1 < count {
-            provider_coordinate(record(records[index + 1], chbytes))?
-        } else {
-            None
-        };
-        let verified = coordinate.filter(|key| rr.accessible && wanted.is_none()
-            && previous != Some(*key) && next != Some(*key));
-        if !matches!((previous_verified, verified), (Some(previous), Some(current)) if previous > current) {
-            run_start = index;
-        }
-        previous = coordinate;
-        previous_verified = verified;
+        let mut edition = [0; 1024];
+        let edition_len = chapter_edition(raw, title, &mut edition)?;
+        let verified = rr.accessible && wanted.is_none();
+        // Interleaved publishers stay in their own edition; only a real
+        // inaccessible row advances the existing global permission boundary.
+        if !rr.accessible { run_start = index + 1; }
         if let Some(cid) = wanted {
             if text(raw, b"id")? != cid {
                 continue;
@@ -1279,10 +1290,12 @@ fn chapters(r: &[u8]) -> ChapterResult<'static, E> {
         } else if !rr.accessible && !show_locked {
             continue;
         }
-        let mut group = [0; 32];
+        let mut group = [0; 1088];
         let mut group_len = 0;
+        bytes(&mut group, &mut group_len, &edition[..edition_len])?;
+        bytes(&mut group, &mut group_len, b":run:")?;
         wn(&mut group, &mut group_len, run_start)?;
-        let placement = if verified.is_some() {
+        let placement = if verified {
             ChapterPlacement::InGroup {
                 group: &group[..group_len],
                 position: (count - index - 1) as u64,

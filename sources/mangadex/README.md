@@ -36,4 +36,8 @@
 
 ## 章节续读
 
-续读使用站点的译组 UUID 集合及卷／话坐标。无译组时用明确上传者区分；同一组重复坐标由宿主拒绝自动排序，所有候选仍可手动选择。原游标、外链及黑名单合同保持。
+0.1.29：以固定 Keiyoushi `5d54f0d02e2a7dbdda08e823de444f7527cc883c` 的 `MangaDexHelper.getChapterEndpoint` 对齐 `order[volume]=desc&order[chapter]=desc`；`createChapter` 的原始卷／话文本仅供显示，不作为可读资格。Koma `run_get_chapters` → 共享 `chapter_chronology::Positions` 消费真实 provider 数组位置；每页 offset、limit、total 和实际行数都校验，过滤前推进位置，黑名单未过滤扫描的 offset 不混用。
+
+已知相同卷／话坐标保留原 variants slot：译组 UUID 集合或无组时的真实 uploader 是 edition，语言是 variant sequence；所有候选 ID 保留，不把不同译本串成拆章。缺号、问号或无法表示为数值的文本各占实际目录位置，三位以上小数仍能识别相同候选；不按标题补号或推测先后。位置是 `total - 1 - slot首行序位`，与显示章号无关。
+
+英文仍向宿主分页；`mdxc2` cursor 携带 total、实际已消费行数、slot起点及上一候选键，跨页同一slot不重编号。旧 `mdxc1`／数字cursor通过真实重读provider前缀恢复状态；目录总量或页项漂移明确失败。中文两源内部全量分页使用同一状态，空／非数值卷话不拒绝有效实体。精确章恢复、外链／零页／不可用、语言、黑名单及排除ID合同保持；SDK和App不改。

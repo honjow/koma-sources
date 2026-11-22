@@ -14,6 +14,8 @@
 
 ## 章节续读
 
-按 API 显式的卷／话降序建立组内续读，锁定和重复坐标截断续读。目录可见性、明确排除 ID 和正文权限沿用原合同。
+0.1.9：固定 Keiyoushi `5d54f0d02e2a7dbdda08e823de444f7527cc883c` 的 `getChapterList`／`chapterListUrl` 取完真实卷／话双降序分页并分批gating；Koma `chapters`按完整API数组反向全局位置建链，缺号和重号仅影响显示，不再按坐标存在或相等排除正常章节。
+
+分组明确包含真实title、language和organization集合；组织缺失时用真实uploader，再缺失保留该作品未署名流。交错的组织各保自己的顺序，不合并成同一版本；真实gate=false仍切断原权限范围。showLocked、excluded IDs、精确chapter恢复、锁标识及正文gating保持原合同。SDK和App不变；简中公开样本仅两部无号单章，不能冒充已取得简中混合缺号多章反例。
 
 章节评论沿用原站阅读器的公开 `GET /comment/chapter/{id}`，按章节标识核对回复归属，继续使用原站分页。网页隐藏的剧透及删除内容不会作为普通评论显示。

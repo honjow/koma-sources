@@ -972,27 +972,16 @@ fn detail(r: &[u8]) -> Result<usize, E> {
     bytes(out, &mut n, b"}")?;
     Ok(n)
 }
-fn nullable_number(v: Option<&[u8]>) -> Result<Option<ChapterNumber<'_>>, E> {
+fn nullable_number<'a>(v: Option<&[u8]>, decoded: &'a mut [u8]) -> Result<Option<ChapterNumber<'a>>, E> {
     match v {
         None | Some(b"null") => Ok(None),
         Some(v) => {
-            let v = quoted(v)?;
-            if v.is_empty() {
-                return Ok(None);
-            };
-            if json_value_end(v, 0, 0) != Some(v.len())
-                || !matches!(v.first(), Some(b'-' | b'0'..=b'9'))
-            {
-                return Err("chapter number invalid");
-            };
-            let value = core::str::from_utf8(v)
-                .map_err(|_| "chapter number UTF8")?
-                .parse::<f64>()
-                .map_err(|_| "chapter number invalid")?;
-            if !value.is_finite() {
-                return Err("chapter number nonfinite");
-            };
-            Ok(DecimalChapterNumber::new(v).map(ChapterNumber::Decimal))
+            let value = unescape(quoted(v)?, decoded)?;
+            if value.is_empty() { return Ok(None); }
+            Ok(Some(match DecimalChapterNumber::new(value) {
+                Some(number) => ChapterNumber::Decimal(number),
+                None => ChapterNumber::Text(value),
+            }))
         }
     }
 }
@@ -1006,6 +995,7 @@ fn chapter_card(
     include_unavailable: bool,
     hide_unavailable: bool,
     allow_continuation: bool,
+    reading_position: u64,
 ) -> Result<(bool, bool), E> {
     if text(v, b"type")? != b"chapter" {
         return Err("chapter type");
@@ -1048,8 +1038,10 @@ fn chapter_card(
         Some(value) => unescape(quoted(value)?, &mut title)?,
     };
     let mut chapter = Chapter::new(&id_buf[..id_len], &manga[..manga_len], title);
-    chapter.chapter_number = nullable_number(member(a, b"chapter")?)?;
-    chapter.volume_number = nullable_number(member(a, b"volume")?)?;
+    let mut chapter_number = [0; 512];
+    let mut volume_number = [0; 512];
+    chapter.chapter_number = nullable_number(member(a, b"chapter")?, &mut chapter_number)?;
+    chapter.volume_number = nullable_number(member(a, b"volume")?, &mut volume_number)?;
     chapter.language = Some(b"zh-Hans");
     chapter.page_count = Some(pages);
     let mut published = [0; 256];
@@ -1084,7 +1076,7 @@ fn chapter_card(
     }
     let mut group = [0; 296];
     let placement = if allow_continuation && !unavailable {
-        chapter_chronology::placement(v, m, &mut group)
+        chapter_chronology::placement(v, m, &mut group, reading_position)
     } else {
         ChapterPlacement::ManualOnly
     };
@@ -1104,6 +1096,7 @@ fn feed(m: &[u8], target: Option<&[u8]>, req: Option<&[u8]>, mode: u8) -> Result
     let mut offset = 0;
     let mut total0 = None;
     let mut rawcount = 0;
+    let mut positions = None;
     let mut wanted = None;
     let mut catalog = GroupedChapters::new(payload_buf(), req.unwrap_or(b"{}")).map_err(|e| e.message())?;
     loop {
@@ -1126,6 +1119,8 @@ fn feed(m: &[u8], target: Option<&[u8]>, req: Option<&[u8]>, mode: u8) -> Result
             return Err("feed total drift");
         };
         total0 = Some(total);
+        if positions.is_none() { positions = Some(chapter_chronology::Positions::new(total)?); }
+        positions.as_ref().ok_or("missing positions")?.begin_page(offset, total)?;
         let mut arr = Array::new(required(v, b"data")?)?;
         let mut pagecount = 0;
         while let Some(x) = arr.next()? {
@@ -1140,10 +1135,12 @@ fn feed(m: &[u8], target: Option<&[u8]>, req: Option<&[u8]>, mode: u8) -> Result
             seen[rawcount].copy_from_slice(id);
             rawcount += 1;
             pagecount += 1;
+            let reading_position = positions.as_mut().ok_or("missing positions")?.observe(x)?;
             let (keep, hidden) = chapter_card(
                 &mut catalog, x, m, request_unavailable,
                 exclusion_capable && mode != 3 && !include_unavailable && mode != 1,
                 mode == 0 || mode == 2,
+                reading_position,
             )?;
             if keep {
                 if mode == 1 {
