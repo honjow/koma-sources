@@ -1,11 +1,12 @@
 #![no_std]
+use koma_source_sdk::chapters::{Chapter, ChapterPage, ChapterPlacement, ChapterResult, GroupedChapters};
 use koma_source_sdk::json_utils::*;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.beeworks.namepara.zh-hant.koma",
     name: "菇菇官方四格漫畫",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -28,8 +29,8 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
 const HTTP_RESPONSE_CAP: usize = 1024 * 1024;
 const ARCHIVE_BATCH_SIZE: usize = 3;
 const BATCH_RESPONSE_CAP: usize = ARCHIVE_BATCH_SIZE * HTTP_RESPONSE_CAP + 128;
-// The largest result is 1000 fixed-width chapter entries, under 256 KiB.
-koma_source_sdk::koma_source_buffers! {payload:256*1024,http_out:BATCH_RESPONSE_CAP,body:HTTP_RESPONSE_CAP,http_req:4096,scratch:8192,}
+// Keep all 1000 archive entries within the typed chapter response budget.
+koma_source_sdk::koma_source_buffers! {payload:512*1024,http_out:BATCH_RESPONSE_CAP,body:HTTP_RESPONSE_CAP,http_req:4096,scratch:8192,}
 koma_source_sdk::koma_source_helpers!();
 type R<T> = Result<T, &'static str>;
 fn member<'a>(v: &'a [u8], k: &[u8]) -> R<&'a [u8]> {
@@ -475,42 +476,41 @@ fn run_get_manga(req: &[u8], batch: bool) -> u32 {
     }
     result("get_manga", inner(req, batch))
 }
-fn run_get_chapters(req: &[u8], batch: bool) -> u32 {
-    fn inner(req: &[u8], batch: bool) -> R<usize> {
-        if extract_json_string(req, b"mangaId") != Some(MID) {
-            return Err("not_found");
-        }
-        let count = catalogue(batch)?;
-        let p = payload_buf();
-        let mut c = 0;
-        w(p, &mut c, b"{\"chapters\":[")?;
-        for i in 0..count {
-            if i > 0 {
-                w(p, &mut c, b",")?;
-            }
-            w(p, &mut c, b"{\"id\":\"nameparach:zh-hant:")?;
-            w(p, &mut c, unsafe { &IDS[i] })?;
-            w(p, &mut c, b"\",\"mangaId\":")?;
-            q(p, &mut c, MID)?;
-            w(p, &mut c, b",\"title\":")?;
-            q(p, &mut c, unsafe { &DATES[i] })?;
-            w(
-                p,
-                &mut c,
-                b",\"chapterNumber\":null,\"volumeNumber\":null,\"readingGroup\":",
-            )?;
-            q(p, &mut c, MID)?;
-            w(
-                p,
-                &mut c,
-                b",\"continuationEligible\":false,\"language\":\"zh-Hant\",\"pageCount\":null}",
-            )?;
-        }
-        w(p, &mut c, b"]}")?;
-        Ok(c)
+fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, &'static str> {
+    if host::check_cancel() {
+        return Err("cancelled");
     }
-    result("get_chapters", inner(req, batch))
+    let args = json_object_member(req, b"args")
+        .filter(|a| a.first() == Some(&b'{'))
+        .ok_or("invalid_request")?;
+    if string(req, b"operation").ok() != Some(b"get_chapters".as_slice()) {
+        return Err("invalid_request");
+    }
+    if extract_json_string(args, b"mangaId") != Some(MID) {
+        return Err("not_found");
+    }
+    let count = catalogue(archive_batch_supported(req))?;
+    let mut catalog = GroupedChapters::new(payload_buf(), req).map_err(|e| e.code())?;
+    // All declared archive pages have arrived and business IDs are deduplicated.
+    // Preserve their newest-first display order and date labels; a date is not
+    // a chapter number. Reading positions span the whole original group.
+    for i in 0..count {
+        let mut id = [0; 64];
+        let mut len = 0;
+        w(&mut id, &mut len, b"nameparach:zh-hant:")?;
+        w(&mut id, &mut len, unsafe { &IDS[i] })?;
+        let mut chapter = Chapter::new(&id[..len], MID, unsafe { &DATES[i] });
+        chapter.language = Some(b"zh-Hant");
+        catalog.push(chapter, ChapterPlacement::InGroup {
+            group: MID, position: (count - i - 1) as u64,
+        }).map_err(|e| e.code())?;
+    }
+    catalog.finish(ChapterPage::Complete).map_err(|e| e.code())
 }
+fn write_chapter_failure(code: &'static str) -> u32 {
+    write_error("get_chapters", code, "Official public comic contract unavailable or invalid")
+}
+
 fn run_get_pages(req: &[u8], batch: bool) -> u32 {
     fn inner(req: &[u8], batch: bool) -> R<usize> {
         if let Some(mid) = extract_json_string(req, b"mangaId") {
@@ -699,11 +699,8 @@ export_op!(
     run_get_manga,
     archive_batch_supported
 );
-export_op!(
-    koma_source_get_chapters,
-    "get_chapters",
-    run_get_chapters,
-    archive_batch_supported
+koma_source_sdk::koma_source_chapter_export!(
+    "namepara-zh-hant", run_get_chapters, write_chapter_failure, checked_request
 );
 export_op!(
     koma_source_get_pages,

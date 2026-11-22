@@ -1330,7 +1330,7 @@ dependencies = [
 
 [[package]]
 name = "koma_dogemanga_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1796,7 +1796,7 @@ dependencies = [
 
 [[package]]
 name = "koma_namepara_zh_hant_source"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "koma_source_sdk",
 ]

@@ -1,7 +1,7 @@
 #![no_std]
 extern crate alloc;
 use alloc::{
-    collections::BTreeSet,
+    collections::{BTreeMap, BTreeSet},
     format,
     string::{String, ToString},
     vec,
@@ -179,36 +179,79 @@ fn directory(request: &[u8], args: &Value, search: bool) -> Result<Value> {
     };
     Ok(json!({"items":items,"page":{"hasMore":next.is_some(),"nextCursor":next}}))
 }
+fn chapter_link_id(link: &Node) -> Result<String> {
+    let url = port::absolute(BASE, &link.attr("href")?)?;
+    if url.host_str() != Some("dogemanga.com") {
+        return Err("parse_error");
+    }
+    url.path()
+        .strip_prefix("/p/")
+        .filter(|id| valid_id(id))
+        .map(ToString::to_string)
+        .ok_or("parse_error")
+}
 fn run_get_chapters(request: &[u8]) -> ChapterResult<'static, &'static str> {
     let input = port::input(request)?;
     let owner = id(&input["args"]["mangaId"])?;
     let doc = work(owner)?;
-    let mut catalog = GroupedChapters::new(payload_buf(), request).map_err(port::chapter_error)?;
     let mut seen = BTreeSet::new();
+    let mut rows = Vec::new();
     for link in doc.all("#site-manga__tab-pane-all .site-manga-thumbnail__link")? {
-        let url = port::absolute(BASE, &link.attr("href")?)?;
-        let chapter = url
-            .path()
-            .strip_prefix("/p/")
-            .filter(|id| valid_id(id))
-            .ok_or("parse_error")?;
-        if url.host_str() != Some("dogemanga.com") {
-            return Err("parse_error");
+        let chapter = chapter_link_id(&link)?;
+        if seen.insert(chapter.clone()) {
+            rows.push((chapter, link.require("span.text-center")?.text()?));
         }
-        if !seen.insert(chapter.to_string()) {
+    }
+
+    // The provider's complete panes run newest first. Keep the upstream All
+    // display array, but use its actual Chapter/Volume panes for independent
+    // reading sequences. Titles/numbers never decide identity or eligibility.
+    let mut placements = BTreeMap::new();
+    for pane in doc.all(".tab-pane[id^=site-manga__tab-pane-]")? {
+        let pane_id = pane.attr("id")?;
+        let kind = pane_id.strip_prefix("site-manga__tab-pane-").ok_or("parse_error")?;
+        if kind == "all" {
             continue;
         }
-        let title = link.require("span.text-center")?.text()?;
-        let mut row = Chapter::new(chapter.as_bytes(), owner.as_bytes(), title.as_bytes());
-        row.index = Some(seen.len() - 1);
-        catalog
-            .push(row, ChapterPlacement::ManualOnly)
-            .map_err(port::chapter_error)?;
+        if !valid_id(kind) {
+            return Err("parse_error");
+        }
+        let group = format!("dogemanga:{owner}:{kind}");
+        let mut group_seen = BTreeSet::new();
+        let mut chapters = Vec::new();
+        for link in pane.all(".site-manga-thumbnail__link")? {
+            let chapter = chapter_link_id(&link)?;
+            if seen.contains(&chapter) && group_seen.insert(chapter.clone()) {
+                chapters.push(chapter);
+            }
+        }
+        for (index, chapter) in chapters.iter().enumerate() {
+            placements.entry(chapter.clone()).or_insert_with(|| {
+                (group.clone(), (chapters.len() - index - 1) as u64)
+            });
+        }
     }
-    catalog
-        .finish(ChapterPage::Complete)
-        .map_err(port::chapter_error)
+    // Preserve entries present only in All as their own complete provider
+    // subsequence instead of dropping them or guessing a type from the title.
+    let remaining: Vec<_> = rows.iter().filter(|(id, _)| !placements.contains_key(id)).collect();
+    for (index, (chapter, _)) in remaining.iter().enumerate() {
+        placements.insert(chapter.to_string(), (
+            format!("dogemanga:{owner}:all"),
+            (remaining.len() - index - 1) as u64,
+        ));
+    }
+    let mut catalog = GroupedChapters::new(payload_buf(), request).map_err(port::chapter_error)?;
+    for (index, (chapter, title)) in rows.iter().enumerate() {
+        let mut row = Chapter::new(chapter.as_bytes(), owner.as_bytes(), title.as_bytes());
+        row.index = Some(index);
+        let (group, position) = placements.get(chapter).ok_or("parse_error")?;
+        catalog.push(row, ChapterPlacement::InGroup {
+            group: group.as_bytes(), position: *position,
+        }).map_err(port::chapter_error)?;
+    }
+    catalog.finish(ChapterPage::Complete).map_err(port::chapter_error)
 }
+
 fn pages(args: &Value) -> Result<Value> {
     let chapter = id(&args["chapterId"])?;
     let url = format!("{BASE}/p/{chapter}");
