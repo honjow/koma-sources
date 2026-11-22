@@ -5,7 +5,7 @@
     "en": "MH1234"
   },
   "homepage": "https://m.wmh1234.com",
-  "chapterOrder": "newest_first",
+  "chapterOrder": "oldest_first",
   "identity": {
     "mihon": {
       "sourceIds": [
