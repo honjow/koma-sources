@@ -1,12 +1,16 @@
-# 0.1.4 同源传输候选A（待237验证）
+# 0.1.4 同源传输候选A-UA（待237实体图验证）
 
-本版仅在 metadata 的 websitePolicy.httpProfiles 为精确 origin https://www.weicomic.com、路径前缀 / 选择现有 firefox133 传输，最低 Koma 1.4.0。Cargo 与硬编码 SourceInfo 同为0.1.4。候选用于区分原生传输，不代表已修复或已完成设备阅读验收；不是诊断包，不新增阶段日志。
+本候选以已保护的A基线3c97f811为准，保留metadata的精确origin https://www.weicomic.com、路径前缀 /、firefox133及最低Koma1.4.0；Cargo、SourceInfo和包版本仍为0.1.4。A与A-UA各自冻结为独立包，不能靠相同版本号区分，应核包/WASM哈希，不覆盖原A产物。
 
-保留原公开一般作品合同：get_chapters 每次仍按 root → reader → XML 请求，核首页唯一作品链接、隆少年/ULTIMATE/一般标记与封面，随后核原reader绑定、XML身份和完整页序。原SID/MID/CID/PageID、请求头、15000ms预算、请求次数、所有身份/路径/容量守卫及单章语义不变；不增加Web会话origin、Cookie/账号权限、重试或缓存。路径前缀 / 覆盖同源WASM GET，亦包括reader/XML和封面校验；普通图片实体下载的原406边界仍独立保留。
+普通图片唯一行为差异：共用get_image_request在原owner、封面目录或reader/XML、路径、count、ordinal与精确URI的完整守卫全部通过后，给既有imageRequest.headers增加与当前SDK公开GET逐字相同的User-Agent：Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0。封面和正文均走此处；不增加Referer，不改变challengeUA、验证页UA或已授权会话。目录和图片计划校验的原SDK UA/Referer保持。
 
-采用依据：正式0.1.3在237的get_chapters第一段root请求约15秒超时、无HTTP状态，reader/XML未到；同段其他root校验曾返回200。独立公开HTTP仍能取得当前原合同，但Mac200不能代替Native成功。当前Koma已支持按精确origin选择该profile；原生profile依赖/代理条件不满足时可能回退NetworkKit。必须在237确认 native_transfer eligible=true，再核原root/reader/XML与完整30页成功，才算测到候选A；eligible=false不能算profile已验。暂不采用需API26的fresh_http11备选B。
+上游对照与适配差异：官方原reader→loader→XML→viewer以原頁順序组合图片URL并赋给img.src，使用浏览器自己的网络上下文；旧源图片计划返回headers:{}，宿主图片实体下载不继承SDK GET的公开UA，且当前图片管线不消费httpProfiles。A-UA仅显式补普通图片UA，不改变上游URL、页序或权限。这是宿主请求头的兼容试验，不能写成上游新增要求。
 
-原实现及素材记录如下，历史版本的未验项保留；本次不改素材、App、SDK或宿主能力。
+采用依据：237上的原A已实际取得root→reader→XML三个200、目录1/1及get_pages30成功，但封面和P1实体仍HTTP406，没有真实Native图。现存公开Mac同图对照中，空头、SDK UA、公开OpenHarmony默认UA及默认Content-Type均可能取得相同JPEG，不能唯一归因于UA或TLS。故本次只是基于237406的单变量试验，不是已证根因或已修复；须由237 owner以A-UA独立哈希包验证真实实体图。普通Mac200、WASM回放或构建成功均不代替该验收，不采用API26的fresh_http11备选B。
+
+保留原公开一般作品合同：get_chapters仍为root→reader→XML三GET；get_pages仍为reader→XML两GET，图片计划仍先完整验证再输出。SID/MID/CID/PageID、URI、30页原实体顺序、15000ms、GET次数及所有身份/路径/XML/容量守卫、单章语义不变。不改App/SDK/权限/profile，不增加Web会话origin、Cookie/账号授权、重试、缓存或阶段日志。此UA用于普通图片请求，不改变任何challengeUA。
+
+原实现及素材记录如下，均保留其历史时点和未验项；其中旧空图片头描述不是A-UA当前合同。本次不改素材、图标或App样式。
 
 # 創漫繁中・隆少年 0.1.2
 
