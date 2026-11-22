@@ -40,4 +40,6 @@ UUID 黑名单：`blockedGroups_zh` 和 `blockedUploader_zh` 是逗号分隔 UUI
 
 ## 章节续读
 
-续读使用译组 UUID 集合与卷／话坐标，规则见同仓 MangaDex。原章节、分页校验和黑名单合同保持。
+0.1.16：共享同仓 MangaDex `chapter_chronology::Positions`；`feed` 的完整卷／话双降序provider流跨页使用同一位置状态，`chapter_card`只把原卷／话字段作显示。缺号、问号和高精度小数不再被数值门槛排除；真实译组UUID／uploader与同坐标variants候选、语言、ID和原可见性／黑名单／精确恢复合同保持。详见 MangaDex README 的唯一共享规则及固定Keiyoushi源码对照。
+
+本轮缺少简中真实混合缺号目录；以共享真实英文问号反例及已有简中完整目录回归验证，不宣称中文全站或设备验收。

@@ -1661,21 +1661,21 @@ dependencies = [
 
 [[package]]
 name = "koma_mangadex_source"
-version = "0.1.28"
+version = "0.1.29"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_mangadex_zh_hans_source"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_mangadex_zh_hant_source"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1803,14 +1803,14 @@ dependencies = [
 
 [[package]]
 name = "koma_namicomi_zh_hans_source"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_namicomi_zh_hant_source"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "koma_source_sdk",
 ]
