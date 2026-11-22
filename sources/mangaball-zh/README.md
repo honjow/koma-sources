@@ -1,4 +1,4 @@
-# MangaBall 中文 0.1.5
+# MangaBall 中文 0.1.9
 
 独立源 `com.mangaball.zh.koma`，API 0.2，语言 zh。中文选择章节语言；不保证中文标题或特定书写字母。既有 `mb:`/`mbc:`/页身份、提供方章节顺序、实际章节/卷号和精确页所有权保持。既有 512px MangaBall 身份图标不变；官网品牌使用 MangaBall；归因见 NOTICE。
 
@@ -26,6 +26,12 @@
 
 ## 章节续读
 
-按 API 的语言、译组 ID 及卷／话坐标验证续读。同号候选保留，译组切换、黑名单排除和同号边界截断自动续读。
+续读使用规范完整多语言数组中的唯一全局位置（从最早条目开始），先分配位置再做原有中文选择和翻译组黑名单筛选。实际卷／话号只作为显示字段；同号拆分、无号、负号及缺少 group_id 均不因这些字段本身丢失邻章，不补号、不删不同 ID，不用显示排序替换 provider 位置。该 API 一次返回完整目录，返回终态 null cursor；不把宿主 page.limit/cursor 当成 provider 分页，更不按显示页重置坐标。
+
+阅读组按作品、原始语言、真实 site 与译组身份划分。优先 group_id，再用嵌套 group.id/_id；缺 ID 时只复用同语言/site/组名下唯一的已知身份，同名但不同真实 ID 不合并。仍无法确定身份的条目保留独立组名/未分配组的 provider 位置链，不改成 ManualOnly；语言、site 和明确版本边界保留。黑名单只移除用户确实选中的条目，不改变保留 ID 的全局位置。精确旧章恢复仍独立于黑名单、仅返回合法原 ID。
+
+本轮修复取代 `8f720ab` 引入的“相邻同卷同话号就 ManualOnly/切 run”条件。真实 Tales of Demons and Gods 的 933 条中文中有 814 条相邻重号，Fights Breaking Through The Heavens 的 329 条中有 110 条；这些均有有效话号、cn 语言、同一 Dodrio 组 ID 和 godamh site，不是用户筛选或真实版本切换。上下/分段章的不同业务 ID 全部保留。原详情 API 的 prev_chapter/next_chapter 在已取样本中可为空或跨到西语/印尼语，不能拿它覆盖当前语言/版本链。
+
+源码对照固定为当前 Keiyoushi `5d54f0d02e2a7dbdda08e823de444f7527cc883c`：`MangaBall.kt:198-207` 直接消费规范 `/api/v1/chapter/chapter-listing-by-title-id` 数组并按语言/黑名单选择；`Dto.kt:137-172` 允许 number/group 缺省，没有同号排除。Koma 源 `chapters` 保留该请求与全量输入/权限校验；`chapter_edition` 仅负责真实边界，typed GroupedChapters 输出序位。宿主实际经 `projectSourceChapterResponse → parseSourceChapterRow → sourceCatalogChronology → continuationChapterIds` 消费。本次 Cargo 与安装版本同步步进为0.1.9，SourceInfo继续由Cargo版本生成；锁文件只同步本源条目。未改SDK、其他消费者或素材。
 
 作品和章节评论复用网页的 `/api/v1/comment/load-comments` 只读列表。作品使用站点的 `title_only` 筛选，章节按章节 ID 读取，翻页沿用原站分页。
