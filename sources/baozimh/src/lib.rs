@@ -6,6 +6,7 @@ mod chapter_duplicates;
 mod chapter_number;
 mod access_signal;
 mod cdn_selection;
+mod mirror;
 
 use koma_source_sdk::chapters::{
     numbered_chapter_heading, reading_order_supported, Chapter, ChapterNumber, ChapterPage, ChapterPlacement,
@@ -324,7 +325,7 @@ fn run_search(req: &[u8]) -> u32 {
     };
     let url_buf = scratch_a();
     let mut url_cursor = 0usize;
-    if !write_bytes(url_buf, &mut url_cursor, SITE_BASE) {
+    if !write_bytes(url_buf, &mut url_cursor, mirror::selected(req).site) {
         return write_error("search", "internal_error", "url buffer overflow");
     }
     if !write_bytes(url_buf, &mut url_cursor, b"/search?q=") {
@@ -425,7 +426,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
 
     let url_buf = scratch_a();
     let mut url_cursor = 0usize;
-    if !(write_bytes(url_buf, &mut url_cursor, SITE_BASE)
+    if !(write_bytes(url_buf, &mut url_cursor, mirror::selected(req).site)
         && write_bytes(url_buf, &mut url_cursor, b"/comic/")
         && write_bytes(url_buf, &mut url_cursor, slug))
     {
@@ -729,7 +730,7 @@ fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, ChapterError> {
 
     let url_buf = scratch_a();
     let mut url_cursor = 0usize;
-    if !(write_bytes(url_buf, &mut url_cursor, SITE_BASE)
+    if !(write_bytes(url_buf, &mut url_cursor, mirror::selected(req).site)
         && write_bytes(url_buf, &mut url_cursor, b"/comic/")
         && write_bytes(url_buf, &mut url_cursor, slug))
     {
@@ -1250,7 +1251,7 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     // Build URL: /classify?type=X&region=Y&state=Z&filter=*&page=N
     let url_buf = scratch_a();
     let mut url_cursor = 0usize;
-    let ok = write_bytes(url_buf, &mut url_cursor, SITE_BASE)
+    let ok = write_bytes(url_buf, &mut url_cursor, mirror::selected(req).site)
         && write_bytes(url_buf, &mut url_cursor, b"/classify?type=")
         && write_bytes(url_buf, &mut url_cursor, manga_type)
         && write_bytes(url_buf, &mut url_cursor, b"&region=")
