@@ -2,6 +2,7 @@
 
 extern crate koma_source_sdk;
 
+use koma_source_sdk::chapters::numbered_chapter_heading;
 use koma_source_sdk::host::{
     self, html_attr, html_close, html_parse, html_select, html_text, http_request, log_info,
 };
@@ -174,57 +175,6 @@ fn page_number(req: &[u8]) -> Option<usize> {
     } else {
         Some(n)
     }
-}
-
-fn chapter_number(title: &[u8]) -> Option<usize> {
-    let title = core::str::from_utf8(title).ok()?.trim();
-    let title = title.strip_prefix('第').unwrap_or(title);
-    let mut n = 0usize;
-    let mut pending = 0usize;
-    let mut any = false;
-    for ch in title.chars() {
-        if ch.is_ascii_digit() {
-            pending = pending
-                .checked_mul(10)?
-                .checked_add(ch as usize - '0' as usize)?;
-            any = true;
-        } else {
-            let d = match ch {
-                '零' | '〇' => Some(0),
-                '一' => Some(1),
-                '二' | '两' | '兩' => Some(2),
-                '三' => Some(3),
-                '四' => Some(4),
-                '五' => Some(5),
-                '六' => Some(6),
-                '七' => Some(7),
-                '八' => Some(8),
-                '九' => Some(9),
-                _ => None,
-            };
-            if let Some(d) = d {
-                pending = pending.checked_mul(10)?.checked_add(d)?;
-                any = true;
-            } else if matches!(ch, '十' | '百' | '千') {
-                let unit = match ch {
-                    '十' => 10,
-                    '百' => 100,
-                    _ => 1000,
-                };
-                n = n.checked_add(pending.max(1).checked_mul(unit)?)?;
-                pending = 0;
-                any = true;
-            } else {
-                // An explicit chapter suffix is required; do not number specials by their position.
-                return if any && matches!(ch, '话' | '話' | '章' | '回') {
-                    n.checked_add(pending)
-                } else {
-                    None
-                };
-            }
-        }
-    }
-    None
 }
 
 fn fetch_body(url: &[u8]) -> Result<usize, FetchError> {
@@ -707,9 +657,9 @@ fn run_get_manga(req: &[u8]) -> u32 {
     write_success_payload("get_manga", c)
 }
 
-// Metadata is emitted only when the Host declares support. The ordinal is
-// the actual oldest-first source grid order verified against the site's reader
-// menu, not a guessed chapter/volume number; duplicate and special titles stay.
+// Keep the public 0.1.14 oldest-first array: reversing it would flip saved
+// display choices. Reading ordinals cover every retained ID, including extras
+// and tied numbers. See README for the adopted upstream-direction adaptation.
 fn supports_reading_order(req: &[u8]) -> bool {
     json_object_member(req, b"hostFeatures").map(|v| {
         let v = trim_ascii(v);
@@ -783,7 +733,8 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         return write_error("get_chapters", "internal_error", "payload overflow");
     }
     let mut written = 0;
-    // The public catalogue is newest first; preserve the source's existing oldest-first contract.
+    // The site grid is newest first; retain the published oldest-first contract.
+    let reading_order = supports_reading_order(req);
     for i in (0..batch.count).rev() {
         if host::check_cancel() {
             return write_error("get_chapters", "cancelled", "host cancelled");
@@ -813,11 +764,11 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             write_bytes(payload, &mut c, br#"","title":""#) &&
             append_json_escaped(payload, &mut c, name) &&
             write_bytes(payload, &mut c, br#"","chapterNumber":"#) &&
-            if let Some(n) = chapter_number(name) {
+            if let Some(n) = numbered_chapter_heading(name) {
                 write_bytes(payload, &mut c, b"\"") && write_usize(payload, &mut c, n) && write_bytes(payload, &mut c, b"\"")
             } else { write_bytes(payload, &mut c, b"null") } &&
             write_bytes(payload, &mut c, br#","volumeNumber":null"#) &&
-            (!supports_reading_order(req) || (write_bytes(payload, &mut c, br#","readingGroup":"main","continuationEligible":true,"readingOrder":"#) && write_usize(payload, &mut c, written))) &&
+            (!reading_order || (write_bytes(payload, &mut c, br#","readingGroup":"main","continuationEligible":true,"readingOrder":"#) && write_usize(payload, &mut c, written))) &&
             write_bytes(payload, &mut c, br#","language":"zh","publishedAt":null,"updatedAt":null,"pageCount":null}"#);
         if !ok {
             return write_error("get_chapters", "internal_error", "payload overflow");

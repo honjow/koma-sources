@@ -1,4 +1,14 @@
-# 漫画1234 0.1.2
+# 漫画1234
+
+## 0.1.15 共享编号 helper 维护与保留公开显示
+
+保留 `3f6c835` 的 `numbered_chapter_heading` 共享中文编号解析。公开 0.1.14 已有正确的完整阅读位置；本版为 helper 维护及保留既有显示，不宣称修复旧包不存在的章序或无号续读故障。
+
+固定 Keiyoushi `1319949ca9bc456908196e3ba2d104e94182c5d6` 与当前参考 `5d54f0d02e2a7dbdda08e823de444f7527cc883c` 的 `parseChapterList` 均按 `.mint-chapter-grid a` 网页原序输出，新版在前。Koma 保留公开 0.1.14 的方向适配：反向遍历网页节点，数组旧版在前，`metadata.chapterOrder` 为 `oldest_first`，显式 `readingOrder` 从 0 递增。本轮保留公开0.1.14已有列表方向，不为对齐上游原数组翻转已保存的排序显示；后续如需改变数组，须先单独确认该产品差异。
+
+宿主 `SourceChapterListResolver` 保留该数组，`ReaderChapterSequence` 使用完整显式位置生成正向邻章，`ChapterListSection` 独立消费显示排序及保存方向。ID、标题、同号、无号及公告/番外保留，不按标题或编号去重；编号 helper 不决定阅读资格。
+
+## 0.1.2 源码恢复
 
 当前源码采用已审canonical SDK8506的完整012 owner，继承011 listings/身份与请求字符串/目录及正文完整性后继，并由共享SDK传播HTTP状态错误；不采用已拒源内重复HTTP wrapper。构建入口为仓根 `./build.sh --source mh1234`，新构建WASM未自动继承旧Native接受。
 
