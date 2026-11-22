@@ -5,7 +5,7 @@
 use super::*;
 
 pub fn exclusions(good: usize, count: usize, full_query: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>, E> {
-    let mut all = BTreeSet::new();
+    let mut all = BTreeMap::new();
     for ei in 0..good {
         let edition = unsafe { EDITIONS[ei].id };
         let mut page = 1usize;
@@ -34,7 +34,8 @@ pub fn exclusions(good: usize, count: usize, full_query: &[u8]) -> Result<Vec<(V
                 let chapter = Identity::new(text(data, b"id")?)?;
                 if text(item, b"id")? != chapter.as_bytes() { return Err("chapter identity mismatch"); }
                 if optional_text(data, b"dbStatus")? != Some(b"normal".as_slice()) { return Err("chapter not public normal"); }
-                if !all.insert((edition.as_bytes().to_vec(), chapter.as_bytes().to_vec())) { return Err("duplicate chapter identity"); }
+                let position = total.checked_sub(accumulated + returned + 1).ok_or("incomplete chapter pagination")?;
+                if all.insert((edition.as_bytes().to_vec(), chapter.as_bytes().to_vec()), position).is_some() { return Err("duplicate chapter identity"); }
                 returned += 1;
             }
             accumulated += returned;
@@ -45,10 +46,13 @@ pub fn exclusions(good: usize, count: usize, full_query: &[u8]) -> Result<Vec<(V
         }
     }
     let mut kept = BTreeSet::new();
-    for ch in unsafe { &CHS[..count] } {
+    for ch in unsafe { &mut CHS[..count] } {
         let key = (ch.edition.as_bytes().to_vec(), ch.id.as_bytes().to_vec());
-        if !all.contains(&key) { return Err("deduplicated chapter missing from complete feed"); }
+        // A visibility preference must not create another coordinate system.
+        // Keep each retained ID at its complete provider-directory position;
+        // equal/missing chapter numbers and hidden uploads do not renumber it.
+        ch.reading_position = *all.get(&key).ok_or("deduplicated chapter missing from complete feed")?;
         kept.insert(key);
     }
-    Ok(all.difference(&kept).cloned().collect())
+    Ok(all.into_keys().filter(|key| !kept.contains(key)).collect())
 }
