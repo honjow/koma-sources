@@ -1,4 +1,4 @@
-# IP手札mini! 官方直達專欄（繁中）0.1.3
+# IP手札mini! 官方直達專欄（繁中）0.1.4
 
 ## 封面直載
 
@@ -55,3 +55,11 @@ metadataR2仍為未安裝的0.1.0獨立候選。R1完整樹／包／56回放保�
 自然返回原書架後，library與75源registry完整JSON不變；Reader僅本次IPmini新增progress/sourceHistory/chapters各1，原60/29/76筆每字段及相對順序保持，既有大奉001第6頁25%仍在。首次安裝前後另已核舊74源與library/reader保持。本次不冒稱第2頁3篇、其餘正文、下載、cold或其他裝置通過。
 
 本地原始證據在 Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/` 的173–179具名目錄；177為原圖、178為自然返回、179為三域讀回與具名日誌。原件僅留本地。以上更新先前「尚未Native驗收」的對應首屏／首篇邊界，其餘未知仍保留。
+
+## 0.1.4：官方分頁提交欄位
+
+本輪正常295第1/2頁原件中，`nowPage/listNowPage`、`pageSize/listPageSize`兩個hidden input存在，但沒有`value`屬性。原頁內聯`listChangePage(nowPage, pageSize)`在送出前以jQuery `.val()`填入當次參數，再提交原`contentSearchForm`；不能把提交時才寫入的值當成每份返回DOM必有的靜態屬性。只對這兩個唯一、name/type=hidden/id均正確的節點允許缺少value；有value時仍須為請求當前頁1/2及12，顯式空值或錯值仍拒絕。四個查詢欄位、唯一官方action/method、六input數量保持。
+
+返回頁身份仍由原總筆數、當前頁/總頁、12筆容量、真next `data-args`、實際卡片數及兩頁一致性共同校驗；缺值不被用來猜頁碼。不改原GET/六欄POST、不補造HTML或執行JS。目錄成員、穩定article ID、category8、正文標題/同article圖片父樹與URI、封面歸屬、owner及非200拒絕均保持。每篇仍獨立一章，不從作品標題序號拼成跨作品續讀。
+
+證據鏈及候選驗證存於Koma本輪`published-source-order-audit-20261123/tipo-order-followup/`；正常DOM不等於已取得wire HTML，保留原獨立HTTP403與CF邊界。真實原件WASM回放、App原生產模型在記憶體消費和237普通CF/目錄/代表閱讀分別記錄；未經後者驗證不宣稱Native通過或可直接發布。素材與其他行為不變。
