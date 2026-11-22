@@ -6,10 +6,12 @@ use koma_source_sdk::host::{
     self, html_attr, html_close, html_parse, html_select, html_text, http_request,
 };
 use koma_source_sdk::json_utils::{
-    append_json_escaped, append_json_unescaped_then_escaped, extract_json_number,
-    extract_json_string, find_subslice, request_page_number, write_bytes, write_url_encoded, write_usize,
+    append_json_escaped, extract_json_number,
+    extract_json_string, find_subslice, json_object_member, request_page_number, write_bytes, write_url_encoded, write_usize,
 };
-use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
+use koma_source_sdk::source::{SourceCapabilities, SourceInfo, SourceError};
+use koma_source_sdk::chapters::{Chapter, ChapterPage, ChapterPlacement, ChapterResponse, GroupedChapters};
+use koma_source_sdk::plain_text::decode_json_content;
 use koma_source_sdk::{build_get_request, decode_json_body_into, fetch_error_code, FetchError};
 
 #[link(wasm_import_module = "koma_host")]
@@ -53,25 +55,25 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.manhuadui.koma",
     name: "优酷漫画",
-    version: "0.1.7",
+    version: "0.1.8",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "优酷漫画 public search and listings; detail and reading unavailable in the current host path.",
+    description: "优酷漫画公开浏览、完整分组目录及站方允许的免费章节。",
     content_rating: "nsfw",
 };
 
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
-    manga_detail: false,
-    chapters: false,
-    pages: false,
+    manga_detail: true,
+    chapters: true,
+    pages: true,
     listings: true,
     manga_list: true,
     home: false,
     filters: false,
     settings: false,
-    image_request: false,
+    image_request: true,
     credentials: false,
 };
 
@@ -276,15 +278,22 @@ fn write_manga_url(dst: &mut [u8], c: &mut usize, slug: &[u8]) -> bool {
         && write_bytes(dst, c, b"/")
 }
 
+// Website phone.js redirects Android documents from www to m. Keep public
+// source links and old IDs unchanged, but request the same m origin used by
+// the already-accepted browse verification flow and fixed upstream SinMH.
+fn write_manga_fetch_url(dst: &mut [u8], c: &mut usize, slug: &[u8]) -> bool {
+    write_bytes(dst, c, BROWSE_URL) && write_bytes(dst, c, b"/manhua/")
+        && append_json_escaped(dst, c, slug) && write_bytes(dst, c, b"/")
+}
 fn write_path_url(dst: &mut [u8], c: &mut usize, path: &[u8]) -> bool {
     if path.starts_with(b"http://") || path.starts_with(b"https://") {
         append_json_escaped(dst, c, path)
     } else if path.starts_with(b"//") {
         write_bytes(dst, c, b"https:") && append_json_escaped(dst, c, path)
     } else if path.starts_with(b"/") {
-        write_bytes(dst, c, BASE_URL) && append_json_escaped(dst, c, path)
+        write_bytes(dst, c, BROWSE_URL) && append_json_escaped(dst, c, path)
     } else {
-        write_bytes(dst, c, BASE_URL)
+        write_bytes(dst, c, BROWSE_URL)
             && write_bytes(dst, c, b"/")
             && append_json_escaped(dst, c, path)
     }
@@ -563,7 +572,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
 
     let url_buf = scratch_a();
     let mut url_len = 0usize;
-    if !write_manga_url(url_buf, &mut url_len, slug) {
+    if !write_manga_fetch_url(url_buf, &mut url_len, slug) {
         return write_error("get_manga", "internal_error", "url overflow");
     }
     let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_len) };
@@ -587,12 +596,16 @@ fn run_get_manga(req: &[u8]) -> u32 {
     let mut status_buf = [0u8; 256];
     let mut desc_buf = [0u8; 4096];
 
-    let title = select_text(document.0, b"div.comic_deCon > h1", &mut title_buf).unwrap_or(slug);
+    let title = match select_text(document.0, b"div.comic_deCon > h1, #comicName", &mut title_buf) {
+        Some(t) if !t.is_empty() => t,
+        _ => return write_error("get_manga", "parse_error", "work title missing"),
+    };
     let cover =
-        select_attr(document.0, b"div.comic_i_img > img", b"src", &mut cover_buf).unwrap_or(b"");
+        select_attr(document.0, b"div.comic_i_img > img, #Cover img", b"src", &mut cover_buf).unwrap_or(b"");
 
     let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
-    let info_count = html_select_all(document.0.raw(), b".comic_deCon_liO > li", select_buf);
+    let info_count = html_select_all(document.0.raw(), b".comic_deCon_liO > li, .Introduct_Sub .txtItme", select_buf);
+    let mobile_template = html_select(document.0,b"#comicName").map(|d| {let _ = html_close(d); true}).unwrap_or(false);
     let mut author_len = 0usize;
     let mut status_len = 0usize;
     let info_total = if info_count > 0 {
@@ -616,13 +629,13 @@ fn run_get_manga(req: &[u8]) -> u32 {
             continue;
         }
         let li_desc: host::HtmlDescriptor = unsafe { core::mem::transmute(desc_raw) };
-        if i == 0 {
+        if (!mobile_template && i == 0) || (mobile_template && html_select(li_desc, b".icon01").map(|d| {let _ = html_close(d); true}).unwrap_or(false)) {
             if let Some(t) = text_into(li_desc, &mut author_buf).map(trim_ascii) {
                 author_len = t.len();
             }
-        } else if i == 1 {
+        } else if (!mobile_template && i == 1) || (mobile_template && html_select(li_desc, b".icon02").map(|d| {let _ = html_close(d); true}).unwrap_or(false)) {
             let mut found_status = false;
-            if let Ok(a_desc) = html_select(li_desc, b"a") {
+            if let Ok(a_desc) = html_select(li_desc, if mobile_template { b":scope" } else { b"a" }) {
                 let owned = OwnedDescriptor(a_desc);
                 if let Some(t) = text_into(owned.0, &mut status_buf).map(trim_ascii) {
                     status_len = t.len();
@@ -649,7 +662,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
     } else {
         b"unknown" as &[u8]
     };
-    let desc = select_text(document.0, b"p.comic_deCon_d", &mut desc_buf).unwrap_or(b"");
+    let desc = select_text(document.0, b"p.comic_deCon_d, #full-des, #simple-des", &mut desc_buf).unwrap_or(b"");
 
     let payload = payload_buf();
     let mut c = 0usize;
@@ -672,7 +685,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
         && write_bytes(payload, &mut c, br#"],"artists":[],"status":""#)
         && write_bytes(payload, &mut c, status)
         && write_bytes(payload, &mut c, br#"","contentRating":"nsfw","language":"zh","tags":[],"links":[{"kind":"source","url":""#)
-        && append_json_escaped(payload, &mut c, url)
+        && write_manga_url(payload, &mut c, slug)
         && write_bytes(payload, &mut c, br#""}]}}"#);
 
     if !ok {
@@ -681,291 +694,237 @@ fn run_get_manga(req: &[u8]) -> u32 {
     write_success_payload("get_manga", c)
 }
 
+// The same public desktop document is returned either as HTTP HTML or as the
+// existing WebView rendered-document handoff. Site JS reverses the UL but leaves
+// data-sort unchanged: the active sort control is the authoritative display state.
+// Canonical source arrays remain oldest-first, independent of the App display sort.
+// No title/number sorting: the provider itself links 41 -> 01 in one sampled group.
+struct Selection<'a> { bytes: &'a mut [u8], count: usize }
+impl Selection<'_> {
+    fn node(&self, i: usize) -> host::HtmlDescriptor {
+        let o = i * 4;
+        let raw = i32::from_le_bytes(self.bytes[o..o+4].try_into().unwrap());
+        unsafe { core::mem::transmute(raw) }
+    }
+}
+impl Drop for Selection<'_> {
+    fn drop(&mut self) { for i in 0..self.count { let _ = html_close(self.node(i)); } }
+}
+fn selection<'a>(root: host::HtmlDescriptor, selector: &[u8], bytes: &'a mut [u8])
+    -> Result<Selection<'a>, SourceError> {
+    let n = html_select_all(root.raw(), selector, bytes);
+    if n < 0 { return Err(SourceError::source_error("catalog selector failed")); }
+    let count = (n as usize).min(bytes.len()/4);
+    let result = Selection { bytes, count };
+    if n as usize != count { return Err(SourceError::source_error("complete catalog exceeds response capacity")); }
+    Ok(result)
+}
+fn removed_by_rightsholder(html: &[u8]) -> bool {
+    find_subslice(html, "版权方要求".as_bytes()).is_some()
+        && find_subslice(html, "屏蔽删除本漫画所有章节链接".as_bytes()).is_some()
+}
+static mut CATALOG_IDS: [u8; 2*1024*1024] = [0; 2*1024*1024];
+static mut CATALOG_RANGES: [(usize,usize);4000] = [(0,0);4000];
+
+fn chapter_catalog(req: &[u8], manga_id: &[u8], document: host::HtmlDescriptor)
+    -> Result<ChapterResponse<'static>, SourceError> {
+    let mut group_bytes = [0u8;256];
+    let groups = selection(document, b".zj_list, .chapter-body", &mut group_bytes)?;
+    if groups.count == 0 { return Err(SourceError::source_error("complete chapter catalog missing")); }
+    let mut catalog = GroupedChapters::new(payload_buf(), req)?;
+    let mut seen_count = 0;
+    let mut seen_len = 0;
+    for g in 0..groups.count {
+        let group_node = groups.node(g);
+        let mut key_buf = [0u8;128];
+        let mut key_len = 0;
+        if !write_bytes(&mut key_buf, &mut key_len, manga_id)
+            || !write_bytes(&mut key_buf, &mut key_len, b":") {
+            return Err(SourceError::source_error("group identity too long"));
+        }
+        let mut list_id = [0u8;64];
+        let desktop = select_attr(group_node, b"ul[id^=chapter-list-]", b"id", &mut list_id);
+        let mut order_buf = [0u8;16];
+        let mut fallback_order = [0u8;16];
+        let newest_first = if let Some(list_id) = desktop {
+            if !write_bytes(&mut key_buf, &mut key_len, list_id) {
+                return Err(SourceError::source_error("group identity too long"));
+            }
+            let direction = select_attr(group_node, b".chapter-sort.active", b"data-order", &mut order_buf)
+                .or_else(|| select_attr(group_node, b"ul[id^=chapter-list-]", b"data-sort", &mut fallback_order));
+            match direction { Some(b"asc") => false, Some(b"desc") => true,
+                _ => return Err(SourceError::source_error("catalog direction missing")) }
+        } else {
+            // Fixed upstream SinMH/YKMH contract: each mobile .chapter-body
+            // already arrives newest-first; each section remains independent.
+            if !write_bytes(&mut key_buf, &mut key_len, b"mobile-section-")
+                || !write_usize(&mut key_buf, &mut key_len, g) {
+                return Err(SourceError::source_error("group identity too long"));
+            }
+            true
+        };
+        let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
+        let rows = selection(group_node, b"li > a", select_buf)?;
+        let mut position = 0;
+        for i in 0..rows.count {
+            let n = if newest_first { rows.count-i-1 } else { i };
+            let a = rows.node(n);
+            let mut name_buf = [0u8;1024];
+            let mut fallback_name = [0u8;1024];
+            let mut href_buf = [0u8;1024];
+            let name = select_text(a, b"span.list_con_zj", &mut name_buf)
+                .or_else(|| text_into(a, &mut fallback_name).map(trim_ascii))
+                .filter(|s| !s.is_empty()).ok_or(SourceError::source_error("chapter title missing"))?;
+            let href = attr_into(a, b"href", &mut href_buf)
+                .ok_or(SourceError::source_error("chapter URL missing"))?;
+            let path = path_from_href(href).filter(|p| p.starts_with(b"/manhua/") && p.ends_with(b".html"))
+                .ok_or(SourceError::source_error("chapter URL outside public catalog"))?;
+            let mut duplicate = false;
+            for j in 0..seen_count {
+                let (start,len) = unsafe { CATALOG_RANGES[j] };
+                if unsafe { &CATALOG_IDS[start..start+len] } == path { duplicate=true; break; }
+            }
+            if duplicate { continue; }
+            if seen_count == 4000 || seen_len+path.len()>2*1024*1024 {
+                return Err(SourceError::source_error("complete catalog exceeds response capacity"));
+            }
+            unsafe { CATALOG_IDS[seen_len..seen_len+path.len()].copy_from_slice(path);
+                CATALOG_RANGES[seen_count]=(seen_len,path.len()); }
+            seen_len += path.len(); seen_count += 1;
+            let mut id = [0u8;1100]; let mut id_len=0;
+            if !write_bytes(&mut id, &mut id_len, b"ykmhch:") || !write_bytes(&mut id, &mut id_len,path) {
+                return Err(SourceError::source_error("chapter identity too long"));
+            }
+            let mut chapter = Chapter::new(&id[..id_len],manga_id,name);
+            chapter.language=Some(b"zh");
+            catalog.push(chapter,ChapterPlacement::InGroup { group:&key_buf[..key_len],position })?;
+            position += 1;
+        }
+    }
+    if seen_count == 0 { return Err(SourceError::source_error("complete chapter catalog empty")); }
+    catalog.finish(ChapterPage::Complete)
+}
+
 fn run_get_chapters(req: &[u8]) -> u32 {
     let manga_id = match extract_json_string(req, b"mangaId") {
-        Some(v) => v,
-        None => return write_error("get_chapters", "invalid_request", "missing mangaId"),
+        Some(v) => v, None => return write_error("get_chapters", "invalid_request", "missing mangaId"),
     };
-    let slug = match strip_prefix(manga_id, b"ykmh:") {
-        Some(v) if !v.is_empty() => v,
-        _ => return write_error("get_chapters", "invalid_request", "bad mangaId"),
+    let slug = match strip_prefix(manga_id,b"ykmh:") {
+        Some(v) if !v.is_empty() => v, _ => return write_error("get_chapters","invalid_request","bad mangaId"),
     };
-
-    let url_buf = scratch_a();
-    let mut url_len = 0usize;
-    if !write_manga_url(url_buf, &mut url_len, slug) {
-        return write_error("get_chapters", "internal_error", "url overflow");
+    let mut url_len=0;
+    if !write_manga_fetch_url(scratch_a(),&mut url_len,slug) {
+        return write_error("get_chapters","internal_error","url overflow");
     }
-    let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_len) };
-
-    let html_len = match fetch_body(url) {
-        Ok(n) => n,
-        Err(e) => {
-            let (code, message) = e;
-            return write_error("get_chapters", code, message);
-        }
-    };
-    let html = unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), html_len) };
-    let document = match html_parse(html) {
-        Ok(d) => OwnedDescriptor(d),
-        Err(_) => return write_error("get_chapters", "parse_error", "html_parse failed"),
-    };
-
-    let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
-    let count = html_select_all(document.0.raw(), b"#chapter-list-1 > li > a", select_buf);
-    let total = if count > 0 { count as usize } else { 0 };
-    let total = if total > 4000 { 4000 } else { total };
-
-    let payload = payload_buf();
-    let mut c = 0usize;
-    if !write_bytes(payload, &mut c, br#"{"items":["#) {
-        return write_error("get_chapters", "internal_error", "payload overflow");
+    let url=unsafe {core::slice::from_raw_parts(SCRATCH_A.as_ptr(),url_len)};
+    let n=match fetch_body(url) {Ok(n)=>n,Err((c,m))=>return write_error("get_chapters",c,m)};
+    let html=unsafe {core::slice::from_raw_parts(BODY_BUF.as_ptr(),n)};
+    if removed_by_rightsholder(html) {return write_error("get_chapters","chapter_unavailable","chapters removed by rightsholder");}
+    let doc=match html_parse(html) {Ok(d)=>OwnedDescriptor(d),Err(_)=>return write_error("get_chapters","parse_error","html_parse failed")};
+    match chapter_catalog(req,manga_id,doc.0) {
+        Ok(r)=>r.write(response_buffer()),Err(e)=>write_error("get_chapters",e.code(),e.message()),
     }
-
-    let mut written = 0usize;
-    for i in 0..total {
-        let offset = i * 4;
-        if offset + 4 > select_buf.len() {
-            break;
-        }
-        let desc_raw = i32::from_le_bytes([
-            select_buf[offset],
-            select_buf[offset + 1],
-            select_buf[offset + 2],
-            select_buf[offset + 3],
-        ]);
-        if desc_raw < 0 {
-            continue;
-        }
-        let a_desc: host::HtmlDescriptor = unsafe { core::mem::transmute(desc_raw) };
-        let mut name_buf = [0u8; 256];
-        let mut href_buf = [0u8; 512];
-
-        let name = if let Ok(span_desc) = html_select(a_desc, b"span.list_con_zj") {
-            let owned = OwnedDescriptor(span_desc);
-            text_into(owned.0, &mut name_buf).map(trim_ascii)
-        } else {
-            text_into(a_desc, &mut name_buf).map(trim_ascii)
-        };
-        let href = attr_into(a_desc, b"href", &mut href_buf);
-        let _ = html_close(a_desc);
-
-        if let (Some(ch_name), Some(ch_href)) = (name, href) {
-            if let Some(path) = path_from_href(ch_href) {
-                if written > 0 && !write_bytes(payload, &mut c, b",") {
-                    break;
-                }
-                let ok = write_bytes(payload, &mut c, br#"{"id":"ykmhch:"#)
-                    && append_json_escaped(payload, &mut c, path)
-                    && write_bytes(payload, &mut c, br#"","mangaId":"ykmh:"#)
-                    && append_json_escaped(payload, &mut c, slug)
-                    && write_bytes(payload, &mut c, br#"","title":""#)
-                    && append_json_escaped(payload, &mut c, ch_name)
-                    && write_bytes(payload, &mut c, br#"","chapterNumber":null,"volumeNumber":null,"language":"zh","publishedAt":null,"updatedAt":null,"pageCount":null}"#);
-                if !ok {
-                    break;
-                }
-                written += 1;
-            }
-        }
-    }
-
-    if !write_bytes(
-        payload,
-        &mut c,
-        br#"],"page":{"nextCursor":null,"hasMore":false}}"#,
-    ) {
-        return write_error("get_chapters", "internal_error", "payload overflow");
-    }
-    write_success_payload("get_chapters", c)
-}
-
-fn extract_config_host(config: &[u8], out: &mut [u8]) -> Option<usize> {
-    let start = if let Some(pos) = find_subslice(config, b"resHost") {
-        let rest = &config[pos + b"resHost".len()..];
-        pos + b"resHost".len() + find_subslice(rest, b"\"")? + 1
-    } else {
-        let marker = br#"domain":[""#;
-        find_subslice(config, marker)? + marker.len()
-    };
-    let mut end = start;
-    while end < config.len() && config[end] != b'"' {
-        end += 1;
-    }
-    if end == start || end >= config.len() || end - start > out.len() {
-        return None;
-    }
-    out[..end - start].copy_from_slice(&config[start..end]);
-    Some(end - start)
-}
-
-fn append_image_escaped(payload: &mut [u8], c: &mut usize, image: &[u8]) -> bool {
-    let mut start = 0usize;
-    let mut i = 0usize;
-    while i + 2 < image.len() {
-        if image[i] == b'\\' && image[i + 1] == b'.' && image[i + 2] == b'/' {
-            if !append_json_unescaped_then_escaped(payload, c, &image[start..i])
-                || !write_bytes(payload, c, b"/")
-            {
-                return false;
-            }
-            i += 3;
-            start = i;
-            continue;
-        }
-        i += 1;
-    }
-    append_json_unescaped_then_escaped(payload, c, &image[start..])
 }
 
 fn extract_js_string<'a>(data: &'a [u8], start: usize) -> Option<(&'a [u8], usize)> {
-    if start >= data.len() || data[start] != b'"' {
-        return None;
-    }
-    let mut i = start + 1;
-    while i < data.len() {
-        if data[i] == b'\\' {
-            i += 2;
-            continue;
-        }
-        if data[i] == b'"' {
-            return Some((&data[start + 1..i], i + 1));
-        }
-        i += 1;
-    }
+    if data.get(start)!=Some(&b'"') {return None;}
+    let mut i=start+1;
+    while i<data.len() {if data[i]==b'\\' {i+=2;continue;}
+        if data[i]==b'"' {return Some((&data[start+1..i],i+1));} i+=1;}
     None
 }
-
-fn extract_chapter_path<'a>(html: &'a [u8]) -> Option<&'a [u8]> {
-    let marker = b"chapterPath";
-    let pos = find_subslice(html, marker)? + marker.len();
-    let rest = &html[pos..];
-    let quote = find_subslice(rest, b"\"")?;
-    let (s, _) = extract_js_string(rest, quote)?;
-    Some(s)
+fn js_value<'a>(html:&'a [u8],key:&[u8])->Option<&'a [u8]> {
+    let p=find_subslice(html,key)?+key.len(); let rest=trim_ascii(&html[p..]);
+    Some(trim_ascii(rest.strip_prefix(b"=")?))
 }
-
-fn write_page_url(
-    payload: &mut [u8],
-    c: &mut usize,
-    host: &[u8],
-    chapter_path: &[u8],
-    image: &[u8],
-) -> bool {
-    if image.starts_with(b"https://") || image.starts_with(b"http://") {
-        append_image_escaped(payload, c, image)
-    } else if image.starts_with(br#"https:\/\/"#) || image.starts_with(br#"http:\/\/"#) {
-        append_image_escaped(payload, c, image)
-    } else if image.starts_with(br#"\/"#) {
-        append_json_unescaped_then_escaped(payload, c, host)
-            && append_image_escaped(payload, c, image)
-    } else if image.starts_with(b"/") || image.starts_with(br#"\./"#) {
-        append_json_unescaped_then_escaped(payload, c, host)
-            && append_image_escaped(payload, c, image)
-    } else {
-        append_json_unescaped_then_escaped(payload, c, host)
-            && write_bytes(payload, c, b"/")
-            && append_json_escaped(payload, c, chapter_path)
-            && append_image_escaped(payload, c, image)
-    }
+fn js_number(html:&[u8],key:&[u8])->Option<usize> {
+    let v=js_value(html,key)?; let end=v.iter().position(|b|!b.is_ascii_digit())?;
+    parse_usize(&v[..end])
 }
+fn absolute_image(url:&[u8])->bool {url.starts_with(b"http://")||url.starts_with(b"https://")}
+fn valid_image_url(url:&[u8])->bool {
+    absolute_image(url) && !url.iter().any(|b|b.is_ascii_control()||*b==b' '||*b==b'\\')
+        && !url.split(|b|*b==b'/').nth(2).unwrap_or(b"").is_empty()
+}
+fn config_host<'a>(config:&[u8],out:&'a mut [u8])->Option<&'a [u8]> {
+    let p=find_subslice(config,b"resHost")?;
+    let d=p+find_subslice(&config[p..],b"domain")?;
+    let a=d+find_subslice(&config[d..],b"[")?+1;
+    let value=trim_ascii(&config[a..]);
+    let (raw,_)=extract_js_string(value,0)?;
+    let decoded=decode_json_content(raw,out).ok()?;
+    if !valid_image_url(decoded) {return None;} Some(decoded)
+}
+static mut READER_HTML:[u8;2*1024*1024]=[0;2*1024*1024];
 
 fn run_get_pages(req: &[u8]) -> u32 {
-    let chapter_id = match extract_json_string(req, b"chapterId") {
-        Some(v) => v,
-        None => return write_error("get_pages", "invalid_request", "missing chapterId"),
-    };
-    let chapter_path_id = match strip_prefix(chapter_id, b"ykmhch:") {
-        Some(v) if !v.is_empty() => v,
-        _ => return write_error("get_pages", "invalid_request", "bad chapterId"),
-    };
-
-    let config_url = b"https://www.ykmh.net/js/config.js";
-    let config_len = match fetch_body(config_url) {
-        Ok(n) => n,
-        Err(e) => {
-            let (code, message) = e;
-            return write_error("get_pages", code, message);
-        }
-    };
-    let host_len = {
-        let config = unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), config_len) };
-        match extract_config_host(config, scratch_b()) {
-            Some(n) => n,
-            None => return write_error("get_pages", "parse_error", "image host not found"),
-        }
-    };
-
-    let url_buf = scratch_a();
-    let mut url_len = 0usize;
-    if !write_path_url(url_buf, &mut url_len, chapter_path_id) {
-        return write_error("get_pages", "internal_error", "url overflow");
+    let chapter_id=match extract_json_string(req,b"chapterId") {Some(v)=>v,None=>return write_error("get_pages","invalid_request","missing chapterId")};
+    let path=match chapter_id.strip_prefix(b"ykmhch:") {Some(v) if v.starts_with(b"/manhua/")&&v.ends_with(b".html")=>v,_=>return write_error("get_pages","invalid_request","bad chapterId")};
+    let work_end=match path[8..].iter().position(|b|*b==b'/') {Some(i)=>8+i+1,None=>return write_error("get_pages","invalid_request","bad chapter path")};
+    // Old bookmarks must also obey a later work-level rightsholder removal.
+    let mut u=0;
+    if !write_path_url(scratch_a(),&mut u,&path[..work_end]) {return write_error("get_pages","internal_error","URL overflow");}
+    let url=unsafe {core::slice::from_raw_parts(SCRATCH_A.as_ptr(),u)};
+    let n=match fetch_body(url) {Ok(n)=>n,Err((c,m))=>return write_error("get_pages",c,m)};
+    if removed_by_rightsholder(unsafe {core::slice::from_raw_parts(BODY_BUF.as_ptr(),n)}) {
+        return write_error("get_pages","chapter_unavailable","chapters removed by rightsholder");
     }
-    let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_len) };
-
-    let html_len = match fetch_body(url) {
-        Ok(n) => n,
-        Err(e) => {
-            let (code, message) = e;
-            return write_error("get_pages", code, message);
-        }
-    };
-    let html = unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), html_len) };
-    let host = unsafe { core::slice::from_raw_parts(SCRATCH_B.as_ptr(), host_len) };
-    let chapter_path = extract_chapter_path(html).unwrap_or(b"");
-
-    let images_marker = b"chapterImages";
-    let marker_pos = match find_subslice(html, images_marker) {
-        Some(p) => p + images_marker.len(),
-        None => return write_error("get_pages", "parse_error", "chapterImages not found"),
-    };
-    let rest = &html[marker_pos..];
-    let array_start = match find_subslice(rest, b"[") {
-        Some(p) => marker_pos + p + 1,
-        None => return write_error("get_pages", "parse_error", "chapterImages array not found"),
-    };
-
-    let payload = payload_buf();
-    let mut c = 0usize;
-    if !(write_bytes(payload, &mut c, br#"{"chapterId":""#)
-        && append_json_escaped(payload, &mut c, chapter_id)
-        && write_bytes(payload, &mut c, br#"","pages":["#))
-    {
-        return write_error("get_pages", "internal_error", "payload overflow");
+    u=0;
+    if !write_path_url(scratch_a(),&mut u,path) {return write_error("get_pages","internal_error","URL overflow");}
+    let url=unsafe {core::slice::from_raw_parts(SCRATCH_A.as_ptr(),u)};
+    let n=match fetch_body(url) {Ok(n)=>n,Err((c,m))=>return write_error("get_pages",c,m)};
+    unsafe {READER_HTML[..n].copy_from_slice(&BODY_BUF[..n]);}
+    let html=unsafe {core::slice::from_raw_parts(READER_HTML.as_ptr(),n)};
+    if js_number(html,b"var chapterCanRead")!=Some(1) || js_number(html,b"var chapterPrice")!=Some(0) {
+        return write_error("get_pages","permission_denied","chapter is not publicly readable for free");
     }
-
-    let mut pos = array_start;
-    let mut written = 0usize;
-    while pos < html.len() && html[pos] != b']' && written < 2000 {
-        if html[pos] != b'"' {
-            pos += 1;
-            continue;
+    let raw=match js_value(html,b"var chapterImages").and_then(|v|v.strip_prefix(b"[")) {
+        Some(v)=>v,None=>return write_error("get_pages","parse_error","chapterImages array missing"),
+    };
+    let mut path_buffer=[0u8;2048];
+    let chapter_path=match js_value(html,b"var chapterPath").and_then(|v|extract_js_string(v,0)).and_then(|(v,_)|decode_json_content(v,&mut path_buffer).ok()) {
+        Some(v)=>v,None=>return write_error("get_pages","parse_error","chapterPath missing"),
+    };
+    let mut image_buf=[0u8;4096]; let mut host_buf=[0u8;2048]; let mut host_len=0;
+    let mut count=0; let mut scan=raw;
+    loop {
+        scan=trim_ascii(scan);
+        if scan.starts_with(b"]") {break;}
+        let (image,end)=match extract_js_string(scan,0) {Some(v)=>v,None=>return write_error("get_pages","parse_error","invalid image array")};
+        let decoded=match decode_json_content(image,&mut image_buf) {Ok(v)=>v,Err(_)=>return write_error("get_pages","parse_error","invalid image string")};
+        if !absolute_image(decoded)&&!decoded.starts_with(b"//")&&host_len==0 {
+            let len=match fetch_body(b"https://www.ykmh.net/js/config.js") {Ok(n)=>n,Err((c,m))=>return write_error("get_pages",c,m)};
+            let config=unsafe {core::slice::from_raw_parts(BODY_BUF.as_ptr(),len)};
+            host_len=match config_host(config,&mut host_buf) {Some(v)=>v.len(),None=>return write_error("get_pages","parse_error","image host missing")};
         }
-        let (image, next_pos) = match extract_js_string(html, pos) {
-            Some(v) => v,
-            None => break,
-        };
-        if written > 0 && !write_bytes(payload, &mut c, b",") {
-            break;
-        }
-        let ok = write_bytes(payload, &mut c, br#"{"id":"page:"#)
-            && write_usize(payload, &mut c, written)
-            && write_bytes(payload, &mut c, br#"","index":"#)
-            && write_usize(payload, &mut c, written)
-            && write_bytes(payload, &mut c, br#","image":{"kind":"url","url":""#)
-            && write_page_url(payload, &mut c, host, chapter_path, image)
-            && write_bytes(payload, &mut c, br#""}}"#);
-        if !ok {
-            break;
-        }
-        written += 1;
-        pos = next_pos;
+        count+=1;
+        if count>2000 {return write_error("get_pages","source_error","complete page table exceeds response capacity");}
+        scan=trim_ascii(&scan[end..]);
+        if scan.starts_with(b"]") {break;}
+        scan=match scan.strip_prefix(b",") {Some(v)=>v,None=>return write_error("get_pages","parse_error","invalid image separator")};
     }
-
-    if !write_bytes(payload, &mut c, b"]}") {
-        return write_error("get_pages", "internal_error", "payload overflow");
+    if count==0 {return write_error("get_pages","chapter_unavailable","empty page table");}
+    let payload=payload_buf();let mut c=0;
+    if !(write_bytes(payload,&mut c,br#"{"chapterId":""#)&&append_json_escaped(payload,&mut c,chapter_id)&&write_bytes(payload,&mut c,br#"","pages":["#)) {
+        return write_error("get_pages","internal_error","payload overflow");
     }
-    write_success_payload("get_pages", c)
+    let mut scan=raw;
+    for i in 0..count {
+        scan=trim_ascii(scan);let (image,end)=extract_js_string(scan,0).unwrap();
+        let decoded=match decode_json_content(image,&mut image_buf) {Ok(v)=>v,Err(_)=>return write_error("get_pages","parse_error","invalid image string")};
+        let mut image_url=[0u8;8192];let mut l=0;
+        let ok=if absolute_image(decoded) {write_bytes(&mut image_url,&mut l,decoded)}
+            else if decoded.starts_with(b"//") {write_bytes(&mut image_url,&mut l,b"https:")&&write_bytes(&mut image_url,&mut l,decoded)}
+            else if decoded.starts_with(b"/") {write_bytes(&mut image_url,&mut l,&host_buf[..host_len])&&write_bytes(&mut image_url,&mut l,decoded)}
+            else {write_bytes(&mut image_url,&mut l,&host_buf[..host_len])&&write_bytes(&mut image_url,&mut l,b"/")&&write_bytes(&mut image_url,&mut l,chapter_path)&&write_bytes(&mut image_url,&mut l,decoded)};
+        if !ok||!valid_image_url(&image_url[..l]) {return write_error("get_pages","parse_error","invalid image URL");}
+        if !((i==0||write_bytes(payload,&mut c,b","))&&write_bytes(payload,&mut c,br#"{"id":"page:"#)&&write_usize(payload,&mut c,i)
+            &&write_bytes(payload,&mut c,br#"","index":"#)&&write_usize(payload,&mut c,i)&&write_bytes(payload,&mut c,br#","image":{"kind":"url","url":""#)
+            &&append_json_escaped(payload,&mut c,&image_url[..l])&&write_bytes(payload,&mut c,br#""}}"#)) {return write_error("get_pages","internal_error","payload overflow");}
+        scan=trim_ascii(&scan[end..]);if i+1<count {scan=&scan[1..];}
+    }
+    if !write_bytes(payload,&mut c,b"]}") {return write_error("get_pages","internal_error","payload overflow");}
+    write_success_payload("get_pages",c)
 }
 
 fn run_get_listings(_req: &[u8]) -> u32 {
@@ -984,8 +943,33 @@ fn run_get_settings(_req: &[u8]) -> u32 {
     response_buffer().write_success("get_settings", br#"{"settings":[]}"#)
 }
 
-fn run_get_image_request(_req: &[u8]) -> u32 {
-    response_buffer().write_error("get_image_request", "unimplemented", "not implemented")
+fn run_get_image_request(req: &[u8]) -> u32 {
+    let raw = match extract_json_string(req, b"url").or_else(|| extract_json_string(req, b"imageUrl")) {
+        Some(v) => v, None => return write_error("get_image_request", "invalid_request", "missing image URL"),
+    };
+    let mut decoded = [0u8;8192];
+    let url = match decode_json_content(raw, &mut decoded) {
+        Ok(v) if valid_image_url(v) => v,
+        _ => return write_error("get_image_request", "invalid_request", "invalid image URL"),
+    };
+    // Fixed upstream KeiSource.headersBuilder() supplies baseUrl/ as Referer,
+    // and getImageRequest() carries those headers to every page/cover request.
+    // Use the existing SDK ordinary-request UA; this does not configure ArkWeb
+    // verification UA or expose website cookies. Absolute provider URLs stay exact.
+    let n = match build_get_request(http_req_buf(), url, Some(b"https://www.ykmh.net/"), &[]) {
+        Some(n) => n, None => return write_error("get_image_request", "invalid_request", "image descriptor overflow"),
+    };
+    let request = unsafe {core::slice::from_raw_parts(core::ptr::addr_of!(HTTP_REQ_BUF).cast::<u8>(),n)};
+    let headers = match json_object_member(request,b"headers") {
+        Some(v) => v, None => return write_error("get_image_request", "internal_error", "image headers missing"),
+    };
+    let payload=payload_buf(); let mut c=0;
+    if !(write_bytes(payload,&mut c,br#"{"url":""#) && append_json_escaped(payload,&mut c,url)
+        && write_bytes(payload,&mut c,br#"","headers":"#) && write_bytes(payload,&mut c,headers)
+        && write_bytes(payload,&mut c,b"}")) {
+        return write_error("get_image_request", "internal_error", "image descriptor overflow");
+    }
+    write_success_payload("get_image_request",c)
 }
 
 koma_source_sdk::koma_source_exports!("manhuadui");

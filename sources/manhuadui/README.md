@@ -35,3 +35,60 @@
 原选择器无法读出作品，本次补上两种结构，保留旧页面解析和作品身份。
 
 2026-11-19 0.1.7 237 已具名验证热门首屏、《一拳超人》搜索和验证页自动关闭，作品出现在应用原生搜索页。
+
+
+## 0.1.8 候选：恢复完整目录及公开免费页表
+
+本轮只改该源，保留 com.manhuadui.koma、ykmh:<slug>、ykmhch:<path> 和 page:<index>。
+0.1.7 的详情/目录/页表导出一直存在，但 capabilities 关闭；这属于源侧能力缺口，
+不能归类为 Cloudflare 或登录阻碍。0.1.8 恢复这三项操作及 imageRequest。
+热门、搜索、分页、分级和现有素材保持。
+
+上游固定为 keiyoushi/extensions-source 5d54f0d02e2a7dbdda08e823de444f7527cc883c：
+YKMH.kt（blob 6264bf25f9b93dbe01e0ddce8be7b0fae2fd7f24）继承 SinMH.kt
+（blob acfff55809180c72296fd7ece8e06efda5832b3b）。上游详情/目录/章页走移动域，
+各 .chapter-body 独立，YKMH 保留每组网站数组顺序；图片来自 chapterImages/chapterPath，
+配置中的 resHost.domain 只参与相对地址。
+
+| 行为 | Koma 已有调用与本源消费 | 本轮依据及边界 |
+| --- | --- | --- |
+| 热门、搜索、分页 | get_manga_list/search → 原 parse_list | 沿用 0.1.7 已接受移动站入口和真实 next；本轮未重新验设备分页 |
+| 详情 | get_manga → 原桌面选择器，兼容上游 #comicName/#Cover/简介 | 五部真实桌面 HTTP 原件已回放；缺作品标题报错，不能用 slug 冒充成功 |
+| 完整目录 | get_chapters → chapter_catalog / SDK GroupedChapters | 六个真实分区、130 条完整；各组独立位置，无号与番外保留；不按标题、编号去重或重排 |
+| 原始与渲染文档 | 既有 webFetchBridge/renderedDocumentFallback | 桌面原始 HTML asc，站点 JS 将 LI 反转并把活动按钮变 desc，data-sort 仍 asc；按活动按钮还原正向数组，声明 oldest-first；宿主显示排序独立 |
+| 替代组 | 原目录 chapter-list-1、chapter-list-7 | 三日月与流星同名不同 ID 的两组完整保留；第41话的真实 next 指向第01话，遵守站点实际导航，不能数值排序 |
+| 正文页表 | get_pages → 原 chapterImages/chapterPath 合同 | 先核父作品版权下架，再核 chapterCanRead=1 且 chapterPrice=0；绝对 http/https 解码后原样返回，不依赖配置；相对图才取真实 config.js domain |
+| 权限和容量 | 版权提示/权限/数组完整性 | 下架拒绝阅读残留旧 ID；付费、不可读、未知权限拒绝；容量或解析错误整项失败，不截断后声称完整 |
+| 原点 | 包内 web-session-origins.json | 保留 m，新增精确 www；主页不扩大会话权限。详情/目录/阅读按上游和官网 phone.js 从 m 请求，公开作品链接保留 www；桌面原件仅做解析兼容回放，未冒充移动域真实响应 |
+| 登录、筛选、设置 | 原 capabilities | 本源没有账户登录或筛选设置能力，不新增登录、凭据或付费能力 |
+
+本轮使用原仓现成 dev runner 与其已有证据回放器。五部公开 HTTP 200 目录原片段是
+Cat Loss Syndrome、三日月与流星、死亡游戏bad end、只属于你的单马尾、开始吧！秘密恋爱。
+旧发布版第一组 ID、标题、原 null 数值全部保留；新增恢复原先遗漏的第二组 37 条。
+Cat Loss Syndrome 序章真实可读、免费，8 张绝对 http 图片地址逐项保持，未请求 config。
+相对图片分支用真实 config.js 配合派生输入验证；不可读、付费、重复 ID 和版权拒绝
+也为明确标注的派生边界验证，不冒充真实受限页面。
+
+真实网络与回放分开：Edge 桌面公开页正常，原生 dev runner 同一目录仍 HTTP403；
+移动 UA 下 m 域最后停在自动安全验证。官网 phone.js 确认 Android 会从 www 跳 m，
+普通 WebView 在这两个原点间的验证和回流尚未设备验证。新增精确 origin 不等于
+同源原请求已经接通，不将本候选称为普通路径恢复通过或可直接公开发布。
+普通设备、移动模板、真实付费/权限页仍未验。桌面已用候选图片描述符真实请求并解码序章第 0／7 图，均为 JPEG（1280×12642／1280×11393）；237 实际像素与普通阅读路径仍未验。任务浏览器工具
+两次没有遵守调用的有界 timeout；最终恢复临时 UA 的结果未确认，详见证据，不归因于人类用户。
+
+证据：Koma .hvigor/outputs/published-source-order-audit-20261123/youku-investigation/
+下的 provider-capture-manifest.json、candidate-validation.json、candidate-native-chapters.*、
+progress.json、browser-errors.json。全部为本轮候选证据，未提交、未推送、未发布。
+
+
+### 0.1.8 候选图片请求头补审
+
+固定上游同一提交的 `core/src/main/kotlin/keiyoushi/source/KeiSource.kt`
+（blob 5372ca0363544fee6f127d66c39853e1ab58a9d0）199–201 行在最终
+headersBuilder 设置 `Referer: $baseUrl/`，517–525 行图片 GET 使用这份 headers，
+并标记 Fetch.IMAGE。SinMH.kt 43 行仅覆盖系统 HTTP UA，YKMH.kt 9–11 行未更改图片请求。
+首个候选 imageRequest=false 遗漏了父类消费链，父代理审查指出后在同一版本补齐。
+本源 get_image_request 现在返回原样绝对 URL、`Referer: https://www.ykmh.net/`
+和既有 SDK 普通请求 UA；该 UA 是 WASM 宿主适配，并非逐字模拟 Android JVM 的
+System.getProperty(http.agent)，也不改变验证页 UA。沿用宿主现有图片描述符调用，
+不新增 App/SDK 功能，不携带 Cookie、账号或凭据。
