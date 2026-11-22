@@ -72,3 +72,27 @@ GET 和 [Keiyoushi](https://github.com/keiyoushi/extensions-source/blob/main/src
 `public.komiic.cc`；普通网页入口由 `homepageChoices` 跟随镜像。
 
 作品评论复用官网的 `getMessagesByComicId`，通过当前选择的镜像和既有会话访问。一页返回 30 条，读取多一条判断是否还有下一页。官网留言按作品查询，关联章节的书签不会被解释为独立的章节讨论。
+
+
+## 2026-11-23 完整目录位置与分组
+
+get_chapters成功结果经typed SDK生成。官网实际index-Qe6s1nt9.js的章节store
+将chaptersByComicId直接复制到数组；章节面板按type过滤该数组。本源保留既有
+provider数组顺序和chapter/book版本分组，以完整原数组位置作readingOrder；
+不照搬固定上游949dea2中按serial数字降序重排的代码。serial仍是展示标签，
+缺号或非数字标签不再剥夺已知chapter/book目录中的相邻章；未知type独立单章组，
+不猜它与卷/连载之间的连接。
+
+只合并相同业务章ID且版本类型一致的重复项；同ID版本冲突仍报错，保留不同ID同标签。显式CHAPTER_FILTER、精确章所有权、
+完整ID校验和excludedChapterIds，以及既有会话、图片票据/限额/访问错误均保留。
+完整原数组的位置在过滤前产生，筛选不让其余章节重新编号。证据在Koma审计
+目录static-provider-komiic-client.json及static-*候选记录；未用编译代替Native验收。
+
+
+## 2026-11-23 最终候选回归
+
+候选版本0.1.23由最终.koma包内WASM的source_info与manifest一致读回。5部完整目录。
+目录逐项核ID、标题、原显示顺序、元数据和完整位置；实际执行App现有投影、
+章序、邻章函数及反向显示投影，get_pages代表回归独立记录。原件同响应回放
+与最终包代表性真实HTTP均保留于Koma审计static-expanded/及static-final-packages.json。
+这些结果不冒充设备安装、图片解码或普通App UI验收。

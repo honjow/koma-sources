@@ -516,6 +516,9 @@ fn chapter_anchor_number(list: &[u8], start: usize) -> usize {
 // not the end of chapterlistload; retain the exact original inner markup and
 // fail closed if its matching container cannot be found.
 fn chapter_container_end(html: &[u8], start: usize) -> Option<usize> {
+    chapter_element_end(html, start, b"div")
+}
+fn chapter_element_end(html: &[u8], start: usize, element: &[u8]) -> Option<usize> {
     let mut pos = start;
     let mut depth = 0usize;
     while pos < html.len() {
@@ -549,7 +552,7 @@ fn chapter_container_end(html: &[u8], start: usize) -> Option<usize> {
             end += 1;
         }
         if end == html.len() || quote != 0 { return None; }
-        if name.eq_ignore_ascii_case(b"div") {
+        if name.eq_ignore_ascii_case(element) {
             if closing {
                 depth = depth.checked_sub(1)?;
                 if depth == 0 { return Some(at); }
@@ -587,81 +590,102 @@ fn chapter_explicitly_unavailable(html: &[u8], id: &[u8]) -> bool {
         .unwrap_or(false)
 }
 
-fn run_get_chapters(req: &[u8]) -> u32 {
+fn run_get_chapters(req: &[u8]) -> koma_source_sdk::chapters::ChapterResult<'static, u32> {
     let manga_id = match extract_json_string(req, b"mangaId") {
         Some(v) => v,
-        None => return write_error("get_chapters", "invalid_request", "missing mangaId"),
+        None => return Err(write_error("get_chapters", "invalid_request", "missing mangaId")),
     };
     if manga_id.len() <= 6 || &manga_id[..6] != b"manga:" {
-        return write_error("get_chapters", "invalid_request", "unexpected mangaId");
+        return Err(write_error("get_chapters", "invalid_request", "unexpected mangaId"));
     }
     let id = &manga_id[6..];
     let url_len = match make_url(&[BASE_URL, b"/", id, b"/"]) {
         Some(n) => n,
-        None => return write_error("get_chapters", "internal_error", "url overflow"),
+        None => return Err(write_error("get_chapters", "internal_error", "url overflow")),
     };
     let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_len) };
     let html_len = match fetch_body(url, None) {
         Ok(n) => n,
         Err(e) => {
             let (c, m) = fetch_error_code(e);
-            return write_error("get_chapters", c, m);
+            return Err(write_error("get_chapters", c, m));
         }
     };
     let html = unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), html_len) };
     let list_marker = match find_subslice(html, b"id=\"chapterlistload\"") {
         Some(v) => v,
-        None if chapter_explicitly_unavailable(html, id) => return write_error("get_chapters", "not_found", "site no longer provides this work"),
-        None => return write_error("get_chapters", "parse_error", "chapter list not found"),
+        None if chapter_explicitly_unavailable(html, id) => return Err(write_error("get_chapters", "not_found", "site no longer provides this work")),
+        None => return Err(write_error("get_chapters", "parse_error", "chapter list not found")),
     };
     let list_start = match find_back(html, list_marker, b'<') {
         Some(v) if html[v..].starts_with(b"<div") => v,
-        _ => return write_error("get_chapters", "parse_error", "invalid chapter list container"),
+        _ => return Err(write_error("get_chapters", "parse_error", "invalid chapter list container")),
     };
     let list_end = match chapter_container_end(html, list_start) {
         Some(v) if v > list_marker => v,
-        _ => return write_error("get_chapters", "parse_error", "unterminated chapter list"),
+        _ => return Err(write_error("get_chapters", "parse_error", "unterminated chapter list")),
     };
     let list = &html[list_start..list_end];
-    let payload = payload_buf();
-    let mut c = 0usize;
-    if !write_bytes(payload, &mut c, br#"{"items":["#) {
-        return write_error("get_chapters", "internal_error", "payload overflow");
+    use koma_source_sdk::chapters::{Chapter, ChapterNumber, ChapterPage, ChapterPlacement, GroupedChapters};
+    let sdk_error = |e: koma_source_sdk::source::SourceError| write_error("get_chapters", e.code(), e.message());
+    let oldest_first = chapter_dom_direction(html);
+    // ULs are provider sections, not title-derived volume/chapter guesses.
+    let mut sections = [(0usize,0usize);128]; let mut section_count=0usize;
+    let mut scan=0;
+    while let Some(rel)=find_subslice(&list[scan..], b"<ul") {
+        let start=scan+rel;
+        let tag_end=start+find_subslice(&list[start..], b">")
+            .ok_or_else(|| write_error("get_chapters","parse_error","unterminated chapter section"))?+1;
+        // Card catalogues hide the remaining chapters in a nested chapteritem
+        // UL. Match the outer section's closing tag, retaining all nested rows.
+        let end=chapter_element_end(list,start,b"ul")
+            .ok_or_else(|| write_error("get_chapters","parse_error","unterminated chapter section"))?;
+        if attr_value(&list[start..tag_end],b"id").is_some_and(|id| id.starts_with(b"detail-list-select-")) {
+            if section_count==sections.len() { return Err(write_error("get_chapters","parse_error","too many chapter sections")); }
+            sections[section_count]=(tag_end,end);section_count+=1;
+        }
+        scan=end+5;
     }
-    // Default keeps the delivered site order. Explicit sortChapter follows
-    // Keiyoushi's descending numeric chapter URL order, without changing IDs,
-    // page counts or title-derived sequence metadata. Equal IDs retain site order.
     let sort = json_object_member(req, b"settings")
         .and_then(|s| json_object_member(s, b"sortChapter"))
         .map(|v| v == b"true" || v == b"\"true\"").unwrap_or(false);
-    let mut anchors = [0usize; 8192];
-    let mut count = 0usize;
-    let mut pos = 0usize;
-    while let Some(rel) = find_subslice(&list[pos..], b"<a ") {
-        if count == anchors.len() {
-            return write_error("get_chapters", "parse_error", "too many chapter anchors");
+    let mut anchors=[0usize;8192];let mut count=0;let mut pos=0;
+    let mut section_ids=[usize::MAX;8192]; let mut positions=[0usize;8192];let mut totals=[0usize;128];
+    while let Some(rel)=find_subslice(&list[pos..],b"<a ") {
+        if count==anchors.len() { return Err(write_error("get_chapters","parse_error","too many chapter anchors")); }
+        let start=pos+rel;anchors[count]=start;
+        if let Some(si)=sections[..section_count].iter().position(|&(a,b)| a<=start && start<b) {
+            section_ids[count]=si;positions[count]=totals[si];totals[si]+=1;
         }
-        anchors[count] = pos + rel;
-        count += 1;
-        pos = match find_subslice(&list[anchors[count - 1]..], b"</a>") {
-            Some(end) => anchors[count - 1] + end + 4,
-            None => return write_error("get_chapters", "parse_error", "unterminated chapter anchor"),
-        };
+        count+=1;
+        pos=start+find_subslice(&list[start..],b"</a>")
+            .ok_or_else(|| write_error("get_chapters","parse_error","unterminated chapter anchor"))?+4;
     }
-    if count == 0 {
-        return write_error("get_chapters", "parse_error", "chapter list empty or unrecognized");
-    }
+    if count==0 { return Err(write_error("get_chapters","parse_error","chapter list empty or unrecognized")); }
+    let mut display=[0usize;8192];for (i,v) in display[..count].iter_mut().enumerate(){*v=i;}
+    // This source preference changes the directory basis: upstream calls it
+    // upload-time order and returns URL business IDs descending. Preserve that
+    // choice for reading as well. App menu reversal is a separate projection.
     if sort {
-        anchors[..count].sort_unstable_by(|a, b| {
-            chapter_anchor_number(list, *b).cmp(&chapter_anchor_number(list, *a))
-                .then_with(|| a.cmp(b))
-        });
+        display[..count].sort_unstable_by(|a,b|
+            chapter_anchor_number(list,anchors[*b]).cmp(&chapter_anchor_number(list,anchors[*a]))
+                .then_with(|| a.cmp(b)));
+        let mut ranks=[0usize;128];
+        for &index in &display[..count] {
+            let section=section_ids[index];
+            if section!=usize::MAX {
+                positions[index]=totals[section]-ranks[section]-1;
+                ranks[section]+=1;
+            }
+        }
     }
-    let mut written = 0usize;
-    for &a_start in &anchors[..count] {
+    let mut catalog=GroupedChapters::new(payload_buf(),req).map_err(sdk_error)?;
+    let mut seen:[&[u8];8192]=[&[];8192];let mut used=0;
+    for &index in &display[..count] {
+        let a_start=anchors[index];
         let a_end = match find_subslice(&list[a_start..], b"</a>") {
             Some(v) => a_start + v + 4,
-            None => return write_error("get_chapters", "parse_error", "unterminated chapter anchor"),
+            None => return Err(write_error("get_chapters", "parse_error", "unterminated chapter anchor")),
         };
         let block = &list[a_start..a_end];
         let tag_end = match find_subslice(block, b">") {
@@ -684,15 +708,15 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         let title_html = if contains_bytes(content, b"<div") {
             let start = match find_subslice(content, b"<p class=\"title") {
                 Some(v) => v,
-                None => return write_error("get_chapters", "parse_error", "card chapter title missing"),
+                None => return Err(write_error("get_chapters", "parse_error", "card chapter title missing")),
             };
             let begin = match find_subslice(&content[start..], b">") {
                 Some(v) => start + v + 1,
-                None => return write_error("get_chapters", "parse_error", "card chapter title missing"),
+                None => return Err(write_error("get_chapters", "parse_error", "card chapter title missing")),
             };
             let end = match find_subslice(&content[begin..], b"</p>") {
                 Some(v) => begin + v,
-                None => return write_error("get_chapters", "parse_error", "card chapter title missing"),
+                None => return Err(write_error("get_chapters", "parse_error", "card chapter title missing")),
             };
             &content[begin..end]
         } else { content };
@@ -704,43 +728,68 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         );
         let page_count = extract_page_count(identity_title);
         let sequence = chapter_sequence(identity_title);
-        if written > 0 && !write_bytes(payload, &mut c, b",") {
-            return write_error("get_chapters", "internal_error", "payload overflow");
+        if seen[..used].contains(&cid) { continue; }
+        seen[used]=cid;used+=1;
+        let mut identity=[0u8;2048];let mut n=0;
+        if !(write_bytes(&mut identity,&mut n,b"chapter:") && write_bytes(&mut identity,&mut n,id)
+            && write_bytes(&mut identity,&mut n,b":") && write_bytes(&mut identity,&mut n,cid)
+            && write_bytes(&mut identity,&mut n,b":") && write_usize(&mut identity,&mut n,page_count)) {
+            return Err(write_error("get_chapters","internal_error","chapter identity overflow"));
         }
-        let ok = write_bytes(payload, &mut c, br#"{"id":"chapter:"#)
-            && append_json_escaped(payload, &mut c, id)
-            && write_bytes(payload, &mut c, b":")
-            && append_json_escaped(payload, &mut c, cid)
-            && write_bytes(payload, &mut c, b":")
-            && write_usize(payload, &mut c, page_count)
-            && write_bytes(payload, &mut c, br#"","mangaId":"manga:"#)
-            && append_json_escaped(payload, &mut c, id)
-            && write_bytes(payload, &mut c, br#"","title":""#)
-            && write_display_chapter_title(payload, &mut c, display_title)
-            && write_bytes(payload, &mut c, br#"","chapterNumber":"#)
-            && write_chapter_sequence_number(payload, &mut c, sequence, false)
-            && write_bytes(payload, &mut c, br#", "volumeNumber":"#)
-            && write_chapter_sequence_number(payload, &mut c, sequence, true)
-            && write_bytes(payload, &mut c, br#", "readingGroup":""#)
-            && write_bytes(payload, &mut c, if sequence.map(|(_, volume)| volume).unwrap_or(false) { b"volume" } else { b"chapter" })
-            && write_bytes(payload, &mut c, br#"","continuationEligible":"#)
-            && write_bytes(payload, &mut c, if sequence.is_some() { b"true" } else { b"false" })
-            && write_bytes(payload, &mut c, br#","publishedAt":null,"updatedAt":null,"pageCount":"#)
-            && if page_count > 0 { write_usize(payload, &mut c, page_count) } else { write_bytes(payload, &mut c, b"null") }
-            && write_bytes(payload, &mut c, b"}");
-        if !ok {
-            return write_error("get_chapters", "internal_error", "payload overflow");
+        // Keep the full existing display title, while the old 256-byte identity
+        // and page-count parser remains unchanged for saved IDs/downloads.
+        let title_buffer=http_out();let mut tn=0;
+        for byte in display_title {
+            if tn==title_buffer.len() { return Err(write_error("get_chapters","internal_error","chapter title overflow")); }
+            title_buffer[tn]=byte;tn+=1;
         }
-        written += 1;
+        let mut chapter=Chapter::new(&identity[..n],manga_id,&title_buffer[..tn]);
+        chapter.chapter_number=sequence.filter(|(_,volume)| !volume).map(|(n,_)| ChapterNumber::Text(n));
+        chapter.volume_number=sequence.filter(|(_,volume)| *volume).map(|(n,_)| ChapterNumber::Text(n));
+        chapter.page_count=(page_count>0).then_some(page_count);
+        let mut group=[0u8;2048];let mut gn=0;
+        let si=section_ids[index];
+        let position=if let Some(oldest)=(if sort {Some(true)}else{oldest_first}).filter(|_|si!=usize::MAX) {
+            if !(write_bytes(&mut group,&mut gn,b"dm5:section:") && write_usize(&mut group,&mut gn,si)) {
+                return Err(write_error("get_chapters","internal_error","chapter group overflow"));
+            }
+            if oldest {positions[index]}else{totals[si]-positions[index]-1}
+        } else {
+            // Unknown direction/layout is a selectable singleton, not an
+            // unverified automatic link to another section or numbered entry.
+            if !(write_bytes(&mut group,&mut gn,b"dm5:manual:") && write_bytes(&mut group,&mut gn,cid)) {
+                return Err(write_error("get_chapters","internal_error","chapter group overflow"));
+            }
+            0
+        };
+        catalog.push(chapter,ChapterPlacement::InGroup {group:&group[..gn],position:position as u64}).map_err(sdk_error)?;
     }
-    if !write_bytes(
-        payload,
-        &mut c,
-        br#"],"page":{"nextCursor":null,"hasMore":false}}"#,
-    ) {
-        return write_error("get_chapters", "internal_error", "payload overflow");
+    catalog.finish(ChapterPage::Complete).map_err(sdk_error)
+}
+fn write_chapter_error(pointer:u32)->u32 { pointer }
+
+// The site's order control describes its delivered DOM, as consumed by fixed
+// upstream Dm5.kt. Check every control agrees; absence is not a direction guess.
+fn chapter_dom_direction(html:&[u8])->Option<bool> {
+    let doc=DirectoryDocument(host::html_parse(html).ok()?);
+    let selector=b".detail-list-title > a.order";
+    let mut handles=[0u8;256];
+    let n=unsafe {directory_select_all(doc.0.raw(),selector.as_ptr(),selector.len() as u32,handles.as_mut_ptr(),handles.len() as u32)};
+    if n<=0 || n>64 {return None;}
+    let nodes=DirectoryNodes {bytes:&handles[..n as usize*4],count:n as usize};
+    let mut direction=None;
+    for i in 0..nodes.count {
+        let mut text=[0u8;128];let size=host::html_text(nodes.at(i)?,&mut text).ok()?;
+        if size>=text.len(){return None;}
+        let value=match trim_ascii(&text[..size]) {
+            v if v=="正序".as_bytes()=>true,
+            v if v=="倒序".as_bytes()=>false,
+            _=>return None,
+        };
+        if direction.is_some_and(|d|d!=value){return None;}
+        direction=Some(value);
     }
-    write_success_payload("get_chapters", c)
+    direction
 }
 
 // Preserve strip_tags_to's byte semantics and its four-byte trim set, without
@@ -1803,15 +1852,7 @@ pub extern "C" fn koma_source_get_manga(req_ptr: u32, req_len: u32) -> u32 {
     run_get_manga(req)
 }
 
-#[no_mangle]
-pub extern "C" fn koma_source_get_chapters(req_ptr: u32, req_len: u32) -> u32 {
-    let req = match read_request(req_ptr, req_len) {
-        Some(r) => r,
-        None => return write_error("get_chapters", "invalid_request", "empty request"),
-    };
-    log_info(b"DM5 get_chapters");
-    run_get_chapters(req)
-}
+koma_source_sdk::koma_source_chapter_export!("dm5", run_get_chapters, write_chapter_error);
 
 #[no_mangle]
 pub extern "C" fn koma_source_get_pages(req_ptr: u32, req_len: u32) -> u32 {

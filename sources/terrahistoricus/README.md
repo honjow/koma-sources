@@ -33,3 +33,26 @@
 只接受现装包上述原具名章节首两页和返回；未核下载/缓存来源，不将本轮称作无缓存在线首取，也不扩大为全58页、cold、其他章节或整源通过。原封面低清、图标小槽及其他既有未闭项保持。原Browse末端已恢复并亲看，50项完整registry与进入前逐项相同；原OverrideTimeout10000ms/AWAKE已读回，租约84519278已释放，全部回执哈希关闭。
 
 原件在Koma/.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/：terra017-{entry,detail,first}237-002、terra017-page2-237-002、terra017-progress-restored237-002与terra017-session-restored237-002。当前源码、版本与资源未改，未构建或更新包。
+
+
+## 2026-11-23 完整episodes续章
+
+章序入口改用typed SDK，按provider完整episodes数组的原位置建立readingOrder，
+保留既有倒序显示；不再要求type=正篇且shortTitle为数字才允许相邻章。
+实际6253 API的355个条目按displayTime从新到旧，身份/顺序与发布WASM逐项相同；
+固定上游5b95ccc的TerraHistoricusDto.kt::THComic.toSChapterList直接map完整
+episodes，未按标题重排或剥除番外/贺图/公告。本源仅合并相同episode cid重复项，
+不同ID同名保留；完整位置不从displayTime或数字标签重新排序产生。
+
+ID、标题中的type前缀、原本可识别的展示章号、详情/正文及签名图片请求链保持。
+章号未知仍null；没有增加登录、付费或缺页访问权限。实际HTTP/CF/正文失败仍按
+原通道上报。候选证据位于Koma审计目录static-*；编译和目录回放不代替Native验收。
+
+
+## 2026-11-23 最终候选回归
+
+候选版本0.1.10由最终.koma包内WASM的source_info与manifest一致读回。5部完整目录。
+目录逐项核ID、标题、原显示顺序、元数据和完整位置；实际执行App现有投影、
+章序、邻章函数及反向显示投影，get_pages代表回归独立记录。原件同响应回放
+与最终包代表性真实HTTP均保留于Koma审计static-expanded/及static-final-packages.json。
+这些结果不冒充设备安装、图片解码或普通App UI验收。

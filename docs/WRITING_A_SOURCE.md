@@ -326,6 +326,16 @@ created through one of these SDK entry points:
   order cannot be verified and leave manifest `chapterOrder` unset when using
   grouped catalogs.
 
+Reading positions come from the complete provider catalog with a verified direction,
+not from chapter numbers, titles, dates or the App's display reversal. Missing or
+repeated display numbers and titles do not make a chapter `ManualOnly`. Preserve
+different business IDs; collapse repeated occurrences of the same verified chapter
+identity without deleting distinct chapters or editions. Keep positions stable
+across catalog pages and App display/filter settings. A source preference that
+explicitly changes the catalog sort basis retains its upstream reading semantics.
+Separate reading groups only
+for actual provider editions or sections; a missing number is not a group boundary.
+
 For sources with custom WASM exports, use
 `koma_source_chapter_export!("name", run_get_chapters)` for this operation.
 The macro also accepts the source's existing error writer and ABI request reader
