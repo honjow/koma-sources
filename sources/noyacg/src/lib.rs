@@ -32,7 +32,7 @@ mod filter_candidate;
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.noyacg.koma",
     name: "NoyAcg",
-    version: "0.1.12",
+    version: "0.1.13",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -604,6 +604,92 @@ fn run_get_manga(req: &[u8]) -> u32 {
     write_success_payload("get_manga", c)
 }
 
+// Traverse chapter records, not their category/data wrapper. Preserve provider
+// encounter order; a page count is never a chapter number or reading ordinal.
+fn next_catalog_chapter<'a>(data: &'a [u8], pos: &mut usize) -> Result<Option<&'a [u8]>, &'static str> {
+    while *pos < data.len() {
+        match data[*pos] {
+            b'"' => {
+                *pos += 1;
+                while *pos < data.len() && data[*pos] != b'"' {
+                    if data[*pos] == b'\\' { *pos += 1; }
+                    *pos += 1;
+                }
+                if *pos >= data.len() { return Err("unterminated chapter string"); }
+                *pos += 1;
+            }
+            b'{' => {
+                let start = *pos;
+                let obj = extract_balanced(data, start, b'{', b'}').ok_or("incomplete chapter object")?;
+                if json_object_member(obj, b"id").is_some() {
+                    if json_object_member(obj, b"name").is_none() { return Err("chapter title missing"); }
+                    *pos += obj.len();
+                    return Ok(Some(obj));
+                }
+                if json_object_member(obj, b"name").is_some() && json_object_member(obj, b"count").is_some() {
+                    return Err("chapter id missing");
+                }
+                // Enter a wrapper without treating nested id/name/count as its own.
+                *pos += 1;
+            }
+            _ => *pos += 1,
+        }
+    }
+    Ok(None)
+}
+
+// A capacity failure is an error, never a successful partial complete catalog.
+// This pure serializer is also checked locally without an HTTP/login response.
+fn render_chapter_catalog(payload: &mut [u8], id: &[u8], data: &[u8]) -> Result<usize, &'static str> {
+    let data = data.trim_ascii();
+    let complete = match data.first() {
+        Some(b'{') => extract_balanced(data, 0, b'{', b'}'),
+        Some(b'[') => extract_balanced(data, 0, b'[', b']'),
+        _ => None,
+    }.ok_or("invalid chapter data container")?;
+    if complete.len() != data.len() { return Err("invalid chapter data suffix"); }
+    let mut c = 0usize;
+    if !write_bytes(payload, &mut c, br#"{"items":["#) { return Err("payload overflow"); }
+    let mut pos = 0usize;
+    let mut written = 0usize;
+    while let Some(obj) = next_catalog_chapter(data, &mut pos)? {
+        let raw_id = json_object_member(obj, b"id").ok_or("chapter id missing")?;
+        let cid = if raw_id.starts_with(b"\"") && raw_id.ends_with(b"\"") && raw_id.len() >= 2 {
+            &raw_id[1..raw_id.len()-1]
+        } else if !raw_id.is_empty() && raw_id.iter().all(u8::is_ascii_digit) { raw_id }
+        else { return Err("invalid chapter id"); };
+        if cid.is_empty() { return Err("empty chapter id"); }
+        let title = extract_json_string(obj, b"name").ok_or("chapter title missing")?;
+        let count = match json_object_member(obj, b"count") {
+            Some(b"null") | None => b"null".as_slice(),
+            Some(value) if !value.is_empty() && value.iter().all(u8::is_ascii_digit) => value,
+            _ => return Err("invalid chapter page count"),
+        };
+        let created = extract_json_string(obj, b"created_at").unwrap_or(b"");
+        if written > 0 && !write_bytes(payload, &mut c, b",") { return Err("payload overflow"); }
+        let ok = write_bytes(payload, &mut c, br#"{"id":"chapter:"#)
+            && append_json_escaped(payload, &mut c, id)
+            && write_bytes(payload, &mut c, b":")
+            && append_json_escaped(payload, &mut c, cid)
+            && write_bytes(payload, &mut c, br#"","mangaId":"manga:"#)
+            && append_json_escaped(payload, &mut c, id)
+            && write_bytes(payload, &mut c, br#"","title":""#)
+            && append_json_unescaped_then_escaped(payload, &mut c, title)
+            && write_bytes(payload, &mut c, br#"","chapterNumber":null,"volumeNumber":null,"language":"zh","publishedAt":"#)
+            && if created.is_empty() { write_bytes(payload, &mut c, b"null") }
+               else { write_json_string_value(payload, &mut c, created) }
+            && write_bytes(payload, &mut c, br#","updatedAt":null,"pageCount":"#)
+            && write_bytes(payload, &mut c, count)
+            && write_bytes(payload, &mut c, b"}");
+        if !ok { return Err("payload overflow"); }
+        written += 1;
+    }
+    if !write_bytes(payload, &mut c, br#"],"page":{"nextCursor":null,"hasMore":false}}"#) {
+        return Err("payload overflow");
+    }
+    Ok(c)
+}
+
 fn run_get_chapters(req: &[u8]) -> u32 {
     let manga_id = match extract_json_string(req, b"mangaId") {
         Some(v) => v,
@@ -628,68 +714,18 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         Some(v) => v,
         None => return write_error("get_chapters", "parse_error", "missing chapters"),
     };
-    let data = extract_object_for_key(chapters, b"data").unwrap_or(chapters);
-    let payload = payload_buf();
-    let mut c = 0usize;
-    if !write_bytes(payload, &mut c, br#"{"items":["#) {
-        return write_error("get_chapters", "internal_error", "payload overflow");
-    }
-    let mut pos = 0usize;
-    let mut written = 0usize;
-    while let Some(obj) = next_raw_object(data, &mut pos) {
-        let cid = match extract_json_number(obj, b"id").or_else(|| extract_json_string(obj, b"id")) {
-            Some(v) => v,
-            None => continue,
-        };
-        let title = extract_json_string(obj, b"name").unwrap_or(b"Chapter");
-        let count = extract_json_number(obj, b"count").unwrap_or(b"");
-        let created = extract_json_string(obj, b"created_at").unwrap_or(b"");
-        if written > 0 && !write_bytes(payload, &mut c, b",") {
-            break;
+    let data = match json_object_member(chapters, b"data") {
+        Some(data) => data,
+        None if json_object_member(chapters, b"categories").is_some() => {
+            return write_error("get_chapters", "parse_error", "chapter data missing");
         }
-        let ok = write_bytes(payload, &mut c, br#"{"id":"chapter:"#)
-            && append_json_escaped(payload, &mut c, id)
-            && write_bytes(payload, &mut c, b":")
-            && append_json_escaped(payload, &mut c, cid)
-            && write_bytes(payload, &mut c, br#"","mangaId":"manga:"#)
-            && append_json_escaped(payload, &mut c, id)
-            && write_bytes(payload, &mut c, br#"","title":""#)
-            && append_json_unescaped_then_escaped(payload, &mut c, title)
-            && write_bytes(payload, &mut c, br#"","chapterNumber":"#)
-            && if count.is_empty() {
-                write_bytes(payload, &mut c, b"null")
-            } else {
-                write_json_string_value(payload, &mut c, count)
-            }
-            && write_bytes(payload, &mut c, br#","volumeNumber":null,"language":"zh","publishedAt":"#)
-            && if created.is_empty() {
-                write_bytes(payload, &mut c, b"null")
-            } else {
-                write_json_string_value(payload, &mut c, created)
-            }
-            && write_bytes(payload, &mut c, br#","updatedAt":null,"pageCount":"#)
-            && if count.is_empty() {
-                write_bytes(payload, &mut c, b"null")
-            } else {
-                append_json_escaped(payload, &mut c, count)
-            }
-            && write_bytes(payload, &mut c, b"}");
-        if !ok {
-            return write_error("get_chapters", "internal_error", "payload overflow");
-        }
-        written += 1;
-        if written >= 1000 {
-            break;
-        }
+        None => chapters,
+    };
+    match render_chapter_catalog(payload_buf(), id, data) {
+        Ok(len) => write_success_payload("get_chapters", len),
+        Err(message) => write_error("get_chapters",
+            if message == "payload overflow" { "internal_error" } else { "parse_error" }, message),
     }
-    if !write_bytes(
-        payload,
-        &mut c,
-        br#"],"page":{"nextCursor":null,"hasMore":false}}"#,
-    ) {
-        return write_error("get_chapters", "internal_error", "payload overflow");
-    }
-    write_success_payload("get_chapters", c)
 }
 
 fn fetch_chapter(chapter_id: &[u8], req: &[u8]) -> Result<usize, FetchError> {
