@@ -1323,7 +1323,7 @@ dependencies = [
 
 [[package]]
 name = "koma_dm5_source"
-version = "0.1.30"
+version = "0.1.31"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1584,7 +1584,7 @@ dependencies = [
 
 [[package]]
 name = "koma_komiic_source"
-version = "0.1.22"
+version = "0.1.23"
 dependencies = [
  "base64 0.22.1",
  "dlmalloc",
@@ -1629,7 +1629,7 @@ dependencies = [
 
 [[package]]
 name = "koma_majsoul_zh_source"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1654,7 +1654,7 @@ dependencies = [
 
 [[package]]
 name = "koma_mangabz_source"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1703,7 +1703,7 @@ dependencies = [
 
 [[package]]
 name = "koma_manhuagui_source"
-version = "0.1.13"
+version = "0.1.14"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1986,14 +1986,14 @@ dependencies = [
 
 [[package]]
 name = "koma_tencentcomics_source"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_terrahistoricus_source"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "koma_source_sdk",
 ]

@@ -5,7 +5,7 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.catfood.majsoul.zhhant.koma",
     name: "雀魂官方漫画",
-    version: "0.1.1",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -546,6 +546,28 @@ fn metadata() -> R<usize> {
             _ => return Err("parse_error"),
         }
     }
+    // Canonical link is the business identity. Fold only exact equal links,
+    // retaining the first raw occurrence before assigning legacy identities.
+    // Hash equality merely narrows comparisons; titles/numbers never dedupe.
+    sort(count, true);
+    let mut unique = 0usize;
+    for current in 0..count {
+        let hash = field(current, 4);
+        let row = card(current)?;
+        let mut previous = unique;
+        let mut duplicate = false;
+        while previous > 0 && field(previous - 1, 4) == hash {
+            previous -= 1;
+            let kept = card(previous)?;
+            if row.link[..row.ln] == kept.link[..kept.ln] { duplicate = true; break; }
+        }
+        if duplicate { continue; }
+        if unique != current {
+            for key in 0..5 { let value=field(current,key);set_field(unique,key,value); }
+        }
+        unique += 1;
+    }
+    count = unique;
     // Only a missing old URI can fall back to the old explicit-number identity.
     // A new duplicate-number comic beside an existing legacy URI gets a link ID.
     let mut present = [false; 150];
@@ -566,19 +588,6 @@ fn metadata() -> R<usize> {
                     set_field(j, 3, n);
                     present[n - 1] = true;
                 }
-            }
-        }
-    }
-    // Hash sorting only accelerates exact duplicate checks; hash equality is never identity.
-    sort(count, true);
-    for a in 0..count {
-        let mut b = a;
-        while b > 0 && field(b - 1, 4) == field(a, 4) {
-            b -= 1;
-            let x = card(a)?;
-            let y = card(b)?;
-            if x.link[..x.ln] == y.link[..y.ln] {
-                return Err("duplicate_identity");
             }
         }
     }
@@ -703,67 +712,54 @@ fn run_get_manga(req: &[u8]) -> u32 {
     }
     result("get_manga", inner(req))
 }
-fn run_get_chapters(req: &[u8]) -> u32 {
-    fn inner(req: &[u8]) -> R<usize> {
-        require_mid(req)?;
-        let count = metadata()?;
-        let p = payload_buf();
-        let mut c = 0;
-        w(p, &mut c, b"{\"chapters\":[")?;
-        for j in 0..count {
-            let r = card(j)?;
-            if j > 0 {
-                w(p, &mut c, b",")?;
-            }
-            let mut id = [0; 4096];
-            let mut z = 0;
-            w(&mut id, &mut z, CP)?;
-            key(&mut id, &mut z, &r, field(j, 3))?;
-            w(p, &mut c, b"{\"id\":")?;
-            q_text(p, &mut c, &id[..z])?;
-            w(p, &mut c, b",\"mangaId\":")?;
-            q_text(p, &mut c, MID)?;
-            w(p, &mut c, b",\"readingGroup\":")?;
-            q_text(p, &mut c, MID)?;
-            let mut title = [0; 12288];
-            let mut t = 0;
-            if r.sn > 0 {
-                w(&mut title, &mut t, &r.sub[..r.sn])?;
-                w(&mut title, &mut t, " · ".as_bytes())?;
-            }
-            w(&mut title, &mut t, &r.title[..r.tn])?;
-            if let Some(pos) = find_subslice(&title[..t], b"\\n") {
-                title[pos] = b'\n';
-                title.copy_within(pos + 2..t, pos + 1);
-                t -= 1;
-            }
-            w(p, &mut c, b",\"title\":")?;
-            q_text(p, &mut c, &title[..t])?;
-            w(p, &mut c, b",\"url\":")?;
-            q_text(p, &mut c, GALLERY)?;
-            w(p, &mut c, b",\"chapterNumber\":")?;
-            if let Some(ch) = r.chapter {
-                n(p, &mut c, ch)?;
-            } else {
-                w(p, &mut c, b"null")?;
-            }
-            w(p,&mut c,b",\"volumeNumber\":null,\"publishedAt\":null,\"updatedAt\":null,\"pageCount\":1,\"continuationEligible\":")?;
-            w(
-                p,
-                &mut c,
-                if r.chapter.is_some() {
-                    b"true"
-                } else {
-                    b"false"
-                },
-            )?;
-            w(p, &mut c, b",\"language\":\"zh-Hant\"}")?;
-        }
-        w(p, &mut c, b"]}")?;
-        Ok(c)
+fn run_get_chapters(request: &[u8]) -> koma_source_sdk::chapters::ChapterResult<'static, &'static str> {
+    use koma_source_sdk::chapters::{Chapter, ChapterNumber, ChapterPage, ChapterPlacement, GroupedChapters};
+    if host::check_cancel() { return Err("cancelled"); }
+    let args = json_object_member(request, b"args").filter(|a| a.first() == Some(&b'{'))
+        .ok_or("invalid_request")?;
+    if string(request, b"sourceId").ok() != Some(SOURCE_INFO.id.as_bytes())
+        || string(request, b"operation").ok() != Some(b"get_chapters") {
+        return Err("invalid_request");
     }
-    result("get_chapters", inner(req))
+    require_mid(args)?;
+    let count = metadata()?;
+    let mut catalog = GroupedChapters::new(payload_buf(), request).map_err(|e| e.message())?;
+    for j in 0..count {
+        let r = card(j)?;
+        let mut id = [0; 4096];
+        let mut length = 0;
+        w(&mut id, &mut length, CP)?;
+        key(&mut id, &mut length, &r, field(j, 3))?;
+        let mut title = [0; 12288];
+        let mut t = 0;
+        if r.sn > 0 {
+            w(&mut title, &mut t, &r.sub[..r.sn])?;
+            w(&mut title, &mut t, " · ".as_bytes())?;
+        }
+        w(&mut title, &mut t, &r.title[..r.tn])?;
+        if let Some(pos) = find_subslice(&title[..t], b"\\n") {
+            title[pos] = b'\n';
+            title.copy_within(pos + 2..t, pos + 1);
+            t -= 1;
+        }
+        let mut chapter = Chapter::new(&id[..length], MID, &title[..t]);
+        chapter.chapter_number = r.chapter.map(ChapterNumber::Integer);
+        chapter.url = Some(GALLERY);
+        chapter.language = Some(b"zh-Hant");
+        chapter.page_count = Some(1);
+        // metadata already follows the official GalleryList consumer's stable
+        // timestamp ordering. Keep that complete provider sequence, including
+        // equal timestamps and unnumbered entries; do not sort by display labels.
+        catalog.push(chapter, ChapterPlacement::InGroup {
+            group: MID, position: j as u64,
+        }).map_err(|e| e.message())?;
+    }
+    catalog.finish(ChapterPage::Complete).map_err(|e| e.message())
 }
+fn write_chapter_error(error: &'static str) -> u32 {
+    result("get_chapters", Err(error))
+}
+
 fn run_get_pages(req: &[u8]) -> u32 {
     fn inner(req: &[u8]) -> R<usize> {
         owner(req)?;
@@ -949,7 +945,7 @@ macro_rules! export_op {
 }
 export_op!(koma_source_search, "search", run_search);
 export_op!(koma_source_get_manga, "get_manga", run_get_manga);
-export_op!(koma_source_get_chapters, "get_chapters", run_get_chapters);
+koma_source_sdk::koma_source_chapter_export!("majsoul-zh", run_get_chapters, write_chapter_error, checked_request);
 export_op!(koma_source_get_pages, "get_pages", run_get_pages);
 export_op!(koma_source_get_listings, "get_listings", run_get_listings);
 export_op!(

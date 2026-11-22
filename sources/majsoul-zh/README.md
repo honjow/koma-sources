@@ -1,6 +1,6 @@
 # 雀魂官方漫画
 
-独立 source `com.catfood.majsoul.zhhant.koma`，版本 `0.1.1`，语言 `zh-Hant`，最低 Koma `0.1.1`；使用现有 Host/信封 ABI v1。这里仅适配官方“漫畫壁紙”栏目中的一个漫画合集和其 150 条真实漫画记录，不将 150 话当成 150 本书，不支持另列的 80 条壁纸。
+独立 source `com.catfood.majsoul.zhhant.koma`，版本 `0.1.2`，语言 `zh-Hant`，最低 Koma `0.1.1`；使用现有 Host/信封 ABI v1。这里仅适配官方“漫畫壁紙”栏目中的一个漫画合集和其 150 条真实漫画记录，不将 150 话当成 150 本书，不支持另列的 80 条壁纸。
 
 官方身份链为猫粮工作室 / Catfood Studio 的 TapTap 开发者页 `https://www.taptap.cn/developer/56654` 的官网字段 → `https://www.maj-soul.com/` → HTML 声明主脚本 → `GalleryList.json` 的 comic 分类。早先候选 `https://www.majsoul.com/` 的 404 为另一域名的单路径证据，不重试。Steam 商店 HTTP 200 实际是地区错误页，未用于官方身份确认。
 
@@ -21,3 +21,39 @@
 现装 0.1.1，经普通 Browse → 唯一合集 → 继续阅读第一話（`majsoulread:zh-Hant:official:ch-1`），完整原图四格同时可见、页码 1/1；未拆图、未把相邻章当第二页。自然 Back 回详情仍显示第一話第 1/1 页，真实 `reader-sessions.v1.json` 对应 pageId `majsoulpage:zh-Hant:official:ch-1:0`、pageIndex 0、totalPages 1。只接受该一话完整画面与普通返回，不外推其他149图、下载、cold 或目录鲜度。
 
 原件：Koma `.hvigor/outputs/user-flow-audit/device237__VDE-AL00/unfolded/portrait-1320x2120/category-membership/majsoul011-{first-complete,natural-return,session-restored}237-001/`。已返回原 Browse 末端，50 项 sourceId/enabled 顺序逐项保持，AWAKE/原 OverrideTimeout 10000ms 读回；哈希关闭。额外旧 `reader-progress.v1.json` 导出不存在的失败保留于 natural-return 回执，未计成功；真实会话读回在 session-restored。执行者与 Root 均已亲看上述完整原图和自然返回，结论仅限本条路径。
+
+
+## 2026-11-23 完整provider位置
+
+当前动态metadata已经按官网GalleryList消费者的timestamp稳定升序建立目录。
+本次保留该原序和已有link/legacy ID，只为完整目录每项分配位置j；不再因
+subTitle没有显式话号而禁续，也不按章号/名称重排。官网实际主脚本
+`main.33e5c965.chunk.js`对comicList使用timestamp升序，getComic仅为图库显示
+返回其reverse副本；阅读正向与显示倒序分离。等timestamp继续保原JSON位置。
+
+既有受守卫入口保留原ABI范围、sourceId/operation、args和取消校验，页表和图片权限
+合同未改。章号仍只从原明确标签提取，未知仍null。此段取代旧文中以显式话号
+作为续读资格的描述，不将目录位置或timestamp写成话号。证据在Koma
+`.hvigor/outputs/published-source-order-audit-20261123/static-provider-majsoul-client.json`。
+候选编译/目录结果与Native验收分开记录。
+
+
+上述早期README的固定150条/改动即拒绝/URI白名单说明属于r0历史，恢复提交
+32d1fc3明确保留已采用r1动态metadata与legacy身份而不恢复被拒r0。本次在此
+已采用实现上补位置；不把旧README描述当作重新固定目录的依据。同一canonical
+link重复仅保留原JSON首次记录，再分配原legacy/link ID；不同link同标题或同话号
+保留，legacy回退与源内身份冲突校验保持。
+
+get_chapters使用typed SDK并显式传入既有GALLERY url；此通用元数据不增加
+宿主能力。入口继续使用checked_request及sourceId/operation/args/取消守卫，
+原ID、timestamp方向、页图权限保留。原150条url逐项一致，items/chapters包装
+由App既有消费链兼容，不再用raw成功出口绕过typed编译门禁。
+
+
+## 2026-11-23 最终候选回归
+
+候选版本0.1.2由最终.koma包内WASM的source_info与manifest一致读回。只有一个真实合集，150话仍是一本书的150章，不补造5本。
+目录逐项核ID、标题、原显示顺序、元数据和完整位置；实际执行App现有投影、
+章序、邻章函数及反向显示投影，get_pages代表回归独立记录。原件同响应回放
+与最终包代表性真实HTTP均保留于Koma审计static-expanded/及static-final-packages.json。
+这些结果不冒充设备安装、图片解码或普通App UI验收。

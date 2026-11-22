@@ -14,3 +14,33 @@ ID 使用规范 comic/chapter/picture ID，从不临时图像 URL。已知图像
 当前 0.1.2 章节语义使用显式数字标签带已审分隔符填充 chapterNumber；未知标签保持未知且不按索引或章节 ID 编号。原章节身份/顺序和付费/锁定身份保留；不请求付费内容。精确已审所有者、保留的 835 记录合同/输出比较和源 diff 保留在 `/private/tmp/koma-tencent012-chapter-semantics-20261017/`（含 Root 审查）。这个规范集成保留那个解析器并采用当前共享 SDK/标准标志；上述历史 0.1.1 验收不是新编译规范 WASM 的验收。当前图标身份及其 Native 视觉限制在 ASSET_SOURCES.md 描述。
 
 目录支援参考排序、属性、进度和标签筛选；未选择排序时分别保留热门与最新原路由，标题搜索不消费这些筛选。旧宿主不展示新筛选。
+
+
+## 2026-11-23 完整目录续章
+
+`run_get_chapters` 经 typed SDK 为原 `.chapter-page-all .works-chapter-item`
+完整目录按原位置分配 `source-catalog` readingOrder。原站作品657936的目录
+从“序章”开始；固定上游5b95ccc的TencentComics.kt先读取同一目录再整体
+反转为倒序显示。本源保留既有原数组显示顺序，不从标题或章号重新排序。
+展示章号先沿原ASCII解析器并补充下述明确单位标签，缺号、公告和番外照常占据自己的目录位置。
+仅相同provider章节ID重复项合并，不按同标题/同编号删章。
+
+原作品/章ID、sequenceIndex、免费/付费/未知锁定标记及get_pages的免费标记、
+canRead校验全部保留；有阅读位置不授予付费内容权限。静态与候选回放证据在
+Koma `.hvigor/outputs/published-source-order-audit-20261123/static-*`，不代替
+普通App真机邻章验收。此段取代旧“未知章号即禁续”的资格判断，序章等未知章号仍保持null。
+
+
+本次同时纠正原展示号漏识别：先保留ASCII数字加点/空白的原解析，再仅对
+明确以“第”或“[第”开头的标题复用包子chapter_number helper的第N話/话规则，
+不启用该helper针对包子裸数字标题的额外推断。第N回仅接受单位后的明确边界，
+不把“第1回忆”或任意标题内数字当话号。序章仍无展示号；阅读位置独立不变。
+
+
+## 2026-11-23 最终候选回归
+
+候选版本0.1.6由最终.koma包内WASM的source_info与manifest一致读回。5部完整目录。实时免费章曾出现一次编码拒绝；有界重采同原件新旧WASM均4页，初次正文未留，原因未定。付费拒绝仍保留。
+目录逐项核ID、标题、原显示顺序、元数据和完整位置；实际执行App现有投影、
+章序、邻章函数及反向显示投影，get_pages代表回归独立记录。原件同响应回放
+与最终包代表性真实HTTP均保留于Koma审计static-expanded/及static-final-packages.json。
+这些结果不冒充设备安装、图片解码或普通App UI验收。

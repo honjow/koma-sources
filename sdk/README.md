@@ -53,3 +53,12 @@ output.image_result(&mut operation_data)
 `plain_text::decode_json_content` decodes unquoted JSON string content into a bounded caller buffer, validating UTF-8 and Unicode pairs without HTML parsing or normalization. Callers choose their own whitespace and URL handling.
 
 `json_utils::append_json_unescaped_then_escaped` 将合法的 UTF-16 高低代理对合成为一个 UTF-8 字符后继续既有 JSON 转义；孤立、非法代理或输出容量不足返回失败。原有普通文本、BMP 字符和其余处理路径保持。依赖此函数的可安装书源通过各自补丁版本分发该修复；采用公共解码修复不代表各站全部内容或设备路径已验收。
+
+
+## 章节通用URL元数据
+
+`chapters::Chapter.url`承接既有章节`url`元数据。`Chapter::new`默认`None`，
+writer仅在`Some`时输出并使用原有JSON字符串转义；默认不输出新键，其他源的
+原JSON保持不变。URL不参与业务ID、分组、阅读位置、权限或网络授权，不是新
+宿主能力，不增加hostFeatures或最低宿主版本。雀魂等已有URL的源显式传入原值，
+无需为typed目录迁移删除字段。`items`/`chapters`兼容包装仍由既有App消费链处理。

@@ -1,6 +1,8 @@
 //! Tencent Comics public HTML source; attribution and support boundaries in NOTICE/README.
 #![no_std]
 mod nonce;
+#[path = "../../baozimh/src/chapter_number.rs"]
+mod chapter_number;
 use koma_source_sdk::host::{
     html_attr, html_close, html_parse, html_select, html_text, http_request, HtmlDescriptor,
 };
@@ -14,7 +16,7 @@ const BASE: &[u8] = b"https://ac.qq.com";
 const MOBILE: &[u8] = b"https://m.ac.qq.com";
 const UA:&[u8]=b"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36";
 const MOBILE_UA:&[u8]=b"Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36";
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.tencentcomics.koma",name:"腾讯动漫",version:"0.1.5",api_version:"0.2",language:"zh",author:"Koma",description:"Tencent Comics public catalogues and free chapters; paid content and JavaScript execution are unsupported.",content_rating:"safe"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.tencentcomics.koma",name:"腾讯动漫",version:env!("CARGO_PKG_VERSION"),api_version:"0.2",language:"zh",author:"Koma",description:"Tencent Comics public catalogues and free chapters; paid content and JavaScript execution are unsupported.",content_rating:"safe"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -542,7 +544,7 @@ fn chapter_access(d: HtmlDescriptor) -> ChapterAccess {
 }
 // The official chapter directory uses both "1.title" and "259 title".
 // Require a delimiter; a title beginning with digits alone is not a contract.
-fn explicit_chapter_number(title: &[u8]) -> Option<&[u8]> {
+fn legacy_explicit_chapter_number(title: &[u8]) -> Option<&[u8]> {
     let end = title.iter().position(|b| !b.is_ascii_digit()).unwrap_or(title.len());
     if end == 0 { return None; }
     match title.get(end) {
@@ -552,70 +554,86 @@ fn explicit_chapter_number(title: &[u8]) -> Option<&[u8]> {
         _ => None,
     }
 }
-fn run_get_chapters(r: &[u8]) -> u32 {
-    let op = "get_chapters";
-    let id = match manga_id(r) {
-        Some(x) => x,
-        None => return source_error(op, "invalid_request", "invalid manga identity"),
-    };
-    let d = match detail(id) {
-        Ok(d) => d,
-        Err(e) => return failure(op, e),
-    };
-    let chapters = match Selection::new(d.0, b".chapter-page-all .works-chapter-item") {
-        Ok(x) if x.len > 0 => x,
-        Ok(_) => return source_error(op, "not_found", "public chapters unavailable"),
-        Err(m) => return source_error(op, "parse_error", m),
-    };
-    let out = payload_buf();
-    let mut n = 0;
-    write_bytes(out, &mut n, br#"{"items":["#);
+// Keep the established ASCII prefix first. The shared helper is used only
+// for explicit leading 第N話/话 headings, never its source-specific bare numbers.
+fn explicit_chapter_number(title: &[u8]) -> Option<&[u8]> {
+    if let Some(value) = legacy_explicit_chapter_number(title) { return Some(value); }
+    if title.starts_with("第".as_bytes()) || title.starts_with("[第".as_bytes()) {
+        if let Some(value) = chapter_number::title_chapter_number(title) { return Some(value); }
+    }
+    // The shared Baozi helper has no 回 form. Accept only this explicit unit
+    // with a real heading boundary, so e.g. 第1回忆 is not silently numbered.
+    let label = title.strip_prefix("第".as_bytes())?;
+    let end = label.iter().take_while(|c| c.is_ascii_digit()).count();
+    if end == 0 { return None; }
+    let tail = label[end..].strip_prefix("回".as_bytes())?;
+    if !tail.is_empty() && !tail[0].is_ascii_whitespace()
+        && !tail.starts_with("：".as_bytes()) && !matches!(tail[0], b':' | b'-' | b'(') {
+        return None;
+    }
+    Some(&label[..end])
+}
+type ChapterError = (&'static str, &'static str);
+static mut CHAPTER_IDS: [u64; 8192] = [0; 8192];
+
+fn run_get_chapters(r: &[u8]) -> koma_source_sdk::chapters::ChapterResult<'static, ChapterError> {
+    use koma_source_sdk::chapters::{Chapter, ChapterNumber, ChapterPage, ChapterPlacement, GroupedChapters};
+    let id = manga_id(r).ok_or(("invalid_request", "invalid manga identity"))?;
+    let d = detail(id).map_err(fetch_error_code)?;
+    let chapters = Selection::new(d.0, b".chapter-page-all .works-chapter-item")
+        .map_err(|m| ("parse_error", m))?;
+    if chapters.len == 0 {
+        return Err(("not_found", "public chapters unavailable"));
+    }
+    let sdk_error = |e: koma_source_sdk::source::SourceError| (e.code(), e.message());
+    let mut catalog = GroupedChapters::new(payload_buf(), r).map_err(sdk_error)?;
+    let mut manga = [0u8; 48];
+    let mut manga_len = 0;
+    if !write_bytes(&mut manga, &mut manga_len, b"tencent:manga:") || !write_bytes(&mut manga, &mut manga_len, id) {
+        return Err(("internal_error", "manga identity overflow"));
+    }
+    let mut written = 0;
     for i in 0..chapters.len {
         let node = chapters.at(i);
         let mut h = [0u8; 512];
         let mut t = [0u8; 4096];
-        let (m, c) = match child_attr(node, b"a", b"href", &mut h).and_then(chapter_path) {
-            Some((m, c)) if m == id => (m, c),
-            _ => return source_error(op, "parse_error", "mismatched chapter identity"),
-        };
-        let title = match child_text(node, b"a", &mut t) {
-            Some(t) if !t.is_empty() => t,
-            _ => return source_error(op, "parse_error", "missing chapter title"),
-        };
-        let number = explicit_chapter_number(title);
-        let free = matches!(chapter_access(node), ChapterAccess::Free);
-        if i > 0 && !write_bytes(out, &mut n, b",") {
-            return source_error(op, "internal_error", "overflow");
+        let (owner, cid) = child_attr(node, b"a", b"href", &mut h).and_then(chapter_path)
+            .filter(|(owner, _)| *owner == id)
+            .ok_or(("parse_error", "mismatched chapter identity"))?;
+        let key = core::str::from_utf8(cid).ok().and_then(|v| v.parse::<u64>().ok())
+            .ok_or(("parse_error", "invalid chapter identity"))?;
+        let seen = unsafe { &mut *core::ptr::addr_of_mut!(CHAPTER_IDS) };
+        if seen[..written].contains(&key) { continue; }
+        if written >= seen.len() { return Err(("parse_error", "chapter capacity")); }
+        seen[written] = key;
+        let title = child_text(node, b"a", &mut t).filter(|v| !v.is_empty())
+            .ok_or(("parse_error", "missing chapter title"))?;
+        let mut chapter_id = [0u8; 64];
+        let mut length = 0;
+        if !write_bytes(&mut chapter_id, &mut length, b"tencent:chapter:")
+            || !write_bytes(&mut chapter_id, &mut length, owner)
+            || !write_bytes(&mut chapter_id, &mut length, b":")
+            || !write_bytes(&mut chapter_id, &mut length, cid) {
+            return Err(("internal_error", "chapter identity overflow"));
         }
-        if !(write_bytes(out, &mut n, br#"{"id":"tencent:chapter:"#)
-            && write_bytes(out, &mut n, m)
-            && write_bytes(out, &mut n, b":")
-            && write_bytes(out, &mut n, c)
-            && write_bytes(out, &mut n, br#"","mangaId":"tencent:manga:"#)
-            && write_bytes(out, &mut n, m)
-            && write_bytes(out, &mut n, br#"","title":"#)
-            && quoted(out, &mut n, title)
-            && write_bytes(out, &mut n, br#", "sequenceIndex":"#)
-            && write_usize(out, &mut n, i)
-            && write_bytes(out, &mut n, br#", "chapterNumber":"#)
-            && if let Some(number) = number {
-                quoted(out, &mut n, number) && write_bytes(out, &mut n,
-                    br#", "readingGroup":"chapter","continuationEligible":true"#)
-            } else {
-                write_bytes(out, &mut n,
-                    br#"null, "readingGroup":"unknown","continuationEligible":false"#)
-            }
-            && write_bytes(out, &mut n, br#", "language":"zh","locked":"#)
-            && write_bytes(out, &mut n, if free { b"false" } else { b"true" })
-            && write_bytes(out, &mut n, b"}"))
-        {
-            return source_error(op, "internal_error", "overflow");
-        }
+        let mut chapter = Chapter::new(&chapter_id[..length], &manga[..manga_len], title);
+        chapter.chapter_number = explicit_chapter_number(title).map(ChapterNumber::Text);
+        chapter.sequence_index = Some(i);
+        chapter.language = Some(b"zh");
+        chapter.locked = Some(!matches!(chapter_access(node), ChapterAccess::Free));
+        // The complete .chapter-page-all directory is oldest first, including
+        // prologues, announcements and extras. Numbers only label chapters.
+        // Keep access separate: get_pages still checks the original free marker
+        // and canRead response before any paid reader request.
+        catalog.push(chapter, ChapterPlacement::InGroup {
+            group: b"source-catalog", position: i as u64,
+        }).map_err(sdk_error)?;
+        written += 1;
     }
-    if !tail(out, &mut n, false, 1) {
-        return source_error(op, "internal_error", "overflow");
-    }
-    write_success_payload(op, n)
+    catalog.finish(ChapterPage::Complete).map_err(sdk_error)
+}
+fn write_chapter_error((code, message): ChapterError) -> u32 {
+    source_error("get_chapters", code, message)
 }
 fn free_chapter(m: &[u8], c: &[u8]) -> Result<(), (&'static str, &'static str)> {
     let d = detail(m).map_err(fetch_error_code)?;
@@ -810,4 +828,4 @@ fn run_get_filters(r: &[u8]) -> u32 {
 fn run_get_settings(_: &[u8]) -> u32 {
     source_error("get_settings", "not_implemented", "")
 }
-koma_source_sdk::koma_source_exports!("tencentcomics");
+koma_source_sdk::koma_source_exports!("tencentcomics", typed_chapters, write_chapter_error);

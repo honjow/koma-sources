@@ -12,6 +12,8 @@ pub struct Chapter<'a> {
     pub id: &'a [u8],
     pub manga_id: &'a [u8],
     pub title: &'a [u8],
+    /// Optional existing chapter web URL; metadata only, without new host capability.
+    pub url: Option<&'a [u8]>,
     pub chapter_number: Option<ChapterNumber<'a>>,
     pub index: Option<usize>,
     pub sequence_index: Option<usize>,
@@ -31,6 +33,7 @@ impl<'a> Chapter<'a> {
             id,
             manga_id,
             title,
+            url: None,
             chapter_number: None,
             index: None,
             sequence_index: None,
@@ -330,6 +333,10 @@ impl<'a> CatalogWriter<'a> {
         self.string(Some(chapter.manga_id))?;
         self.bytes(br#","title":"#)?;
         self.string(Some(chapter.title))?;
+        if let Some(url) = chapter.url {
+            self.bytes(br#","url":"#)?;
+            self.string(Some(url))?;
+        }
         self.bytes(br#","chapterNumber":"#)?;
         self.chapter_number(chapter.chapter_number)?;
         if let Some(index) = chapter.index {
@@ -524,4 +531,22 @@ pub fn numbered_chapter_heading(title: &[u8]) -> Option<usize> {
         }
     }
     None
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn optional_url_preserves_legacy_json_and_escapes_present_metadata() {
+        let mut bytes = [0; 1024];
+        let chapter = Chapter::new(b"c", b"m", b"t");
+        let response = ChapterResponse::single(&mut bytes, chapter).unwrap_or_else(|e| panic!("{}: {}", e.code(), e.message()));
+        assert_eq!(response.0, br#"{"items":[{"id":"c","mangaId":"m","title":"t","chapterNumber":null,"volumeNumber":null,"publishedAt":null,"updatedAt":null,"pageCount":null}],"page":{"nextCursor":null,"hasMore":false}}"#);
+        let mut chapter = chapter;
+        chapter.url = Some(b"https://example.org/chapter?label=\"a\"&x=1");
+        let response = ChapterResponse::single(&mut bytes, chapter).unwrap_or_else(|e| panic!("{}: {}", e.code(), e.message()));
+        assert_eq!(response.0, br#"{"items":[{"id":"c","mangaId":"m","title":"t","url":"https://example.org/chapter?label=\"a\"&x=1","chapterNumber":null,"volumeNumber":null,"publishedAt":null,"updatedAt":null,"pageCount":null}],"page":{"nextCursor":null,"hasMore":false}}"#);
+    }
 }

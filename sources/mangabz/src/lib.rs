@@ -694,27 +694,27 @@ fn blocked_notice(html: &[u8], id: &[u8]) -> bool {
     let _ = host::html_close(doc);
     result
 }
-fn run_get_chapters(req: &[u8]) -> u32 {
+fn run_get_chapters(req: &[u8]) -> koma_source_sdk::chapters::ChapterResult<'static, u32> {
     let cookie = language_cookie(req);
     let manga_id = match extract_json_string(req, b"mangaId") {
         Some(v) => v,
-        None => return write_error("get_chapters", "invalid_request", "missing mangaId"),
+        None => return Err(write_error("get_chapters", "invalid_request", "missing mangaId")),
     };
     if manga_id.len() <= 6 || &manga_id[..6] != b"manga:" {
-        return write_error("get_chapters", "invalid_request", "unexpected mangaId");
+        return Err(write_error("get_chapters", "invalid_request", "unexpected mangaId"));
     }
     let id = &manga_id[6..];
-    let mut mirror_id=[0u8;512]; let Some(request_id)=mirror_work(id,mirror_origin(req),&mut mirror_id) else {return write_error("get_chapters","invalid_request","unexpected mangaId")};
+    let mut mirror_id=[0u8;512]; let Some(request_id)=mirror_work(id,mirror_origin(req),&mut mirror_id) else {return Err(write_error("get_chapters","invalid_request","unexpected mangaId"))};
     let url_len = match make_url(&[mirror_origin(req), b"/", request_id, b"/"]) {
         Some(n) => n,
-        None => return write_error("get_chapters", "internal_error", "url overflow"),
+        None => return Err(write_error("get_chapters", "internal_error", "url overflow")),
     };
     let url = unsafe { core::slice::from_raw_parts(SCRATCH_A.as_ptr(), url_len) };
     let html_len = match fetch_body(url, None, cookie) {
         Ok(n) => n,
         Err(e) => {
             let (c, m) = fetch_error_code(e);
-            return write_error("get_chapters", c, m);
+            return Err(write_error("get_chapters", c, m));
         }
     };
     let html = unsafe { core::slice::from_raw_parts(BODY_BUF.as_ptr(), html_len) };
@@ -722,91 +722,64 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         Some(v) => v,
         None => {
             if mirror_origin(req) == BASE_URL && blocked_notice(html, id) {
-                return write_error("get_chapters", "not_found", "site has blocked this work");
+                return Err(write_error("get_chapters", "not_found", "site has blocked this work"));
             }
-            return write_error("get_chapters", "parse_error", "chapter list not found");
+            return Err(write_error("get_chapters", "parse_error", "chapter list not found"));
         },
     };
     let list_end = find_subslice(&html[list_start..], b"</div>")
         .map(|v| list_start + v)
         .unwrap_or(html.len());
     let list = &html[list_start..list_end];
-    let payload = payload_buf();
-    let mut c = 0usize;
-    if !write_bytes(payload, &mut c, br#"{"items":["#) {
-        return write_error("get_chapters", "internal_error", "payload overflow");
-    }
-    let mut pos = 0usize;
-    let mut written = 0usize;
+    use koma_source_sdk::chapters::{Chapter, ChapterNumber, ChapterPage, ChapterPlacement, GroupedChapters};
+    let sdk_error = |e: koma_source_sdk::source::SourceError| write_error("get_chapters", e.code(), e.message());
+    let mut anchors = [0usize; 8192];
+    let mut count = 0;
+    let mut pos = 0;
     while let Some(rel) = find_subslice(&list[pos..], b"<a ") {
-        let a_start = pos + rel;
-        let a_end = match find_subslice(&list[a_start..], b"</a>") {
-            Some(v) => a_start + v + 4,
-            None => break,
+        if count == anchors.len() { return Err(write_error("get_chapters", "parse_error", "too many chapter anchors")); }
+        let start = pos + rel;
+        anchors[count] = start; count += 1;
+        pos = start + find_subslice(&list[start..], b"</a>")
+            .ok_or_else(|| write_error("get_chapters", "parse_error", "unterminated chapter anchor"))? + 4;
+    }
+    if count == 0 { return Err(write_error("get_chapters", "parse_error", "chapter list empty")); }
+    let mut catalog = GroupedChapters::new(payload_buf(), req).map_err(sdk_error)?;
+    let mut seen: [&[u8]; 8192] = [&[]; 8192];
+    let mut used = 0;
+    for (index, &start) in anchors[..count].iter().enumerate() {
+        let end = start + find_subslice(&list[start..], b"</a>").unwrap() + 4;
+        let block = &list[start..end];
+        let tag_end = match find_subslice(block, b">") { Some(v) => v+1, None => continue };
+        let cid = match attr_value(&block[..tag_end], b"href").and_then(chapter_id_from_href) {
+            Some(v) => v, None => continue,
         };
-        let block = &list[a_start..a_end];
-        pos = a_end;
-        let tag_end = match find_subslice(block, b">") {
-            Some(v) => v + 1,
-            None => continue,
-        };
-        let href = match attr_value(&block[..tag_end], b"href") {
-            Some(v) => v,
-            None => continue,
-        };
-        let cid = match chapter_id_from_href(href) {
-            Some(v) => v,
-            None => continue,
-        };
+        if seen[..used].contains(&cid) { continue; }
+        seen[used] = cid; used += 1;
         let mut title_buf = [0u8; 256];
-        let title = strip_tags_to(
-            &block[tag_end..block.len().saturating_sub(4)],
-            &mut title_buf,
-        );
+        let title = strip_tags_to(&block[tag_end..block.len()-4], &mut title_buf);
         let page_count = extract_page_count(title);
         let sequence = chapter_sequence(title);
-        if written > 0 && !write_bytes(payload, &mut c, b",") {
-            return write_error("get_chapters", "internal_error", "payload overflow");
+        let mut identity = [0u8; 2048]; let mut n=0;
+        if !(write_bytes(&mut identity,&mut n,b"chapter:") && write_bytes(&mut identity,&mut n,id)
+            && write_bytes(&mut identity,&mut n,b":") && write_bytes(&mut identity,&mut n,cid)
+            && write_bytes(&mut identity,&mut n,b":") && write_usize(&mut identity,&mut n,page_count)) {
+            return Err(write_error("get_chapters","internal_error","chapter identity overflow"));
         }
-        let ok = write_bytes(payload, &mut c, br#"{"id":"chapter:"#)
-            && append_json_escaped(payload, &mut c, id)
-            && write_bytes(payload, &mut c, b":")
-            && append_json_escaped(payload, &mut c, cid)
-            && write_bytes(payload, &mut c, b":")
-            && write_usize(payload, &mut c, page_count)
-            && write_bytes(payload, &mut c, br#"","mangaId":"manga:"#)
-            && append_json_escaped(payload, &mut c, id)
-            && write_bytes(payload, &mut c, br#"","title":""#)
-            && append_json_escaped(payload, &mut c, title)
-            && write_bytes(payload, &mut c, br#"","chapterNumber":"#)
-            && write_chapter_sequence_number(payload, &mut c, sequence, false)
-            && write_bytes(payload, &mut c, br#", "volumeNumber":"#)
-            && write_chapter_sequence_number(payload, &mut c, sequence, true)
-            && write_bytes(payload, &mut c, br#", "readingGroup":"#)
-            && match sequence {
-                Some((_, true)) => write_bytes(payload, &mut c, b"\"volume\""),
-                Some((_, false)) => write_bytes(payload, &mut c, b"\"chapter\""),
-                None => write_bytes(payload, &mut c, b"null"),
-            }
-            && write_bytes(payload, &mut c, br#", "continuationEligible":"#)
-            && write_bytes(payload, &mut c, if sequence.is_some() { b"true" } else { b"false" })
-            && write_bytes(payload, &mut c, br#", "publishedAt":null,"updatedAt":null,"pageCount":"#)
-            && if page_count > 0 { write_usize(payload, &mut c, page_count) } else { write_bytes(payload, &mut c, b"null") }
-            && write_bytes(payload, &mut c, b"}");
-        if !ok {
-            return write_error("get_chapters", "internal_error", "payload overflow");
-        }
-        written += 1;
+        let mut chapter = Chapter::new(&identity[..n], manga_id, title);
+        chapter.chapter_number = sequence.filter(|(_,volume)| !volume).map(|(n,_)| ChapterNumber::Text(n));
+        chapter.volume_number = sequence.filter(|(_,volume)| *volume).map(|(n,_)| ChapterNumber::Text(n));
+        chapter.page_count = (page_count > 0).then_some(page_count);
+        // The provider has one flat newest-first catalogue. Its own reader
+        // crosses vol.24 -> chapters 1-7 and includes unnumbered extras. These
+        // title units are metadata, not alternate-edition boundaries.
+        catalog.push(chapter, ChapterPlacement::InGroup {
+            group: b"source-catalog", position: (count-index-1) as u64,
+        }).map_err(sdk_error)?;
     }
-    if !write_bytes(
-        payload,
-        &mut c,
-        br#"],"page":{"nextCursor":null,"hasMore":false}}"#,
-    ) {
-        return write_error("get_chapters", "internal_error", "payload overflow");
-    }
-    write_success_payload("get_chapters", c)
+    catalog.finish(ChapterPage::Complete).map_err(sdk_error)
 }
+fn write_chapter_error(pointer: u32) -> u32 { pointer }
 
 fn extract_page_count(title: &[u8]) -> usize {
     let p_marker = "P".as_bytes();
@@ -1346,15 +1319,7 @@ pub extern "C" fn koma_source_get_manga(req_ptr: u32, req_len: u32) -> u32 {
     run_get_manga(req)
 }
 
-#[no_mangle]
-pub extern "C" fn koma_source_get_chapters(req_ptr: u32, req_len: u32) -> u32 {
-    let req = match read_request(req_ptr, req_len) {
-        Some(r) => r,
-        None => return write_error("get_chapters", "invalid_request", "empty request"),
-    };
-    log_info(b"mangabz get_chapters");
-    run_get_chapters(req)
-}
+koma_source_sdk::koma_source_chapter_export!("mangabz", run_get_chapters, write_chapter_error);
 
 #[no_mangle]
 pub extern "C" fn koma_source_get_pages(req_ptr: u32, req_len: u32) -> u32 {

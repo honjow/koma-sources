@@ -26,7 +26,7 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.terrahistoricus.koma",
     name: "TerraHistoricus",
-    version: "0.1.9",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -678,99 +678,84 @@ fn numeric_episode_label(label: &[u8]) -> bool {
     } }
 }
 
-fn run_get_chapters(req: &[u8]) -> u32 {
-    let cid = match request_string(req, b"mangaId") {
-        Some(v) => v,
-        None => return write_error("get_chapters", "invalid_request", "missing mangaId"),
-    };
-    let url_len = match build_detail_url(cid) {
-        Some(n) => n,
-        None => return write_error("get_chapters", "internal_error", "url overflow"),
-    };
-    let json = match fetch_json(scratch_slice(url_len)) {
-        Ok(v) => v,
-        Err(e) => {
-            let (c, m) = fetch_error_code(e);
-            return write_error("get_chapters", c, m);
-        }
-    };
-    let data = match extract_object_for_key(json, b"data") {
-        Some(v) => v,
-        None => return write_error("get_chapters", "parse_error", "missing data"),
-    };
-    let episodes = match extract_array_for_key(data, b"episodes") {
-        Some(v) => v,
-        None => return write_error("get_chapters", "parse_error", "missing episodes"),
-    };
-    let payload = payload_buf();
-    let mut c = 0usize;
-    if !write_bytes(payload, &mut c, br#"{"items":["#) {
-        return write_error("get_chapters", "internal_error", "payload overflow");
+type ChapterError = (&'static str, &'static str);
+static mut CHAPTER_LABEL: [u8; 512 * 1024] = [0; 512 * 1024];
+static mut CHAPTER_SPANS: [(usize, usize); 8192] = [(0, 0); 8192];
+fn chapter_text(out: &mut [u8], length: &mut usize, raw: &[u8]) -> Result<(), ChapterError> {
+    let mut bytes = JsonBytes::new(raw);
+    while let Some(byte) = bytes.next().map_err(|_| ("parse_error", "invalid chapter text"))? {
+        if !write_bytes(out, length, &[byte]) { return Err(("internal_error", "chapter text overflow")); }
     }
-    let mut pos = 0usize;
-    let mut written = 0usize;
-    loop {
-        let ep = match next_raw_object(episodes, &mut pos) {
-            Ok(Some(value)) => value,
-            Ok(None) => break,
-            Err(message) => return write_error("get_chapters", "parse_error", message),
-        };
-        let ep_cid = match extract_json_string(ep, b"cid") {
-            Some(v) if !v.is_empty() => v,
-            _ => return write_error("get_chapters","parse_error","missing episode identity"),
-        };
+    Ok(())
+}
+fn run_get_chapters(req: &[u8]) -> koma_source_sdk::chapters::ChapterResult<'static, ChapterError> {
+    use koma_source_sdk::chapters::{Chapter, ChapterNumber, ChapterPage, ChapterPlacement, GroupedChapters};
+    let cid = request_string(req, b"mangaId").ok_or(("invalid_request", "missing mangaId"))?;
+    let url_len = build_detail_url(cid).ok_or(("internal_error", "url overflow"))?;
+    let json = fetch_json(scratch_slice(url_len)).map_err(fetch_error_code)?;
+    let data = extract_object_for_key(json, b"data").ok_or(("parse_error", "missing data"))?;
+    let episodes = extract_array_for_key(data, b"episodes").ok_or(("parse_error", "missing episodes"))?;
+    let mut pos = 0;
+    let mut total = 0usize;
+    while next_raw_object(episodes, &mut pos).map_err(|m| ("parse_error", m))?.is_some() {
+        total += 1;
+        if total > 8192 { return Err(("parse_error", "chapter capacity")); }
+    }
+    let sdk_error = |e: koma_source_sdk::source::SourceError| (e.code(), e.message());
+    let mut catalog = GroupedChapters::new(payload_buf(), req).map_err(sdk_error)?;
+    let mut seen_count = 0;
+    pos = 0;
+    let mut index = 0;
+    while let Some(ep) = next_raw_object(episodes, &mut pos).map_err(|m| ("parse_error", m))? {
+        let ep_cid = extract_json_string(ep, b"cid").filter(|v| !v.is_empty())
+            .ok_or(("parse_error", "missing episode identity"))?;
+        let seen = unsafe { &mut *core::ptr::addr_of_mut!(CHAPTER_SPANS) };
+        let duplicate = seen[..seen_count].iter().any(|&(start, len)| &episodes[start..start + len] == ep_cid);
+        let position = total - index - 1;
+        index += 1;
+        if duplicate { continue; }
+        seen[seen_count] = (ep_cid.as_ptr() as usize - episodes.as_ptr() as usize, ep_cid.len());
+        seen_count += 1;
         let title = extract_json_string(ep, b"title").unwrap_or(b"");
         let short = extract_json_string(ep, b"shortTitle").unwrap_or(b"");
         let raw_kind = extract_json_number(ep, b"type");
         let kind = raw_kind.map(|v| parse_usize(v, 1)).unwrap_or(1);
-        // Only a numeric label of an explicitly regular episode can order it.
-        // Extras' shortTitle, resource cid and array position are not ordinals.
         let numbered_regular = raw_kind == Some(b"1") && numeric_episode_label(short);
-        if written > 0 && !write_bytes(payload, &mut c, b",") {
-            return write_error("get_chapters", "internal_error", "payload overflow");
-        }
-        let ok = write_bytes(payload, &mut c, br#"{"id":""#)
-            && append_json_escaped(payload, &mut c, cid)
-            && write_bytes(payload, &mut c, b"/")
-            && append_json_escaped(payload, &mut c, ep_cid)
-            && write_bytes(payload, &mut c, br#"","mangaId":""#)
-            && append_json_escaped(payload, &mut c, cid)
-            && write_bytes(payload, &mut c, br#"","title":""#)
-            && if kind == 1 {
-                if short.is_empty() {
-                    append_json_escaped(payload, &mut c, title)
-                } else {
-                    append_json_escaped(payload, &mut c, short)
-                        && if title.is_empty() { true } else { write_bytes(payload, &mut c, b" ") && append_json_escaped(payload, &mut c, title) }
-                }
-            } else {
-                write_bytes(payload, &mut c, episode_type_name(kind))
-                    && if title.is_empty() { true } else { write_bytes(payload, &mut c, b" ") && append_json_escaped(payload, &mut c, title) }
+        let text = unsafe { &mut *core::ptr::addr_of_mut!(CHAPTER_LABEL) };
+        let mut length = 0;
+        if kind == 1 {
+            if !short.is_empty() {
+                chapter_text(text, &mut length, short)?;
+                if !title.is_empty() && !write_bytes(text, &mut length, b" ") { return Err(("internal_error", "chapter text overflow")); }
             }
-            && write_bytes(payload, &mut c, br#"","chapterNumber":"#)
-            && if numbered_regular {
-                write_bytes(payload, &mut c, b"\"")
-                    && append_json_escaped(payload, &mut c, short)
-                    && write_bytes(payload, &mut c, b"\"")
-            } else { write_bytes(payload, &mut c, b"null") }
-            && write_bytes(payload, &mut c, br#", "readingGroup":"#)
-            && write_bytes(payload, &mut c, if numbered_regular { b"\"chapter\"" } else { b"null" })
-            && write_bytes(payload, &mut c, br#", "continuationEligible":"#)
-            && write_bytes(payload, &mut c, if numbered_regular { b"true" } else { b"false" })
-            && write_bytes(payload, &mut c, br#", "volumeNumber":null,"publishedAt":null,"updatedAt":null,"pageCount":null}"#);
-        if !ok {
-            return write_error("get_chapters", "internal_error", "payload overflow");
+        } else {
+            if !write_bytes(text, &mut length, episode_type_name(kind)) { return Err(("internal_error", "chapter text overflow")); }
+            if !title.is_empty() && !write_bytes(text, &mut length, b" ") { return Err(("internal_error", "chapter text overflow")); }
         }
-        written += 1;
+        chapter_text(text, &mut length, title)?;
+        let mut id = [0u8; 1024];
+        let mut id_len = 0;
+        chapter_text(&mut id, &mut id_len, cid)?;
+        if !write_bytes(&mut id, &mut id_len, b"/") { return Err(("internal_error", "chapter identity overflow")); }
+        chapter_text(&mut id, &mut id_len, ep_cid)?;
+        let mut chapter = Chapter::new(&id[..id_len], cid, &text[..length]);
+        let mut label = [0u8; 256];
+        let mut label_len = 0;
+        if numbered_regular {
+            chapter_text(&mut label, &mut label_len, short)?;
+            chapter.chapter_number = Some(ChapterNumber::Text(&label[..label_len]));
+        }
+        // The provider's complete newest-first episodes list contains regular
+        // episodes, extras and announcements. Their type is a title/access
+        // fact, not a reason to remove their existing directory position.
+        catalog.push(chapter, ChapterPlacement::InGroup {
+            group: b"source-catalog", position: position as u64,
+        }).map_err(sdk_error)?;
     }
-    if !write_bytes(
-        payload,
-        &mut c,
-        br#"],"page":{"nextCursor":null,"hasMore":false}}"#,
-    ) {
-        return write_error("get_chapters", "internal_error", "payload overflow");
-    }
-    write_success_payload("get_chapters", c)
+    catalog.finish(ChapterPage::Complete).map_err(sdk_error)
+}
+fn write_chapter_error((code, message): ChapterError) -> u32 {
+    write_error("get_chapters", code, message)
 }
 
 fn run_get_pages(req: &[u8]) -> u32 {
@@ -1023,15 +1008,7 @@ pub extern "C" fn koma_source_get_manga(req_ptr: u32, req_len: u32) -> u32 {
     run_get_manga(req)
 }
 
-#[no_mangle]
-pub extern "C" fn koma_source_get_chapters(req_ptr: u32, req_len: u32) -> u32 {
-    let req = match read_request(req_ptr, req_len) {
-        Some(r) => r,
-        None => return write_error("get_chapters", "invalid_request", "empty request"),
-    };
-    log_info(b"terrahistoricus get_chapters");
-    run_get_chapters(req)
-}
+koma_source_sdk::koma_source_chapter_export!("terrahistoricus", run_get_chapters, write_chapter_error);
 
 #[no_mangle]
 pub extern "C" fn koma_source_get_pages(req_ptr: u32, req_len: u32) -> u32 {

@@ -1000,97 +1000,74 @@ fn chapter_ordinal(title: &[u8], group: ChapterGroup) -> Option<&[u8]> {
         None
     }
 }
-fn chapters(r: &[u8]) -> Result<usize, &'static str> {
+fn chapters(r: &[u8]) -> koma_source_sdk::chapters::ChapterResult<'static, &'static str> {
+    use koma_source_sdk::chapters::{Chapter, ChapterNumber, ChapterPage, ChapterPlacement, GroupedChapters};
     let id = manga_id(r)?;
     let root = manga_doc(id)?;
     let sections = Nodes::get(&root, b"[id^=chapter-list-]")?;
-    if sections.n == 0 {
-        return Err("chapter structure missing");
-    }
+    if sections.n == 0 { return Err("chapter structure missing"); }
     let groups = chapter_groups(&root, sections.n);
-    let b = payload_buf();
-    let mut n = 0;
-    let mut count = 0;
-    bytes(b, &mut n, b"{\"chapters\":[")?;
+    let mut catalog = GroupedChapters::new(payload_buf(), r).map_err(|e| e.message())?;
+    let mut count = 0usize;
+    // Store the business path bytes, not title or chapter-number equality.
+    let seen_buffer = http_out(); let mut seen_end = 0usize;
+    let mut seen = [(0usize,0usize);8192]; let mut unique = 0;
     for si in 0..sections.n {
         let uls = Nodes::get(&selected(&sections, si), b"ul")?;
-        if uls.n == 0 {
-            return Err("chapter group structure missing");
+        if uls.n == 0 { return Err("chapter group structure missing"); }
+        let mut total = 0usize;
+        for ui in 0..uls.n {
+            total = total.checked_add(Nodes::get(&selected(&uls,ui), b"li > a.status0")?.n)
+                .ok_or("chapter count overflow")?;
         }
+        if total > 8192 { return Err("chapter count overflow"); }
+        let mut ordinal = 0usize;
         for ui in (0..uls.n).rev() {
             let links = Nodes::get(&selected(&uls, ui), b"li > a.status0")?;
             for j in 0..links.n {
-                if count >= 8192 {
-                    return Err("chapter count overflow");
-                };
-                let a = selected(&links, j);
-                let mut h = [0; 8192];
+                if count >= 8192 { return Err("chapter count overflow"); }
+                let position = total-ordinal-1; ordinal += 1;
+                let a = selected(&links,j);
+                let mut h = [0;8192];
                 let cp = chapter_path(a.attr(b"href", &mut h)?)?;
                 let rest = &cp[b"/comic/".len()..];
-                if !rest.starts_with(id) || rest.get(id.len()) != Some(&b'/') {
-                    return Err("chapter manga mismatch");
-                }
-                let mut title = [0; 16384];
-                let t = if a
-                    .optional_attr(b"title", &mut title)?
-                    .is_some_and(|t| !t.is_empty())
-                {
-                    a.attr(b"title", &mut title)?
-                } else {
-                    a.select(b"span")?.text(&mut title)?
-                };
-                if t.is_empty() {
-                    return Err("chapter title missing");
-                }
-                if count > 0 {
-                    bytes(b, &mut n, b",")?
-                }
-                bytes(b, &mut n, b"{\"id\":\"")?;
-                bytes(b, &mut n, BASE)?;
-                bytes(b, &mut n, cp)?;
-                bytes(b, &mut n, b"\",\"mangaId\":")?;
-                qbook(b, &mut n, id)?;
-                bytes(b, &mut n, b",\"title\":")?;
-                q(b, &mut n, t)?;
-                bytes(b, &mut n, b",\"index\":")?;
-                if !write_usize(b, &mut n, count) {
-                    return Err("payload overflow");
-                };
-                let group = groups[si];
-                let ordinal = chapter_ordinal(t, group);
-                bytes(b, &mut n, b",\"chapterNumber\":")?;
-                if let Some(value) = ordinal.filter(|_| group == ChapterGroup::Serial) {
-                    q(b, &mut n, value)?;
-                } else {
-                    bytes(b, &mut n, b"null")?;
-                }
-                bytes(b, &mut n, b",\"volumeNumber\":")?;
-                if let Some(value) = ordinal.filter(|_| group == ChapterGroup::Volume) {
-                    q(b, &mut n, value)?;
-                } else {
-                    bytes(b, &mut n, b"null")?;
-                }
-                bytes(b, &mut n, b",\"readingGroup\":\"manhuagui:")?;
-                bytes(b, &mut n, id)?;
-                bytes(b, &mut n, b":")?;
-                bytes(b, &mut n, group.label())?;
-                bytes(b, &mut n, b"\",\"continuationEligible\":")?;
-                bytes(
-                    b,
-                    &mut n,
-                    if ordinal.is_some() { b"true" } else { b"false" },
-                )?;
-                bytes(b, &mut n, b",\"updatedAt\":null,\"scanlator\":null}")?;
-                count += 1;
+                if !rest.starts_with(id) || rest.get(id.len()) != Some(&b'/') { return Err("chapter manga mismatch"); }
+                if seen[..unique].iter().any(|&(a,b)| &seen_buffer[a..b] == cp) { continue; }
+                let end = seen_end.checked_add(cp.len()).filter(|&v| v<=seen_buffer.len()).ok_or("chapter identity overflow")?;
+                seen_buffer[seen_end..end].copy_from_slice(cp);
+                seen[unique]=(seen_end,end); unique+=1; seen_end=end;
+                let mut title=[0;16384];
+                let t=if a.optional_attr(b"title",&mut title)?.is_some_and(|t| !t.is_empty()) {
+                    a.attr(b"title",&mut title)?
+                } else { a.select(b"span")?.text(&mut title)? };
+                if t.is_empty() { return Err("chapter title missing"); }
+                let mut identity=[0;16384];let mut n=0;
+                bytes(&mut identity,&mut n,BASE)?;bytes(&mut identity,&mut n,cp)?;
+                let mut work=[0;8192];let mut wn=0;
+                bytes(&mut work,&mut wn,b"comic/")?;bytes(&mut work,&mut wn,id)?;
+                let mut chapter=Chapter::new(&identity[..n],&work[..wn],t);
+                chapter.index=Some(count);
+                let group=groups[si]; let number=chapter_ordinal(t,group);
+                chapter.chapter_number=number.filter(|_| group==ChapterGroup::Serial).map(ChapterNumber::Text);
+                chapter.volume_number=number.filter(|_| group==ChapterGroup::Volume).map(ChapterNumber::Text);
+                // Keep each provider section independent, including extras and
+                // unknown labels. One section's several ul blocks share a
+                // complete position range; the display traversal stays intact.
+                let mut key=[0;8192]; let mut kn=0;
+                bytes(&mut key,&mut kn,b"manhuagui:")?;bytes(&mut key,&mut kn,id)?;
+                bytes(&mut key,&mut kn,b":")?;bytes(&mut key,&mut kn,group.label())?;
+                bytes(&mut key,&mut kn,b":")?;
+                if !write_usize(&mut key,&mut kn,si) { return Err("group identity overflow"); }
+                catalog.push(chapter, ChapterPlacement::InGroup { group:&key[..kn], position:position as u64 })
+                    .map_err(|e| e.message())?;
+                count+=1;
             }
         }
     }
-    if count == 0 {
-        return Err("public chapter list empty");
-    };
-    bytes(b, &mut n, b"]}")?;
-    Ok(n)
+    if count==0 { return Err("public chapter list empty"); }
+    catalog.finish(ChapterPage::Complete).map_err(|e| e.message())
 }
+
 mod lz;
 mod packed;
 mod transport;
@@ -1273,10 +1250,11 @@ fn run_get_manga(r: &[u8]) -> u32 {
     unsafe { LAST_HTTP_STATUS = 0 };
     execute("get_manga", detail(r))
 }
-fn run_get_chapters(r: &[u8]) -> u32 {
+fn run_get_chapters(r: &[u8]) -> koma_source_sdk::chapters::ChapterResult<'static, &'static str> {
     unsafe { LAST_HTTP_STATUS = 0 };
-    execute("get_chapters", chapters(r))
+    chapters(r)
 }
+fn write_chapter_error(error: &'static str) -> u32 { execute("get_chapters", Err(error)) }
 fn run_get_pages(r: &[u8]) -> u32 {
     unsafe { LAST_HTTP_STATUS = 0 };
     execute("get_pages", pages(r))
@@ -1309,4 +1287,4 @@ fn run_get_settings(r: &[u8]) -> u32 {
     payload_buf()[..p.len()].copy_from_slice(p);
     write_success_payload("get_settings", p.len())
 }
-koma_source_sdk::koma_source_exports!("manhuagui");
+koma_source_sdk::koma_source_exports!("manhuagui", typed_chapters, write_chapter_error);
