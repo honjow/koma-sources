@@ -1,3 +1,12 @@
 {
-  "homepage": "https://www.weicomic.com/"
+  "homepage": "https://www.weicomic.com/",
+  "websitePolicy": {
+    "httpProfiles": [
+      {
+        "origin": "https://www.weicomic.com",
+        "pathPrefix": "/",
+        "profile": "firefox133"
+      }
+    ]
+  }
 }

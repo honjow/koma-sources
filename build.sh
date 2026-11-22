@@ -105,7 +105,7 @@ globalcomix-zh-hans|globalcomix-zh-hans|true|0.1.0
 goda|goda|false|1.4.1
 comicfury-zh|comicfury-zh|true|0.1.0
 xkcd-zh|xkcd-zh|false|0.1.0
-weicomic-ronshaonien|weicomic-ronshaonien|false|0.1.1
+weicomic-ronshaonien|weicomic-ronshaonien|false|1.4.0
 dbmultiverse-zh|dbmultiverse-zh|false|0.1.0
 bns-zh-hant|bns-zh-hant|false|0.1.1
 genshin-zh|genshin-zh|false|0.1.0

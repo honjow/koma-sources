@@ -1,3 +1,13 @@
+# 0.1.4 同源传输候选A（待237验证）
+
+本版仅在 metadata 的 websitePolicy.httpProfiles 为精确 origin https://www.weicomic.com、路径前缀 / 选择现有 firefox133 传输，最低 Koma 1.4.0。Cargo 与硬编码 SourceInfo 同为0.1.4。候选用于区分原生传输，不代表已修复或已完成设备阅读验收；不是诊断包，不新增阶段日志。
+
+保留原公开一般作品合同：get_chapters 每次仍按 root → reader → XML 请求，核首页唯一作品链接、隆少年/ULTIMATE/一般标记与封面，随后核原reader绑定、XML身份和完整页序。原SID/MID/CID/PageID、请求头、15000ms预算、请求次数、所有身份/路径/容量守卫及单章语义不变；不增加Web会话origin、Cookie/账号权限、重试或缓存。路径前缀 / 覆盖同源WASM GET，亦包括reader/XML和封面校验；普通图片实体下载的原406边界仍独立保留。
+
+采用依据：正式0.1.3在237的get_chapters第一段root请求约15秒超时、无HTTP状态，reader/XML未到；同段其他root校验曾返回200。独立公开HTTP仍能取得当前原合同，但Mac200不能代替Native成功。当前Koma已支持按精确origin选择该profile；原生profile依赖/代理条件不满足时可能回退NetworkKit。必须在237确认 native_transfer eligible=true，再核原root/reader/XML与完整30页成功，才算测到候选A；eligible=false不能算profile已验。暂不采用需API26的fresh_http11备选B。
+
+原实现及素材记录如下，历史版本的未验项保留；本次不改素材、App、SDK或宿主能力。
+
 # 創漫繁中・隆少年 0.1.2
 
 只处理同一既有隆少年完整阅读单元，按当前官网XML頁元素顺序完整消费；保原MID/CID及ordinal PageID，不扩作品、不补印刷页、不猜图片。移除固定30/NAMES/RAW/ORIGINAL逐样本锁与256B页URI槽。先完整校验XML才返回目录或正文图片计划；借用当次body，不在借用期间再fetch，不保存跨operation缓存。正文请求URI保存受原1MiB请求ABI限制，get_pages输出受原payload预算限制，容量不足整次失败。
