@@ -1,5 +1,38 @@
 # 包子漫畫
 
+## 0.1.27 候选：canonical 别名与主目录章序
+
+官网部分作品的 canonical 与主目录 comic_id 已加后缀，输入仍是既有稳定作品ID。
+0.1.26把这个provider owner与输入旧slug直接比较，导致两份真实完整目录（194与210条）
+丢失全部主目录位置；“最新章节”倒排摘要保留在显示数组前部后，宿主全无合同回退
+产生了52条错误邻章。不是按标题或章节编号判断方向，也不是CLI403或设备验收结论。
+
+provider坐标与对外身份分离：主目录owner与输入相同时沿原合同；不同时，必须有唯一
+同源HTTPS canonical，其/comic/路径owner须与全部主目录href一致。初始与展开两区仍
+要求section_slot=0且chapter_slot按真实文档连续覆盖0..N-1，任意缺槽、混owner、其它
+section、截断字段或不明确canonical均不能新增主线位置。同owner主线最新摘要的槽位也必须全部位于已验证主目录内，不能把截断后连续前缀当作完整目录。主目录之外的版本/分区保持
+原边界，不推入baozi-main；原标题、精确事实去重、显示数组和作品/章节业务ID不变。
+CHAPTER_ORDER三个选项及旧宿主特性门禁保持；不改网页会话、页表、CDN选路或素材。
+
+上游与宿主对照：本合同沿0.1.22主目录/摘要区分和0.1.26初始+展开主目录修复
+（f999e3b）；当前公开9e4索引为0.1.26，SOURCE_INFO直接读Cargo版本。网站真实
+canonical和全量href是provider owner依据；run_get_chapters仍用输入slug构建旧ID，
+仅main_catalog及每行placement使用已验证owner。SDK GroupedChapters和App现有
+sourceCatalogChronology/continuationChapterIds负责消费显式位置，显示倒序独立。
+
+正文也有同一别名边界：两作旧reader入口实际200并重定向到后缀canonical，下一part
+使用新owner；旧版仅比较旧slug拼出的下一part，实际195图/182图都只返回前50图。
+本版仅在首文档存在唯一同源reader canonical、相同section0/章slot，且owner为原slug
+或其明确下划线后缀别名时，用该owner比较同章下一part。未确认、异源、其它章或section
+不会扩大跳转范围；首个URL、chapterId、pageId、图片原序与边界重复去除仍沿原规则。
+CDN选路继续绑定稳定slug的真实图片目录，不以reader别名替换图片路径。
+
+候选已完成五份完整目录原件的2293条回归及当前App函数消费，52条错误邻章归零；
+其中四份是本轮完整文档，第五份是11月20日《大象无形》604条官方镜像原件的旧owner
+解析兼容回放，不冒充本轮WWW联网。两作真实reader四份同章文档已完整返回195/182图，
+保留旧首50图的页ID与URL。仍待237代表普通路径复核后再发布；回放不能当作设备阅读通过。第四份截在a属性内的旧捕获继续排除，不以它的碰撞证明缺陷。
+证据统一保存于Koma本轮audit的baozi-order-followup；旧原件、0.1.26包和失败结果保留。
+
 ## 0.1.26 完整目录续章
 
 完整目录同时读取初始章节区和展开后续区，仍按同作品主线的连续站点槽位校验。

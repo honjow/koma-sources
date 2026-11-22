@@ -614,32 +614,71 @@ fn reference_title_has_digit(title: &[u8]) -> bool {
     core::str::from_utf8(title).map(|s| s.chars().any(|c| ND.iter().any(|(a,b)| (*a..=*b).contains(&(c as u32))))).unwrap_or(false)
 }
 
-// The site splits the complete catalogue between the initial panel and its
-// expanded remainder. The separate latest panel is a reversed duplicate.
-fn main_catalog_len(document: HtmlDescriptor, slug: &[u8]) -> Option<usize> {
+// Stable work/chapter IDs use the caller's slug. The current official page may
+// instead use a canonical alias in every main href. Only that unique same-origin
+// canonical plus a single owner and complete section-0 slots can establish the
+// provider coordinates; neither titles nor numeric-looking IDs establish order.
+struct VerifiedMainCatalog {
+    len: usize,
+    owner: [u8; 256],
+    owner_len: usize,
+}
+impl VerifiedMainCatalog {
+    fn owner(&self) -> &[u8] { &self.owner[..self.owner_len] }
+}
+
+fn canonical_href<'a>(document: HtmlDescriptor, buffer: &'a mut [u8]) -> Option<&'a [u8]> {
+    const SELECTOR: &[u8] = b"link[rel=canonical][href]";
+    if html_select_all(document.raw(), SELECTOR, &mut []) != 1 { return None; }
+    let link = OwnedDescriptor(html_select(document, SELECTOR).ok()?);
+    let capacity = buffer.len();
+    chapter_duplicates::complete_fact(attr_into(link.0,b"href",buffer),capacity)
+}
+
+fn canonical_main_owner<'a>(document: HtmlDescriptor, buffer: &'a mut [u8]) -> Option<&'a [u8]> {
+    let href = canonical_href(document,buffer)?;
+    let path = href.strip_prefix(SITE_BASE)?.strip_prefix(b"/comic/")?;
+    let owner = path.strip_suffix(b"/").unwrap_or(path);
+    if owner.is_empty() || !owner.iter().all(|b|b.is_ascii_alphanumeric() || *b==b'-' || *b==b'_') {
+        return None;
+    }
+    Some(owner)
+}
+
+// Preserve the initial+expanded main panels and the reversed latest summary.
+// Missing, mixed, non-main, truncated or non-contiguous facts still fail closed.
+fn main_catalog(document: HtmlDescriptor, slug: &[u8]) -> Option<VerifiedMainCatalog> {
     const SELECTOR: &[u8] =
         b"#chapter-items a.comics-chapters__item, #chapters_other_list a.comics-chapters__item";
     let count = usize::try_from(html_select_all(document.raw(), SELECTOR, &mut [])).ok()?;
-    if count == 0 {
-        return None;
-    }
+    if count == 0 { return None; }
     let byte_count = count.checked_mul(4)?;
     let handles = body_buf().get_mut(..byte_count)?;
     let selected = usize::try_from(html_select_all(document.raw(), SELECTOR, handles)).ok()?;
     let descriptors = PageDescriptors { bytes: handles, count: selected.min(count) };
-    if selected != count {
-        return None;
-    }
+    if selected != count { return None; }
+    let mut verified = VerifiedMainCatalog { len:count, owner:[0;256], owner_len:0 };
     for position in 0..count {
         let mut href_buf = [0u8; 256];
         let capacity = href_buf.len();
         let href = attr_into(descriptors.get(position)?, b"href", &mut href_buf)?;
         let href = chapter_duplicates::complete_fact(Some(href), capacity)?;
-        if main_chapter_slot(href, slug) != Some(position) {
-            return None;
+        if position == 0 {
+            let query = href.strip_prefix(b"/user/page_direct?")?;
+            let owner = query.split(|b|*b==b'&').next()?.strip_prefix(b"comic_id=")?;
+            // An unchanged owner keeps the accepted0.1.26 contract. A different
+            // owner requires the current page's exact public canonical binding.
+            if owner != slug {
+                let mut canonical = [0u8;256];
+                if canonical_main_owner(document,&mut canonical)? != owner { return None; }
+            }
+            if owner.is_empty() || owner.len()>verified.owner.len() { return None; }
+            verified.owner[..owner.len()].copy_from_slice(owner);
+            verified.owner_len=owner.len();
         }
+        if main_chapter_slot(href, verified.owner()) != Some(position) { return None; }
     }
-    Some(count)
+    Some(verified)
 }
 
 fn main_chapter_slot(href: &[u8], slug: &[u8]) -> Option<usize> {
@@ -706,8 +745,8 @@ fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, ChapterError> {
         Err(_) => return Err(SourceError::parse_error("html_parse failed").into()),
     };
 
-    let verified_catalog_len = if reading_order_supported(req) {
-        main_catalog_len(document.0, slug)
+    let mut verified_catalog = if reading_order_supported(req) {
+        main_catalog(document.0, slug)
     } else {
         None
     };
@@ -735,6 +774,25 @@ fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, ChapterError> {
     };
     if selected as usize != total_items {
         return Err(SourceError::parse_error("chapter selection changed").into());
+    }
+
+    // A repaired/truncated DOM can expose a contiguous prefix of the main
+    // panel. Its reversed latest summary must not name section-0 slots beyond
+    // that allegedly complete main catalogue. Other editions remain separate.
+    if let Some(verified) = verified_catalog.as_ref() {
+        let mut incomplete = false;
+        for i in 0..total_items {
+            let mut href_buffer = [0u8;256];
+            let capacity = href_buffer.len();
+            let href = descriptors.get(i).and_then(|node|attr_into(node,b"href",&mut href_buffer));
+            if chapter_duplicates::complete_fact(href,capacity)
+                .and_then(|href|main_chapter_slot(href,verified.owner()))
+                .map_or(false,|slot|slot>=verified.len) {
+                incomplete = true;
+                break;
+            }
+        }
+        if incomplete { verified_catalog = None; }
     }
 
     let mut catalog = GroupedChapters::new(payload_buf(), req)?;
@@ -799,8 +857,8 @@ fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, ChapterError> {
             })
         });
 
-        let reading_order = verified_catalog_len.and_then(|len| {
-            main_chapter_slot(complete_href?, slug).filter(|slot| *slot < len)
+        let reading_order = verified_catalog.as_ref().and_then(|verified| {
+            main_chapter_slot(complete_href?, verified.owner()).filter(|slot| *slot < verified.len)
         });
         let placement = match reading_order {
             Some(position) => ChapterPlacement::InGroup { group: b"baozi-main", position: position as u64 },
@@ -902,6 +960,25 @@ fn reader_part_url(dst: &mut [u8], slug: &[u8], slot: &[u8], part: usize) -> Opt
     if ok { Some(cursor) } else { None }
 }
 
+
+// The old stable reader URL can redirect to the site's suffix alias. Its first
+// document identifies the current route, while IDs and CDN image paths retain
+// the original slug. Only that same-origin, same-section/slot canonical alias
+// can supply the owner for exact next-part comparison; never follow another
+// chapter, edition or arbitrary next link.
+fn reader_part_owner<'a>(document: HtmlDescriptor, slug: &[u8], slot: &[u8], buffer: &'a mut [u8]) -> Option<&'a [u8]> {
+    let path = canonical_href(document,buffer)?.strip_prefix(READER_BASE)?.strip_prefix(b"/comic/chapter/")?;
+    let slash = path.iter().position(|b|*b==b'/')?;
+    let owner = &path[..slash];
+    let chapter = path[slash+1..].strip_prefix(b"0_")?.strip_suffix(b".html")?;
+    if chapter != slot || owner.is_empty() || !owner.iter().all(|b|b.is_ascii_alphanumeric()||*b==b'-'||*b==b'_') { return None; }
+    if owner != slug {
+        let suffix = owner.strip_prefix(slug)?.strip_prefix(b"_")?;
+        if suffix.is_empty() || !suffix.iter().all(u8::is_ascii_alphanumeric) { return None; }
+    }
+    Some(owner)
+}
+
 fn run_get_pages(req: &[u8]) -> u32 {
     let raw_chapter_id = match extract_json_string(req, b"chapterId") {
         Some(v) => v,
@@ -940,6 +1017,8 @@ fn run_get_pages(req: &[u8]) -> u32 {
         Ok(d) => OwnedDescriptor(d),
         Err(_) => return write_error("get_pages", "parse_error", "html_parse failed"),
     };
+    let mut canonical_buffer = [0u8;4352];
+    let reader_owner = reader_part_owner(document.0,slug,slot,&mut canonical_buffer).unwrap_or(slug);
     let mut first_uri_buffer = [0u8; 4096];
     let first_image = html_select(document.0, b"amp-img.comic-contain__item").ok().map(OwnedDescriptor);
     let first_uri = match first_image {
@@ -1081,7 +1160,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
 
         // The site splits long chapters into 50-image documents. Follow only
         // its link to the next part of this same chapter, with stable page IDs.
-        let Some(next_url) = reader_part_url(&mut url, slug, slot, part + 1) else {
+        let Some(next_url) = reader_part_url(&mut url, reader_owner, slot, part + 1) else {
             break;
         };
         let next = html_select(document.0, b"a#next-chapter").ok().map(OwnedDescriptor);

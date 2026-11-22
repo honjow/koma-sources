@@ -326,6 +326,12 @@ created through one of these SDK entry points:
   order cannot be verified and leave manifest `chapterOrder` unset when using
   grouped catalogs.
 
+With `chapter_reading_order_v1` negotiated, an explicit `ManualOnly` serializes
+`continuationEligible:false`. Omitting that exclusion would let the host treat
+an entirely manual catalog as legacy input and infer unintended neighbors.
+Without negotiation, retain the original unextended output; this does not make
+ordinary `ChapterResponse::single` entries implicitly manual-only.
+
 Reading positions come from the complete provider catalog with a verified direction,
 not from chapter numbers, titles, dates or the App's display reversal. Missing or
 repeated display numbers and titles do not make a chapter `ManualOnly`. Preserve
