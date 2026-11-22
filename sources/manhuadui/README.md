@@ -55,7 +55,7 @@ YKMH.kt（blob 6264bf25f9b93dbe01e0ddce8be7b0fae2fd7f24）继承 SinMH.kt
 | 热门、搜索、分页 | get_manga_list/search → 原 parse_list | 沿用 0.1.7 已接受移动站入口和真实 next；本轮未重新验设备分页 |
 | 详情 | get_manga → 原桌面选择器，兼容上游 #comicName/#Cover/简介 | 五部真实桌面 HTTP 原件已回放；缺作品标题报错，不能用 slug 冒充成功 |
 | 完整目录 | get_chapters → chapter_catalog / SDK GroupedChapters | 六个真实分区、130 条完整；各组独立位置，无号与番外保留；不按标题、编号去重或重排 |
-| 原始与渲染文档 | 既有 webFetchBridge/renderedDocumentFallback | 桌面原始 HTML asc，站点 JS 将 LI 反转并把活动按钮变 desc，data-sort 仍 asc；按活动按钮还原正向数组，声明 oldest-first；宿主显示排序独立 |
+| 原始与渲染文档 | 既有 webFetchBridge/renderedDocumentFallback | 桌面原始 HTML asc，渲染后活动按钮 desc；移动 chapter-body 实测为新到旧，UL 仍标 asc，不以 UL ID 识别桌面。按各模板真实合同还原正向数组，宿主显示排序独立；详见末节反例 |
 | 替代组 | 原目录 chapter-list-1、chapter-list-7 | 三日月与流星同名不同 ID 的两组完整保留；第41话的真实 next 指向第01话，遵守站点实际导航，不能数值排序 |
 | 正文页表 | get_pages → 原 chapterImages/chapterPath 合同 | 先核父作品版权下架，再核 chapterCanRead=1 且 chapterPrice=0；绝对 http/https 解码后原样返回，不依赖配置；相对图才取真实 config.js domain |
 | 权限和容量 | 版权提示/权限/数组完整性 | 下架拒绝阅读残留旧 ID；付费、不可读、未知权限拒绝；容量或解析错误整项失败，不截断后声称完整 |
@@ -70,15 +70,18 @@ Cat Loss Syndrome 序章真实可读、免费，8 张绝对 http 图片地址逐
 也为明确标注的派生边界验证，不冒充真实受限页面。
 
 真实网络与回放分开：Edge 桌面公开页正常，原生 dev runner 同一目录仍 HTTP403；
-移动 UA 下 m 域最后停在自动安全验证。官网 phone.js 确认 Android 会从 www 跳 m，
-普通 WebView 在这两个原点间的验证和回流尚未设备验证。新增精确 origin 不等于
-同源原请求已经接通，不将本候选称为普通路径恢复通过或可直接公开发布。
-普通设备、移动模板、真实付费/权限页仍未验。桌面已用候选图片描述符真实请求并解码序章第 0／7 图，均为 JPEG（1280×12642／1280×11393）；237 实际像素与普通阅读路径仍未验。任务浏览器工具
-两次没有遵守调用的有界 timeout；最终恢复临时 UA 的结果未确认，详见证据，不归因于人类用户。
+最初移动 UA 的 m 域浏览器停在自动安全验证。官网 phone.js 确认 Android 会从 www 跳 m。
+后续237普通官网回流后，原候选取得 Cat 详情及7/7目录，手动序章首图与末图已观察；
+普通开始阅读却进入完结章，不能把已接通内容算作章序通过。新增精确 origin 也不等于
+所有请求均已接通，不将候选称为普通路径整体恢复通过或可直接公开发布。
+本次已取得237源实际消费的移动 Cat 目录，详见末节；其余作品移动模板及真实付费/权限页
+仍未验。桌面用图片描述符真实请求并解码序章第0／7图，均为 JPEG（1280×12642／1280×11393）；
+新章序修正包的237开始阅读与上下章仍未验。任务浏览器工具两次没有遵守有界 timeout；
+最终恢复临时 UA 的结果未确认，详见证据，不归因于人类用户。
 
 证据：Koma .hvigor/outputs/published-source-order-audit-20261123/youku-investigation/
 下的 provider-capture-manifest.json、candidate-validation.json、candidate-native-chapters.*、
-progress.json、browser-errors.json。全部为本轮候选证据，未提交、未推送、未发布。
+progress.json、browser-errors.json。初次候选当时未提交、未推送、未发布；此前五文件后由主代理保护提交1d6155b5。本次移动章序修正仍未提交或发布。
 
 
 ### 0.1.8 候选图片请求头补审
@@ -92,3 +95,28 @@ headersBuilder 设置 `Referer: $baseUrl/`，517–525 行图片 GET 使用这�
 和既有 SDK 普通请求 UA；该 UA 是 WASM 宿主适配，并非逐字模拟 Android JVM 的
 System.getProperty(http.agent)，也不改变验证页 UA。沿用宿主现有图片描述符调用，
 不新增 App/SDK 功能，不携带 Cookie、账号或凭据。
+
+
+### 0.1.8 移动目录真实反例与修正
+
+237 普通详情/完整目录取得 Cat Loss Syndrome 的 7 条，旧候选普通开始阅读却进入
+第6话（完结），页1/14、章1/7；手动序章8图已看到首图/末图，序章下一章按钮禁用。
+这是真实章序反例，旧候选不算阅读顺序验收通过。
+
+临时源 host::log 包的 checked hilog 记录了实际消费的移动 `.chapter-body clearfix`：
+内部仍复用 `ul#chapter-list-1[data-sort=asc]`，没有 `.chapter-sort.active`，实际7行
+从完结至序章。按 UL ID 判断为桌面模板并信任该 asc，导致旧包把完结写成位置0。
+完整 hex0..17 还原了2750字节公开目录（至真实 UL 闭合，外层闭合未采集），中文标题
+与全部业务路径完整；旧包内 WASM 对同原件已重现相同错误，无联网。
+
+修正按容器区分模板：移动 `.chapter-body` 沿当前实测网站数组合同，将新到旧数组转为
+SDK 正向位置；不读取该模板已证陈旧的 UL data-sort。桌面 `.zj_list` 继续以活动排序
+控件为当前状态，原始文档无控件时沿其 data-sort。两种模板如有明确活动控件则优先
+使用当前状态。UL ID 只保留为原分组身份，不再充当模板识别。没有按标题、章节号或
+URL 数字猜方向，全部无号章节和同名不同ID保留。临时诊断模块及调用已删除。
+
+实证范围是237实际消费的移动默认7章及原有五部桌面原件；公开移动排序JS和用户切换
+移动网页排序后的输入未取得，不冒充已验。新修正候选的237普通开始阅读与序章下一章
+仍需设备owner独立复核，源侧回放不能替代普通旅程。所有旧候选、诊断包及失败原件保留。
+证据在本轮 youku-investigation/mobile-order/actual-mobile/counterexample-witness.json，
+原始 checked hilog 位于 native-host-validation 的38-diagnostic-full-bounded-public-log。

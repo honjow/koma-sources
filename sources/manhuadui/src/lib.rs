@@ -694,9 +694,12 @@ fn run_get_manga(req: &[u8]) -> u32 {
     write_success_payload("get_manga", c)
 }
 
-// The same public desktop document is returned either as HTTP HTML or as the
-// existing WebView rendered-document handoff. Site JS reverses the UL but leaves
-// data-sort unchanged: the active sort control is the authoritative display state.
+// The mobile .chapter-body and desktop .zj_list share chapter-list-* UL IDs.
+// 237's actual mobile body had all seven rows newest-first, no active desktop
+// sort control, and stale data-sort=asc. A UL ID does not identify a desktop
+// template or its current order. Keep the mobile provider array contract separate.
+// Desktop raw HTML is asc; rendered JS reverses it and updates the active control
+// while leaving data-sort unchanged. Prefer that current control when present.
 // Canonical source arrays remain oldest-first, independent of the App display sort.
 // No title/number sorting: the provider itself links 41 -> 01 in one sampled group.
 struct Selection<'a> { bytes: &'a mut [u8], count: usize }
@@ -743,25 +746,31 @@ fn chapter_catalog(req: &[u8], manga_id: &[u8], document: host::HtmlDescriptor)
             return Err(SourceError::source_error("group identity too long"));
         }
         let mut list_id = [0u8;64];
-        let desktop = select_attr(group_node, b"ul[id^=chapter-list-]", b"id", &mut list_id);
-        let mut order_buf = [0u8;16];
-        let mut fallback_order = [0u8;16];
-        let newest_first = if let Some(list_id) = desktop {
+        let provider_list_id = select_attr(group_node, b"ul[id^=chapter-list-]", b"id", &mut list_id);
+        if let Some(list_id) = provider_list_id {
             if !write_bytes(&mut key_buf, &mut key_len, list_id) {
                 return Err(SourceError::source_error("group identity too long"));
             }
-            let direction = select_attr(group_node, b".chapter-sort.active", b"data-order", &mut order_buf)
-                .or_else(|| select_attr(group_node, b"ul[id^=chapter-list-]", b"data-sort", &mut fallback_order));
-            match direction { Some(b"asc") => false, Some(b"desc") => true,
-                _ => return Err(SourceError::source_error("catalog direction missing")) }
-        } else {
-            // Fixed upstream SinMH/YKMH contract: each mobile .chapter-body
-            // already arrives newest-first; each section remains independent.
-            if !write_bytes(&mut key_buf, &mut key_len, b"mobile-section-")
-                || !write_usize(&mut key_buf, &mut key_len, g) {
-                return Err(SourceError::source_error("group identity too long"));
-            }
-            true
+        } else if !write_bytes(&mut key_buf, &mut key_len, b"mobile-section-")
+            || !write_usize(&mut key_buf, &mut key_len, g) {
+            return Err(SourceError::source_error("group identity too long"));
+        }
+        let mut class_buf = [0u8;128];
+        let mobile = attr_into(group_node,b"class",&mut class_buf).map_or(false,|classes|
+            classes.split(|b| b.is_ascii_whitespace()).any(|class| class==b"chapter-body"));
+        let mut order_buf = [0u8;16];
+        let mut fallback_order = [0u8;16];
+        let active = select_attr(group_node,b".chapter-sort.active",b"data-order",&mut order_buf);
+        let newest_first = match active {
+            Some(b"asc") => false,
+            Some(b"desc") => true,
+            Some(_) => return Err(SourceError::source_error("catalog direction invalid")),
+            None if mobile => true,
+            None => match select_attr(group_node,b"ul[id^=chapter-list-]",b"data-sort",&mut fallback_order) {
+                Some(b"asc") => false,
+                Some(b"desc") => true,
+                _ => return Err(SourceError::source_error("catalog direction missing")),
+            },
         };
         let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
         let rows = selection(group_node, b"li > a", select_buf)?;
