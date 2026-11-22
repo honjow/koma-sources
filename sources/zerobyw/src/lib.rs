@@ -59,7 +59,7 @@ static mut SELECT_BUF: [u8; SELECT_CAP] = [0; SELECT_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.zerobyw.koma",
     name: "Zerobyw",
-    version: "0.1.11",
+    version: "0.1.12",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -888,6 +888,21 @@ fn emit_pc_chapters(id: &[u8], count: usize, req: &[u8]) -> u32 {
     write_success_payload("get_chapters", n)
 }
 
+// A complete legacy selection is bounded by the actual host descriptor buffer.
+// Do not silently cap it at 1000 and report Complete. Unknown provider direction
+// remains unknown; never manufacture a numbered order or exclude unnumbered rows.
+static mut LEGACY_CHAPTER_PATHS: [(usize,usize);SELECT_CAP/4] = [(0,0);SELECT_CAP/4];
+struct LegacyChapterSelection<'a> { handles: &'a [u8], count: usize }
+impl Drop for LegacyChapterSelection<'_> {
+    fn drop(&mut self) {
+        for i in 0..self.count {
+            let off=i*4;
+            let raw=i32::from_le_bytes(self.handles[off..off+4].try_into().unwrap());
+            if raw>0 {let _=html_close(desc_from_i32(raw));}
+        }
+    }
+}
+
 fn run_get_chapters(req: &[u8]) -> u32 {
     let id = match manga_id_from_request(req, "get_chapters") {
         Ok(v) => v,
@@ -918,7 +933,14 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         },
         selects,
     );
-    let max = if count > 0 { count as usize } else { 0 }.min(1000);
+    if count < 0 {
+        return write_error("get_chapters", "parse_error", "legacy chapter selection failed");
+    }
+    let selected = LegacyChapterSelection { handles: selects, count: (count as usize).min(selects.len()/4) };
+    if count as usize > selected.count {
+        return write_error("get_chapters", "source_error", "complete legacy chapter catalog exceeds response capacity");
+    }
+    let max = selected.count;
     let payload = payload_buf();
     let mut c = 0usize;
     if !write_bytes(payload, &mut c, br#"{"items":["#) {
@@ -927,22 +949,16 @@ fn run_get_chapters(req: &[u8]) -> u32 {
 
     let mut written = 0usize;
     for i in 0..max {
-        let off = if is_pc_id(id) {
-            (max - 1 - i) * 4
-        } else {
-            i * 4
-        };
-        if off + 4 > selects.len() {
-            break;
-        }
+        let off = i * 4;
+
         let raw = i32::from_le_bytes([
-            selects[off],
-            selects[off + 1],
-            selects[off + 2],
-            selects[off + 3],
+            selected.handles[off],
+            selected.handles[off + 1],
+            selected.handles[off + 2],
+            selected.handles[off + 3],
         ]);
         if raw <= 0 {
-            continue;
+            return write_error("get_chapters", "parse_error", "invalid legacy chapter descriptor");
         }
         let hd = desc_from_i32(raw);
         let mut href_buf = [0u8; 768];
@@ -957,20 +973,37 @@ fn run_get_chapters(req: &[u8]) -> u32 {
             })
             .unwrap_or(false);
         if !is_chapter {
-            let _ = html_close(hd);
             continue;
         }
 
+        // Exact encoded path is the existing business identity. Retain the
+        // first occurrence, independently of title and optional chapter number.
+        // Offsets reference bytes already in this response: no hash collisions,
+        // extra identity representation, or guessed old-to-PC migration.
+        let chapter_path = path.unwrap_or(b"");
+        let mut encoded_path = [0u8;4608];
+        let mut encoded_len = 0;
+        if !append_json_escaped(&mut encoded_path, &mut encoded_len, chapter_path) {
+            return write_error("get_chapters", "internal_error", "chapter identity overflow");
+        }
+        let mut duplicate = false;
+        for previous in 0..written {
+            let (offset,len) = unsafe { LEGACY_CHAPTER_PATHS[previous] };
+            if &payload[offset..offset+len] == &encoded_path[..encoded_len] {
+                duplicate=true; break;
+            }
+        }
+        if duplicate {continue;}
         let mut title_buf = [0u8; 512];
         let title = text_into(hd, &mut title_buf).unwrap_or(b"Chapter");
         if written > 0 && !write_bytes(payload, &mut c, b",") {
             return write_error("get_chapters", "internal_error", "payload overflow");
         }
-        let chapter_path = path.unwrap_or(b"");
+        let mut path_offset = 0;
         let ok = write_bytes(payload, &mut c, br#"{"id":"chapter:"#)
             && append_json_escaped(payload, &mut c, id)
             && write_bytes(payload, &mut c, b":")
-            && append_json_escaped(payload, &mut c, chapter_path)
+            && { path_offset=c; write_bytes(payload, &mut c, &encoded_path[..encoded_len]) }
             && write_bytes(payload, &mut c, br#"","mangaId":"manga:"#)
             && append_json_escaped(payload, &mut c, id)
             && write_bytes(payload, &mut c, br#"","title":""#)
@@ -979,8 +1012,8 @@ fn run_get_chapters(req: &[u8]) -> u32 {
         if !ok {
             return write_error("get_chapters", "internal_error", "payload overflow");
         }
+        unsafe { LEGACY_CHAPTER_PATHS[written]=(path_offset,encoded_len); }
         written += 1;
-        let _ = html_close(hd);
     }
 
     if !write_bytes(
