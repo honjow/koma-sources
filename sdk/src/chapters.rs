@@ -205,7 +205,15 @@ impl<'a> GroupedChapters<'a> {
                 }
                 (group, position, self.reading_variants.then_some(sequence))
             }
-            ChapterPlacement::ManualOnly => return self.writer.push(chapter, None),
+            ChapterPlacement::ManualOnly => {
+                // An explicit exclusion is not a legacy catalog without a
+                // contract. Omitting this flag lets the host infer neighbors.
+                return if self.reading_order {
+                    self.writer.push_manual_only(chapter)
+                } else {
+                    self.writer.push(chapter, None)
+                };
+            }
         };
         if group.trim_ascii().is_empty() {
             return Err(SourceError::source_error("empty chapter reading group"));
@@ -311,8 +319,21 @@ impl<'a> CatalogWriter<'a> {
         chapter: Chapter<'_>,
         position: Option<(&[u8], u64, Option<&[u8]>)>,
     ) -> Result<(), SourceError> {
+        self.push_placement(chapter, position, false)
+    }
+
+    fn push_manual_only(&mut self, chapter: Chapter<'_>) -> Result<(), SourceError> {
+        self.push_placement(chapter, None, true)
+    }
+
+    fn push_placement(
+        &mut self,
+        chapter: Chapter<'_>,
+        position: Option<(&[u8], u64, Option<&[u8]>)>,
+        manual_only: bool,
+    ) -> Result<(), SourceError> {
         let start = self.cursor;
-        if let Err(error) = self.write_chapter(chapter, position) {
+        if let Err(error) = self.write_chapter(chapter, position, manual_only) {
             self.cursor = start;
             return Err(error);
         }
@@ -323,6 +344,7 @@ impl<'a> CatalogWriter<'a> {
         &mut self,
         chapter: Chapter<'_>,
         position: Option<(&[u8], u64, Option<&[u8]>)>,
+        manual_only: bool,
     ) -> Result<(), SourceError> {
         if self.cursor > Self::PREFIX.len() {
             self.bytes(b",")?;
@@ -386,6 +408,8 @@ impl<'a> CatalogWriter<'a> {
                 self.number64(ordinal)?;
                 self.bytes(b"\"")?;
             }
+        } else if manual_only {
+            self.bytes(br#","continuationEligible":false"#)?;
         }
         self.bytes(b"}")
     }
@@ -549,4 +573,36 @@ mod tests {
         let response = ChapterResponse::single(&mut bytes, chapter).unwrap_or_else(|e| panic!("{}: {}", e.code(), e.message()));
         assert_eq!(response.0, br#"{"items":[{"id":"c","mangaId":"m","title":"t","url":"https://example.org/chapter?label=\"a\"&x=1","chapterNumber":null,"volumeNumber":null,"publishedAt":null,"updatedAt":null,"pageCount":null}],"page":{"nextCursor":null,"hasMore":false}}"#);
     }
+
+    #[test]
+    fn explicit_manual_only_keeps_legacy_output_without_negotiation() {
+        for (label, request, negotiated) in [
+            ("modern", br#"{"hostFeatures":["chapter_reading_order_v1"]}"#.as_slice(), true),
+            ("legacy", br#"{"hostFeatures":[]}"#.as_slice(), false),
+        ] {
+            let mut bytes = [0; 2048];
+            let mut catalog = GroupedChapters::new(&mut bytes, request)
+                .unwrap_or_else(|e| panic!("{}: {}", e.code(), e.message()));
+            for id in [b"A".as_slice(), b"B".as_slice()] {
+                catalog.push(Chapter::new(id, b"m", id), ChapterPlacement::ManualOnly)
+                    .unwrap_or_else(|e| panic!("{}: {}", e.code(), e.message()));
+            }
+            let response = catalog.finish(ChapterPage::Complete)
+                .unwrap_or_else(|e| panic!("{}: {}", e.code(), e.message()));
+            crate::source_protocol::complete(response.0).unwrap();
+            let items = crate::source_protocol::direct(response.0, b"items").unwrap().unwrap();
+            let mut rows = crate::json_utils::JsonArrayIter::from_raw_array(items).unwrap();
+            for id in [b"A".as_slice(), b"B".as_slice()] {
+                let row = rows.next_object().unwrap();
+                assert_eq!(crate::source_protocol::raw_string(row, b"id").unwrap(), Some(id));
+                assert_eq!(crate::source_protocol::direct(row, b"continuationEligible").unwrap(),
+                    if negotiated { Some(b"false".as_slice()) } else { None });
+                assert_eq!(crate::source_protocol::direct(row, b"readingOrder").unwrap(), None);
+                assert_eq!(crate::source_protocol::direct(row, b"readingGroup").unwrap(), None);
+            }
+            assert!(rows.next_object().is_none());
+            println!("SDK_MANUAL_CONTRACT_{} {}", label, core::str::from_utf8(response.0).unwrap());
+        }
+    }
+
 }
