@@ -8,6 +8,9 @@ use koma_source_sdk::json_utils::{
     extract_json_string, find_subslice, json_object_member, write_bytes, write_url_encoded, write_usize,
 };
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
+use koma_source_sdk::chapters::{Chapter, ChapterNumber, ChapterPage, ChapterPlacement, ChapterResponse, ChapterResult, GroupedChapters};
+use koma_source_sdk::source_protocol as noy_json;
+use koma_source_sdk::plain_text::decode_json_content;
 use koma_source_sdk::{FetchError, fetch_error_code};
 
 const BASE_URL: &[u8] = b"https://noymanga.com";
@@ -192,10 +195,6 @@ fn extract_value_for_key<'a>(data: &'a [u8], key: &[u8], want: u8) -> Option<&'a
     } else {
         extract_balanced(data, pos, b'[', b']').map(|v| &v[1..v.len() - 1])
     }
-}
-
-fn extract_object_for_key<'a>(data: &'a [u8], key: &[u8]) -> Option<&'a [u8]> {
-    extract_value_for_key(data, key, b'{')
 }
 
 fn extract_array_for_key<'a>(data: &'a [u8], key: &[u8]) -> Option<&'a [u8]> {
@@ -531,18 +530,94 @@ fn chapter_id_value<'a>(id: &'a [u8]) -> Option<(&'a [u8], &'a [u8])> {
     Some((&rest[..sep], &rest[sep + 1..]))
 }
 
-fn fetch_detail(id: &[u8], req: &[u8]) -> Result<usize, FetchError> {
-    let buf = scratch_a();
-    let mut c = 0usize;
-    if !(write_bytes(buf, &mut c, BASE_URL)
-        && write_bytes(buf, &mut c, b"/api/b1/bookInfo/")
-        && write_url_encoded(buf, &mut c, id))
-    {
-        return Err(FetchError::Network);
+// Same-origin v4 is the current website contract. Keep legacy routes only for
+// an explicit missing resource; auth/denial/transport/DTO errors never select it.
+// External manga:/chapter: identities stay unchanged. See this source README.
+type NoyError = (&'static str, &'static str);
+type NoyResult<T> = Result<T, NoyError>;
+#[derive(Clone, Copy, PartialEq)]
+enum NoyApi { V4, Legacy }
+fn noy_parse(message: &'static str) -> NoyError { ("parse_error", message) }
+fn noy_member<'a>(json: &'a [u8], key: &[u8]) -> NoyResult<Option<&'a [u8]>> {
+    noy_json::direct(json, key).map_err(|_| noy_parse("invalid or repeated DTO member"))
+}
+fn noy_string<'a>(json: &'a [u8], key: &[u8]) -> NoyResult<Option<&'a [u8]>> {
+    noy_json::raw_string(json, key).map_err(|_| noy_parse("invalid DTO string"))
+}
+fn noy_identity(raw: &[u8]) -> NoyResult<&[u8]> {
+    let raw = if raw.first() == Some(&b'"') && raw.last() == Some(&b'"') && raw.len() >= 2 {
+        &raw[1..raw.len()-1]
+    } else { raw };
+    if raw.is_empty() || raw.len() > 20 || !raw.iter().all(u8::is_ascii_digit) {
+        return Err(noy_parse("invalid numeric business identity"));
     }
-    let n=koma_source_sdk::build_get_request(http_req_buf(),scratch_a_slice(c),None,&[(b"allow-adult",adult(req))]).ok_or(FetchError::Network)?;
-    let len=http_request(&http_req_buf()[..n],http_out()).map_err(|_|FetchError::Network)?;
-    decode_json_body(&http_out()[..len])
+    Ok(raw)
+}
+fn noy_canonical(id: &[u8]) -> &[u8] {
+    let i = id.iter().position(|b| *b != b'0').unwrap_or(id.len()-1);
+    &id[i..]
+}
+fn noy_id<'a>(obj: &'a [u8], key: &[u8]) -> NoyResult<&'a [u8]> {
+    noy_identity(noy_member(obj, key)?.ok_or(noy_parse("business identity missing"))?)
+}
+fn noy_uint(raw: &[u8]) -> NoyResult<usize> {
+    if raw.is_empty() || !raw.iter().all(u8::is_ascii_digit) { return Err(noy_parse("invalid nonnegative DTO integer")); }
+    let mut n = 0usize;
+    for &b in raw { n = n.checked_mul(10).and_then(|n| n.checked_add((b-b'0') as usize)).ok_or(noy_parse("DTO integer overflow"))?; }
+    Ok(n)
+}
+fn noy_alias<'a>(obj: &'a [u8], upper: &[u8], lower: &[u8]) -> NoyResult<Option<&'a [u8]>> {
+    Ok(noy_member(obj, upper)?.or(noy_member(obj, lower)?))
+}
+fn noy_check_body(json: &[u8]) -> NoyResult<()> {
+    noy_json::complete(json).map_err(|_| noy_parse("incomplete JSON response"))?;
+    if noy_string(json, b"status")? == Some(b"login") {
+        return Err(("auth_required", "site returned login status"));
+    }
+    Ok(())
+}
+fn noy_book_info<'a>(json: &'a [u8], requested: &[u8], api: NoyApi) -> NoyResult<&'a [u8]> {
+    noy_check_body(json)?;
+    let info = if let Some(book) = noy_member(json, b"book")? {
+        noy_member(book, b"info")?.or(if api == NoyApi::Legacy { Some(book) } else { None })
+    } else if api == NoyApi::Legacy { noy_member(json, b"info")? } else { None }
+        .ok_or(noy_parse("book.info missing"))?;
+    let raw = noy_alias(info, b"Bid", b"id")?.ok_or(noy_parse("book identity missing"))?;
+    if noy_canonical(noy_identity(raw)?) != noy_canonical(noy_identity(requested)?) {
+        return Err(("source_error", "returned book identity differs; no ID remapping"));
+    }
+    if let (Some(a), Some(b)) = (noy_member(info, b"Bid")?, noy_member(info, b"id")?) {
+        if noy_canonical(noy_identity(a)?) != noy_canonical(noy_identity(b)?) { return Err(noy_parse("conflicting book identity aliases")); }
+    }
+    Ok(info)
+}
+fn noy_get(path: &[u8], id: &[u8], tail: &[u8], req: &[u8]) -> NoyResult<usize> {
+    let buf = scratch_a(); let mut c = 0;
+    if !(write_bytes(buf,&mut c,BASE_URL) && write_bytes(buf,&mut c,path)
+        && write_url_encoded(buf,&mut c,id) && write_bytes(buf,&mut c,tail)) { return Err(("internal_error","URL overflow")); }
+    let dst = http_req_buf(); let mut n = 0;
+    let ok = write_bytes(dst,&mut n,br#"{"version":1,"method":"GET","url":""#)
+        && append_json_escaped(dst,&mut n,scratch_a_slice(c))
+        && write_bytes(dst,&mut n,br#"","headers":{"User-Agent":"NoyAcg/3.0","Accept":"application/json, text/plain, */*","Referer":"https://noymanga.com/","allow-adult":""#)
+        && write_bytes(dst,&mut n,adult(req))
+        && write_bytes(dst,&mut n,br#""},"timeoutMs":15000,"responseKind":"bodyText"}"#);
+    if !ok { return Err(("internal_error","request overflow")); }
+    let len = http_request(&dst[..n],http_out()).map_err(|_| ("network_error","connection or timeout failure"))?;
+    let envelope = &http_out()[..len];
+    if noy_json::direct(envelope,b"status").ok().flatten().or(noy_json::direct(envelope,b"statusCode").ok().flatten()) == Some(b"401") {
+        return Err(("auth_required","site returned HTTP 401"));
+    }
+    let n = decode_json_body(envelope).map_err(fetch_error_code)?;
+    noy_check_body(body_slice(n))?;
+    Ok(n)
+}
+fn fetch_detail(id: &[u8], req: &[u8]) -> NoyResult<(usize,NoyApi)> {
+    noy_identity(id).map_err(|_|("invalid_request","invalid numeric manga identity"))?;
+    match noy_get(b"/api/v4/book/",id,b"?comment=false",req) {
+        Ok(n) => Ok((n,NoyApi::V4)),
+        Err(("not_found",_)) => noy_get(b"/api/b1/bookInfo/",id,b"",req).map(|n|(n,NoyApi::Legacy)),
+        Err(error) => Err(error),
+    }
 }
 
 fn run_get_manga(req: &[u8]) -> u32 {
@@ -554,23 +629,31 @@ fn run_get_manga(req: &[u8]) -> u32 {
         Some(v) => v,
         None => return write_error("get_manga", "invalid_request", "unexpected mangaId"),
     };
-    let len = match fetch_detail(id, req) {
-        Ok(n) => n,
-        Err(e) => {
-            let (c, m) = fetch_error_code(e);
-            return write_error("get_manga", c, m);
-        }
+    let (len,api) = match fetch_detail(id, req) {
+        Ok(value) => value,
+        Err((code,message)) => return write_error("get_manga",code,message),
     };
     let json = body_slice(len);
-    if contains_bytes(json, br#""status":"login""#) {
-        return write_error("get_manga", "auth_required", "site returned login status");
-    }
-    let info = extract_object_for_key(json, b"info")
-        .or_else(|| extract_object_for_key(json, b"book"))
-        .unwrap_or(json);
-    let title = title_from_manga(info, id);
-    let author = author_from_manga(info);
-    let desc = desc_from_manga(info);
+    let info = match noy_book_info(json,id,api) {
+        Ok(info) => info,
+        Err((code,message)) => return write_error("get_manga",code,message),
+    };
+    let (title,author,desc) = if api==NoyApi::V4 {
+        let text = |upper:&[u8],lower:&[u8]| -> NoyResult<Option<&[u8]>> {
+            Ok(noy_string(info,upper)?.or(noy_string(info,lower)?))
+        };
+        match (text(b"Bookname",b"name"),text(b"Author",b"author"),text(b"Description",b"description")) {
+            (Ok(Some(title)),Ok(author),Ok(desc)) => (title,author.unwrap_or(b""),desc.unwrap_or(b"")),
+            _ => return write_error("get_manga","parse_error","invalid book text DTO"),
+        }
+    } else {(title_from_manga(info,id),author_from_manga(info),desc_from_manga(info))};
+    let status = if api==NoyApi::V4 {
+        match (noy_alias(info,b"Mode",b"mode"),noy_alias(info,b"Status",b"status")) {
+            (Ok(Some(b"0")),_) | (_,Ok(Some(b"1"))) => b"completed".as_slice(),
+            (Ok(Some(_)),Ok(Some(_))) => b"ongoing".as_slice(),
+            _ => b"unknown".as_slice(),
+        }
+    } else {b"unknown".as_slice()};
     let payload = payload_buf();
     let mut c = 0usize;
     let ok = write_bytes(payload, &mut c, br#"{"manga":{"id":"manga:"#)
@@ -587,11 +670,9 @@ fn run_get_manga(req: &[u8]) -> u32 {
         } else {
             write_json_string_value(payload, &mut c, author)
         }
-        && write_bytes(
-            payload,
-            &mut c,
-            br#"],"artists":[],"status":"unknown","contentRating":"nsfw","language":"zh","tags":["#,
-        )
+        && write_bytes(payload,&mut c,br#"],"artists":[],"status":""#)
+        && write_bytes(payload,&mut c,status)
+        && write_bytes(payload,&mut c,br#"","contentRating":"nsfw","language":"zh","tags":["#)
         && write_tags(payload, &mut c, info)
         && write_bytes(payload, &mut c, br#"],"links":[{"kind":"source","url":""#)
         && write_bytes(payload, &mut c, BASE_URL)
@@ -638,108 +719,172 @@ fn next_catalog_chapter<'a>(data: &'a [u8], pos: &mut usize) -> Result<Option<&'
     Ok(None)
 }
 
-// A capacity failure is an error, never a successful partial complete catalog.
-// This pure serializer is also checked locally without an HTTP/login response.
-fn render_chapter_catalog(payload: &mut [u8], id: &[u8], data: &[u8]) -> Result<usize, &'static str> {
-    let data = data.trim_ascii();
-    let complete = match data.first() {
-        Some(b'{') => extract_balanced(data, 0, b'{', b'}'),
-        Some(b'[') => extract_balanced(data, 0, b'[', b']'),
-        _ => None,
-    }.ok_or("invalid chapter data container")?;
-    if complete.len() != data.len() { return Err("invalid chapter data suffix"); }
-    let mut c = 0usize;
-    if !write_bytes(payload, &mut c, br#"{"items":["#) { return Err("payload overflow"); }
-    let mut pos = 0usize;
-    let mut written = 0usize;
-    while let Some(obj) = next_catalog_chapter(data, &mut pos)? {
-        let raw_id = json_object_member(obj, b"id").ok_or("chapter id missing")?;
-        let cid = if raw_id.starts_with(b"\"") && raw_id.ends_with(b"\"") && raw_id.len() >= 2 {
-            &raw_id[1..raw_id.len()-1]
-        } else if !raw_id.is_empty() && raw_id.iter().all(u8::is_ascii_digit) { raw_id }
-        else { return Err("invalid chapter id"); };
-        if cid.is_empty() { return Err("empty chapter id"); }
-        let title = extract_json_string(obj, b"name").ok_or("chapter title missing")?;
-        let count = match json_object_member(obj, b"count") {
-            Some(b"null") | None => b"null".as_slice(),
-            Some(value) if !value.is_empty() && value.iter().all(u8::is_ascii_digit) => value,
-            _ => return Err("invalid chapter page count"),
+// No allocation/dependency/lockfile change. 8192 records exceed what the
+// 1MiB typed response can encode; exceeding either bound is an explicit error.
+const NOY_MAX_ROWS: usize = 8192;
+#[derive(Clone, Copy)]
+struct NoyRow<'a> { raw: &'a [u8], category: &'a [u8], hash: u64, position: Option<u64> }
+const NOY_EMPTY: NoyRow<'static> = NoyRow { raw: b"",category:b"",hash:0,position:None };
+static mut NOY_ROWS: [NoyRow<'static>;NOY_MAX_ROWS] = [NOY_EMPTY;NOY_MAX_ROWS];
+fn noy_rows() -> &'static mut [NoyRow<'static>] { unsafe { &mut *core::ptr::addr_of_mut!(NOY_ROWS) } }
+struct NoyArray<'a> { raw: &'a [u8], pos: usize }
+impl<'a> NoyArray<'a> {
+    fn new(raw: &'a [u8]) -> NoyResult<Self> {
+        let raw=raw.trim_ascii();
+        if raw.first()!=Some(&b'[') || raw.last()!=Some(&b']') { return Err(noy_parse("DTO object array expected")); }
+        Ok(Self{raw,pos:1})
+    }
+    fn next(&mut self) -> NoyResult<Option<&'a [u8]>> {
+        while self.pos<self.raw.len() && (self.raw[self.pos].is_ascii_whitespace() || self.raw[self.pos]==b',') { self.pos+=1; }
+        if self.raw.get(self.pos)==Some(&b']') { return Ok(None); }
+        if self.raw.get(self.pos)!=Some(&b'{') { return Err(noy_parse("non-object in DTO array")); }
+        let obj=extract_balanced(self.raw,self.pos,b'{',b'}').ok_or(noy_parse("incomplete DTO object"))?;
+        self.pos+=obj.len(); Ok(Some(obj))
+    }
+}
+fn noy_hash(id:&[u8])->u64 { id.iter().fold(0xcbf29ce484222325u64,|h,b|(h^(*b as u64)).wrapping_mul(0x100000001b3)) }
+fn noy_count(obj:&[u8])->NoyResult<usize> { noy_uint(noy_member(obj,b"count")?.ok_or(noy_parse("chapter page count missing"))?) }
+fn noy_add_row<'a>(rows:&mut[NoyRow<'a>],used:&mut usize,obj:&'a[u8],category:&'a[u8],position:Option<u64>)->NoyResult<()> {
+    let id=noy_id(obj,b"id")?;
+    if noy_canonical(id)==b"0" { return Err(noy_parse("ordinary chapter uses reserved single-chapter ID")); }
+    noy_string(obj,b"name")?.ok_or(noy_parse("chapter title missing"))?;
+    noy_count(obj)?;
+    let hash=noy_hash(noy_canonical(id));
+    for previous in &rows[..*used] {
+        if previous.hash==hash && noy_canonical(noy_id(previous.raw,b"id")?)==noy_canonical(id) {
+            // Both upstream and website address this chapter by bid/cid only.
+            // A repeat is the same business identity even if its metadata changed;
+            // retain the first occurrence in provider category order.
+            return Ok(());
+        }
+    }
+    if *used>=rows.len() { return Err(("source_error","complete catalog exceeds response capacity")); }
+    rows[*used]=NoyRow{raw:obj,category,hash,position}; *used+=1; Ok(())
+}
+fn noy_single_len(info:&[u8])->NoyResult<Option<usize>> {
+    match noy_alias(info,b"Len",b"len")? {
+        Some(b"null")|None => Ok(None),
+        Some(raw) => Ok(Some(noy_uint(raw)?).filter(|v|*v>0)),
+    }
+}
+fn noy_collect<'a>(json:&'a[u8],bid:&[u8],api:NoyApi,rows:&mut[NoyRow<'a>])->NoyResult<(usize,Option<usize>)> {
+    let info=noy_book_info(json,bid,api)?;
+    let Some(chapters)=noy_member(json,b"chapters")? else {
+        return if api==NoyApi::V4 {Ok((0,noy_single_len(info)?))} else {Err(noy_parse("legacy chapters missing"))};
+    };
+    let categories=noy_member(chapters,b"categories")?;
+    let data=noy_member(chapters,b"data")?;
+    let mut used=0;
+    let Some(categories)=categories else {
+        if api==NoyApi::V4 && data.is_some() { return Err(noy_parse("v4 categories missing")); }
+        if api==NoyApi::Legacy {
+            let raw=data.unwrap_or(chapters); let mut pos=0;
+            while let Some(obj)=next_catalog_chapter(raw,&mut pos).map_err(noy_parse)? { noy_add_row(rows,&mut used,obj,b"",None)?; }
+        }
+        return Ok((used,if used==0 && api==NoyApi::V4 {noy_single_len(info)?} else {None}));
+    };
+    let mut cats=NoyArray::new(categories)?; let mut category_count=0;
+    while let Some(category)=cats.next()? {
+        category_count+=1;
+        let cid=noy_id(category,b"id")?;
+        noy_string(category,b"name")?.ok_or(noy_parse("category name missing"))?;
+        let mut duplicates=0; let mut all=NoyArray::new(categories)?;
+        while let Some(other)=all.next()? { if noy_canonical(noy_id(other,b"id")?)==noy_canonical(cid) { duplicates+=1; } }
+        if duplicates!=1 { return Err(noy_parse("duplicate provider category identity")); }
+        let data=data.ok_or(noy_parse("category data missing"))?;
+        let array=noy_member(data,cid)?.ok_or(noy_parse("declared category data missing"))?;
+        let mut chapters=NoyArray::new(array)?;
+        let mut position=0u64;
+        while let Some(obj)=chapters.next()? {
+            // Both adopted/current upstream reverse this complete data array for
+            // Mihon's newest-first source list. Positive reading restores this
+            // original array order. sort is not a ChapterDto member or gate.
+            // Count every original slot before identity deduplication so that
+            // keeping a repeated chapter's first occurrence never shifts peers.
+            // The retained b1 endpoint is a separate, unverified direction
+            // contract; a matching JSON shape alone does not prove v4 order.
+            noy_add_row(rows,&mut used,obj,category,(api==NoyApi::V4).then_some(position))?;
+            position+=1;
+        }
+    }
+    // Every data key must correspond to a declared category: never omit a group.
+    if let Some(data)=data {
+        if data.first()!=Some(&b'{') { return Err(noy_parse("category data object expected")); }
+        let mut pos=1;
+        while pos<data.len() {
+            while pos<data.len() && (data[pos].is_ascii_whitespace() || data[pos]==b',') {pos+=1;}
+            if data.get(pos)==Some(&b'}') {break;}
+            if data.get(pos)!=Some(&b'"') { return Err(noy_parse("invalid category data key")); }
+            pos+=1; let start=pos;
+            while pos<data.len() && data[pos]!=b'"' {if data[pos]==b'\\' {pos+=1;} pos+=1;}
+            let mut keybuf=[0;64]; let key=decode_json_content(&data[start..pos],&mut keybuf).map_err(noy_parse)?;
+            let mut found=false; let mut all=NoyArray::new(categories)?;
+            while let Some(category)=all.next()? { if noy_id(category,b"id")?==key {found=true;} }
+            if !found {return Err(noy_parse("undeclared provider category data"));}
+            let value=noy_member(data,key)?.ok_or(noy_parse("category value missing"))?;
+            pos=value.as_ptr() as usize-data.as_ptr() as usize+value.len();
+        }
+    }
+    Ok((used,if category_count==0 && api==NoyApi::V4 {noy_single_len(info)?} else {None}))
+}
+fn noy_sdk(error:koma_source_sdk::source::SourceError)->NoyError { (error.code(),error.message()) }
+fn noy_qualified<'a>(dst:&'a mut[u8],prefix:&[u8],bid:&[u8],cid:Option<&[u8]>)->NoyResult<&'a[u8]> {
+    let mut n=0;
+    if !(write_bytes(dst,&mut n,prefix)&&write_bytes(dst,&mut n,bid)) {return Err(("internal_error","identity overflow"));}
+    if let Some(cid)=cid {if !(write_bytes(dst,&mut n,b":")&&write_bytes(dst,&mut n,cid)) {return Err(("internal_error","identity overflow"));}}
+    Ok(&dst[..n])
+}
+fn render_chapter_catalog<'a,'j>(payload:&'a mut[u8],request:&[u8],bid:&[u8],json:&'j[u8],api:NoyApi,rows:&mut[NoyRow<'j>])->ChapterResult<'a,NoyError> {
+    let (used,single)=noy_collect(json,bid,api,rows)?;
+    let mut mid=[0;64]; let mid=noy_qualified(&mut mid,b"manga:",bid,None)?;
+    if let Some(count)=single {
+        let mut cid=[0;96];let cid=noy_qualified(&mut cid,b"chapter:",bid,Some(b"0"))?;
+        let mut title=[0;96];let mut n=0;
+        if !(write_bytes(&mut title,&mut n,"單章節（".as_bytes())&&write_usize(&mut title,&mut n,count)&&write_bytes(&mut title,&mut n,"P）".as_bytes())) {return Err(("internal_error","single chapter title overflow"));}
+        let mut chapter=Chapter::new(cid,mid,&title[..n]);chapter.chapter_number=Some(ChapterNumber::Integer(0));chapter.page_count=Some(count);chapter.language=Some(b"zh");
+        let info=noy_book_info(json,bid,api)?;
+        if let Some(time)=noy_alias(info,b"Time",b"time")? {noy_uint(time)?;chapter.published_at=Some(time);}
+        return ChapterResponse::single(payload,chapter).map_err(noy_sdk);
+    }
+    let mut catalog=GroupedChapters::new(payload,request).map_err(noy_sdk)?;
+    for row in &rows[..used] {
+        let mut cid=[0;96];let cid=noy_qualified(&mut cid,b"chapter:",bid,Some(noy_id(row.raw,b"id")?))?;
+        let mut titlebuf=[0;8192];let title=decode_json_content(noy_string(row.raw,b"name")?.ok_or(noy_parse("chapter title missing"))?,&mut titlebuf).map_err(noy_parse)?;
+        let mut chapter=Chapter::new(cid,mid,title);chapter.page_count=Some(noy_count(row.raw)?);chapter.language=Some(b"zh");
+        let mut namebuf=[0;8192];let mut groupbuf=[0;96];
+        let group=if !row.category.is_empty() {
+            chapter.scanlator=Some(decode_json_content(noy_string(row.category,b"name")?.ok_or(noy_parse("category name missing"))?,&mut namebuf).map_err(noy_parse)?);
+            let mut n=0;
+            if !(write_bytes(&mut groupbuf,&mut n,b"noy-category:")&&write_bytes(&mut groupbuf,&mut n,noy_id(row.category,b"id")?)) {return Err(("internal_error","category key overflow"));}
+            &groupbuf[..n]
+        } else {b"".as_slice()};
+        let mut datebuf=[0;128];
+        if let Some(raw)=noy_member(row.raw,b"created_at")? {
+            if raw.first()==Some(&b'"') {
+                chapter.published_at=Some(decode_json_content(noy_string(row.raw,b"created_at")?.ok_or(noy_parse("invalid creation date"))?,&mut datebuf).map_err(noy_parse)?);
+            } else if raw!=b"null" {noy_uint(raw)?;chapter.published_at=Some(raw);}
+        }
+        // Every complete classified v4 array supplies every chapter's ordinal.
+        // Optional sort, display numbers and repeated titles never gate it.
+        // The retained legacy endpoint lacks this adopted v4 direction contract.
+        let placement=match row.position {
+            Some(position)=>ChapterPlacement::InGroup{group,position},
+            None=>ChapterPlacement::ManualOnly,
         };
-        let created = extract_json_string(obj, b"created_at").unwrap_or(b"");
-        if written > 0 && !write_bytes(payload, &mut c, b",") { return Err("payload overflow"); }
-        let ok = write_bytes(payload, &mut c, br#"{"id":"chapter:"#)
-            && append_json_escaped(payload, &mut c, id)
-            && write_bytes(payload, &mut c, b":")
-            && append_json_escaped(payload, &mut c, cid)
-            && write_bytes(payload, &mut c, br#"","mangaId":"manga:"#)
-            && append_json_escaped(payload, &mut c, id)
-            && write_bytes(payload, &mut c, br#"","title":""#)
-            && append_json_unescaped_then_escaped(payload, &mut c, title)
-            && write_bytes(payload, &mut c, br#"","chapterNumber":null,"volumeNumber":null,"language":"zh","publishedAt":"#)
-            && if created.is_empty() { write_bytes(payload, &mut c, b"null") }
-               else { write_json_string_value(payload, &mut c, created) }
-            && write_bytes(payload, &mut c, br#","updatedAt":null,"pageCount":"#)
-            && write_bytes(payload, &mut c, count)
-            && write_bytes(payload, &mut c, b"}");
-        if !ok { return Err("payload overflow"); }
-        written += 1;
+        catalog.push(chapter,placement).map_err(noy_sdk)?;
     }
-    if !write_bytes(payload, &mut c, br#"],"page":{"nextCursor":null,"hasMore":false}}"#) {
-        return Err("payload overflow");
-    }
-    Ok(c)
+    catalog.finish(ChapterPage::Complete).map_err(noy_sdk)
 }
-
-fn run_get_chapters(req: &[u8]) -> u32 {
-    let manga_id = match extract_json_string(req, b"mangaId") {
-        Some(v) => v,
-        None => return write_error("get_chapters", "invalid_request", "missing mangaId"),
-    };
-    let id = match manga_id_value(manga_id) {
-        Some(v) => v,
-        None => return write_error("get_chapters", "invalid_request", "unexpected mangaId"),
-    };
-    let len = match fetch_detail(id, req) {
-        Ok(n) => n,
-        Err(e) => {
-            let (c, m) = fetch_error_code(e);
-            return write_error("get_chapters", c, m);
-        }
-    };
-    let json = body_slice(len);
-    if contains_bytes(json, br#""status":"login""#) {
-        return write_error("get_chapters", "auth_required", "site returned login status");
-    }
-    let chapters = match extract_object_for_key(json, b"chapters") {
-        Some(v) => v,
-        None => return write_error("get_chapters", "parse_error", "missing chapters"),
-    };
-    let data = match json_object_member(chapters, b"data") {
-        Some(data) => data,
-        None if json_object_member(chapters, b"categories").is_some() => {
-            return write_error("get_chapters", "parse_error", "chapter data missing");
-        }
-        None => chapters,
-    };
-    match render_chapter_catalog(payload_buf(), id, data) {
-        Ok(len) => write_success_payload("get_chapters", len),
-        Err(message) => write_error("get_chapters",
-            if message == "payload overflow" { "internal_error" } else { "parse_error" }, message),
-    }
+fn run_get_chapters(req:&[u8])->ChapterResult<'static,NoyError> {
+    let manga=extract_json_string(req,b"mangaId").ok_or(("invalid_request","missing mangaId"))?;
+    let id=manga_id_value(manga).ok_or(("invalid_request","unexpected mangaId"))?;
+    let (len,api)=fetch_detail(id,req)?;
+    render_chapter_catalog(payload_buf(),req,id,body_slice(len),api,noy_rows())
 }
+fn write_chapter_error(error:NoyError)->u32 {write_error("get_chapters",error.0,error.1)}
 
-fn fetch_chapter(chapter_id: &[u8], req: &[u8]) -> Result<usize, FetchError> {
-    let buf = scratch_a();
-    let mut c = 0usize;
-    if !(write_bytes(buf, &mut c, BASE_URL)
-        && write_bytes(buf, &mut c, b"/api/b1/chapter/")
-        && write_url_encoded(buf, &mut c, chapter_id))
-    {
-        return Err(FetchError::Network);
-    }
-    let n=koma_source_sdk::build_get_request(http_req_buf(),scratch_a_slice(c),None,&[(b"allow-adult",adult(req))]).ok_or(FetchError::Network)?;
-    let len=http_request(&http_req_buf()[..n],http_out()).map_err(|_|FetchError::Network)?;
-    decode_json_body(&http_out()[..len])
+fn fetch_chapter(chapter_id:&[u8],req:&[u8])->NoyResult<usize> {
+    noy_get(b"/api/b1/chapter/",chapter_id,b"",req)
 }
 
 fn looks_like_image_url(url: &[u8]) -> bool {
@@ -774,7 +919,7 @@ fn next_json_string<'a>(data: &'a [u8], pos: &mut usize) -> Option<&'a [u8]> {
     None
 }
 
-fn run_get_pages(req: &[u8]) -> u32 {
+fn run_legacy_pages(req: &[u8]) -> u32 {
     let chapter_id = match extract_json_string(req, b"chapterId") {
         Some(v) => v,
         None => return write_error("get_pages", "invalid_request", "missing chapterId"),
@@ -785,15 +930,10 @@ fn run_get_pages(req: &[u8]) -> u32 {
     };
     let len = match fetch_chapter(cid, req) {
         Ok(n) => n,
-        Err(e) => {
-            let (c, m) = fetch_error_code(e);
-            return write_error("get_pages", c, m);
-        }
+        Err((code,message)) => return write_error("get_pages",code,message),
     };
     let json = body_slice(len);
-    if contains_bytes(json, br#""status":"login""#) {
-        return write_error("get_pages", "auth_required", "site returned login status");
-    }
+    if let Err((code,message))=noy_check_body(json) {return write_error("get_pages",code,message);}
     let payload = payload_buf();
     let mut c = 0usize;
     if !(write_bytes(payload, &mut c, br#"{"chapterId":"#)
@@ -809,7 +949,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
             continue;
         }
         if written > 0 && !write_bytes(payload, &mut c, b",") {
-            break;
+            return write_error("get_pages","internal_error","payload overflow");
         }
         let ok = write_bytes(payload, &mut c, br#"{"id":"page:"#)
             && append_json_escaped(payload, &mut c, cid)
@@ -825,10 +965,59 @@ fn run_get_pages(req: &[u8]) -> u32 {
         }
         written += 1;
     }
+    if written==0 {return write_error("get_pages","parse_error","legacy response has no image pages");}
     if !write_bytes(payload, &mut c, b"]}") {
         return write_error("get_pages", "internal_error", "payload overflow");
     }
     write_success_payload("get_pages", c)
+}
+
+fn noy_render_pages(payload:&mut[u8],chapter_id:&[u8],bid:&[u8],cid:&[u8],count:usize,single:bool)->NoyResult<usize> {
+    let mut c=0;
+    if !(write_bytes(payload,&mut c,br#"{"chapterId":"#)&&write_json_string_value(payload,&mut c,chapter_id)&&write_bytes(payload,&mut c,br#","pages":["#)) {return Err(("internal_error","payload overflow"));}
+    for index in 0..count {
+        let ok=(index==0 || write_bytes(payload,&mut c,b","))
+            && write_bytes(payload,&mut c,br#"{"id":"page:"#)&&append_json_escaped(payload,&mut c,cid)
+            && write_bytes(payload,&mut c,b":")&&write_usize(payload,&mut c,index)
+            && write_bytes(payload,&mut c,br#"","index":"#)&&write_usize(payload,&mut c,index)
+            && write_bytes(payload,&mut c,br#","image":{"kind":"url","url":""#)&&write_bytes(payload,&mut c,IMG_BASE)
+            && append_json_escaped(payload,&mut c,bid)&&write_bytes(payload,&mut c,b"/")
+            && (single || (append_json_escaped(payload,&mut c,cid)&&write_bytes(payload,&mut c,b"/")))
+            && write_usize(payload,&mut c,index+1)&&write_bytes(payload,&mut c,br#".webp"}}"#);
+        if !ok {return Err(("internal_error","payload overflow"));}
+    }
+    if !write_bytes(payload,&mut c,b"]}") {return Err(("internal_error","payload overflow"));}
+    Ok(c)
+}
+fn run_get_pages(req:&[u8])->u32 {
+    let chapter_id=match extract_json_string(req,b"chapterId") {Some(v)=>v,None=>return write_error("get_pages","invalid_request","missing chapterId")};
+    let (bid,cid)=match chapter_id_value(chapter_id) {Some(v)=>v,None=>return write_error("get_pages","invalid_request","unexpected chapterId")};
+    if noy_identity(bid).is_err() || noy_identity(cid).is_err() {return write_error("get_pages","invalid_request","invalid chapter identity");}
+    if let Some(manga)=extract_json_string(req,b"mangaId") {
+        if manga_id_value(manga)!=Some(bid) {return write_error("get_pages","invalid_request","chapter and manga identities differ");}
+    }
+    // Pages need the v4 catalog or the exact old chapter route, not an extra
+    // legacy book lookup. At most one explicit fallback follows a missing ID.
+    let len=match noy_get(b"/api/v4/book/",bid,b"?comment=false",req) {
+        Ok(value)=>value,
+        Err(("not_found",_))=>return run_legacy_pages(req),
+        Err((code,message))=>return write_error("get_pages",code,message),
+    };
+    let rows=noy_rows();
+    let (used,single)=match noy_collect(body_slice(len),bid,NoyApi::V4,rows) {Ok(v)=>v,Err((code,message))=>return write_error("get_pages",code,message)};
+    let (count,is_single)=if cid==b"0" {
+        match single {Some(count)=>(count,true),None=>return write_error("get_pages","not_found","not a verified single-chapter work")}
+    } else {
+        let matched=rows[..used].iter().find(|row|noy_id(row.raw,b"id").is_ok_and(|id|noy_canonical(id)==noy_canonical(cid)));
+        match matched {
+            Some(row)=>match noy_count(row.raw) {Ok(count)=>(count,false),Err((code,message))=>return write_error("get_pages",code,message)},
+            // Exact old identity absent: retain the old endpoint, never match a title or ordinal.
+            None=>return run_legacy_pages(req),
+        }
+    };
+    match noy_render_pages(payload_buf(),chapter_id,bid,cid,count,is_single) {
+        Ok(n)=>write_success_payload("get_pages",n),Err((code,message))=>write_error("get_pages",code,message),
+    }
 }
 
 fn run_get_listings(_req: &[u8]) -> u32 {
@@ -892,7 +1081,7 @@ fn run_get_image_request(req: &[u8]) -> u32 {
     let mut c = 0usize;
     let ok = write_bytes(payload, &mut c, br#"{"url":""#)
         && append_json_unescaped_then_escaped(payload, &mut c, url)
-        && write_bytes(payload,&mut c,br#"","headers":{"referer":"https://beta.noyteam.online/","allow-adult":""#)
+        && write_bytes(payload,&mut c,br#"","headers":{"User-Agent":"NoyAcg/3.0","referer":"https://noymanga.com/","allow-adult":""#)
         && write_bytes(payload,&mut c,adult(req))
         && write_bytes(payload,&mut c,br#""}}"#);
     if !ok {
@@ -939,15 +1128,7 @@ pub extern "C" fn koma_source_get_manga(req_ptr: u32, req_len: u32) -> u32 {
     run_get_manga(req)
 }
 
-#[no_mangle]
-pub extern "C" fn koma_source_get_chapters(req_ptr: u32, req_len: u32) -> u32 {
-    let req = match read_request(req_ptr, req_len) {
-        Some(r) => r,
-        None => return write_error("get_chapters", "invalid_request", "empty request"),
-    };
-    log_info(b"noyacg get_chapters");
-    run_get_chapters(req)
-}
+koma_source_sdk::koma_source_chapter_export!("noyacg",run_get_chapters,write_chapter_error);
 
 #[no_mangle]
 pub extern "C" fn koma_source_get_pages(req_ptr: u32, req_len: u32) -> u32 {
