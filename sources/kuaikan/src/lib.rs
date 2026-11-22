@@ -1,6 +1,7 @@
 #![no_std]
 extern crate koma_source_sdk;
 mod nuxt;
+use koma_source_sdk::chapters::{Chapter, ChapterNumber, ChapterPage, ChapterPlacement, ChapterResult, GroupedChapters};
 use koma_source_sdk::host;
 use koma_source_sdk::json_utils::*;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
@@ -8,7 +9,7 @@ use koma_source_sdk::{fetch_error_code, FetchError};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.kuaikan.koma",
     name: "快看漫画",
-    version: "0.1.9",
+    version: "0.1.10",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -410,86 +411,87 @@ fn explicit_chapter(title: &[u8]) -> Option<usize> {
         n.checked_mul(10)?.checked_add((d - b'0') as usize)
     })
 }
-fn run_get_chapters(req: &[u8]) -> u32 {
-    let topic = match id(req, b"mangaId", b"kkt:") {
-        Some(v) => v,
-        None => return write_error("get_chapters", "invalid_request", "bad mangaId"),
-    };
-    let d = match web_topic(topic) {
-        Ok(v) => v,
-        Err(e) => return fail_web("get_chapters", e),
-    };
+enum ChapterCatalogueError {
+    Response(&'static str, &'static str),
+    Web(WebError),
+}
+
+fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, ChapterCatalogueError> {
+    use ChapterCatalogueError::{Response, Web};
+    let topic = id(req, b"mangaId", b"kkt:").ok_or(Response("invalid_request", "bad mangaId"))?;
+    let d = web_topic(topic).map_err(Web)?;
     if field(d, b"topicInfo")
         .and_then(|v| field(v, b"id"))
         .and_then(number)
         != number(topic)
     {
-        return write_error("get_chapters", "parse_error", "topic mismatch");
+        return Err(Response("parse_error", "topic mismatch"));
     }
     let key = if field(d, b"comics").is_some() {
         b"comics".as_slice()
     } else {
         b"comicList".as_slice()
     };
-    let mut it = match array(d, key) {
-        Some(it) => it,
-        None => return write_error("get_chapters", "parse_error", "missing public catalogue"),
-    };
-    let b = payload_buf();
-    let mut n = 0;
-    write_bytes(b, &mut n, br#"{"items":["#);
+    let mut it = array(d, key).ok_or(Response("parse_error", "missing public catalogue"))?;
+    let sdk_error = |e: koma_source_sdk::source::SourceError| Response(e.code(), e.message());
+    let mut catalog = GroupedChapters::new(payload_buf(), req).map_err(sdk_error)?;
+    let mut manga = [0u8; 64];
+    let mut manga_len = 0;
+    if !write_bytes(&mut manga, &mut manga_len, b"kkt:")
+        || !write_bytes(&mut manga, &mut manga_len, topic)
+    {
+        return Err(Response("internal_error", "manga ID overflow"));
+    }
     let mut count = 0;
     while let Some(ch) = it.next_object() {
         if host::check_cancel() {
-            return write_error("get_chapters", "cancelled", "cancelled");
+            return Err(Response("cancelled", "cancelled"));
         }
-        let cid = match field(ch, b"id") {
-            Some(id) if number(id).is_some() => id,
-            _ => return write_error("get_chapters", "parse_error", "invalid chapter identity"),
-        };
-        if count > 0 && !write_bytes(b, &mut n, b",") {
-            return write_error("get_chapters", "internal_error", "payload overflow");
+        let cid = field(ch, b"id")
+            .filter(|cid| number(cid).is_some())
+            .ok_or(Response("parse_error", "invalid chapter identity"))?;
+        let mut chapter_id = [0u8; 64];
+        let mut chapter_len = 0;
+        if !write_bytes(&mut chapter_id, &mut chapter_len, b"kkc:")
+            || !write_bytes(&mut chapter_id, &mut chapter_len, topic)
+            || !write_bytes(&mut chapter_id, &mut chapter_len, b":")
+            || !write_bytes(&mut chapter_id, &mut chapter_len, cid)
+        {
+            return Err(Response("internal_error", "chapter ID overflow"));
         }
-        let ok = write_bytes(b, &mut n, br#"{"id":"kkc:"#)
-            && write_bytes(b, &mut n, topic)
-            && write_bytes(b, &mut n, b":")
-            && write_bytes(b, &mut n, cid)
-            && write_bytes(b, &mut n, br#"","mangaId":"kkt:"#)
-            && write_bytes(b, &mut n, topic)
-            && write_bytes(b, &mut n, br#"","title":"#)
-            && quoted(b, &mut n, text(ch, b"title").unwrap_or(b""))
-            && write_bytes(b, &mut n, br#", "chapterNumber":"#)
-            && if let Some(number) = explicit_chapter(text(ch, b"title").unwrap_or(b"")) {
-                write_usize(b, &mut n, number)
-                    && write_bytes(b, &mut n, br#", "readingGroup":"chapter","continuationEligible":true"#)
-            } else {
-                write_bytes(b, &mut n, br#"null,"readingGroup":"unknown","continuationEligible":false"#)
-            }
-            && write_bytes(b, &mut n, br#", "sequenceIndex":"#)
-            && write_usize(b, &mut n, count)
-            && write_bytes(b, &mut n, br#", "language":"zh","locked":"#)
-            && write_bytes(
-                b,
-                &mut n,
-                if field(ch, b"locked") == Some(b"true") {
-                    b"true"
-                } else {
-                    b"false"
-                },
-            )
-            && write_bytes(b, &mut n, b"}");
-        if !ok {
-            return write_error("get_chapters", "internal_error", "payload overflow");
-        }
+        let raw_title = text(ch, b"title").unwrap_or(b"");
+        let mut title = [0u8; 4096];
+        let title = koma_source_sdk::plain_text::decode_json_content(raw_title, &mut title)
+            .map_err(|e| Response("parse_error", e))?;
+        let mut chapter = Chapter::new(&chapter_id[..chapter_len], &manga[..manga_len], title);
+        chapter.chapter_number = explicit_chapter(raw_title).map(ChapterNumber::Integer);
+        chapter.sequence_index = Some(count);
+        chapter.language = Some(b"zh");
+        chapter.locked = Some(field(ch, b"locked") == Some(b"true"));
+        // The site's next-chapter links follow its ascending comics array,
+        // including split episodes. Access is still checked by get_pages.
+        catalog
+            .push(chapter, ChapterPlacement::InGroup {
+                group: b"source-catalog",
+                position: count as u64,
+            })
+            .map_err(sdk_error)?;
         count += 1;
     }
     let expected = field(d, b"topicInfo")
         .and_then(|v| field(v, b"comics_count"))
         .and_then(number);
     if expected.is_some() && expected != Some(count) {
-        return write_error("get_chapters", "parse_error", "incomplete public catalogue");
+        return Err(Response("parse_error", "incomplete public catalogue"));
     }
-    page_end("get_chapters", &mut n, None)
+    catalog.finish(ChapterPage::Complete).map_err(sdk_error)
+}
+
+fn write_chapter_error(error: ChapterCatalogueError) -> u32 {
+    match error {
+        ChapterCatalogueError::Response(code, message) => write_error("get_chapters", code, message),
+        ChapterCatalogueError::Web(error) => fail_web("get_chapters", error),
+    }
 }
 fn split_id<'a>(v: &'a [u8], prefix: &[u8], page: bool) -> Option<(&'a [u8], &'a [u8], usize)> {
     let mut parts = v.strip_prefix(prefix)?.split(|b| *b == b':');
@@ -619,7 +621,7 @@ fn run_get_filters(r: &[u8]) -> u32 {
 fn run_get_settings(_r: &[u8]) -> u32 {
     write_error("get_settings", "not_implemented", "not supported")
 }
-koma_source_sdk::koma_source_exports!("kuaikan");
+koma_source_sdk::koma_source_exports!("kuaikan", typed_chapters, write_chapter_error);
 
 mod comments;
 

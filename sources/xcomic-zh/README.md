@@ -1,6 +1,8 @@
-# XCOMIC 0.1.12（中文 / API zh）
+# XCOMIC 0.1.16（中文 / API zh）
 
-支持章节阅读序能力的宿主按原版本身份和有效话号组织续读；缺少话号的章节不自动续读。 当前版本要求 Koma 0.1.4 或更新版本，以正确处理同组重复话号。
+支持章节阅读序能力的宿主按原版本身份和完整目录位置组织续读。`chapter_desc` 分页全量校验完成后，每个 edition 独立从最早条目开始编号为阅读位置；话号、卷号和名称只用于显示，缺号、负号、重号及同名的不同 ID 都保留前后关系，不补号、不按名称合并、不跨版本或权限边界。要求 Koma 0.1.4 或更新版本。
+
+本次章序修复对照固定 Keiyoushi `949dea252eb8e867b7b40834a26e13088764ff55` 的 `XCOMIC.kt:523-645`（按 edition 完整分页，之后另做显示排序）及 `Queries.kt:51-56` 的 `ApiChapterListSelect.sortby=chapter_desc`。源内 `collect` 在排序前保存跨页位置，`dedup::exclusions` 复用原完整目录查询，把可见 ID 映射回同一坐标；去重、版本筛选和 `GROUP_BY_SOURCE` 不参与位置生成。`chapter_catalog` 通过 typed SDK `GroupedChapters` 输出，App 沿 `projectSourceChapterResponse → parseSourceChapterRow → sourceCatalogChronology → continuationChapterIds` 消费；不再把业务话号当作唯一位置。旧宿主的显示顺序、身份、设置默认值与精确旧章恢复保持。此规则替代旧的“缺号不续读”和“同号位置可直接用话号”说明，依据为本轮已授权的真实目录章序修复；不扩展为合并真实版本。
 
 `GROUP_BY_SOURCE` 默认关闭，保留原目录顺序；显式开启按版本标签及章节号排序。章节 ID 和已有阅读记录保持不变。
 

@@ -20,5 +20,6 @@
     "zh-Hans": "快看漫画",
     "zh-Hant": "快看漫畫"
   },
-  "homepage": "https://www.kuaikanmanhua.com"
+  "homepage": "https://www.kuaikanmanhua.com",
+  "chapterOrder": "oldest_first"
 }

@@ -8,6 +8,8 @@ use alloc::{string::{String,ToString},vec::Vec,collections::{BTreeMap,BTreeSet}}
 mod xcomic_java_regex;
 #[path = "../../xcomic-zh/chapter_editions.rs"]
 mod chapter_editions;
+#[path = "../../xcomic-zh/chapter_catalog.rs"]
+mod chapter_catalog;
 #[path = "../../xcomic-zh/dedup.rs"]
 mod dedup;
 #[path = "../../xcomic-zh/probe_batches.rs"]
@@ -24,7 +26,7 @@ use koma_source_sdk::{
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.xcomic.zh-hant.koma",
     name: "XCOMIC",
-    version: "0.1.16",
+    version: "0.1.17",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -766,6 +768,7 @@ struct Chapter {
     number: f64,
     numbered: bool,
     ordinal: usize,
+    reading_position: usize,
 }
 const NO_CH: Chapter = Chapter {
     off: 0,
@@ -775,6 +778,7 @@ const NO_CH: Chapter = Chapter {
     number: 0.0,
     numbered: false,
     ordinal: 0,
+    reading_position: 0,
 };
 static mut CHS: [Chapter; 8192] = [NO_CH; 8192];
 fn id(s: &[u8]) -> Result<&[u8], E> {
@@ -1631,6 +1635,10 @@ fn collect(work: &[u8], target: Option<&[u8]>, normalize_labels: bool, deduplica
                         number: num.map(|x| x.1).unwrap_or(0.0),
                         numbered: num.is_some(),
                         ordinal: count,
+                        // chapter_desc is the provider directory, before display sorting.
+                        // Count across every page of this edition; numbers are only labels.
+                        reading_position: total.checked_sub(count - first_count + 1)
+                            .ok_or("incomplete chapter pagination")?,
                     }
                 };
                 count += 1;
@@ -1663,18 +1671,10 @@ fn collect(work: &[u8], target: Option<&[u8]>, normalize_labels: bool, deduplica
     };
     Ok((count, used, labels, good))
 }
-fn emit_edition_chapter(b:&mut [u8],n:&mut usize,raw:&[u8],label:&str)->Result<(),E> {
-    if let Some(old)=member(raw,b"scanlator")? {
-        let offset=old.as_ptr() as usize-raw.as_ptr() as usize;
-        bytes(b,n,&raw[..offset])?;q(b,n,label.as_bytes())?;bytes(b,n,&raw[offset+old.len()..])
-    } else {
-        bytes(b,n,&raw[..raw.len()-1])?;bytes(b,n,b",\"scanlator\":")?;q(b,n,label.as_bytes())?;bytes(b,n,b"}")
-    }
-}
-fn chapters(r: &[u8]) -> Result<usize, E> {
+fn chapters(r: &[u8]) -> koma_source_sdk::chapters::ChapterResult<'static, E> {
     let selected=chapter_editions::selection(r)?;
     // Exact continuation is not a filtered catalogue. Restore only the validated
-    // requested original identity; keep the old default branch byte-for-byte.
+    // requested original identity; retain the default presentation and IDs.
     let feature = chapter_editions::supported(r);
     let exact=if (feature || !selected.is_empty())&&member(args(r)?,b"chapterId")?.is_some(){Some(chapter_id(r)?)}else{None};
     let work=manga_id(r)?;
@@ -1704,11 +1704,11 @@ fn chapters(r: &[u8]) -> Result<usize, E> {
             .then_with(|| b.number.partial_cmp(&a.number).unwrap_or(core::cmp::Ordering::Equal))
             .then_with(|| a.ordinal.cmp(&b.ordinal))) };
     }
-    // The directory can be sorted by label or globally by number. Keep
-    // continuation scoped to the same edition, independent of display order.
-    let reading_feature = json_object_member(r,b"hostFeatures").map(|v|v.starts_with(b"[") && v.ends_with(b"]") && v[1..v.len()-1].split(|c|*c==b',').any(|v|v.trim_ascii()==br#""chapter_reading_order_v1""#)).unwrap_or(false);
-    let b = payload_buf();let mut n = 0;let mut written=0;let mut excluded=Vec::new();
-    bytes(b, &mut n, b"{\"items\":[")?;
+    // Reading positions were verified before either presentation sort or edition
+    // filtering. Keep every distinct provider ID and each edition boundary.
+    let mut catalog = koma_source_sdk::chapters::GroupedChapters::new(payload_buf(),r)
+        .map_err(|_| "payload overflow")?;
+    let mut written=0;let mut excluded=Vec::new();
     for (index,ch) in unsafe{&CHS[..count]}.iter().enumerate() {
         if let Some((_,edition,chapter))=exact {
             if ch.edition.as_bytes()!=edition||ch.id.as_bytes()!=chapter{continue;}
@@ -1719,35 +1719,32 @@ fn chapters(r: &[u8]) -> Result<usize, E> {
             if collisions.get(&label.to_lowercase()).is_some_and(|ids|ids.len()>1){label=alloc::format!("{} [{}]",label,core::str::from_utf8(ch.edition.as_bytes()).map_err(|_|"invalid identity")?);}
             if !selected.is_empty() && !chapter_editions::matches(&selected,&label){excluded.push(index);continue;}
         }
-        if written>0{bytes(b,&mut n,b",")?;}
-        if labels.is_empty(){bytes(b,&mut n,raw)?;}else{emit_edition_chapter(b,&mut n,raw,&label)?;}
-        if reading_feature && exact.is_none() {
-            let edition=core::str::from_utf8(ch.edition.as_bytes()).map_err(|_|"invalid edition identity")?;
-            n=n.checked_sub(1).ok_or("invalid chapter JSON")?;
-            bytes(b,&mut n,b",\"readingGroup\":")?;q(b,&mut n,edition.as_bytes())?;
-            let eligible=ch.numbered && ch.number >= 0.0;
-            bytes(b,&mut n,b",\"continuationEligible\":")?;bytes(b,&mut n,if eligible{b"true"}else{b"false"})?;
-            if eligible {bytes(b,&mut n,b",\"readingOrder\":")?;bytes(b,&mut n,required(raw,b"chapterNumber")?)?;}
-            bytes(b,&mut n,b"}")?;
-        }
+        chapter_catalog::push(&mut catalog,raw,
+            if labels.is_empty(){None}else{Some(label.as_str())},
+            if exact.is_some(){koma_source_sdk::chapters::ChapterPlacement::ManualOnly}else{
+                koma_source_sdk::chapters::ChapterPlacement::InGroup {
+                    group: ch.edition.as_bytes(), position: ch.reading_position as u64,
+                }
+            })?;
         written+=1;
     }
     if exact.is_some()&&written!=1{return Err("chapter ownership mismatch");}
-    bytes(b,&mut n,b"]")?;
+    use koma_source_sdk::chapters::ChapterPage;
     if exact.is_none() && (!selected.is_empty() || !dedup_excluded.is_empty()) {
-        bytes(b,&mut n,b",\"excludedChapterIds\":[")?;
-        for (i,index) in excluded.iter().enumerate(){
-            if i>0{bytes(b,&mut n,b",")?;}
-            let ch=unsafe{CHS[*index]};
-            let raw=unsafe{&CH_BYTES[ch.off..ch.off+ch.len]};rawq(b,&mut n,required(raw,b"id")?)?;
+        let mut ids=catalog.with_excluded_ids(ChapterPage::Complete).map_err(|_| "payload overflow")?;
+        for index in excluded {
+            let ch=unsafe{CHS[index]};
+            let raw=unsafe{&CH_BYTES[ch.off..ch.off+ch.len]};
+            ids.push(text(raw,b"id")?).map_err(|_| "payload overflow")?;
         }
         for (edition,chapter) in &dedup_excluded {
-            if !excluded.is_empty() || n > 0 && b[n-1] != b'[' { bytes(b,&mut n,b",")?; }
-            bytes(b,&mut n,b"\"")?;bytes(b,&mut n,CP)?;bytes(b,&mut n,work)?;bytes(b,&mut n,b":")?;bytes(b,&mut n,edition)?;bytes(b,&mut n,b":")?;bytes(b,&mut n,chapter)?;bytes(b,&mut n,b"\"")?;
+            let mut id=Vec::new();id.extend_from_slice(CP);id.extend_from_slice(work);id.push(b':');
+            id.extend_from_slice(edition);id.push(b':');id.extend_from_slice(chapter);
+            ids.push(&id).map_err(|_| "payload overflow")?;
         }
-        bytes(b,&mut n,b"]")?;
-    }
-    bytes(b,&mut n,b"}")?;Ok(n)
+        ids.finish().map_err(|_| "payload overflow")
+    } else { catalog.finish(ChapterPage::Complete).map_err(|_| "payload overflow") }
+
 }
 
 fn pages(r: &[u8]) -> Result<usize, E> {
@@ -1827,9 +1824,6 @@ fn run_get_manga_list(r: &[u8]) -> u32 {
 }
 fn run_get_manga(r: &[u8]) -> u32 {
     execute("get_manga", detail(r))
-}
-fn run_get_chapters(r: &[u8]) -> u32 {
-    execute("get_chapters", chapters(r))
 }
 fn run_get_pages(r: &[u8]) -> u32 {
     execute("get_pages", pages(r))
@@ -2006,7 +2000,10 @@ macro_rules! export_op {
 }
 export_op!(koma_source_search, "search", run_search);
 export_op!(koma_source_get_manga, "get_manga", run_get_manga);
-export_op!(koma_source_get_chapters, "get_chapters", run_get_chapters);
+koma_source_sdk::koma_source_chapter_export!(
+    "xcomic-zh-hant", chapters,
+    |e: E| write_error("get_chapters", error_code(e), e), checked_request
+);
 export_op!(koma_source_get_pages, "get_pages", run_get_pages);
 export_op!(koma_source_get_listings, "get_listings", run_get_listings);
 export_op!(
