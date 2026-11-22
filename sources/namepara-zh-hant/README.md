@@ -1,4 +1,4 @@
-# 菇菇官方四格漫畫 · 繁中 0.1.2
+# 菇菇官方四格漫畫 · 繁中 0.1.3
 
 源 ID `com.beeworks.namepara.zh-hant.koma`，API0.2，minAppVersion0.1.1。一个官方繁中合集，MID `namepara:zh-hant:four-panel`，https://namepara.com/zh/info/comic/ 。源用量和单作品内容分级未知；manifest nsfw=false。这个官方中文源不声称是 Keiyoushi 的实体。当前 index.pb SHA `e26c3c6bf077e4bbdaa389fdb7f14020ec8297a45aec412b6934ac10e537dce3` 与保留的正式103处置集不变。
 
@@ -10,7 +10,9 @@ MangaToon (Limited) 中文实体 `5676233752760414531` 是既有保留的规范4
 
 四个原始页含 35 张漫画卡片和 34 个唯一文章 URL。两张卡片都指向 `251107_100000`，显示发布日期相同但缩略图不同；源保留第一个实际身份，不虚构另一篇文章。重复身份且日期冲突则失败关闭。章节顺序保持首次出现的网站归档顺序，不排序也不推断编号。
 
-每章的可见标签是精确的网站发布日期；它是日期标签，不是声称的故事副标题。文字故事标题和章节/卷编号缺失。因此 chapterNumber=null、volumeNumber=null、readingGroup=`namepara:zh-hant:four-panel`、continuationEligible=false、pageCount=null。不从日期、图像文件名或列表位置推断章节编号。既有 App 的手动章节选择可以消费那些真实源身份/顺序；实际手动操作仍留给 Root。自然页边界推进和自动阅读的相邻章节序列不由本源合同承诺，其全局门禁不放松。
+每章的可见标签是精确的网站发布日期；它是日期标签，不是声称的故事副标题。文字故事标题和章节/卷编号缺失。因此 chapterNumber=null、volumeNumber=null、pageCount=null，不从日期、图像文件名或列表位置推断章节编号。0.1.3 保留原组 `namepara:zh-hant:four-panel`，改由 SDK 类型化目录接口发布完整阅读位置：所有声明页到齐、业务 ID 去重后，保留归档新到旧的显示数组，为第 i 条给出 `count - 1 - i`，最旧篇目的阅读位置是 0。无编号不再触发禁续；显示倒序不改阅读位置。
+
+2026-11-23 的四页官方原件再次确认原始归档方向与 34 个唯一文章 ID。两张重复卡仍只保留同一真实业务 ID 的首次出现；日期冲突仍失败关闭。请求、分类／所有者校验、完整分页停止条件及失败处理均由原 `catalogue` 持有，位置只能在它成功后生成，不能用一页局部索引。宿主未声明 `chapter_reading_order_v1` 时不发新位置字段。旧 README 的统一禁续决定已被本次完整目录核对取代，不改变原页权限或图像合同。
 
 ## 实际原页与图像请求
 
@@ -31,3 +33,7 @@ icon.png 是未修改的官方头部声明 apple-touch-icon-precomposed PNG，ht
 一个剩余声明文章 `251020_100000` 在任何 HTTP 响应前 TLS 握手 UNEXPECTED_EOF；原因/权限/挑战状态未知。未重试也没有使用其他客户端/域名/身份。其余 5 个文章体在那个中断后未请求。这 6 个体没有虚构回放材料也不声称已验证。其他 27 个保留文章的图像二进制未抓取；只有首个标题/完整图像和官方图标有直接二进制检查。Native 浏览/正文/手动章节选择、自然推进、下载和冷持久都留给 Root 的具名 197 验收。
 
 无 App、ReaderKit、SDK、主运行器或主源 WIP 变化；所有更早候选源/包保持冻结。无提交、推送、发布或设备操作。
+
+## 2026-11-23 章序候选验证
+
+候选 0.1.3 已实际联网验证串行与 batch 两条完整归档路径：四页共 35 张卡、34 个唯一业务 ID，原组内位置为 0–33，正向从 2025.10.03 到 2026.01.30，显示数组仍新到旧。全部条目保留缺失编号，不再被无号禁续；首末两篇正文页表各 2 页，错误合集 ID 在请求网站前拒绝。未声明阅读位置能力时 ID／日期标签／显示次序保持一致。实测证据：`/Users/honjow/git/Koma/.hvigor/outputs/published-source-order-audit-20261123/runtime-2/order-fix-validation/results.json`。未下载正文二进制或执行 App／设备阅读验收，未发布。
