@@ -1,6 +1,6 @@
 #![no_std]
 extern crate alloc;
-use alloc::{collections::BTreeSet, string::String, vec::Vec};
+use alloc::{collections::{BTreeMap, BTreeSet}, string::String, vec::Vec};
 // Full Unicode lowercase (including contextual sigma) follows the adopted
 // reference. Reuse Rust alloc rather than approximate per-character folding.
 #[global_allocator]
@@ -976,16 +976,45 @@ fn decimal(v: &[u8], allow_negative: bool) -> Result<(), &'static str> {
     }
     Ok(())
 }
-// A provider group ID and language identify the translation edition. Unknown
-// editions or equal coordinates cannot establish an automatic next chapter.
-fn chapter_coordinate(row: &[u8]) -> Option<((&[u8], &[u8]), f64, f64)> {
-    let lang = string(row, b"lang")?;
-    let group = string(row, b"group_id").filter(|id| id_valid(id))?;
-    let number = core::str::from_utf8(json_object_member(row, b"number")?).ok()?.parse::<f64>().ok()?;
-    let volume = json_object_member(row, b"volume")
-        .and_then(|value| core::str::from_utf8(value).ok()?.parse::<f64>().ok())
-        .unwrap_or(0.0);
-    Some(((lang, group), volume, number))
+// The canonical API and current Keiyoushi preserve the complete provider array.
+// A number is a display label: split parts can share it, and it can be absent.
+// Keep positions from that array, before any language/blacklist selection. Only
+// actual language/site/group evidence separates editions, never equal numbers.
+fn chapter_scope(row: &[u8]) -> Result<String, &'static str> {
+    let lang=string(row,b"lang").ok_or("missing language")?;
+    let site=string(row,b"site").filter(|v|!v.is_empty() && v.len()<=128
+        && v.iter().all(|c|c.is_ascii_alphanumeric() || matches!(*c,b'.'|b'_'|b'-')))
+        .unwrap_or(b"unassigned");
+    Ok(alloc::format!("{}:site:{}",core::str::from_utf8(lang).map_err(|_|"invalid language")?,
+        core::str::from_utf8(site).map_err(|_|"invalid site")?))
+}
+fn chapter_group_id(row: &[u8]) -> Option<&[u8]> {
+    string(row,b"group_id").filter(|v|id_valid(v)).or_else(||{
+        let group=json_object_member(row,b"group")?;
+        string(group,b"id").or_else(||string(group,b"_id")).filter(|v|id_valid(v))
+    })
+}
+fn chapter_group_name(row: &[u8]) -> Option<&[u8]> {
+    string(json_object_member(row,b"group")?,b"name").filter(|v|!v.is_empty())
+}
+fn edition_alias(scope:&str,name:Option<&[u8]>) -> String {
+    match name { Some(name)=>alloc::format!("{scope}:name:{}",core::str::from_utf8(name).unwrap_or("")),None=>scope.into() }
+}
+fn chapter_edition(row:&[u8],known:&BTreeMap<String,BTreeSet<Vec<u8>>>) -> Result<String,&'static str> {
+    let scope=chapter_scope(row)?;
+    let alias=edition_alias(&scope,chapter_group_name(row));
+    // Missing group_id is not a reason to drop a chapter. Reuse an unambiguous
+    // same-language/site/name identity; conflicting real group IDs stay distinct.
+    let group=chapter_group_id(row).or_else(||known.get(&alias).filter(|ids|ids.len()==1)
+        .and_then(|ids|ids.iter().next()).map(Vec::as_slice));
+    let identity=match group {
+        Some(id)=>alloc::format!("group:{}",core::str::from_utf8(id).map_err(|_|"invalid group")?),
+        None=>match chapter_group_name(row) {
+            Some(name)=>alloc::format!("name:{}",core::str::from_utf8(name).map_err(|_|"invalid group")?),
+            None=>String::from("unassigned"),
+        },
+    };
+    Ok(alloc::format!("{scope}:{identity}"))
 }
 
 fn chapters(r: &[u8]) -> ChapterResult<'static, &'static str> {
@@ -1025,9 +1054,18 @@ fn chapters(r: &[u8]) -> ChapterResult<'static, &'static str> {
     bytes(&mut mid, &mut mid_len, b"mb:")?;
     bytes(&mut mid, &mut mid_len, id)?;
     let mut written = 0;
-    let mut previous = None;
-    let mut previous_verified = None;
-    let mut run_start = 0;
+    let mut editions: BTreeMap<String,BTreeSet<Vec<u8>>> = BTreeMap::new();
+    for (a,z) in &spans[..count] {
+        let row=&arr[*a..*z];
+        if !string(row,b"lang").is_some_and(zh) {continue;}
+        if let Some(group)=chapter_group_id(row) {
+            let scope=chapter_scope(row)?;
+            editions.entry(scope.clone()).or_default().insert(group.to_vec());
+            if let Some(name)=chapter_group_name(row) {
+                editions.entry(edition_alias(&scope,Some(name))).or_default().insert(group.to_vec());
+            }
+        }
+    }
     let mut seen_ids = BTreeSet::new();
     for (index, (a, z)) in spans[..count].iter().enumerate() {
         let o = &arr[*a..*z];
@@ -1041,7 +1079,7 @@ fn chapters(r: &[u8]) -> ChapterResult<'static, &'static str> {
             return Err("duplicate chapter ID");
         }
         let lang = string(o, b"lang").ok_or("missing language")?;
-        let num = member(o, b"number")?;
+        let num = json_object_member(o, b"number").unwrap_or(b"null");
         // The reference Float accepts real signed chapter numbers (e.g. Chapter -1).
         // Validate every language without inventing a replacement number.
         decimal(num, true)?;
@@ -1073,20 +1111,6 @@ fn chapters(r: &[u8]) -> ChapterResult<'static, &'static str> {
         }
         let volume = json_object_member(o, b"volume").unwrap_or(b"null");
         decimal(volume, false)?;
-        let key = chapter_coordinate(o);
-        let next = spans[index + 1..count].iter()
-            .map(|(start, end)| &arr[*start..*end])
-            .find(|row| string(row, b"lang").is_some_and(zh))
-            .and_then(chapter_coordinate);
-        let verified = key.filter(|key| !blacklisted && wanted.is_none()
-            && previous != Some(*key) && next != Some(*key));
-        if !matches!((previous_verified, verified), (Some((edition, volume, number)), Some((e, v, n)))
-            if edition == e && (volume, number) > (v, n))
-        {
-            run_start = index;
-        }
-        previous = key;
-        previous_verified = verified;
         // A selected group never hides a malformed/forbidden source entity.
         if let Some(wanted)=wanted {
             // Resume restores only its exact valid chapter. It is not a full
@@ -1108,14 +1132,12 @@ fn chapters(r: &[u8]) -> ChapterResult<'static, &'static str> {
         chapter.chapter_number = DecimalChapterNumber::new(num).map(ChapterNumber::Decimal);
         chapter.volume_number = DecimalChapterNumber::new(volume).map(ChapterNumber::Decimal);
         chapter.language = Some(b"zh");
-        let mut group = [0; 32];
-        let mut group_len = 0;
-        if !write_usize(&mut group, &mut group_len, run_start) {
-            return Err("payload overflow");
-        }
-        let placement = if verified.is_some() {
+        let group=chapter_edition(o,&editions)?;
+        let placement = if wanted.is_none() {
             ChapterPlacement::InGroup {
-                group: &group[..group_len],
+                group: group.as_bytes(),
+                // Global raw index includes all languages and all hidden entries.
+                // The endpoint is a complete newest-first array, not a host page.
                 position: (count - 1 - index) as u64,
             }
         } else {
