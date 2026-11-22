@@ -296,28 +296,29 @@ fn run_get_chapters(request: &[u8]) -> ChapterResult<'static, &'static str> {
             Ok((path, title, date))
         })
         .collect::<Result<Vec<_>>>()?;
-    let mut titles = BTreeSet::new();
-    let mut paths = BTreeSet::new();
-    let mut ambiguous = false;
-    for (path, title, _) in &rows {
-        if !paths.insert(path) {
-            return Err("parse_error");
+    // The complete provider array is the source reading sequence (the website
+    // uses ascending xid). Equal labels do not identify editions or chapters.
+    // Validate every row above, then collapse only the same business chapter ID.
+    let mut ids = BTreeSet::new();
+    let mut unique = Vec::new();
+    for row in rows {
+        let chapter_id = chapter_ids(row.0).map_err(|_| "parse_error")?.1;
+        if ids.insert(chapter_id) {
+            unique.push(row);
         }
-        ambiguous |= !titles.insert(title.trim());
     }
+    let rows = unique;
     let mut catalog = GroupedChapters::new(payload_buf(), request).map_err(port::chapter_error)?;
     for (index, (path, title, date)) in rows.iter().enumerate() {
         let mut chapter = Chapter::new(path.as_bytes(), work.as_bytes(), title.as_bytes());
         chapter.language = Some(b"zh");
         chapter.published_at = date.as_deref().map(str::as_bytes);
-        // Repeated labels coexist in the source, with distinct links and no authoritative edition IDs.
-        let placement = if ambiguous {
-            ChapterPlacement::ManualOnly
-        } else {
-            ChapterPlacement::InGroup {
-                group: b"source-catalog",
-                position: (rows.len() - index - 1) as u64,
-            }
+        // Preserve the upstream newest-first display, independently of reading
+        // direction. Only explicit provider edition metadata may split this group;
+        // missing/repeated titles or numbers must not disable its neighbors.
+        let placement = ChapterPlacement::InGroup {
+            group: b"source-catalog",
+            position: (rows.len() - index - 1) as u64,
         };
         catalog
             .push(chapter, placement)
