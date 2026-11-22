@@ -5,7 +5,7 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.weicomic.ronshaonien.zh-hant.koma",
     name: "創漫繁中・隆少年",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -696,7 +696,9 @@ fn run_get_image_request(req: &[u8]) -> u32 {
         let mut c = 0;
         w(p, &mut c, b"{\"imageRequest\":{\"url\":")?;
         q(p, &mut c, u)?;
-        w(p, &mut c, b",\"headers\":{}}}")?;
+        // Match the existing SDK public GET UA; the 237 image406 cause is unproven.
+        // This ordinary image header does not change verification-page UA.
+        w(p, &mut c, b",\"headers\":{\"User-Agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0\"}}}")?;
         Ok(c)
     }
     result("get_image_request", inner(req))

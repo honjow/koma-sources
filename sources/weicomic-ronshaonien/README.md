@@ -1,3 +1,17 @@
+# 0.1.4 同源传输候选A-UA（待237实体图验证）
+
+本候选以已保护的A基线3c97f811为准，保留metadata的精确origin https://www.weicomic.com、路径前缀 /、firefox133及最低Koma1.4.0；Cargo、SourceInfo和包版本仍为0.1.4。A与A-UA各自冻结为独立包，不能靠相同版本号区分，应核包/WASM哈希，不覆盖原A产物。
+
+普通图片唯一行为差异：共用get_image_request在原owner、封面目录或reader/XML、路径、count、ordinal与精确URI的完整守卫全部通过后，给既有imageRequest.headers增加与当前SDK公开GET逐字相同的User-Agent：Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0。封面和正文均走此处；不增加Referer，不改变challengeUA、验证页UA或已授权会话。目录和图片计划校验的原SDK UA/Referer保持。
+
+上游对照与适配差异：官方原reader→loader→XML→viewer以原頁順序组合图片URL并赋给img.src，使用浏览器自己的网络上下文；旧源图片计划返回headers:{}，宿主图片实体下载不继承SDK GET的公开UA，且当前图片管线不消费httpProfiles。A-UA仅显式补普通图片UA，不改变上游URL、页序或权限。这是宿主请求头的兼容试验，不能写成上游新增要求。
+
+采用依据：237上的原A已实际取得root→reader→XML三个200、目录1/1及get_pages30成功，但封面和P1实体仍HTTP406，没有真实Native图。现存公开Mac同图对照中，空头、SDK UA、公开OpenHarmony默认UA及默认Content-Type均可能取得相同JPEG，不能唯一归因于UA或TLS。故本次只是基于237406的单变量试验，不是已证根因或已修复；须由237 owner以A-UA独立哈希包验证真实实体图。普通Mac200、WASM回放或构建成功均不代替该验收，不采用API26的fresh_http11备选B。
+
+保留原公开一般作品合同：get_chapters仍为root→reader→XML三GET；get_pages仍为reader→XML两GET，图片计划仍先完整验证再输出。SID/MID/CID/PageID、URI、30页原实体顺序、15000ms、GET次数及所有身份/路径/XML/容量守卫、单章语义不变。不改App/SDK/权限/profile，不增加Web会话origin、Cookie/账号授权、重试、缓存或阶段日志。此UA用于普通图片请求，不改变任何challengeUA。
+
+原实现及素材记录如下，均保留其历史时点和未验项；其中旧空图片头描述不是A-UA当前合同。本次不改素材、图标或App样式。
+
 # 創漫繁中・隆少年 0.1.2
 
 只处理同一既有隆少年完整阅读单元，按当前官网XML頁元素顺序完整消费；保原MID/CID及ordinal PageID，不扩作品、不补印刷页、不猜图片。移除固定30/NAMES/RAW/ORIGINAL逐样本锁与256B页URI槽。先完整校验XML才返回目录或正文图片计划；借用当次body，不在借用期间再fetch，不保存跨operation缓存。正文请求URI保存受原1MiB请求ABI限制，get_pages输出受原payload预算限制，容量不足整次失败。
