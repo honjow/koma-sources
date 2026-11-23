@@ -56,9 +56,9 @@
         "en": "Komiic"
       },
       "source.description": {
-        "zh-Hant": "Komiic 作品目錄、搜尋與閱讀。",
-        "zh-Hans": "Komiic 作品目录、搜索与阅读。",
-        "en": "Browse, search and read manga from Komiic."
+        "zh-Hant": "中文漫畫站，提供分話、分卷目錄及讀者、AI 推薦榜。圖片存取有站點額度限制，可在源設定中登入帳號。",
+        "zh-Hans": "中文漫画站，提供分话、分卷目录及读者、AI 推荐榜。图片访问有站点额度限制，可在源设置中登录账号。",
+        "en": "Chinese manga with chapter/volume editions and reader/AI picks. Image quotas apply; sign in from source settings."
       },
       "authentication.usernameLabel": {
         "zh-Hant": "電子郵件",
