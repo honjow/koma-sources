@@ -499,6 +499,10 @@ fn write_cards(req: &[u8], root: &Node, has_more: bool, next: Option<usize>) -> 
                 let note = decode_entities(note, &mut nd)?;
                 bytes(b, &mut n, b",\"subtitle\":")?;
                 q(b, &mut n, note)?;
+                // Optional source text only; legacy subtitle and item fields stay intact.
+                let _ = koma_source_sdk::list_info::append(b, &mut n, req, &[
+                    koma_source_sdk::list_info::ListInfo::Text { text: note, label: None },
+                ]);
             }
         }
         match cover {
