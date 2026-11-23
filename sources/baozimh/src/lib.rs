@@ -793,16 +793,16 @@ fn canonical_main_owner<'a>(document: HtmlDescriptor, buffer: &'a mut [u8], requ
     Some(owner)
 }
 
-// Preserve the initial+expanded main panels and the reversed latest summary.
+const MAIN_CHAPTER_SELECTOR: &[u8] =
+    b"#chapter-items .comics-chapters, #chapters_other_list .comics-chapters";
+
 // Missing, mixed, non-main, truncated or non-contiguous facts still fail closed.
 fn main_catalog(document: HtmlDescriptor, slug: &[u8], request: &[u8]) -> Option<VerifiedMainCatalog> {
-    const SELECTOR: &[u8] =
-        b"#chapter-items .comics-chapters, #chapters_other_list .comics-chapters";
-    let count = usize::try_from(html_select_all(document.raw(), SELECTOR, &mut [])).ok()?;
+    let count = usize::try_from(html_select_all(document.raw(), MAIN_CHAPTER_SELECTOR, &mut [])).ok()?;
     if count == 0 { return None; }
     let byte_count = count.checked_mul(4)?;
     let handles = body_buf().get_mut(..byte_count)?;
-    let selected = usize::try_from(html_select_all(document.raw(), SELECTOR, handles)).ok()?;
+    let selected = usize::try_from(html_select_all(document.raw(), MAIN_CHAPTER_SELECTOR, handles)).ok()?;
     let descriptors = PageDescriptors { bytes: handles, count: selected.min(count) };
     if selected != count { return None; }
     let mut verified = VerifiedMainCatalog { len:count, owner:[0;256], owner_len:0 };
@@ -943,88 +943,124 @@ fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, ChapterError> {
         if incomplete { verified_catalog = None; }
     }
 
+    // Close the global descriptors before reusing BODY for another selection.
+    // The global pass above still checks the latest summary against the full
+    // main catalog, so a repaired/truncated prefix cannot gain continuation.
+    drop(descriptors);
+    let main_count = html_select_all(document.0.raw(), MAIN_CHAPTER_SELECTOR, &mut []);
+    if main_count < 0 {
+        return Err(SourceError::parse_error("main chapter selection failed").into());
+    }
     let mut catalog = GroupedChapters::new(payload_buf(), req)?;
     let mut seen_len = 0usize;
 
-    for i in 0..total_items {
-        let hd = match descriptors.get(i) {
-            Some(value) => value,
-            None => return Err(SourceError::parse_error("missing chapter descriptor").into()),
+    // Baozi.kt selects the full panels in reverse and falls back to the latest
+    // block only when no full panel exists. Previously the summary won exact
+    // deduplication, yielding a descending block followed by an ascending one.
+    // Emit the full catalog first. A second exact-fact pass keeps independent
+    // editions/conflicting facts already supported by Koma, without letting
+    // duplicate summary rows displace the main catalog's direction.
+    let passes = if main_count > 0 { 2 } else { 1 };
+    for pass in 0..passes {
+        let reverse_main = main_count > 0 && pass == 0;
+        let count = if reverse_main { main_count as usize } else { total_items };
+        let selector = if reverse_main { MAIN_CHAPTER_SELECTOR } else { b".comics-chapters" };
+        let byte_count = match count.checked_mul(4) {
+            Some(bytes) if bytes <= BODY_CAP => bytes,
+            _ => return Err(SourceError::source_error("chapters cannot fit current response capacity").into()),
         };
-        let mut title_buf = [0u8; 256];
-        let title_capacity = title_buf.len();
-        let raw_title = chapter_title(hd, &mut title_buf);
-        let title = raw_title.map(trim_ascii);
-        let mut href_buf = [0u8; 256];
-        let href_capacity = href_buf.len();
-        let href = chapter_link(hd, &mut href_buf);
-
-        let mut chapter_slot_buf = [0u8; 16];
-        let chapter_slot = if let Some(h) = href {
-            extract_query_param(h, b"chapter_slot", &mut chapter_slot_buf)
-        } else {
-            None
+        let handles = &mut body_buf()[..byte_count];
+        let selected = if count == 0 { 0 } else {
+            html_select_all(document.0.raw(), selector, handles)
         };
-        let mut section_buffer = [0u8; 16];
-        let section = href.and_then(|href| extract_query_param(href, b"section_slot", &mut section_buffer))
-            .unwrap_or(b"0");
-        let mut section_slot_buffer = [0u8; 40];
-        let slot = if section == b"0" { chapter_slot.unwrap_or(b"0") } else {
-            let mut n = 0;
-            if !(write_bytes(&mut section_slot_buffer, &mut n, section)
-                && write_bytes(&mut section_slot_buffer, &mut n, b"_")
-                && write_bytes(&mut section_slot_buffer, &mut n, chapter_slot.unwrap_or(b"0"))) {
-                return Err(SourceError::source_error("chapter slot exceeds capacity").into());
-            }
-            &section_slot_buffer[..n]
-        };
+        if selected < 0 {
+            return Err(SourceError::parse_error("chapter selection failed").into());
+        }
+        let descriptors = PageDescriptors { bytes: handles, count: (selected as usize).min(count) };
+        if selected as usize != count {
+            return Err(SourceError::parse_error("chapter selection changed").into());
+        }
+        for offset in 0..count {
+            let i = if reverse_main { count - offset - 1 } else { offset };
+            let hd = match descriptors.get(i) {
+                Some(value) => value,
+                None => return Err(SourceError::parse_error("missing chapter descriptor").into()),
+            };
+            let mut title_buf = [0u8; 256];
+            let title_capacity = title_buf.len();
+            let raw_title = chapter_title(hd, &mut title_buf);
+            let title = raw_title.map(trim_ascii);
+            let mut href_buf = [0u8; 256];
+            let href_capacity = href_buf.len();
+            let href = chapter_link(hd, &mut href_buf);
 
-        // Latest/full-list DOM groups may repeat the very same link. An ID alone
-        // is insufficient: section links or conflicting titles must stay visible.
-        // A saturated field may have been truncated by the existing host buffer.
-        let complete_href = chapter_duplicates::complete_fact(href, href_capacity);
-        let complete_title = chapter_duplicates::complete_fact(raw_title, title_capacity).map(trim_ascii);
-        if chapter_duplicates::remember_exact_duplicate(http_out(), &mut seen_len, complete_href, chapter_slot, complete_title) {
-            continue;
-        }
-
-        let use_title = order_mode == b"2" || (order_mode == b"1" && title.map(reference_title_has_digit).unwrap_or(false));
-        if use_title && complete_title.map(|value| value.is_empty()).unwrap_or(true) {
-            return Err(SourceError::source_error("chapter title unavailable or truncated").into());
-        }
-        // Build the original chapter ID as bytes and let the SDK escape it once.
-        let mut id = [0u8; SCRATCH_CAP + 32 + 256];
-        let mut id_len = 0;
-        if !(write_bytes(&mut id, &mut id_len, b"chapter:")
-            && write_bytes(&mut id, &mut id_len, slug)
-            && write_bytes(&mut id, &mut id_len, b":")
-            && write_bytes(&mut id, &mut id_len, slot)
-            && (!use_title || (write_bytes(&mut id, &mut id_len, b"#")
-                && write_bytes(&mut id, &mut id_len, complete_title.unwrap()))))
-        {
-            return Err(SourceError::internal_error("chapter ID overflow").into());
-        }
-        let mut chapter = Chapter::new(&id[..id_len], manga_id, title.unwrap_or(b"Chapter"));
-        chapter.chapter_number = complete_title.and_then(|name| {
-            chapter_number::title_chapter_number(name).map(ChapterNumber::Text).or_else(|| {
-                // Preserve the existing Arabic notation rules. The alternate
-                // heading form is the site's written Chinese numeral.
-                let label = name.strip_prefix("第".as_bytes())?;
-                if label.first()?.is_ascii() {
-                    return None;
+            let mut chapter_slot_buf = [0u8; 16];
+            let chapter_slot = if let Some(h) = href {
+                extract_query_param(h, b"chapter_slot", &mut chapter_slot_buf)
+            } else {
+                None
+            };
+            let mut section_buffer = [0u8; 16];
+            let section = href.and_then(|href| extract_query_param(href, b"section_slot", &mut section_buffer))
+                .unwrap_or(b"0");
+            let mut section_slot_buffer = [0u8; 40];
+            let slot = if section == b"0" { chapter_slot.unwrap_or(b"0") } else {
+                let mut n = 0;
+                if !(write_bytes(&mut section_slot_buffer, &mut n, section)
+                    && write_bytes(&mut section_slot_buffer, &mut n, b"_")
+                    && write_bytes(&mut section_slot_buffer, &mut n, chapter_slot.unwrap_or(b"0"))) {
+                    return Err(SourceError::source_error("chapter slot exceeds capacity").into());
                 }
-                numbered_chapter_heading(name).map(ChapterNumber::Integer)
-            })
-        });
+                &section_slot_buffer[..n]
+            };
 
-        let reading_order = verified_catalog.as_ref().and_then(|verified| {
-            main_chapter_slot(complete_href?, verified.owner()).filter(|slot| *slot < verified.len)
-        });
-        let placement = match reading_order {
-            Some(position) => ChapterPlacement::InGroup { group: b"baozi-main", position: position as u64 },
-            None => ChapterPlacement::ManualOnly,
-        };
-        catalog.push(chapter, placement)?;
+            // Latest/full-list DOM groups may repeat the very same link. An ID alone
+            // is insufficient: section links or conflicting titles must stay visible.
+            // A saturated field may have been truncated by the existing host buffer.
+            let complete_href = chapter_duplicates::complete_fact(href, href_capacity);
+            let complete_title = chapter_duplicates::complete_fact(raw_title, title_capacity).map(trim_ascii);
+            if chapter_duplicates::remember_exact_duplicate(http_out(), &mut seen_len, complete_href, chapter_slot, complete_title) {
+                continue;
+            }
+
+            let use_title = order_mode == b"2" || (order_mode == b"1" && title.map(reference_title_has_digit).unwrap_or(false));
+            if use_title && complete_title.map(|value| value.is_empty()).unwrap_or(true) {
+                return Err(SourceError::source_error("chapter title unavailable or truncated").into());
+            }
+            // Build the original chapter ID as bytes and let the SDK escape it once.
+            let mut id = [0u8; SCRATCH_CAP + 32 + 256];
+            let mut id_len = 0;
+            if !(write_bytes(&mut id, &mut id_len, b"chapter:")
+                && write_bytes(&mut id, &mut id_len, slug)
+                && write_bytes(&mut id, &mut id_len, b":")
+                && write_bytes(&mut id, &mut id_len, slot)
+                && (!use_title || (write_bytes(&mut id, &mut id_len, b"#")
+                    && write_bytes(&mut id, &mut id_len, complete_title.unwrap()))))
+            {
+                return Err(SourceError::internal_error("chapter ID overflow").into());
+            }
+            let mut chapter = Chapter::new(&id[..id_len], manga_id, title.unwrap_or(b"Chapter"));
+            chapter.chapter_number = complete_title.and_then(|name| {
+                chapter_number::title_chapter_number(name).map(ChapterNumber::Text).or_else(|| {
+                    // Preserve the existing Arabic notation rules. The alternate
+                    // heading form is the site's written Chinese numeral.
+                    let label = name.strip_prefix("第".as_bytes())?;
+                    if label.first()?.is_ascii() {
+                        return None;
+                    }
+                    numbered_chapter_heading(name).map(ChapterNumber::Integer)
+                })
+            });
+
+            let reading_order = verified_catalog.as_ref().and_then(|verified| {
+                main_chapter_slot(complete_href?, verified.owner()).filter(|slot| *slot < verified.len)
+            });
+            let placement = match reading_order {
+                Some(position) => ChapterPlacement::InGroup { group: b"baozi-main", position: position as u64 },
+                None => ChapterPlacement::ManualOnly,
+            };
+            catalog.push(chapter, placement)?;
+        }
     }
 
     Ok(catalog.finish(ChapterPage::Complete)?)
