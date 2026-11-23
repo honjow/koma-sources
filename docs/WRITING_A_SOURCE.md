@@ -301,6 +301,8 @@ Err不改已有buffer或cursor，调用方应省略增强并保留原item，而�
 显示标签和源文本由源按请求既有locale负责，不另造本地化机制。
 宿主对坏optional可容错忽略；不得把它当整个列表无效。可选增强不提高最低App，
 发布必须有新的源patch；复用真实列表原件核新实际WASM和无feature旧输出。
+缺省摘要复用subtitle、作者/已知状态及明确的内容tags；旧sourceTags可能只是来源标记，
+不得默认当题材展示。需要其它内容或顺序时由源返回listInfo；显式空数组关闭自动摘要。
 
 ### get_manga
 
