@@ -36,6 +36,16 @@
   ],
   "websitePolicy": {
     "webFetchBridge": true,
+    "responseUrlOrigins": [
+      "https://bakamh.com"
+    ],
+    "httpProfiles": [
+      {
+        "origin": "https://bakamh.com",
+        "pathPrefix": "/",
+        "profile": "chrome131_android"
+      }
+    ],
     "systemWebAgentOrigins": [
       "https://bakamh.com"
     ],

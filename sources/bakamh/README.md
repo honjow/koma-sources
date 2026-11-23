@@ -139,4 +139,12 @@ R14仅在已走既有文档BodyRef、精确原点canonical `/manga/.../` GET且�
 
 ### 当前源码清理边界
 
-临时站点响应取证代码及其专用正文读取、HTML描述符和字段已移除，保留正常文档读取与全部错误/关闭路径。R15的provider路径保真、旧页ID、原错误分类和数字回退、BodyRef/Web/Native路由及权限均不变；未实施Native profile或viewport后备。设备owner继续使用已安装的原R15冻结包作独立对照，旧包与证据不覆盖。当前源码继续保持distribution不可用，等待完整验收和正式宿主。
+临时站点响应取证代码及其专用正文读取、HTML描述符和字段已移除，保留正常文档读取与全部错误/关闭路径。R15的provider路径保真、旧页ID、原错误分类和数字回退、BodyRef/Web/Native路由及权限均不变；该清理提交未实施Native profile或viewport后备；下方Native text候选另行记录。设备owner继续使用已安装的原R15冻结包作独立对照，旧包与证据不覆盖。当前源码继续保持distribution不可用，等待完整验收和正式宿主。
+
+### Native text作品文档与实际最终地址候选（待普通宿主实测）
+
+作品文档在协商source_http_response_metadata_v1后用既有Native text GET、默认BrowserGrant和responseMetadata.finalUrl，按原HTTP状态/accessSignal先分类，再严格读取实际responseUrl；仅精确HTTPS原点的作品路径或原数字resolver可接受，缺失/异常地址不以请求地址冒充。canonical与原/?p入口使用同一作品helper；若已知ID的canonical成功但发生跳转，按固定Madara条件继续原数字resolver。最终标题/postID确认后将实际encodedPath保存为Series的已确认路径，供详情链接、相对资源基址、目录归属及后续作品定位消费，优先于可能陈旧的HTML canonical；能力缺失保原clean路径和HTML字段优先规则。URL搜索的直接reader地址沿原读取；作品/数字地址若实际返回同原点合法reader路径，只有原reading标记与数字postID成立才继续原所属作品查询，reader地址不写入作品canonical。
+
+websitePolicy只在原授权https://bakamh.com声明responseUrlOrigins与pathPrefix:/的chrome131_android，覆盖canonical及原/?p数字入口。Host仍仅对无body文本GET选择该已有实现，不扩大原点或会话授权。它是移动Chromium兼容候选，现有设备证据仅有UA相等布尔，没有授权UA浏览器族/主版本，不能称已验证主版本精确匹配，也不按403结果轮换浏览器族。profile名不写成UA，真实授权UA/Cookie仍由Host持有；不声明新原点、私有session或伪造finalURL。底层profile实体上限1MiB、源正文4MiB与原完整文档/作品/目录守卫均保留。reader文档、图片、POST、权限与chapter/page ID算法不改，旧下载页ID不重写。普通403及非终止错误仍走原数字fallback；challenge/auth/rate/cancel仍终止。
+
+这是CORS候选仍403后的独立后备。标准单源构建和实际WASM回放已完成：保留116659字节真实作品文档、完整61章，覆盖Native text/finalURL请求、无效最终地址、上游数字fallback和旧能力/reader URL搜索边界；受控最终地址元数据只验证接线，不冒充站点真实跳转或Native profile成功。普通宿主实际profile eligible/status、详情/目录/正文与下载仍待验，不宣称解除站点阻断。已移除的临时取证代码不恢复，distribution.available:false继续保留。

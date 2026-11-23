@@ -21,6 +21,7 @@ use url::Url;
 
 mod dates;
 mod document_body;
+mod document_text;
 mod filters;
 mod reader;
 
@@ -115,6 +116,19 @@ fn get_document(url: &Url, request: &[u8]) -> Result<(Node, bool)> {
     Ok((Node::parse(&html)?, complete))
 }
 
+// Only work lookups consume an effective document URL. Reader/filter/image
+// routes retain their existing transport and identity behavior.
+fn work_document(url: &Url, request: &[u8], reader_url_search: bool) -> Result<document_text::WorkDocument> {
+    if document_text::target(url)
+        && source_protocol::feature(request, b"source_http_response_metadata_v1")
+    {
+        document_text::run(url, request, reader_url_search)
+    } else {
+        let (doc, complete) = get_document(url, request)?;
+        Ok(document_text::WorkDocument { doc, complete, final_url: None })
+    }
+}
+
 fn get(url: &Url, request: &[u8]) -> Result<Node> {
     get_document(url, request).map(|(document, _)| document)
 }
@@ -197,10 +211,15 @@ struct Series {
     doc: Node,
     url: Url,
     complete_document: bool,
+    resolved_path: Option<String>,
 }
 
 impl Series {
     fn canonical_path(&self) -> Result<String> {
+        // Upstream memo uses actual document.location encodedPath. Only the
+        // matching numeric postID below grants this authoritative route; do not
+        // replace it with a possibly stale HTML canonical alias.
+        if let Some(path) = &self.resolved_path { return Ok(path.clone()); }
         for (selector, attr) in [
             ("link[rel='canonical'][href]", "href"),
             ("meta[property='og:url'][content]", "content"),
@@ -225,6 +244,19 @@ impl Series {
     }
 }
 
+fn resolved_series(id: String, requested: Url, document: document_text::WorkDocument) -> Series {
+    let resolved_path = if post_id(&document.doc).as_deref() == Some(id.as_str()) {
+        document.final_url.as_ref().and_then(|url| manga_path(url.as_str()))
+    } else { None };
+    Series {
+        id,
+        doc: document.doc,
+        url: document.final_url.unwrap_or(requested),
+        complete_document: document.complete,
+        resolved_path,
+    }
+}
+
 fn work_id(args: &Value) -> Result<&str> {
     args["mangaId"]
         .as_str()
@@ -236,14 +268,13 @@ fn work_id(args: &Value) -> Result<&str> {
 fn series(id: &str, route: Option<&str>, request: &[u8]) -> Result<Series> {
     if let Some(path) = route.and_then(manga_path) {
         let url = port::absolute(BASE, &path)?;
-        match get_document(&url, request) {
-            Ok((doc, complete_document)) if doc.one(DETAILS_TITLE).is_some() && post_id(&doc).as_deref() == Some(id) => {
-                return Ok(Series {
-                    id: id.to_string(),
-                    doc,
-                    url,
-                    complete_document,
-                });
+        match work_document(&url, request, false) {
+            Ok(document) if document.doc.one(DETAILS_TITLE).is_some()
+                && post_id(&document.doc).as_deref() == Some(id)
+                // Fixed Madara supportsPostId flow: a redirected canonical
+                // response still uses the already-known numeric resolver.
+                && document.final_url.as_ref().map_or(true, |effective| effective == &url) => {
+                return Ok(resolved_series(id.to_string(), url, document));
             }
             // Keep a Host-confirmed challenge and its observed canonical GET.
             // Ordinary forbidden still uses Madara's known numeric post-ID resolver;
@@ -255,32 +286,29 @@ fn series(id: &str, route: Option<&str>, request: &[u8]) -> Result<Series> {
         }
     }
     let url = port::absolute(BASE, &format!("/?p={id}"))?;
-    let (doc, complete_document) = get_document(&url, request)?;
-    doc.require(DETAILS_TITLE)?;
-    if post_id(&doc).is_some_and(|reported| reported != id) {
+    let document = work_document(&url, request, false)?;
+    document.doc.require(DETAILS_TITLE)?;
+    if post_id(&document.doc).is_some_and(|reported| reported != id) {
         return Err("not_found");
     }
-    Ok(Series {
-        id: id.to_string(),
-        doc,
-        url,
-        complete_document,
-    })
+    Ok(resolved_series(id.to_string(), url, document))
 }
 
 fn series_for_url(url: Url, request: &[u8]) -> Result<Series> {
     if url.host_str() != Some("bakamh.com") {
         return Err("not_found");
     }
-    let (doc, complete_document) = get_document(&url, request)?;
-    if doc.one("body.reading-manga").is_some() {
-        return series(&post_id(&doc).ok_or("not_found")?, None, request);
+    // Direct reader URLs keep get_document's original route; a known work or
+    // numeric URL that resolves to a reader retains this owner-lookup branch.
+    let document = work_document(&url, request, true)?;
+    if document.doc.one("body.reading-manga").is_some() {
+        return series(&post_id(&document.doc).ok_or("not_found")?, None, request);
     }
-    doc.require(DETAILS_TITLE)?;
-    let id = post_id(&doc)
+    document.doc.require(DETAILS_TITLE)?;
+    let id = post_id(&document.doc)
         .or_else(|| shortlink_id(&url))
         .ok_or("not_found")?;
-    Ok(Series { id, doc, url, complete_document })
+    Ok(resolved_series(id, url, document))
 }
 
 fn image_from(node: &Node, base: &Url) -> Option<Url> {
