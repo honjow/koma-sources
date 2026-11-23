@@ -252,9 +252,22 @@ fn image_body(image: &Url, referer: &Url, request: &[u8]) -> Result<Value> {
         Header { name: b"Referer", value: referer.as_str().as_bytes() },
         Header { name: b"Accept", value: IMAGE_ACCEPT },
         Header { name: b"Accept-Language", value: crate::LANGUAGE.as_bytes() },
+        Header { name: b"Sec-Fetch-Mode", value: b"no-cors" },
+        Header { name: b"Sec-Fetch-Dest", value: b"image" },
+        Header { name: b"Sec-Fetch-Site", value: b"cross-site" },
     ];
     let mut spec = RequestSpec::get(image.as_str().as_bytes());
-    spec.headers = &headers;
+    // Pinned BrowserHeaders IMAGE semantics; the actual P1 is com -> de.
+    // Limit this source-only adaptation to that observed Native HTTPS CDN.
+    // BASE WebFetch and other origins retain their original three headers.
+    // No browser UA/client hints or credential scope is invented here.
+    spec.headers = if image.origin().ascii_serialization() == "https://t1.bakamh.de"
+        && referer.origin().ascii_serialization() == BASE
+    {
+        &headers
+    } else {
+        &headers[..3]
+    };
     spec.response = ResponseKind::BodyRef;
     // BrowserGrant is the SDK default: the ordinary Host HTTP path attaches
     // only the already-authorized exact-origin session, including on redirects.

@@ -164,3 +164,9 @@ websitePolicy只在原授权https://bakamh.com声明responseUrlOrigins与pathPre
 固定8947c37的MadaraBase.getImageRequest显式传递page.url作为完整Referer；KeiSource只附加裸Fetch.IMAGE，Baka没有调用.from(page.url)。BrowserHeaders仅在存在FromPage标签时才收窄Referer，因此它的跨域收窄函数不属于Baka默认图片链。本源保留完整阅读Referer，不把框架可选规则直接套到该源。UA/Cookie仍由已有Host授权归属决定，页ID、图片URL和下载身份保持。
 
 此前候选2074的跨域收窄依据有误，已停止使用；代码只定点更正这一步，Native文本与真实最终URL读取保持。原失败与更正依据保留于Koma本次native-image-headers-readonly报告。当前正文Native403继续调查，不以这项更正宣称图片已恢复。
+
+### 已确认图域的原生 IMAGE 请求元数据候选
+
+固定上游 `BrowserHeaders.hop` 对 IMAGE 请求使用 `Sec-Fetch-Mode: no-cors`、`Sec-Fetch-Dest: image`，并按实际发起页与图域关系确定 `Sec-Fetch-Site`。普通宿主第104话P1已实际确认图片在 `https://t1.bakamh.de`，完整阅读 Referer 在 `https://bakamh.com`，两者跨注册域。本候选仅为该精确 HTTPS 图域及本站 Referer 的原生 BodyRef 图片请求补三项公开元数据。237普通路径复测清洁c0fb候选的原第104话P1（1/73）仍为HTTP403，三项公开元数据未解除该阻断；本项只记录上游请求语义对齐，不冒称已知实际原生 UA 或完整浏览器请求指纹；不补 CH-UA、Storage-Access、Priority、Origin、Cookie 或固定 UA，也不把主站授权转授图域。
+
+保持完整章节 Referer、公开 Accept/Language、原 URL/页ID/章ID、超时和 BodyRef 所有权、错误及关闭路径。BASE WebHTTP 图片、其它图域与旧 descriptor 输出不变；不改 App、binary profile 门槛或 source 版本。包内无临时路径/正文诊断。已用真实P1 URL做同 curl backend/UA/Ref 的两次无凭据对照，只有三项元数据不同；两次均403且为CF明确block页，不能外推设备 NetworkKit 的结果。普通宿主原P1、首中末、跨章及一章自有下载仍须完成，distribution不可用门禁继续保留。
