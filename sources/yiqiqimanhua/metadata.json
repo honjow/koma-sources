@@ -11,5 +11,16 @@
       "chapter": {"pathPrefix": "", "idPrefix": "chapter:"},
       "samePageOrder": true
     }
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "177漫畫收錄中文與日文成人漫畫、全彩 CG 圖集，包含純圖無字畫集；每篇圖集整冊閱讀。",
+        "zh-Hans": "177漫画收录中文与日文成人漫画、全彩 CG 图集，包含纯图无字画集；每篇图集整册阅读。",
+        "en": "Chinese and Japanese adult comic galleries and full-color CG albums on 177, including text-free collections."
+      }
+    }
   }
 }

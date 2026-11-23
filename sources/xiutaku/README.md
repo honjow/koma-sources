@@ -1,5 +1,11 @@
 # Xiutaku
 
+## 0.1.6 簡介與多語言顯示
+
+Xiutaku 的多語言圖集，包含成人內容；各冊保留題材標籤、發布日期與原站分頁編排。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 书源 ID `com.xiutaku.koma`，多语言，标记为成人内容。参考 [Keiyoushi Xiutaku](https://github.com/keiyoushi/extensions-source/blob/b647c92fd14801fda23e866d5a7da7d5fdd7ec92/src/all/xiutaku/src/eu/kanade/tachiyomi/extension/all/xiutaku/Xiutaku.kt)，扩展 1.6 (versionCode 2)，上游源 ID `6520733892888572506`。
 
 | 行为 | 参考与实现 |

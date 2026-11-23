@@ -40,7 +40,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "177漫畫的公開圖集。",
+    description: "177漫畫收錄中文與日文成人漫畫、全彩 CG 圖集，包含純圖無字畫集；每篇圖集整冊閱讀。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

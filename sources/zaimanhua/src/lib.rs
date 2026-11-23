@@ -43,7 +43,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "再漫画 manga source (zaimanhua.com)",
+    description: "再漫畫收錄日韓、港台、大陸及歐美漫畫，涵蓋冒險、戀愛與科幻等題材。部分章節受原站帳號或等級限制。",
     content_rating: "unknown",
 };
 

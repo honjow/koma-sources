@@ -29,7 +29,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "秀色女神相册。",
+    description: "秀色女神的模特寫真相冊，可按模特、服飾、風格、地區與拍攝機構尋找圖集。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

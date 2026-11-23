@@ -51,7 +51,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "嬉皮漫畫。",
+    description: "嬉皮漫畫的韓漫、國漫與日漫書庫，涵蓋穿越、玄幻、復仇、冒險與武俠等題材。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

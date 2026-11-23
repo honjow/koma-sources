@@ -20,5 +20,16 @@
     "zh-Hant": "再漫畫",
     "en": "Zaimanhua"
   },
-  "homepage": "https://m.zaimanhua.com"
+  "homepage": "https://m.zaimanhua.com",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "再漫畫收錄日韓、港台、大陸及歐美漫畫，涵蓋冒險、戀愛與科幻等題材。部分章節受原站帳號或等級限制。",
+        "zh-Hans": "再漫画收录日韩、港台、大陆及欧美漫画，涵盖冒险、恋爱与科幻等题材。部分章节受原站账号或等级限制。",
+        "en": "Zaimanhua’s Asian and Western comics span adventure, romance and sci-fi. Some chapters have account or level restrictions."
+      }
+    }
+  }
 }

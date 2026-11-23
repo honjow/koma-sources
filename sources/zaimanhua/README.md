@@ -1,5 +1,11 @@
 # 再漫画
 
+## 0.1.15 簡介與多語言顯示
+
+再漫畫收錄日韓、港台、大陸及歐美漫畫，涵蓋冒險、戀愛與科幻等題材。部分章節受原站帳號或等級限制。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 当前源版本 `0.1.11`，稳定身份 `com.zaimanhua.koma`；官方移动主页 `https://m.zaimanhua.com`，API 保持 `https://v4api.zaimanhua.com/app/v1`。官方原图标及素材归属见 `ASSET_SOURCES.md`。
 
 浏览、搜索及详情随原公开封面描述返回既有图片 Referer，使宿主可以直接下载，无需每张封面先调用 WASM 复制原地址和请求头。旧宿主的普通图片计划沿用原合同，正文和章末吐槽页保持原路径。

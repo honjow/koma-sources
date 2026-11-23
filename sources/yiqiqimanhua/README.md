@@ -1,5 +1,11 @@
 # 177漫畫
 
+## 0.1.1 簡介與多語言顯示
+
+177漫畫收錄中文與日文成人漫畫、全彩 CG 圖集，包含純圖無字畫集；每篇圖集整冊閱讀。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 独立源 `com.yiqiqimanhua.koma`，原站 177pica.com。对应 Mihon 来源 ID `4420888243278089080`，作品与唯一章节沿用 WordPress 数字文章 ID。上游内容分级 NSFW。参考 [YiqiqiManhua、Dto、Filters](https://github.com/keiyoushi/extensions-source/tree/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/src/zh/yiqiqimanhua)，代码许可 Apache-2.0。
 
 | 上游行为 | Koma 入口及实现 |

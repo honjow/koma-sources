@@ -22,5 +22,16 @@
       ],
       "oncePerRequest": true
     }
-  ]
+  ],
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "Xiutaku 的多語言圖集，包含成人內容；各冊保留題材標籤、發布日期與原站分頁編排。",
+        "zh-Hans": "Xiutaku 的多语言图集，包含成人内容；各册保留题材标签、发布日期与原站分页编排。",
+        "en": "Multilingual galleries on Xiutaku, including adult content, with dated albums, subject tags and the original page order."
+      }
+    }
+  }
 }

@@ -1,4 +1,15 @@
 {
  "homepage":"https://m.xsnvshen.com",
- "localizedNames":{"zh-Hans":"秀色女神","zh-Hant":"秀色女神","en":"Xsnvshen"}
+ "localizedNames":{"zh-Hans":"秀色女神","zh-Hant":"秀色女神","en":"Xsnvshen"},
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "秀色女神的模特寫真相冊，可按模特、服飾、風格、地區與拍攝機構尋找圖集。",
+        "zh-Hans": "秀色女神的模特写真相册，可按模特、服饰、风格、地区与拍摄机构寻找图集。",
+        "en": "Model photography albums on Xsnvshen, organized by model, clothing, style, region and studio."
+      }
+    }
+  }
 }

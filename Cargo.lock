@@ -2084,7 +2084,7 @@ dependencies = [
 
 [[package]]
 name = "koma_woaimanhua_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -2114,7 +2114,7 @@ dependencies = [
 
 [[package]]
 name = "koma_xipimanhua_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "base64 0.22.1",
  "dlmalloc",
@@ -2125,7 +2125,7 @@ dependencies = [
 
 [[package]]
 name = "koma_xiutaku_source"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -2141,7 +2141,7 @@ dependencies = [
 
 [[package]]
 name = "koma_xsnvshen_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -2151,7 +2151,7 @@ dependencies = [
 
 [[package]]
 name = "koma_yiqiqimanhua_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -2161,7 +2161,7 @@ dependencies = [
 
 [[package]]
 name = "koma_zaimanhua_source"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "koma_source_sdk",
 ]
