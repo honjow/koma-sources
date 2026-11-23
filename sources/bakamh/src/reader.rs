@@ -5,7 +5,7 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use md5::{Digest, Md5};
 use koma_source_sdk::{
     body::BodyRef,
-    http::{CallError, Client, Header, RequestSpec, RequireSuccess, ResponseKind},
+    http::{CallError, Client, Header, Request, RequestSpec, RequireSuccess, ResponseKind},
     runtime::Context,
 };
 use serde_json::{json, Value};
@@ -240,7 +240,26 @@ fn image_body(image: &Url, referer: &Url, request: &[u8]) -> Result<Value> {
     // BrowserGrant is the SDK default: the ordinary Host HTTP path attaches
     // only the already-authorized exact-origin session, including on redirects.
     spec.response_headers = context.supports(b"source_http_headers_v1");
+    let request_capacity = crate::http_req_buf().len();
     let encoded = spec.encode(crate::http_req_buf())?;
+    let mut web_request = Vec::new();
+    // image_body is entered only after all three body features were negotiated.
+    // Extend that same request only for the exact granted BASE origin; external
+    // images and hosts without Web HTTP retain the R3 Native BodyRef path.
+    let encoded = if image.origin().ascii_serialization() == BASE
+        && context.supports(b"source_web_http_v1")
+    {
+        let prefix = encoded.as_json().strip_suffix(b"}").ok_or("internal_error")?;
+        let extension = br#","webFetch":{"version":1}}"#;
+        let length = prefix.len().checked_add(extension.len())
+            .filter(|length| *length <= request_capacity).ok_or("buffer_overflow")?;
+        web_request.reserve(length);
+        web_request.extend_from_slice(prefix);
+        web_request.extend_from_slice(extension);
+        Request::from_json(&web_request)
+    } else {
+        encoded
+    };
     let response = Client::<CallError>::new(&[&RequireSuccess])
         .send(encoded, crate::http_out()).map_err(|error| match error {
             CallError::Rejected(code) => code,
