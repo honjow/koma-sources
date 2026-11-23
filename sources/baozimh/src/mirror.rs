@@ -32,8 +32,10 @@ pub(super) const MIRRORS: [Mirror; 17] = [
 
 pub(super) fn selected(request: &[u8]) -> Mirror {
     let value = json_object_member(request, b"settings")
-        .and_then(|settings| extract_json_string(settings, b"preferredMirror"));
-    MIRRORS.iter().copied().find(|mirror| Some(mirror.origin) == value).unwrap_or(DEFAULT)
+        .and_then(|settings| extract_json_string(settings, b"preferred_mirror"));
+    value.and_then(|value| core::str::from_utf8(value).ok())
+        .and_then(|value| value.parse::<usize>().ok())
+        .and_then(|index| MIRRORS.get(index).copied()).unwrap_or(DEFAULT)
 }
 
 pub(super) fn join(output: &mut [u8], base: &[u8], path: &[u8]) -> Option<usize> {
@@ -51,5 +53,15 @@ pub(super) fn relative_path(url: &[u8]) -> Option<&[u8]> {
         MIRRORS.iter().find_map(|mirror| url.strip_prefix(mirror.origin)
             .filter(|rest| rest.starts_with(b"/")))?
     };
+    Some(path.strip_prefix(b"/baozimhapp").unwrap_or(path))
+}
+
+pub(super) fn canonical_path<'a>(request: &[u8], url: &'a [u8]) -> Option<&'a [u8]> {
+    let chosen = selected(request);
+    // App and regional pages may use the official WWW SEO canonical. This
+    // validates provider coordinates only; it never authorizes or follows it.
+    let path = url.strip_prefix(chosen.origin)
+        .or_else(|| url.strip_prefix(DEFAULT.origin))?;
+    if !path.starts_with(b"/") { return None; }
     Some(path.strip_prefix(b"/baozimhapp").unwrap_or(path))
 }

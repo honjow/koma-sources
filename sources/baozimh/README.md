@@ -1,5 +1,41 @@
 # 包子漫畫
 
+## 0.1.28 镜像与设置对齐
+
+对照 Keiyoushi `5d54f0d02e2a7dbdda08e823de444f7527cc883c` 的
+[build.gradle.kts](https://github.com/keiyoushi/extensions-source/blob/5d54f0d02e2a7dbdda08e823de444f7527cc883c/src/zh/baozimanhua/build.gradle.kts)
+及同提交 `Baozi.kt`、生成器 `MirrorPreferences` / `SourceProcessor`。
+镜像来自生成器，而非 `Baozi.setupPreferenceScreen` 内的两个显式偏好；旧移植漏掉了生成项。
+
+| 行为 | 上游 | 本源消费 |
+| --- | --- | --- |
+| 首选镜像 | `preferred_mirror`，17项、索引字符串0–16 | `mirror::selected` 同17项；列表、搜索、详情、目录及公开作品地址共用所选站点 |
+| 默认站点 | CN、索引0 | 保留既有WWW、索引2；已有用户更新不会被自动切到CN。无设置或无效值回WWW |
+| App镜像 | AppCN / AppGB页面加`/baozimhapp`，卡片和章节可能由onclick提供身份 | `append_card` / `chapter_link` 将onclick作为数据解析，保持原作品ID与section0章节ID；非0section保留在章slot中 |
+| 主页与网页会话 | 当前所选镜像 | 包默认主页覆盖WWW，`homepageChoices`列出另16项；会话按17个精确origin声明，仍需宿主原授权，不跨站复制Cookie |
+| 封面 | `data-src`优先、兼容`src`，解包`/cover/https://...`嵌套地址 | 卡片和详情读取真实图片地址；普通图片查询参数保留，只有嵌套封面去掉包装参数；旧静态地址只作缺图回退 |
+| 热门、搜索、筛选 | 所选`siteBaseUrl`；非空关键词不分页 | 原热门及筛选保留，空搜索按筛选，模板卡片不作为漫画输出 |
+| 标题开头筛选 | `filter`组，全部及ABCD至0-9共9项 | 补齐原缺的整组和请求消费，不再固定`filter=*`；原地区/进度/标签34个值及顺序保持。选项采用已核网页原件，未实现上游动态获取筛选数据 |
+| 最近更新 | 网页镜像`/list/new`无分页，App镜像使用热门 | 新增`latest`栏目，分支与停止条件同上游；网页latest不显示无效筛选，App保留热门筛选；原首页四栏保持 |
+| 横幅 | `BAOZI_BANNER`，默认1、0/1/2 | 保留既有图片处理能力协商及三个值 |
+| 章节身份纠错 | `CHAPTER_ORDER`，默认0、0/1/2；不修改数组排序 | 保留既有章节身份协商、标题片段及进度匹配；主目录位置仍用已验证的provider坐标 |
+| Koma原有设置 | 上游没有默认地区/状态 | 保留`defaultRegion` / `defaultState`及具体筛选优先规则 |
+| 正文 | App镜像的整章`.comic-contain img[data-src]` | App镜像及非0section用`app_pages::run`；网页镜像保留已验AMP长章分页，首入口不可用或无图时一次回退上游App入口；稳定章ID和页ID保留 |
+
+上游网页镜像的App阅读基址固定AppCN；AppGB镜像使用AppGB，不是将全部资源强改成所选
+网页主机。旧AMP路径在当前普通阅读已验收，因此本次保留；不宣称该优先顺序与上游相同。
+所有结果仍要求完整响应，不能把前50图或部分数组作为完整章节。App整章入口只尝试一次，
+不在原运输重试之外叠加一轮三次重试。
+
+本次未替换已验的每章有界CDN选路及横幅处理。当前上游另有`.baozicdn.com`到
+`.baozimh.com`的图片改写/404回退和占位图重定向拦截；Koma原CDN机制与之不完全相同。
+站点验证继续沿现有网页会话，不在源中新增自动挑战求解器。镜像/模板和这些网络差异分别
+记录，不能从设置项齐全推断整源完全等价。
+
+最低App保留1.4.1；所需通用主页选择已在1.4.0正式提供。本版无新增宿主接口。
+候选的默认WWW四份完整目录、两部195/182图及标题后缀完整输出已与0.1.27相等；新增
+镜像的普通浏览、搜索、封面、详情和阅读仍待237实测，不以构建或旧路径回放冒验收。
+
 ## 0.1.27 候选：canonical 别名与主目录章序
 
 官网部分作品的 canonical 与主目录 comic_id 已加后缀，输入仍是既有稳定作品ID。

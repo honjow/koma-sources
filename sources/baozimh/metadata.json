@@ -8,10 +8,83 @@
   "websitePolicy": {
     "publicWorkUrlDomains": [
       "baozimh.com",
+      "webmota.com",
+      "kukuc.co",
+      "twmanga.com",
+      "dinnerku.com",
       "baozicdn.com",
       "bzcdn.net"
     ],
-    "webSessionAndroidAgent": true
+    "webSessionAndroidAgent": true,
+    "homepageChoices": {
+      "setting": "preferred_mirror",
+      "options": [
+        {
+          "value": "0",
+          "url": "https://cn.baozimh.com/"
+        },
+        {
+          "value": "1",
+          "url": "https://tw.baozimh.com/"
+        },
+        {
+          "value": "3",
+          "url": "https://cn.webmota.com/"
+        },
+        {
+          "value": "4",
+          "url": "https://tw.webmota.com/"
+        },
+        {
+          "value": "5",
+          "url": "https://www.webmota.com/"
+        },
+        {
+          "value": "6",
+          "url": "https://cn.kukuc.co/"
+        },
+        {
+          "value": "7",
+          "url": "https://tw.kukuc.co/"
+        },
+        {
+          "value": "8",
+          "url": "https://www.kukuc.co/"
+        },
+        {
+          "value": "9",
+          "url": "https://cn.twmanga.com/"
+        },
+        {
+          "value": "10",
+          "url": "https://tw.twmanga.com/"
+        },
+        {
+          "value": "11",
+          "url": "https://www.twmanga.com/"
+        },
+        {
+          "value": "12",
+          "url": "https://cn.dinnerku.com/"
+        },
+        {
+          "value": "13",
+          "url": "https://tw.dinnerku.com/"
+        },
+        {
+          "value": "14",
+          "url": "https://www.dinnerku.com/"
+        },
+        {
+          "value": "15",
+          "url": "https://appcn.baozimh.com/baozimhapp/"
+        },
+        {
+          "value": "16",
+          "url": "https://appgb.baozimh.com/baozimhapp/"
+        }
+      ]
+    }
   },
   "identity": {
     "mihon": {
