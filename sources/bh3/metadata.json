@@ -15,5 +15,16 @@
     "zh-Hant": "崩壞3 IP站"
   },
   "homepage": "https://comic.bh3.com",
-  "chapterOrder": "newest_first"
+  "chapterOrder": "newest_first",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "《崩坏3》IP站的官方漫画，按独立故事篇章收录。",
+        "zh-Hant": "《崩壞3》IP站的官方漫畫，按獨立故事篇章收錄。",
+        "en": "Official comics from the Honkai Impact 3rd IP site, organised into standalone story arcs."
+      }
+    }
+  }
 }

@@ -1,5 +1,9 @@
 # Comic Fury（中文）source
 
+## 书源简介
+
+由创作者自行发布网络漫画的平台。本源选择中文作品，并可选择显示作者随页附言。
+
 稳定身份 `com.comicfury.zh.koma`，版本 `0.1.8`，语言 `zh`，规范 origin `https://comicfury.com`。MIXED 保守映射为 `nsfw=true`；这不把每部漫画标为成人。源行为遵循保留的 Keiyoushi ComicFury 实现和固定设置参考 `949dea252eb8e867b7b40834a26e13088764ff55`。
 
 ## 公开行为

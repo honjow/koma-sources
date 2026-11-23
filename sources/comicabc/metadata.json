@@ -17,5 +17,16 @@
     "en": "ComicABC"
   },
   "homepage": "https://www.8comic.com",
-  "chapterOrder": "oldest_first"
+  "chapterOrder": "oldest_first",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "無限動漫（8comic）的连载漫画栏目。本源只收录漫画，动画内容不在范围内。",
+        "zh-Hant": "無限動漫（8comic）的連載漫畫欄目。本源只收錄漫畫，動畫內容不在範圍內。",
+        "en": "Serial comics from ComicABC (8comic). This source covers the manga catalogue, not the site’s animation content."
+      }
+    }
+  }
 }

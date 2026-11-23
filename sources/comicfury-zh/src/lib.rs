@@ -10,12 +10,12 @@ const BASE: &[u8] = b"https://comicfury.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.comicfury.zh.koma",
     name: "Comic Fury",
-    version: "0.1.11",
+    version: "0.1.12",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
     description:
-        "Comic Fury Chinese public HTML; upstream MIXED; optional author notes; no warning confirmation. Usage unknown.",
+        "由创作者自行发布网络漫画的平台。本源选择中文作品，并可选择显示作者随页附言。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

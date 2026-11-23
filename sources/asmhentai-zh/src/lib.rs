@@ -10,7 +10,7 @@ type E = &'static str;
 type R<T> = Result<T, E>;
 const MAX: usize = 1048576;
 const WEB: &[u8] = b"https://asmhentai.com";
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.asmhentai.zh.koma",name:"AsmHentai",version:"0.1.8",api_version:"0.2",language:"zh",author:"Koma",description:"AsmHentai provider Chinese catalogue; per-work rating and usage unknown. Anonymous published metadata only.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.asmhentai.zh.koma",name:"AsmHentai",version:"0.1.9",api_version:"0.2",language:"zh",author:"Koma",description:"成人漫画与同人志图集站。本源按站内中文标记筛选作品，可按标签查找。",content_rating:"nsfw"};
 #[allow(dead_code)]
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,

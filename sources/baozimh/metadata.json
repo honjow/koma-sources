@@ -119,5 +119,16 @@
       "chapterSeparator": ":",
       "titleSeparator": "#"
     }
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "收录国漫及日本、韩国、欧美漫画，按地区、题材和连载状态分类。",
+        "zh-Hant": "收錄國漫及日本、韓國、歐美漫畫，按地區、題材和連載狀態分類。",
+        "en": "Chinese, Japanese, Korean and Western comics, organised by region, genre and publication status."
+      }
+    }
   }
 }

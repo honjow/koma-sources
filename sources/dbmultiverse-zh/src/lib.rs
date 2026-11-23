@@ -16,7 +16,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "中文公开漫画，支持文字气泡叠加。",
+    description: "以《龙珠Z》为基础的网络漫画，本源连接官网中文入口；部分章节保留外文对白。",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

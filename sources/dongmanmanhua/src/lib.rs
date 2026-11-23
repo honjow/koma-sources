@@ -15,7 +15,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh-Hans",
     author: "Koma",
-    description: "Dongman public source. Upstream SAFE; individual content and usage unknown.",
+    description: "咚漫的简体中文连载漫画，按星期安排更新。本源阅读范围限原站公开章节。",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

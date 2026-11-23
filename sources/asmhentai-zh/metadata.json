@@ -21,5 +21,16 @@
     "zh-Hant": "AsmHentai",
     "en": "AsmHentai"
   },
-  "homepage": "https://asmhentai.com"
+  "homepage": "https://asmhentai.com",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "成人漫画与同人志图集站。本源按站内中文标记筛选作品，可按标签查找。",
+        "zh-Hant": "成人漫畫與同人誌圖集站。本源按站內中文標記篩選作品，可按標籤尋找。",
+        "en": "Adult manga and doujinshi galleries. This source selects Chinese-tagged works and supports tag browsing."
+      }
+    }
+  }
 }

@@ -1187,7 +1187,7 @@ dependencies = [
 
 [[package]]
 name = "koma_asmhentai_zh_source"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1208,14 +1208,14 @@ dependencies = [
 
 [[package]]
 name = "koma_baozimh_source"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_bh3_source"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1272,7 +1272,7 @@ dependencies = [
 
 [[package]]
 name = "koma_cartoon18_zh_source"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1286,14 +1286,14 @@ dependencies = [
 
 [[package]]
 name = "koma_comicabc_source"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_comicfury_zh_source"
-version = "0.1.11"
+version = "0.1.12"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1320,7 +1320,7 @@ dependencies = [
 
 [[package]]
 name = "koma_dbmultiverse_zh_source"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1354,7 +1354,7 @@ dependencies = [
 
 [[package]]
 name = "koma_dongmanmanhua_source"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "koma_source_sdk",
 ]

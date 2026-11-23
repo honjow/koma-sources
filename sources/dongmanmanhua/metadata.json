@@ -4,6 +4,22 @@
     "zh-Hant": "咚漫",
     "en": "DongmanManhua"
   },
-  "comments": {"version": 1, "scopes": ["chapter"]},
-  "homepage": "https://www.dongmanmanhua.cn"
+  "comments": {
+    "version": 1,
+    "scopes": [
+      "chapter"
+    ]
+  },
+  "homepage": "https://www.dongmanmanhua.cn",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "咚漫的简体中文连载漫画，按星期安排更新。本源阅读范围限原站公开章节。",
+        "zh-Hant": "咚漫的簡體中文連載漫畫，按星期安排更新。本源閱讀範圍限原站公開章節。",
+        "en": "Simplified Chinese serial comics from Dongman, with a weekly update schedule. Reading is limited to publicly available episodes."
+      }
+    }
+  }
 }

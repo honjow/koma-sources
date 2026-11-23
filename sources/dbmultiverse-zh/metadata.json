@@ -15,5 +15,16 @@
     "zh-Hant": "DB Multiverse",
     "en": "DB Multiverse"
   },
-  "homepage": "https://www.dragonball-multiverse.com"
+  "homepage": "https://www.dragonball-multiverse.com",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "以《龙珠Z》为基础的网络漫画，本源连接官网中文入口；部分章节保留外文对白。",
+        "zh-Hant": "以《七龍珠Z》為基礎的網路漫畫，本源連接官網中文入口；部分章節保留外文對白。",
+        "en": "A Dragon Ball Z–based webcomic, using the site’s Chinese portal. Some chapters retain non-Chinese dialogue."
+      }
+    }
+  }
 }

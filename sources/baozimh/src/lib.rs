@@ -117,7 +117,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
-    description: "Baozimh (baozimh.com) HTML scraping source.",
+    description: "收錄國漫及日本、韓國、歐美漫畫，按地區、題材和連載狀態分類。",
     content_rating: "unknown",
 };
 

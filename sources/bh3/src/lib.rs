@@ -11,11 +11,11 @@ const BASE: &[u8] = b"https://comic.bh3.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.bh3.koma",
     name: "崩坏3 IP站",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma source contributors",
-    description: "Public BH3 comics source. Upstream SAFE; individual works unclassified.",
+    description: "《崩坏3》IP站的官方漫画，按独立故事篇章收录。",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

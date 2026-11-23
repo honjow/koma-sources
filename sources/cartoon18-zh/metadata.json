@@ -16,5 +16,16 @@
     "en": "Cartoon18 (Chinese)"
   },
   "homepage": "https://www.cartoon18.com",
-  "chapterOrder": "newest_first"
+  "chapterOrder": "newest_first",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "成人漫画站Cartoon18（色漫网）。可选择简体或繁体网站界面，漫画保留作品原语言。",
+        "zh-Hant": "成人漫畫站Cartoon18（色漫網）。可選擇簡體或繁體網站介面，漫畫保留作品原語言。",
+        "en": "Adult comics from Cartoon18. Choose a Simplified or Traditional Chinese site interface; artwork keeps its original language."
+      }
+    }
+  }
 }

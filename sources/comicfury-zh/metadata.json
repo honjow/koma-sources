@@ -15,7 +15,23 @@
     "zh-Hant": "Comic Fury",
     "en": "Comic Fury"
   },
-  "comments": {"version": 1, "scopes": ["chapter"]},
+  "comments": {
+    "version": 1,
+    "scopes": [
+      "chapter"
+    ]
+  },
   "homepage": "https://comicfury.com",
-  "chapterOrder": "newest_first"
+  "chapterOrder": "newest_first",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "由创作者自行发布网络漫画的平台。本源选择中文作品，并可选择显示作者随页附言。",
+        "zh-Hant": "由創作者自行發布網路漫畫的平台。本源選擇中文作品，並可選擇顯示作者隨頁附言。",
+        "en": "Creator-published webcomics hosted on Comic Fury. This source selects Chinese works and offers optional author notes."
+      }
+    }
+  }
 }
