@@ -159,8 +159,8 @@ websitePolicy只在原授权https://bakamh.com声明responseUrlOrigins与pathPre
 
 本候选用已有实际WASM/生产HTML桥对照旧作品原件和既有reader边界样本；受控响应地址只证明校验与接线，不能冒充今日reader200。正文跨章、真实图片及下载须由设备owner继续验收后才可公开。
 
-### 图片Referer上游策略更正
+### 图片请求的实际参考合同
 
-固定8947c37的MadaraBase将阅读文档地址交给图片Referer；其BrowserHeaders随后采用strict-origin-when-cross-origin：同origin保留完整阅读地址（去userinfo/fragment），跨origin只发送阅读站点根origin、移除path/query，HTTPS降到HTTP不发送Referer。源此前无条件发送旧pageId还原的完整章节地址，遗漏了后一步；此次仅补齐该公开头策略，同时用于已有BodyRef和无body能力的descriptor通道。
+固定8947c37的MadaraBase.getImageRequest显式传递page.url作为完整Referer；KeiSource只附加裸Fetch.IMAGE，Baka没有调用.from(page.url)。BrowserHeaders仅在存在FromPage标签时才收窄Referer，因此它的跨域收窄函数不属于Baka默认图片链。本源保留完整阅读Referer，不把框架可选规则直接套到该源。UA/Cookie仍由已有Host授权归属决定，页ID、图片URL和下载身份保持。
 
-旧pageId、章节ID、图片URL及下载identity不变；同origin仍沿原pageId还原逻辑，不混入真实finalURL与legacy ID分离。Accept/语言、UA/Cookie归属、Web/Native二进制选路、预算、图像校验、权限及BodyRef清理保持，不新增Host API或授权。routing5ac-11已实证页表Native200、正文get_image_request Native403；本次是独立已证移植parity更正，不能据此宣称当前403已定位或修好。原482e包与失败证据保留，需设备owner完成包子后在原104首图路径回归。
+此前候选2074的跨域收窄依据有误，已停止使用；代码只定点更正这一步，Native文本与真实最终URL读取保持。原失败与更正依据保留于Koma本次native-image-headers-readonly报告。当前正文Native403继续调查，不以这项更正宣称图片已恢复。

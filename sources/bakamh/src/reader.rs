@@ -205,7 +205,7 @@ pub(crate) fn image_request(args: &Value, request: &[u8]) -> Result<Value> {
     let image = Url::parse(args["url"].as_str().ok_or("invalid_request")?)
         .map_err(|_| "invalid_request")?;
     let image = port::absolute(BASE, image.as_str())?;
-    let mut referer = if let Some(page) = page_id.strip_prefix("page:") {
+    let referer = if let Some(page) = page_id.strip_prefix("page:") {
         let (_, path) = page.split_once(':').ok_or("invalid_request")?;
         let url = port::absolute(BASE, path)?;
         let mut segments = url.path().trim_matches('/').split('/');
@@ -221,23 +221,11 @@ pub(crate) fn image_request(args: &Value, request: &[u8]) -> Result<Value> {
     } else {
         port::absolute(BASE, "/")?
     };
-    // Fixed upstream BrowserHeaders uses strict-origin-when-cross-origin.
-    // This changes the provider header only, never the stable page ID or URL.
-    let send_referer = !(referer.scheme() == "https" && image.scheme() != "https");
-    let _ = referer.set_username("");
-    let _ = referer.set_password(None);
-    referer.set_fragment(None);
-    if referer.origin() != image.origin() {
-        referer.set_path("/");
-        referer.set_query(None);
-    }
-    let referer = send_referer.then_some(&referer);
     if image.scheme() == "https" && crate::image_body_supported(request) {
-        return image_body(&image, referer, request);
+        return image_body(&image, &referer, request);
     }
-    // Keep the descriptor channel with the same public referrer policy.
-    let headers = referer.map(|url| json!({"Referer":url.as_str()})).unwrap_or_else(|| json!({}));
-    Ok(json!({"url":image.as_str(),"headers":headers}))
+    // No negotiated body channel: preserve the original descriptor byte shape.
+    Ok(json!({"url":image.as_str(),"headers":{"Referer":referer.as_str()}}))
 }
 
 // Public Fetch.IMAGE headers from pinned upstream BrowserHeaders/Bakamh. The
@@ -257,17 +245,14 @@ fn image_prefix(bytes: &[u8]) -> bool {
                 matches!(brand, b"avif" | b"avis" | b"heic" | b"heix" | b"hevc" | b"hevx" | b"mif1" | b"msf1"))))
 }
 
-fn image_body(image: &Url, referer: Option<&Url>, request: &[u8]) -> Result<Value> {
+fn image_body(image: &Url, referer: &Url, request: &[u8]) -> Result<Value> {
     let context = Context::from_request(request);
     if context.cancelled() { return Err("cancelled"); }
-    let mut headers = Vec::with_capacity(3);
-    if let Some(referer) = referer {
-        headers.push(Header { name: b"Referer", value: referer.as_str().as_bytes() });
-    }
-    headers.extend([
+    let headers = [
+        Header { name: b"Referer", value: referer.as_str().as_bytes() },
         Header { name: b"Accept", value: IMAGE_ACCEPT },
         Header { name: b"Accept-Language", value: crate::LANGUAGE.as_bytes() },
-    ]);
+    ];
     let mut spec = RequestSpec::get(image.as_str().as_bytes());
     spec.headers = &headers;
     spec.response = ResponseKind::BodyRef;
