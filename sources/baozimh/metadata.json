@@ -84,7 +84,17 @@
           "url": "https://appgb.baozimh.com/baozimhapp/"
         }
       ]
-    }
+    },
+    "httpProfiles": [
+      {
+        "origin": "https://appcn.baozimh.com",
+        "profile": "chrome145"
+      },
+      {
+        "origin": "https://appgb.baozimh.com",
+        "profile": "chrome145"
+      }
+    ]
   },
   "identity": {
     "mihon": {
