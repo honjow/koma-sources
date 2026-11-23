@@ -41,5 +41,16 @@
       "statusValue": "ok",
       "addressesKey": "addresses"
     }
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "嗶咔漫畫的分集漫畫書庫，以站內分類、題材標籤及人氣榜整理作品。瀏覽與閱讀均需登入 Picacomic 帳號。",
+        "zh-Hans": "哔咔漫画的分集漫画书库，以站内分类、题材标签及人气榜整理作品。浏览与阅读均需登录 Picacomic 账号。",
+        "en": "Picacomic’s episodic comics, organized by categories, tags and popularity. An account is required for browsing and reading."
+      }
+    }
   }
 }

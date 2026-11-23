@@ -1,5 +1,11 @@
 # NamiComi — 繁体中文独立 Koma 源 0.1.4
 
+## 0.1.10 簡介與多語言顯示
+
+NamiComi 是漫畫創作者發表作品的平台，此入口收錄繁體中文章節。正文限匿名開放內容，顯示鎖定章節不代表已取得付費權限。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 稳定 ID `com.namicomi.zh-hant.koma`；当前运行时/crate/包版本为 0.1.4。这个独立 zh-hant 源保留其语言、ID、发布的原第一封面选择、标题回退和完整语言匹配目录顺序。元数据/正文/输出容量、严格 UTF8/JSON、分页/身份和 API/CDN URL 守卫保持生效。源实现归因和许可保留在 NOTICE/LICENSE。
 
 固定 Keiyoushi 949dea252eb8e867b7b40834a26e13088764ff55 质量合同通过原动态设置控件暴露。`thumbnailQuality_zh-hant` 选择原图（默认 `original`，编码上游空后缀因为宿主选项 ID 不能为空）、中 `.512.jpg` 或低 `.256.jpg`；列表/搜索/详情封面 URL 只追加所选发布后缀。`dataSaver_zh-hant` 默认 false；只有显式 true 从同一章节响应选择真实 `low` 数组和 `/low/` 图像路径。否则源质量页和默认 URL 不变。合法 null 名/卷/章字段发出空源标题供宿主既有本地化无名章节标签；不虚构章节编号且不拒绝有效目录。不猜质量 URL 文件名；ID、索引和原数组顺序保持。

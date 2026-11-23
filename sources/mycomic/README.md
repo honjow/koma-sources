@@ -1,5 +1,11 @@
 # MYCOMIC 0.1.30
 
+## 0.1.33 簡介與多語言顯示
+
+MYCOMIC 收錄日漫、韓漫、國漫與歐美漫畫的中文版本，兼有分話、卷本與番外；書目介面可選簡體或繁體中文。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 独立公开HTML适配 `com.mycomic.koma`，API0.2，主页 `https://mycomic.com`。中文内容、源级nsfw，单作品分级和用量未知；官网繁中与简中页面标题带“MYCOMIC - 我的漫畫／我的漫画”副文案，但按用户 2026-11-10 要求显示名只保留大写品牌 MYCOMIC，不再把页面副标题当作品牌。现红色 C 是此前保留身份的重绘图，不冒称官网原图，图标字节不变。popular、latest、search、筛选、排行、详情、目录、页描述与图像请求已实现；home/credentials不开放。不登录、不改Cookie、UA、网络或权限。
 
 ## 首选语言

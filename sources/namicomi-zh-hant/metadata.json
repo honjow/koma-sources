@@ -21,5 +21,16 @@
     "en": "NamiComi (Traditional Chinese)"
   },
   "comments": {"version": 1, "scopes": ["chapter"]},
-  "homepage": "https://namicomi.com"
+  "homepage": "https://namicomi.com",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "NamiComi 是漫畫創作者發表作品的平台，此入口收錄繁體中文章節。正文限匿名開放內容，顯示鎖定章節不代表已取得付費權限。",
+        "zh-Hans": "NamiComi 是漫画创作者发表作品的平台，此入口收录繁体中文章节。正文限匿名开放内容，显示锁定章节不代表已取得付费权限。",
+        "en": "NamiComi creators’ Traditional Chinese comics. Public chapters only; visible locked entries do not grant paid access."
+      }
+    }
+  }
 }

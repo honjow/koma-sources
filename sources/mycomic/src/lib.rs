@@ -13,7 +13,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "",
+    description: "MYCOMIC 收錄日漫、韓漫、國漫與歐美漫畫的中文版本，兼有分話、卷本與番外；書目介面可選簡體或繁體中文。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

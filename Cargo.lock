@@ -1803,7 +1803,7 @@ dependencies = [
 
 [[package]]
 name = "koma_mycomic_source"
-version = "0.1.32"
+version = "0.1.33"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1817,28 +1817,28 @@ dependencies = [
 
 [[package]]
 name = "koma_namicomi_zh_hans_source"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_namicomi_zh_hant_source"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_nhentaito_zh_source"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_nhentaixxx_zh_source"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1887,7 +1887,7 @@ dependencies = [
 
 [[package]]
 name = "koma_picacomic_source"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1899,7 +1899,7 @@ dependencies = [
 
 [[package]]
 name = "koma_pixiv_zh_source"
-version = "0.1.17"
+version = "0.1.18"
 dependencies = [
  "koma_source_sdk",
 ]

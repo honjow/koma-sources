@@ -9,11 +9,11 @@ const WEB: &[u8] = b"https://nhentai.xxx";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.nhentaixxx.zh.koma",
     name: "NHentai.xxx",
-    version: "0.1.7",
+    version: "0.1.8",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "中文漫画目录，作品分级以实际内容为准。",
+    description: "NHentai.xxx 的中文漫畫圖集，作品標示作者與題材標籤，每冊圖集作為一部完整作品閱讀。",
     content_rating: "adult",
 };
 koma_source_sdk::koma_source_buffers! {payload:1048000,http_out:MAX,body:MAX,http_req:32768,scratch:8192,}
@@ -1383,7 +1383,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
-    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.nhentaixxx.zh.koma\",\"name\":\"NHentai.xxx\",\"version\":\"0.1.7\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"中文漫画目录，作品分级以实际内容为准。\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"NHentai.xxx\",\"zh-Hant\":\"NHentai.xxx\",\"en\":\"NHentai.xxx\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
+    response_buffer().write_success("source_info","{\"sourceInfo\":{\"id\":\"com.nhentaixxx.zh.koma\",\"name\":\"NHentai.xxx\",\"version\":\"0.1.8\",\"apiVersion\":\"0.2\",\"language\":\"zh\",\"author\":\"Koma\",\"description\":\"NHentai.xxx 的中文漫畫圖集，作品標示作者與題材標籤，每冊圖集作為一部完整作品閱讀。\",\"contentRating\":\"adult\",\"localizedNames\":{\"zh-Hans\":\"NHentai.xxx\",\"zh-Hant\":\"NHentai.xxx\",\"en\":\"NHentai.xxx\"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":true,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}".as_bytes())
 }
 macro_rules! export_op {
     ($f:ident,$op:literal,$run:ident) => {

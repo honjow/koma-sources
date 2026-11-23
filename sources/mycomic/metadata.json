@@ -14,4 +14,16 @@
       }
     }
   },
-"localizedNames":{"zh-Hans":"MYCOMIC","zh-Hant":"MYCOMIC","en":"MYCOMIC"},"homepage":"https://mycomic.com","websitePolicy":{"renderedDocumentFallback":{"readySelector":"div.grid > div.group, div[data-flux-card]"},"httpProfiles":[{"origin":"https://mycomic.com","profile":"chrome145"}],"webSessionAndroidAgent":true,"webFetchBridge":true}}
+"localizedNames":{"zh-Hans":"MYCOMIC","zh-Hant":"MYCOMIC","en":"MYCOMIC"},"homepage":"https://mycomic.com","websitePolicy":{"renderedDocumentFallback":{"readySelector":"div.grid > div.group, div[data-flux-card]"},"httpProfiles":[{"origin":"https://mycomic.com","profile":"chrome145"}],"webSessionAndroidAgent":true,"webFetchBridge":true},
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "MYCOMIC 收錄日漫、韓漫、國漫與歐美漫畫的中文版本，兼有分話、卷本與番外；書目介面可選簡體或繁體中文。",
+        "zh-Hans": "MYCOMIC 收录日漫、韩漫、国漫与欧美漫画的中文版本，兼有分话、卷本与番外；书目界面可选简体或繁体中文。",
+        "en": "MYCOMIC carries Chinese-language Asian and Western comics in chapters and volumes. Simplified and Traditional catalogue options."
+      }
+    }
+  }
+}

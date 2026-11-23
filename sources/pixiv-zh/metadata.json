@@ -20,5 +20,16 @@
     "zh-Hant": "pixiv",
     "en": "pixiv"
   },
-  "homepage": "https://www.pixiv.net"
+  "homepage": "https://www.pixiv.net",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "pixiv 創作者公開發表的全年齡漫畫，包含獨立作品與系列。此入口不收錄成人、私人或僅限登入可見的作品，正文語言不限中文。",
+        "zh-Hans": "pixiv 创作者公开发表的全年龄漫画，包含独立作品与系列。此入口不收录成人、私人或仅限登录可见的作品，正文语言不限中文。",
+        "en": "Public all-ages manga and series by pixiv creators, in any language. Adult, private and sign-in-only works are excluded."
+      }
+    }
+  }
 }

@@ -21,5 +21,16 @@
     "zh-Hant": "NHentai.to",
     "en": "NHentai.to"
   },
-  "homepage": "https://nhentai.to"
+  "homepage": "https://nhentai.to",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "NHentai.to 的中文漫畫圖集，作品標示作者與題材標籤，每冊圖集作為一部完整作品閱讀。",
+        "zh-Hans": "NHentai.to 的中文漫画图集，作品标示作者与题材标签，每册图集作为一部完整作品阅读。",
+        "en": "Chinese-language comic galleries from NHentai.to, with artist and subject tags. Each gallery is read as a complete book."
+      }
+    }
+  }
 }

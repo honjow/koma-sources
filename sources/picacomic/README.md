@@ -1,5 +1,11 @@
 # 哔咔漫画 (Picacomic)
 
+## 0.1.7 簡介與多語言顯示
+
+嗶咔漫畫的分集漫畫書庫，以站內分類、題材標籤及人氣榜整理作品。瀏覽與閱讀均需登入 Picacomic 帳號。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 独立 no_std Rust/WASM 实现，完整移植 Keiyoushi `de743aed846da53e00c45ab26ee0e77f7bb4355b`（v14/lib1.6，Apache-2.0）的 Picacomic.kt、Dto.kt、Filters.kt 和 ChannelDns.kt。保留采用的源名称、NSFW/zh 分类和 manhuabika.com 公开链接。后者是参考声明的公开 Web 前端。凭据只发送到 Picacomic API origin。浏览、详情、章节和页需要 Picacomic 账号。要求 Koma 1.2.0 或更高。
 
 认证使用已批准的凭据描述符和显式 Native 私有表单。用户名映射到线上 email。无用户名/密码/token 设置、请求参数、Web Cookie、操作结果或日志提供认证。get_authentication 读取就绪私有状态，或中止空所有者，零 HTTP。无输入浏览在任何登录/API 请求前返回 auth_required，包括用模仿凭据的公开参数/设置。

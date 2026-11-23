@@ -30,7 +30,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "哔咔漫画。浏览与阅读需要账号登录。",
+    description: "嗶咔漫畫的分集漫畫書庫，以站內分類、題材標籤及人氣榜整理作品。瀏覽與閱讀均需登入 Picacomic 帳號。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

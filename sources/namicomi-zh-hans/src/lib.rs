@@ -14,8 +14,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh-Hans",
     author: "Koma",
-    description:
-        "NamiComi 简体中文公开漫画，可浏览目录与免费页面。",
+    description: "NamiComi 是漫畫創作者發表作品的平台，此入口收錄簡體中文章節。正文限匿名開放內容，顯示鎖定章節不代表已取得付費權限。",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
