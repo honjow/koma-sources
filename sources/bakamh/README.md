@@ -16,7 +16,9 @@
 | 题材全部匹配为 taxonomy `operator=AND` | `filters::search` 修正原 `operation`；题材为空不添加，任一匹配仍省略，作者等 taxonomy 索引顺序保持。 |
 | 详情排除与主标题相同及 Updating 的别名；新版简介改用 Markdown | Koma 保留独立 `alternateTitles`，不把别名重复附入 `description`；本轮补同标题去重。现有 `port::Node` / SDK 只有选择器、属性、纯文本读取，没有可复用 DOM→Markdown 处理，因此简介保留原 `p` 段落／无段落时全文；**HTML 强调、链接等 Markdown 转换尚未同步**，不新增源专用宿主能力或不完整 HTML 解析器。 |
 
-本轮只改源内搜索、复合题材和同名别名。既有请求 profile、全 client 2次/秒
+237 初次复验时，搜索验证通过后可以正常返回结果，但打开筛选的题材获取仍返回403。日志明确该 GET 走 WebHTTP 子资源 fetch；上游 MadaraBase.fetchFilterData 对同一 `/manga/` 使用 Fetch.DOCUMENT。本轮补 `document_text::catalogue`，复用已存在的 Native DOCUMENT 请求及实际最终地址交付，仅接受同站漫画归档（规范尾斜杠可变），不放宽作品或阅读页所有者校验。题材链接按真实最终地址解析；失败不伪造空选项，不添加站点专用宿主接口。此补修仍待最终包及237复验。
+
+本轮只改源内搜索、复合题材、题材选项读取和同名别名。既有请求 profile、全 client 2次/秒
 oncePerRequest、Native IMAGE/CDN/SourceCookies、WebHTTP/BrowserGrant、章节／页身份、
 登录及全部设置保持；最低 Koma 仍为1.6.1，无新宿主能力，图标未改。
 

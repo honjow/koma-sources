@@ -67,6 +67,25 @@ fn read(url: &Url, request: &[u8]) -> Result<WorkDocument> {
     Ok(WorkDocument { doc, complete, final_url: Some(final_url) })
 }
 
+/// Upstream fetchFilterData is a DOCUMENT navigation, not an in-page fetch.
+/// Keep archive validation separate from work/reader identity: this response can
+/// supply public genre options, but can never become a work or chapter memo.
+pub(super) fn catalogue(url: &Url, request: &[u8]) -> Result<WorkDocument> {
+    let context = Context::from_request(request);
+    if context.cancelled() { return Err("cancelled"); }
+    if url.origin().ascii_serialization() != BASE || url.path() != "/manga/"
+        || url.query().is_some() || url.fragment().is_some()
+    { return Err("invalid_request"); }
+    if !context.supports(b"source_http_response_metadata_v1") { return Err("unsupported"); }
+    let document = read(url, request)?;
+    let final_url = document.final_url.as_ref().ok_or("invalid_response")?;
+    if final_url.path().trim_end_matches('/') != "/manga" || final_url.query() != url.query() {
+        return Err("invalid_response");
+    }
+    if context.cancelled() { return Err("cancelled"); }
+    Ok(document)
+}
+
 fn reader_path(url: &Url) -> bool {
     url.path().strip_prefix("/manga/").is_some_and(|path| {
         let mut segments = path.trim_end_matches('/').split('/');

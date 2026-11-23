@@ -8,7 +8,7 @@ use koma_source_sdk::source_protocol;
 use serde_json::{json, Value};
 use url::form_urlencoded::Serializer;
 
-use crate::{genre_links, get, port, Result, BASE};
+use crate::{document_text, genre_links, port, Result, BASE};
 
 pub(crate) type Form = Serializer<'static, String>;
 
@@ -59,8 +59,11 @@ pub(crate) fn schema(args: &Value, request: &[u8]) -> Result<Value> {
             json!({"type":"multiselect","scope":"search","id":"genres","name":"题材","default":[]});
         if args["fetchFilterData"] == true {
             let url = port::absolute(BASE, "/manga/")?;
-            let doc = get(&url, request)?;
-            let options = genre_links(&doc, "div.genres a[href*='/manga-genre/']", &url)?
+            // MadaraBase.fetchFilterData uses Fetch.DOCUMENT. A Web fetch is
+            // classified differently by this site even after CF verification.
+            let document = document_text::catalogue(&url, request)?;
+            let base = document.final_url.as_ref().ok_or("invalid_response")?;
+            let options = genre_links(&document.doc, "div.genres a[href*='/manga-genre/']", base)?
                 .into_iter()
                 .map(|(slug, name)| json!({"value":slug,"label":name}))
                 .collect::<Vec<_>>();
