@@ -1,7 +1,7 @@
-// Baozi.kt appChapterUrl/getPageList: selected app origin, one complete
-// .comic-contain img[data-src] array. Keep stable chapter/page identities and
-// parent CDN/banner contracts. Current app templates returned CF403 in the
-// bounded provider capture; source-contract implementation is not live acceptance.
+// Baozi.kt appChapterUrl/getPageList: every mirror uses its selected app
+// origin and the complete .comic-contain img[data-src] array. Web mirrors use
+// AppCN; AppGB stays AppGB. Keep stable chapter/page identities and the existing
+// CDN/banner contracts; placeholder AMP documents are never a reader fallback.
 use super::{
     append_json_escaped, attr_into, body_buf, cdn_selection, fetch_html_with_attempts, host,
     html_parse, html_select_all, http_out, log_cdn_result, mirror, payload_buf, probe_image_head,

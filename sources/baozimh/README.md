@@ -4,7 +4,25 @@
 
 收錄國漫及日本、韓國、歐美漫畫，按地區、題材和連載狀態分類。
 
-## 0.1.31 候选：默认TW镜像
+## 0.1.32 候选：所有镜像直接使用App阅读页
+
+固定上游 `5d54f0d` 的 `Baozi.kt:210–232` 明确网页镜像返回App下载墙及占位图，
+`getPageList` 无条件读取 `appChapterUrl` 的整章 `.comic-contain img[data-src]`。
+本轮公开0.1.31旧AMP页表中的《劍尊歸來》第1話P2，实际图片请求虽为HTTP200，
+解码后却是690×1391模糊梯度图（SHA256 `73bd63165775f9c0086a8b36ac96048d19968da9f197ce0be0fb22fecd282ea0`）。
+该实物和上游规则取代先前“AMP有完整195页即可保留为正常阅读”的判断。
+旧195页HTML、页ID及回放继续保留为下载墙反例，不能作为清晰正文验收。
+
+所有镜像的 `get_pages` 现在直接调用既有 `app_pages::run`：网页镜像与AppCN使用AppCN，
+AppGB使用AppGB；删除AMP优先、同章网页part翻页和相应专属辅助函数，不以模糊检测跳过页。
+旧作品/章节/页ID及标题后缀、17镜像值与默认TW4、16主页映射、17精确会话原点、
+完整目录及章序、CDN选路、图片请求/横幅设置和授权边界保持。最低App仍1.4.1，无新宿主能力。
+
+候选须用真实App HTML及普通宿主正文验证；仅DOM摘要或缺原件的离线路由不记完整阅读通过。
+同一旧章入口为 `https://appcn.baozimh.com/baozimhapp/comic/chapter/jianzunguilai-bigalico/0_0.html`。
+本次不修改登录、列表、详情或其它源，不把App第二话的清晰截图扩大为本话全页已验。
+
+## 0.1.31 默认TW镜像
 
 按本轮用户指定，默认入口改为 `https://tw.webmota.com`（索引4）。没有保存镜像或设置值无效时，
 请求选择和设置schema都使用同一默认索引4；显式保存的WWW（索引2）及其余0–16值、标签与顺序不变。
@@ -13,8 +31,8 @@
 17个精确网页会话origin保持，切换镜像不复制其它origin的Cookie或扩大授权。
 
 WWW SEO canonical作为既有独立坐标规则保留，不再借用默认入口；选中站点和WWW的原canonical
-校验、App别名归属守卫不放宽。已验AMP/长章分页、AppCN/AppGB阅读、CDN选路、业务ID、完整目录
-方向与精确去重均不改。默认值调整不代表其它镜像CF验证已恢复，仍待各域普通验证及原请求复试。
+校验、App别名归属守卫不放宽。该版只调整默认入口；其保留的AMP优先阅读已由0.1.32
+按上游App reader合同取代。AppCN/AppGB选择、CDN选路、业务ID、完整目录方向与精确去重保持。默认值调整不代表其它镜像CF验证已恢复，仍待各域普通验证及原请求复试。
 
 ## 0.1.29 完整目录方向
 
@@ -52,7 +70,7 @@ WWW SEO canonical作为既有独立坐标规则保留，不再借用默认入口
 | 行为 | 上游 | 本源消费 |
 | --- | --- | --- |
 | 首选镜像 | `preferred_mirror`，17项、索引字符串0–16 | `mirror::selected` 同17项；列表、搜索、详情、目录及公开作品地址共用所选站点 |
-| 默认站点 | CN、索引0 | 0.1.31候选按用户选择TW Webmota、索引4；无设置或无效值回4，显式保存值保持 |
+| 默认站点 | CN、索引0 | 0.1.31起按用户选择TW Webmota、索引4；无设置或无效值回4，显式保存值保持 |
 | App镜像 | AppCN / AppGB页面加`/baozimhapp`，卡片和章节可能由onclick提供身份 | `append_card` / `chapter_link` 将onclick作为数据解析，保持原作品ID与section0章节ID；非0section保留在章slot中 |
 | 主页与网页会话 | 当前所选镜像 | 包默认主页为TW Webmota，`homepageChoices`明确列出16项含WWW、默认4由homepage隐式覆盖；会话按17个精确origin声明，仍需宿主原授权，不跨站复制Cookie |
 | 封面 | `data-src`优先、兼容`src`，解包`/cover/https://...`嵌套地址 | 卡片和详情读取真实图片地址；普通图片查询参数保留，只有嵌套封面去掉包装参数；旧静态地址只作缺图回退 |
@@ -62,11 +80,11 @@ WWW SEO canonical作为既有独立坐标规则保留，不再借用默认入口
 | 横幅 | `BAOZI_BANNER`，默认1、0/1/2 | 保留既有图片处理能力协商及三个值 |
 | 章节身份纠错 | `CHAPTER_ORDER`，默认0、0/1/2；不修改数组排序 | 保留既有章节身份协商、标题片段及进度匹配；主目录位置仍用已验证的provider坐标 |
 | Koma原有设置 | 上游没有默认地区/状态 | 保留`defaultRegion` / `defaultState`及具体筛选优先规则 |
-| 正文 | App镜像的整章`.comic-contain img[data-src]` | App镜像及非0section用`app_pages::run`；网页镜像保留已验AMP长章分页，首入口不可用或无图时一次回退上游App入口；稳定章ID和页ID保留 |
+| 正文 | 所有镜像都用App阅读页的整章`.comic-contain img[data-src]` | 0.1.32起所有镜像直接`app_pages::run`；网页/AppCN走AppCN，AppGB走AppGB；稳定章ID和页ID保留 |
 
 上游网页镜像的App阅读基址固定AppCN；AppGB镜像使用AppGB，不是将全部资源强改成所选
-网页主机。旧AMP路径在当前普通阅读已验收，因此本次保留；不宣称该优先顺序与上游相同。
-所有结果仍要求完整响应，不能把前50图或部分数组作为完整章节。App整章入口只尝试一次，
+网页主机。旧AMP优先与上游不符，0.1.32已删除；其195/182页回放仅证明旧解析字段，
+不证明占位图片可读。所有结果仍要求完整响应，不能把部分数组作为完整章节。App整章入口只尝试一次，
 不在原运输重试之外叠加一轮三次重试。
 
 本次未替换已验的每章有界CDN选路及横幅处理。当前上游另有`.baozicdn.com`到
@@ -111,7 +129,8 @@ canonical和全量href是provider owner依据；run_get_chapters仍用输入slug
 仅main_catalog及每行placement使用已验证owner。SDK GroupedChapters和App现有
 sourceCatalogChronology/continuationChapterIds负责消费显式位置，显示倒序独立。
 
-正文也有同一别名边界：两作旧reader入口实际200并重定向到后缀canonical，下一part
+以下仅记录旧AMP实现的解析历史，0.1.32已删除这条生产路径；原件保留为下载墙反例。
+旧reader入口实际200并重定向到后缀canonical，下一part
 使用新owner；旧版仅比较旧slug拼出的下一part，实际195图/182图都只返回前50图。
 本版仅在首文档存在唯一同源reader canonical、相同section0/章slot，且owner为原slug
 或其明确下划线后缀别名时，用该owner比较同章下一part。未确认、异源、其它章或section
@@ -120,8 +139,8 @@ CDN选路继续绑定稳定slug的真实图片目录，不以reader别名替换�
 
 候选已完成五份完整目录原件的2293条回归及当前App函数消费，52条错误邻章归零；
 其中四份是本轮完整文档，第五份是11月20日《大象无形》604条官方镜像原件的旧owner
-解析兼容回放，不冒充本轮WWW联网。两作真实reader四份同章文档已完整返回195/182图，
-保留旧首50图的页ID与URL。仍待237代表普通路径复核后再发布；回放不能当作设备阅读通过。第四份截在a属性内的旧捕获继续排除，不以它的碰撞证明缺陷。
+解析兼容回放，不冒充本轮WWW联网。两作旧reader四份同章文档能解析195/182条URL，
+保留旧首50条的页ID与URL；P2真实图片现已证实为梯度占位，不再记为正常阅读证据。第四份截在a属性内的旧捕获继续排除，不以它的碰撞证明缺陷。
 证据统一保存于Koma本轮audit的baozi-order-followup；旧原件、0.1.26包和失败结果保留。
 
 ## 0.1.26 完整目录续章
@@ -215,4 +234,4 @@ Home栏目身份修订：仅四原栏目增加home:popular/cn/jp/kr稳定id，�
 
 ## 0.1.25 备份续读与长章节
 
-Mihon 旧目录地址的作品 ID、正文分组和章节槽位对应 Koma 目录中的同章 ID。由包清单声明转换，标题的简繁差异和 ID 的标题后缀不影响匹配。Mihon 的 App 镜像返回整章，Koma 使用的网页镜像每份文档最多提供 50 张新图。按页面链接补齐同章后续文档，并去除分页边界重复的图片，沿用已有图片 ID 和页序。
+Mihon 旧目录地址的作品 ID、正文分组和章节槽位对应 Koma 目录中的同章 ID。由包清单声明转换，标题的简繁差异和 ID 的标题后缀不影响匹配。Mihon 的 App 镜像返回整章。旧版Koma曾按网页每份50条URL拼接同章后续文档；0.1.32按上游直接读取App整章，不再以网页占位URL作为正文。已有图片ID和页序的编码规则保持。
