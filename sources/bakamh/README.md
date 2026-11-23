@@ -1,5 +1,46 @@
 # 巴卡漫画
 
+## 0.1.3 上游搜索同步候选（2026-11-24）
+
+行为基线为 Keiyoushi [8f5540b56ffa38160e3daa63568cfb7b888d612e](https://github.com/keiyoushi/extensions-source/commit/8f5540b56ffa38160e3daa63568cfb7b888d612e)
+的 `Madara.kt`、`MadaraBase.kt` 与 `Bakamh.kt`；另核当前 HEAD
+`582615a352e38380378cb3f3c3001b0fa7897fe9`，本轮搜索、筛选和详情逻辑相同
+（父类仅有 `SMangaUpdate` 导入位置迁移）。
+
+| 上游合同 | Koma 调用与本轮实现 |
+| --- | --- |
+| 非空词同页执行标题和别名两路，标题结果在前，按作品身份保留首次结果 | `BrowseViewModel.searchSource` → `args.query` / `args.filters` → `browse` / `archive_page`。标题用 `vars[s]`；别名用 `vars[meta_query][alternative][key]=_wp_manga_alternative`、`value=原关键词`、`compare=LIKE`，不带 `vars[s]`。两路保留非漫画排除、作者、画师、年份、状态、排序、成人和题材筛选。`merge_search_pages` 按 `manga:<WordPress ID>` 去重，不按标题或路径别名合并。 |
+| 两路各按原始25条判断下一页，任一路异常使整个调用失败 | 现有宿主 HTTP 为同步接口，因此按标题、别名顺序请求；两路都成功且解析完成才交付。403、挑战、限流、取消、传输和解析失败沿原错误返回，不吞错、不返回半路结果。 |
+| 空词单路筛选，网址搜索仍走作品分派；热门和更新单路 | `browse` 保持空白词单次 AJAX；作品／章节网址仍经 `series_for_url` → `details`，不进入标题／别名两路。 |
+| 第N页上游表单为 `page=N-1`、`vars[paged]=1` | 宿主首屏 `args.page.cursor=null`，续页传上一响应 `nextCursor`（无值才回退数字页）；`request_page_number` 读取该直接字段。同一 cursor 用于两路，向上游发送 `page-1`，任一路满25时才返回下一数字 cursor；不以去重后的总数判断。 |
+| 题材全部匹配为 taxonomy `operator=AND` | `filters::search` 修正原 `operation`；题材为空不添加，任一匹配仍省略，作者等 taxonomy 索引顺序保持。 |
+| 详情排除与主标题相同及 Updating 的别名；新版简介改用 Markdown | Koma 保留独立 `alternateTitles`，不把别名重复附入 `description`；本轮补同标题去重。现有 `port::Node` / SDK 只有选择器、属性、纯文本读取，没有可复用 DOM→Markdown 处理，因此简介保留原 `p` 段落／无段落时全文；**HTML 强调、链接等 Markdown 转换尚未同步**，不新增源专用宿主能力或不完整 HTML 解析器。 |
+
+本轮只改源内搜索、复合题材和同名别名。既有请求 profile、全 client 2次/秒
+oncePerRequest、Native IMAGE/CDN/SourceCookies、WebHTTP/BrowserGrant、章节／页身份、
+登录及全部设置保持；最低 Koma 仍为1.6.1，无新宿主能力，图标未改。
+
+本轮已通过正式 `build.sh --source bakamh` 构建，最终包实际 WASM 的13项搜索／筛选／分页／失败与取消执行校验通过。第二路返回同时取消的竞态已在源内修正，并用同一份校验复测通过。237普通路径与实站效果仍由根代理继续验收，未公开发布；0.1.2验收不能沿用为0.1.3已验。
+验收重点：别名独有命中、两路交叠与翻页、带全匹配题材的两路查询、空词及作品／章节URL、
+任一路HTTP失败、详情别名和阅读图片回归。
+
+本执行者已通过 `git diff --check -- sources/bakamh`，以及对 `src/lib.rs`、
+`src/filters.rs` 分别执行 `rustfmt --edition 2021 --config skip_children=true --emit stdout`
+（输出丢弃、不写回）的语法解析；这不是类型检查、真实逻辑执行或WASM验收。
+为避免与根代理正在进行的WNACG构建争用，未运行cargo、build.sh或改写根锁文件。
+
+随后对根代理正式构建的694399字节最终包（SHA256
+`a9b86ad4467a35130e5fcd1f37d035e0cd33fda3061b12ddda47c2a2aa17d3a8`）执行真实WASM：
+复用既有Baka recorder及C++ HTML bridge，以受控AJAX HTML／HTTP响应验证。
+标题与别名交叠保首次、两路同25条仍续页、单路25张重复卡片仍续页、仅标题满页、
+仅别名满页、两路均不足25但合计40条不续页、第二路403整次失败、第二路发出前取消、
+第二路HTTP失败且取消、空词及空白词单路、Native回退同筛选均通过。
+HTTP完成同时取消的边界失败：原包仍返回成功。因此 `archive_page` 补上HTTP返回后、
+解析前的取消检查；HTTP本身失败仍保持原错误优先。该修正**尚待重打最终包后重跑**，
+不能用修正前12项通过冒充最终包全通过。证据在Koma本轮
+`keiyoushi-sync-20261124/bakamh-actual-wasm/results-before-cancel-fix.json`；
+未使用网络、设备或替代选择器，未重新构建测试框架，源仓不新增测试文件。
+
 ## 0.1.2 普通图片请求
 
 普通 Native CDN 图片显式采用 SDK 共享 Chrome141 Android10/K UA 与有界 HTTPS

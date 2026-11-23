@@ -1,5 +1,30 @@
 use super::*;
-const HARDCODED: &str = "https://www.wnacg.buzz,https://www.wnacg.site";
+const HARDCODED: &str = "https://www.cloudwn.shop,https://www.wnmanga.shop,https://www.wnacg.buzz,https://www.wnacg.site,https://www.wn01.cfd,https://www.wnacg.com";
+
+// Parse data, never execute the site's script. An invalid/failed discovery leaves
+// the last mirror snapshot intact for this process, as BaseUrlFetchInterceptor does.
+fn release_mirrors(bytes: &[u8]) -> R<Vec<String>> {
+    let doc = Node::parse(bytes)?;
+    for script in doc.all("script")? {
+        let data = script.whole()?;
+        let Some(marker) = rx(r"__INITIAL_CONFIG__\s*=\s*")?.find(&data) else { continue };
+        let config = &data[marker.end()..];
+        let config = config.rsplit_once(';').map(|(value, _)| value).unwrap_or(config).trim();
+        let config: Value = serde_json::from_str(config).map_err(|_| E::from("parse_error"))?;
+        let sites = config["sites"].as_array().ok_or_else(|| E::from("parse_error"))?;
+        let mut result = Vec::new();
+        for site in sites {
+            let raw = site["url"].as_str().ok_or_else(|| E::from("parse_error"))?;
+            let value = origin(raw).ok_or_else(|| E::from("parse_error"))?;
+            if !result.contains(&value) { result.push(value); }
+        }
+        for value in UNLISTED_MIRRORS {
+            if !result.iter().any(|existing| existing == value) { result.push(value.to_string()); }
+        }
+        return Ok(result);
+    }
+    Err("parse_error".into())
+}
 fn rpc(mut v: Value) -> R<Value> {
     v["type"] = json!("private_session");
     v["version"] = json!(1);
@@ -166,9 +191,9 @@ impl Context {
                 return Err("unsupported".into());
             }
         }
-        if !protocol::feature(r, b"source_rate_limit_wnacg_v1")
-            && !protocol::feature(r, b"source_request_limits_v1")
-        {
+        // The legacy wn* matcher cannot cover pagewn/cloudwn/wnmanga mirrors.
+        // The package's shared exact-host window is required for the new list.
+        if !protocol::feature(r, b"source_request_limits_v1") {
             return Err("unsupported".into());
         }
         let token = token(v)?;
@@ -196,19 +221,8 @@ impl Context {
             let result = (|| {
                 // Upstream catches failed/empty domain discovery and keeps the previous
                 // mirrors for this launch. No retries, alternate discovery URL, or TTL.
-                let found = match http(DOMAIN_LIST, &selected(&s, &token)) {
-                    Ok(bytes) => {
-                        let t = core::str::from_utf8(&bytes).unwrap_or("");
-                        let mut a = Vec::new();
-                        for raw in t.split(',') {
-                            if let Some(o) = origin(raw) {
-                                if !a.contains(&o) {
-                                    a.push(o)
-                                }
-                            }
-                        }
-                        a
-                    }
+                let found = match http(RELEASE_PAGE, &selected(&s, &token)).and_then(|bytes| release_mirrors(&bytes)) {
+                    Ok(found) => found,
                     Err(e) if e.code == "cancelled" => return Err(e),
                     Err(_) => {
                         host::log_info(b"wnacg mirror_discovery_unavailable");
@@ -257,6 +271,14 @@ impl Context {
             tag: old,
             token,
         })
+    }
+    pub fn accepts_host(&self, host: &str, saved: bool) -> bool {
+        let host = host.strip_prefix("www.").unwrap_or(host);
+        let matches = |raw: &str| Url::parse(raw).ok().is_some_and(|url| {
+            url.host_str().is_some_and(|candidate| candidate.strip_prefix("www.").unwrap_or(candidate) == host)
+        });
+        mirrors(&self.s).iter().any(|url| matches(url)) ||
+            (saved && DEFAULTS.iter().any(|url| matches(url)))
     }
     pub fn moved_image_uri(&self, raw: &str) -> R<String> {
         let Some(old) = self.s["launchOldBase"].as_str() else {

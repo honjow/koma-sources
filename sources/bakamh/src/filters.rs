@@ -84,13 +84,7 @@ pub(crate) fn sort(form: &mut Form, key: &str) {
         .append_pair("vars[order]", "DESC");
 }
 
-pub(crate) fn search(form: &mut Form, args: &Value) -> Result<()> {
-    if let Some(query) = args["query"]
-        .as_str()
-        .filter(|query| !query.trim().is_empty())
-    {
-        form.append_pair("vars[s]", query);
-    }
+pub(crate) fn search(form: &mut Form, args: &Value, by_alt_name: bool) -> Result<()> {
     let mut tax = 0;
     for (id, _, taxonomy) in TEXT {
         let Some(value) = args["filters"].get(id) else {
@@ -173,9 +167,23 @@ pub(crate) fn search(form: &mut Form, args: &Value) -> Result<()> {
             .collect::<Result<Vec<_>>>()?;
         if !genres.is_empty() {
             if port::filter(args, "genreCondition", GENRE_CONDITION)? == "1" {
-                form.append_pair(&format!("vars[tax_query][{tax}][operation]"), "AND");
+                form.append_pair(&format!("vars[tax_query][{tax}][operator]"), "AND");
             }
             add_genres(form, tax, genres.into_iter());
+        }
+    }
+    if let Some(query) = args["query"]
+        .as_str()
+        .filter(|query| !query.trim().is_empty())
+    {
+        // Both routes keep every filter. A named metadata slot avoids colliding
+        // with status/adult numeric slots and the rating clauses.
+        if by_alt_name {
+            form.append_pair("vars[meta_query][alternative][key]", "_wp_manga_alternative")
+                .append_pair("vars[meta_query][alternative][value]", query)
+                .append_pair("vars[meta_query][alternative][compare]", "LIKE");
+        } else {
+            form.append_pair("vars[s]", query);
         }
     }
     Ok(())

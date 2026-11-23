@@ -18,26 +18,34 @@
       "samePageOrder": true
     }
   },
-  "homepage": "https://www.wnacg.buzz",
+  "homepage": "https://www.pagewn.shop",
   "chapterOrder": "newest_first",
   "authentication": {
     "kind": "web",
-    "loginUrl": "https://www.wnacg.buzz/users-login.html",
-    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0"
+    "loginUrl": "https://www.pagewn.shop/users-login.html"
   },
   "requestLimits": [
     {
       "group": "mirrors",
       "permits": 50,
       "periodMs": 60000,
-      "firstLabels": [
-        {
-          "prefix": "wnacg"
-        },
-        {
-          "prefix": "wn",
-          "decimalSuffix": true
-        }
+      "hosts": [
+        "www.pagewn.shop",
+        "pagewn.shop",
+        "www.wncomic.shop",
+        "wncomic.shop",
+        "www.cloudwn.shop",
+        "cloudwn.shop",
+        "www.wnmanga.shop",
+        "wnmanga.shop",
+        "www.wnacg.buzz",
+        "wnacg.buzz",
+        "www.wnacg.site",
+        "wnacg.site",
+        "www.wn01.cfd",
+        "wn01.cfd",
+        "www.wnacg.com",
+        "wnacg.com"
       ],
       "oncePerRequest": true
     }
@@ -48,14 +56,71 @@
       "options": [
         {
           "value": "0",
+          "url": "https://www.pagewn.shop"
+        },
+        {
+          "value": "u:https://www.pagewn.shop",
+          "url": "https://www.pagewn.shop"
+        },
+        {
+          "value": "u:https://www.wncomic.shop",
+          "url": "https://www.wncomic.shop"
+        },
+        {
+          "value": "r:https://www.wncomic.shop",
+          "url": "https://www.wncomic.shop"
+        },
+        {
+          "value": "u:https://www.cloudwn.shop",
+          "url": "https://www.cloudwn.shop"
+        },
+        {
+          "value": "r:https://www.cloudwn.shop",
+          "url": "https://www.cloudwn.shop"
+        },
+        {
+          "value": "u:https://www.wnmanga.shop",
+          "url": "https://www.wnmanga.shop"
+        },
+        {
+          "value": "r:https://www.wnmanga.shop",
+          "url": "https://www.wnmanga.shop"
+        },
+        {
+          "value": "u:https://www.wnacg.buzz",
+          "url": "https://www.wnacg.buzz"
+        },
+        {
+          "value": "r:https://www.wnacg.buzz",
           "url": "https://www.wnacg.buzz"
         },
         {
           "value": "u:https://www.wnacg.site",
           "url": "https://www.wnacg.site"
+        },
+        {
+          "value": "r:https://www.wnacg.site",
+          "url": "https://www.wnacg.site"
+        },
+        {
+          "value": "u:https://www.wn01.cfd",
+          "url": "https://www.wn01.cfd"
+        },
+        {
+          "value": "r:https://www.wn01.cfd",
+          "url": "https://www.wn01.cfd"
+        },
+        {
+          "value": "u:https://www.wnacg.com",
+          "url": "https://www.wnacg.com"
+        },
+        {
+          "value": "r:https://www.wnacg.com",
+          "url": "https://www.wnacg.com"
         }
       ]
-    }
+    },
+    "webSessionAndroidAgent": true
   },
   "wasmBuild": {
     "optimizeForSize": true,

@@ -1,7 +1,7 @@
 #![no_std]
 extern crate alloc;
 // Independent complete anonymous WNACG port, Apache-2.0. Fixed Keiyoushi
-// de743aed846da53e00c45ab26ee0e77f7bb4355b; see NOTICE and README for adaptations.
+// 582615a352e38380378cb3f3c3001b0fa7897fe9; see NOTICE and README for adaptations.
 use alloc::{
     collections::BTreeSet,
     format,
@@ -23,9 +23,22 @@ mod session;
 use session::Context;
 #[global_allocator]
 static ALLOCATOR: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
-const DEFAULTS: [&str; 2] = ["https://www.wnacg.buzz", "https://www.wnacg.site"];
-const DOMAIN_LIST: &str = "https://stevenyomi.github.io/source-domains/wnacg.txt";
-const UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0";
+const DEFAULTS: [&str; 6] = [
+    "https://www.cloudwn.shop", "https://www.wnmanga.shop",
+    "https://www.wnacg.buzz", "https://www.wnacg.site",
+    "https://www.wn01.cfd", "https://www.wnacg.com",
+];
+const RELEASE_PAGE: &str = "https://wnacglink.com/";
+const UNLISTED_MIRRORS: [&str; 2] = ["https://www.wn01.cfd", "https://www.wnacg.com"];
+// Ordinary document/image identity only. Login and CF use the system WebView UA.
+// Match WNACG.configureHeaders, deriving Chrome from our shared ordinary UA.
+fn user_agent() -> String {
+    let ua = core::str::from_utf8(koma_source_sdk::image_headers::DEFAULT_HTTP_USER_AGENT).unwrap_or("");
+    let version = ua.split_once("Chrome/")
+        .map(|(_, tail)| tail.split(|c: char| !c.is_ascii_digit()).next().unwrap_or(""))
+        .filter(|major| !major.is_empty()).unwrap_or("156");
+    format!("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{version}.0.0.0 Safari/537.36")
+}
 const THUMBNAIL_PATH: &str = r"(?i)^/data/t/\d+/\d{2}/[a-z0-9_-]+\.(?:jpe?g|png|webp|gif)$";
 const LOGIN_HINT: &str = "内容不存在或需要登录，请在原网页登录后重试。";
 const SOURCE_INFO: SourceInfo = SourceInfo {
@@ -95,7 +108,7 @@ fn http(url: &str, base: &str) -> R<Vec<u8>> {
     if host::check_cancel() {
         return Err("cancelled".into());
     }
-    let b=serde_json::to_vec(&json!({"url":url,"method":"GET","headers":{"User-Agent":UA,"Referer":format!("{}/",base)}})).map_err(|_|E::from("request_too_large"))?;
+    let b=serde_json::to_vec(&json!({"url":url,"method":"GET","headers":{"User-Agent":user_agent(),"Referer":format!("{}/",base)}})).map_err(|_|E::from("request_too_large"))?;
     let n = host::http_request(&b, http_out()).map_err(|_| E::from("network_error"))?;
     let n = protocol::body(&http_out()[..n], body_buf()).map_err(E::from)?;
     Ok(body_buf()[..n].to_vec())
@@ -143,16 +156,14 @@ fn chapter_id(v: &Value) -> R<(String, String)> {
 fn work_path(aid: &str) -> String {
     format!("/photos-index-aid-{}.html", aid)
 }
-fn url_aid(raw: &str, base: &str) -> R<String> {
-    let b = Url::parse(base).map_err(|_| E::from("invalid_request"))?;
+fn url_aid(raw: &str, cx: &Context, saved: bool) -> R<String> {
+    let b = Url::parse(&cx.base).map_err(|_| E::from("invalid_request"))?;
     let u = b.join(raw).map_err(|_| E::from("invalid_request"))?;
     if !matches!(u.scheme(), "https" | "http") || !u.username().is_empty() || u.password().is_some()
     {
         return Err("invalid_request".into());
     }
-    if u.host_str() != b.host_str()
-        && !rx(r"^(?:www\.)?wn(?:acg\w*|\d+)\.")?.is_match(u.host_str().unwrap_or(""))
-    {
+    if !cx.accepts_host(u.host_str().unwrap_or(""), saved) {
         return Err("invalid_request".into());
     }
     let p = rx(
@@ -190,7 +201,7 @@ fn thumbnail_url_allowed(url: &Url, path: &Regex) -> bool {
 }
 
 fn thumbnail_headers(base: &str) -> Value {
-    json!({"User-Agent":UA,"Referer":format!("{}/",base)})
+    json!({"User-Agent":user_agent(),"Referer":format!("{}/",base)})
 }
 
 fn thumbnail_path_for_host(r: &[u8]) -> R<Option<Regex>> {
@@ -213,11 +224,12 @@ fn cover(raw: &str, base: &str, public_path: Option<&Regex>) -> R<Value> {
     Ok(cover)
 }
 
-fn card(n: &Node, base: &str, public_path: Option<&Regex>) -> R<Value> {
+fn card(n: &Node, cx: &Context, public_path: Option<&Regex>) -> R<Value> {
+    let base = &cx.base;
     let a = n.required(".title > a")?;
     let aid = url_aid(
         &a.attr("href")?.ok_or_else(|| E::from("parse_error"))?,
-        base,
+        cx, false,
     )
     .map_err(|_| E::from("parse_error"))?;
     let title = a.text()?;
@@ -400,14 +412,12 @@ fn list(r: &[u8], v: &Value, search: bool) -> R<Value> {
     let mut page = page_number(v)?; // Validate inputs before private RPC or networking.
     let _ = list_url(DEFAULTS[0], v, search, page)?;
     let query = v["args"]["query"].as_str().unwrap_or("");
-    let imported =
-        if search && Url::parse(query).is_ok_and(|u| matches!(u.scheme(), "http" | "https")) {
-            let current = Context::metadata(v)?;
-            Some(url_aid(query, &current.base)?)
-        } else {
-            None
-        };
+    let imported = search && Url::parse(query).is_ok_and(|u| matches!(u.scheme(), "http" | "https"));
+    // Discover before resolving a pasted link: a release-page mirror may not be
+    // in the package's fallback list. The effective mirror set grants identity,
+    // never the old broad wn* hostname regex.
     let mut cx = Context::network(r, v)?;
+    let imported = if imported { Some(url_aid(query, &cx, false)?) } else { None };
     let public_path = thumbnail_path_for_host(r)?;
     if let Some(aid) = imported {
         let manga = detail_for(&cx, &aid, public_path.as_ref())?;
@@ -439,7 +449,7 @@ fn list(r: &[u8], v: &Value, search: bool) -> R<Value> {
         }
         let mut items = Vec::new();
         for node in &nodes {
-            let card = card(node, &cx.base, public_path.as_ref())?;
+            let card = card(node, &cx, public_path.as_ref())?;
             let title = card["title"]
                 .as_str()
                 .ok_or_else(|| E::from("parse_error"))?;
@@ -697,7 +707,7 @@ fn image_request(r: &[u8], v: &Value) -> R<Value> {
         let cx = Context::metadata(v)?;
         if let Some(route) = v["args"].get("mangaUrl") {
             let route = route.as_str().ok_or_else(|| E::from("invalid_request"))?;
-            if url_aid(route, &cx.base)? != aid {
+            if url_aid(route, &cx, true)? != aid {
                 return Err("invalid_request".into());
             }
         }
@@ -733,13 +743,10 @@ fn image_request(r: &[u8], v: &Value) -> R<Value> {
     uri_owner(u, fields[1], &rx(r"^/data/(\d+)/(\d{2})/")?)?;
     if let Some(route) = v["args"].get("mangaUrl") {
         let route = route.as_str().ok_or_else(|| E::from("invalid_request"))?;
-        let owner = match url_aid(route, DEFAULTS[0]) {
-            Ok(owner) => owner,
-            Err(_) => {
-                let metadata = Context::metadata(v)?;
-                url_aid(route, &metadata.base)?
-            }
-        };
+        let metadata = Context::metadata(v)?;
+        // Saved works keep their original identity when a formerly shipped
+        // mirror disappears. This does not authorize URL imports or cookies.
+        let owner = url_aid(route, &metadata, true)?;
         if owner != fields[0] {
             return Err("invalid_request".into());
         }
@@ -749,7 +756,7 @@ fn image_request(r: &[u8], v: &Value) -> R<Value> {
     // do not restrict per-launch discovery to catalogue/API operations.
     let cx = Context::network(r, v)?;
     let moved = cx.moved_image_uri(u)?;
-    Ok(json!({"url":moved,"headers":{"User-Agent":UA,"Referer":format!("{}/",cx.base)}}))
+    Ok(json!({"url":moved,"headers":{"User-Agent":user_agent(),"Referer":format!("{}/",cx.base)}}))
 }
 const CATEGORIES: [(&str, &str); 21] = [
     ("", ""),
@@ -825,7 +832,7 @@ fn settings(r: &[u8], v: &Value) -> R<Value> {
 fn authentication(v: &Value) -> R<Value> {
     let cx = Context::metadata(v)?;
     Ok(
-        json!({"authentication":{"kind":"web","loginUrl":format!("{}/users-login.html",cx.base),"userAgent":UA},"authenticated":false}),
+        json!({"authentication":{"kind":"web","loginUrl":format!("{}/users-login.html",cx.base)},"authenticated":false}),
     )
 }
 fn dispatch(op: &str, r: &[u8]) -> R<Value> {

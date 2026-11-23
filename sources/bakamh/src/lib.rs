@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Behavior ported from Keiyoushi's Bakamh and Madara at 8947c37.
+// Behavior ported from Keiyoushi Bakamh 8947c37; Madara search/alt-title synced at 8f5540b.
 #![no_std]
 extern crate alloc;
 
@@ -418,9 +418,51 @@ fn parse_archive(html: &str, request: &[u8]) -> Result<Vec<Value>> {
     Ok(rows)
 }
 
-fn browse(args: &Value, request: &[u8], search: bool) -> Result<Value> {
+fn archive_page(
+    args: &Value,
+    request: &[u8],
+    search: bool,
+    page: usize,
+    by_alt_name: bool,
+) -> Result<Vec<Value>> {
+    let mut form = filters::archive_form(page - 1);
+    form.append_pair("vars[paged]", "1")
+        .append_pair("vars[meta_query][0][key]", "_wp_manga_chapter_type")
+        .append_pair("vars[meta_query][0][value]", "manga");
     if search {
-        let query = args["query"].as_str().unwrap_or("");
+        filters::search(&mut form, args, by_alt_name)?;
+    } else {
+        match args["listingId"].as_str() {
+            Some("popular") => filters::sort(&mut form, "_wp_manga_views"),
+            Some("latest") => filters::sort(&mut form, "_latest_update"),
+            _ => return Err("invalid_request"),
+        }
+    }
+    let html = post(form, &format!("{BASE}/"), request)?;
+    // A successful HTTP completion can race with cancellation. Do not turn that
+    // cancelled search into a successful title/alternative result.
+    if koma_source_sdk::host::check_cancel() { return Err("cancelled"); }
+    parse_archive(&html, request)
+}
+
+fn merge_search_pages(title: Vec<Value>, alternate: Vec<Value>, page: usize) -> Result<Value> {
+    // Count each raw route before distinctBy(SManga::url). Even the same 25
+    // works in both routes must retain the next page.
+    let has_more = title.len() == PAGE_SIZE || alternate.len() == PAGE_SIZE;
+    let mut seen = BTreeSet::new();
+    let mut rows = Vec::new();
+    for manga in title.into_iter().chain(alternate) {
+        let id = manga["id"].as_str().ok_or("parse_error")?;
+        if seen.insert(id.to_string()) {
+            rows.push(manga);
+        }
+    }
+    Ok(port::items(rows, if has_more { page.checked_add(1) } else { None }))
+}
+
+fn browse(args: &Value, request: &[u8], search: bool) -> Result<Value> {
+    let query = args["query"].as_str().unwrap_or("");
+    if search {
         if let Ok(url) = Url::parse(query.trim()) {
             if matches!(url.scheme(), "https" | "http") {
                 let series = series_for_url(url, request)?;
@@ -429,25 +471,14 @@ fn browse(args: &Value, request: &[u8], search: bool) -> Result<Value> {
         }
     }
     let page = request_page_number(request);
-    let mut form = filters::archive_form(page - 1);
-    form.append_pair("vars[paged]", "1")
-        .append_pair("vars[meta_query][0][key]", "_wp_manga_chapter_type")
-        .append_pair("vars[meta_query][0][value]", "manga");
-    if search {
-        filters::search(&mut form, args)?;
-    } else {
-        match args["listingId"].as_str() {
-            Some("popular") => filters::sort(&mut form, "_wp_manga_views"),
-            Some("latest") => filters::sort(&mut form, "_latest_update"),
-            _ => return Err("invalid_request"),
-        }
+    let rows = archive_page(args, request, search, page, false)?;
+    if search && !query.trim().is_empty() {
+        // Synchronous HTTP retains upstream's all-or-fail contract. Never
+        // return the title route if the alternative route fails or is cancelled.
+        let alternate = archive_page(args, request, true, page, true)?;
+        return merge_search_pages(rows, alternate, page);
     }
-    let rows = parse_archive(&post(form, &format!("{BASE}/"), request)?, request)?;
-    let next = if rows.len() == PAGE_SIZE {
-        page.checked_add(1)
-    } else {
-        None
-    };
+    let next = if rows.len() == PAGE_SIZE { page.checked_add(1) } else { None };
     Ok(port::items(rows, next))
 }
 
@@ -678,7 +709,7 @@ fn details(series: &Series, related: bool, request: &[u8]) -> Result<Value> {
             if !value.is_empty() {
                 if label.contains("type") {
                     tags.push(value);
-                } else if label.contains("alt") && !updating(&value) {
+                } else if label.contains("alt") && value != title && !updating(&value) {
                     alternate = Some(value);
                 }
             }
