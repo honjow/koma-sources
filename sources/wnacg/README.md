@@ -2,7 +2,7 @@
 
 ## 0.1.11 上游备用域名同步
 
-固定 Keiyoushi `582615a352e38380378cb3f3c3001b0fa7897fe9` 的 WNACG v9，行为更新来自 `2137e8222cfc5163e5296a9e78ae7f480fecf78d`。`session::release_mirrors` 读取官网 `https://wnacglink.com/` 的 `window.__INITIAL_CONFIG__.sites[].url`，保留原顺序，追加官网遗漏的 wn01.cfd 与 wnacg.com；不执行 JavaScript。`Context::network` 仍每宿主进程发现一次，解析/网络失败保留上次有效镜像，取消不提交。内置六域与上游一致；URL令牌选择及默认首项迁移沿原逻辑。
+固定 Keiyoushi `582615a352e38380378cb3f3c3001b0fa7897fe9` 的 WNACG v9，行为更新来自 `2137e8222cfc5163e5296a9e78ae7f480fecf78d`。`session::release_mirrors` 读取官网 `https://wnacglink.com/` 的 `window.__INITIAL_CONFIG__.sites[].url`，保留原顺序，追加官网遗漏的 wn01.cfd 与 wnacg.com；不执行 JavaScript。`Context::network` 仍每宿主进程发现一次，解析/网络失败保留上次有效镜像，取消不提交。保留上游六个后备域，并把官网当前已确认的 pagewn.shop、wncomic.shop 放在其前，避免发现失败时与包默认入口不一致；这些随包域名也用于历史图片网址的身份兼容。URL令牌选择及默认首项迁移沿原逻辑。
 
 `url_aid` 对新导入网址按当前实际镜像集合匹配主机（忽略 www 前缀），移除宽泛 wn* 正则。历史作品/缓存图片的所有者检查额外接受已随包发布的旧镜像，保留原作品、章节与页身份，不授予 Cookie。实际图片 CDN 不改写为页面镜像。
 

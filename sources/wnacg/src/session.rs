@@ -1,5 +1,5 @@
 use super::*;
-const HARDCODED: &str = "https://www.cloudwn.shop,https://www.wnmanga.shop,https://www.wnacg.buzz,https://www.wnacg.site,https://www.wn01.cfd,https://www.wnacg.com";
+const HARDCODED: &str = "https://www.pagewn.shop,https://www.wncomic.shop,https://www.cloudwn.shop,https://www.wnmanga.shop,https://www.wnacg.buzz,https://www.wnacg.site,https://www.wn01.cfd,https://www.wnacg.com";
 
 // Parse data, never execute the site's script. An invalid/failed discovery leaves
 // the last mirror snapshot intact for this process, as BaseUrlFetchInterceptor does.

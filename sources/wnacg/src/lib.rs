@@ -23,7 +23,10 @@ mod session;
 use session::Context;
 #[global_allocator]
 static ALLOCATOR: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
-const DEFAULTS: [&str; 6] = [
+const DEFAULTS: [&str; 8] = [
+    // Include the two currently published entrances before the six upstream fallbacks.
+    // The first fallback must match the package default even when discovery fails.
+    "https://www.pagewn.shop", "https://www.wncomic.shop",
     "https://www.cloudwn.shop", "https://www.wnmanga.shop",
     "https://www.wnacg.buzz", "https://www.wnacg.site",
     "https://www.wn01.cfd", "https://www.wnacg.com",
