@@ -6,6 +6,10 @@ Sources are compiled to WebAssembly (`wasm32-unknown-unknown`, `#![no_std]`) and
 
 ## 站点规则归书源包
 
+`SOURCE_INFO.description` 与本地化的 `source.description` 面向选源用户，简洁说明站点的内容特点、实际收录范围，以及确实影响使用的登录、付费、地区或图片额度限制。优先写一两句有依据的信息，不能只重复源名或“支持目录、搜索、阅读”，也不能用 HTML/JSON/API、上游 SAFE、使用情况未知等开发或审计用语充当简介。没有核实的题材、规模、免费范围和可用性不作承诺；调查状态留在开发记录。
+
+同一版本的零参 `source_info` 保持固定基准文案，多语言资料从同一文案目录投影。保留旧宿主能读取的固定简介。改动后实际执行最终 WASM 的 `source_info`，核对描述、源 ID 与版本，不能只改未被真实导出使用的常量；源目录 README 的用户备注同步更新。纯文案修订不改变访问权限、账号身份、解析、功能和图标。
+
 域名、镜像、请求额度、站点Cookie形状、历史章节ID和站点兼容参数写在源实现或本源的 `metadata.json`。宿主对已安装包通用执行，禁止在App按源名、包名、域名或包版本加白名单、黑名单及特例。需要宿主执行的站点参数使用 [Koma源运行时ABI](https://github.com/honjow/Koma/blob/master/docs/source-runtime-abi.md#站点规则声明) 的 `requestLimits` 和 `websitePolicy`。声明不授予登录、账号或跨域会话权限。
 
 镜像设置是站点选择，不只是API基址。提供镜像选择的源必须在 `websitePolicy.homepageChoices` 中为同一设置声明每个取值对应的可浏览主页，并让当前镜像同时决定API、公开封面、图片CDN、阅读页和普通WebView入口。任何仍回落到默认域的公开资源都视为镜像未完成；宿主会按该声明打开右上角WebView，未声明时只能回退包默认主页。验证必须在直连网络下分别选择默认站与镜像：WebView应落到所选站点，列表和详情封面应来自所选镜像自己的资源域并完整解码。
