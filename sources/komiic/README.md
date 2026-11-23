@@ -1,4 +1,4 @@
-# Komiic 0.1.19
+# Komiic 0.1.25
 
 源 ID `com.komiic.koma`，语言及 NSFW 标记保持；crate、runtime 与 package 版本对齐。普通网站为 `https://komiic.com/`，不把 API 地址冒作网页入口，也不由网页元数据授予验证或登录权限。源图标使用官网 PWA 标志及其原蓝色背景，素材依据见 [ASSET_SOURCES.md](ASSET_SOURCES.md)。
 
@@ -109,12 +109,14 @@ provider数组顺序和chapter/book版本分组，以完整原数组位置作rea
 真实30条热门列表API原件用于新旧WASM回放。197在同一App1.6.1/code27普通导入0.1.24后，实际题材、作者/状态保留及标题上/摘要下排布已验；原grid/最近更新偏好已恢复。该可选增强不要求旧宿主升级才能继续浏览。
 
 
-## 可选界面文案多语言（实施中）
+## 0.1.25 可选界面文案多语言（验收中）
 
 设置、选项、浏览栏目和筛选的既有显示字段共用 metadata.json 中的 localization 目录，
 由源 SDK Catalog 生成原字符串。提供繁中、简中和英文；作者默认回退语言为 zh-Hant。
 宿主没有语言环境或译文缺失时，先使用默认语言，再退原文字。网站返回的作品、题材
 和评论原文不自动翻译；CHAPTER_FILTER、preferredMirror 的键值、默认值和实际请求保持。
+筛选提示使用固定 header ID，避免宿主因提示文字语言变化而生成不同标识；
+交互筛选的原 ID、option value、scope、顺序及默认值保持。
 
 同一目录经标准打包生成静态 presentation 名称、源描述及原生认证显示标签；原认证声明
 不改，翻译不能参与 Cookie/账号身份比较。新语言环境按 source_localization_v1 协商，
