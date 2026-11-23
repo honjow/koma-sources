@@ -64,7 +64,7 @@ fn schema(req:&[u8],response:Option<&[u8]>)->Result<usize,()> {
     let enabled=feature(req,b"source_filter_scope_header_v1") && feature(req,b"source_filter_fetching_v1");
     if !enabled {let out=super::payload_buf();out[..14].copy_from_slice(b"{\"filters\":[]}");return Ok(14)}
     let out=super::payload_buf();let mut n=0;
-    if !write_bytes(out,&mut n,"{\"supportsFilterFetching\":true,\"filters\":[{\"type\":\"header\",\"name\":\"篩選條件（搜索關鍵字時無效）\",\"scope\":\"browse\"},{\"id\":\"categories\",\"name\":\"類型（同時包含全部所選類型）\",\"type\":\"multiselect\",\"scope\":\"browse\"".as_bytes()){return Err(())}
+    if !write_bytes(out,&mut n,"{\"supportsFilterFetching\":true,\"filters\":[{\"id\":\"header\",\"type\":\"header\",\"name\":\"篩選條件（搜索關鍵字時無效）\",\"scope\":\"browse\"},{\"id\":\"categories\",\"name\":\"類型（同時包含全部所選類型）\",\"type\":\"multiselect\",\"scope\":\"browse\"".as_bytes()){return Err(())}
     if let Some(response)=response {
         let data=json_object_member(response,b"data").ok_or(())?;let raw=json_object_member(data,b"allCategory").ok_or(())?;let expected=strict_json::object_count(raw).ok_or(())?;
         if expected>512{return Err(())}let mut iter=JsonArrayIter::from_raw_array(raw).ok_or(())?;let mut count=0usize;
