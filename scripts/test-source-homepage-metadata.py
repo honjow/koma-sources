@@ -19,10 +19,69 @@ class HomepageMetadataTest(unittest.TestCase):
         self.assertEqual(metadata.extract({}), {})
         self.assertEqual(metadata.extract({'localizedNames': {}}), {'localizedNames': {}})
         names = {'zh-Hans': '漫画', 'zh-Hant': '漫畫', 'en': 'Comic'}
-        self.assertEqual(metadata.extract({'localizedNames': names}), {'localizedNames': names})
+        # The reviewed localization contract adapts legacy names without inventing a default locale.
+        self.assertEqual(metadata.extract({'localizedNames': names}), {'localizedNames': names,
+            'presentation': {'version': 1, 'texts': {'name': names}}})
         for invalid in [None, [], {'en': ' padded '}, {'en': 'X', 'EN': 'Y'}, {'bad tag': 'X'}]:
             with self.subTest(names=invalid), self.assertRaises(ValueError):
                 metadata.extract({'localizedNames': invalid})
+
+    def test_localization_projects_one_catalog_without_auth_or_identity_mutation(self):
+        raw = json.loads((ROOT / 'sources/komiic/metadata.json').read_text())
+        projected = metadata.extract(raw)
+        catalog = raw['localization']
+        resources = projected['presentation']
+        self.assertEqual(resources['defaultLocale'], catalog['defaultLocale'])
+        self.assertEqual(projected['localizedNames'], catalog['messages']['source.name'])
+        self.assertEqual(resources['texts']['name'], projected['localizedNames'])
+        self.assertEqual(resources['texts']['description'], catalog['messages']['source.description'])
+        for role in ['authentication.usernameLabel', 'authentication.passwordLabel']:
+            self.assertEqual(resources['texts'][role], catalog['messages'][role])
+        self.assertEqual(projected['authentication'], raw['authentication'])
+        self.assertNotIn('localization', projected)
+        self.assertEqual(set(resources['texts']), {'name', 'description',
+            'authentication.usernameLabel', 'authentication.passwordLabel'})
+        no_auth = metadata.extract({'localization': catalog})
+        self.assertNotIn('authentication', no_auth)
+        self.assertEqual(set(no_auth['presentation']['texts']), {'name', 'description'})
+        # Run the real production manifest AND index expressions, not a test copy.
+        expressions = [line.strip().removesuffix(' \\').strip("'")
+                       for line in (ROOT / 'build.sh').read_text().splitlines()
+                       if line.strip().startswith("'{id: $id")]
+        for expression in expressions:
+            command = ['jq', '-n']
+            for name in ['id', 'name', 'version', 'lang', 'author', 'description',
+                         'contentRating', 'minAppVersion', 'icon', 'pkg', 'sha256']:
+                command += ['--arg', name, '' if name == 'description' else 'canonical']
+            command += ['--argjson', 'nsfw', 'false', '--argjson', 'sourceMetadata', json.dumps(projected),
+                        '--argjson', 'webSessionOrigins', '[]', '--argjson', 'distribution', '{}', expression]
+            actual = json.loads(subprocess.check_output(command, text=True))
+            self.assertEqual(actual['name'], 'canonical')
+            self.assertEqual(actual['description'], '')
+            self.assertEqual(actual['presentation'], resources)
+            self.assertEqual(actual['localizedNames'], projected['localizedNames'])
+            self.assertNotIn('localization', actual)
+
+    def test_localization_optional_failures_and_legacy_conflicts(self):
+        catalog = {'version': 1, 'defaultLocale': 'zh-Hant', 'messages': {
+            'source.name': {'zh-Hant': '漫畫', 'en': 'Comics', 'bad tag': 'skip'},
+            'source.description': {'zh-Hant': '第一行\n第二行', 'en': '\ud800'},
+            'authentication.usernameLabel': {'en': 'User'}}}
+        actual = metadata.extract({'localization': catalog})
+        self.assertEqual(actual['localizedNames'], {'zh-Hant': '漫畫', 'en': 'Comics'})
+        self.assertEqual(actual['presentation']['texts']['description'], {'zh-Hant': '第一行\n第二行'})
+        self.assertNotIn('authentication.usernameLabel', actual['presentation']['texts'])
+        with self.assertRaisesRegex(ValueError, 'conflicts'):
+            metadata.extract({'localization': catalog, 'localizedNames': {'EN': 'Other'}})
+        for value in [None, {'version': 2, 'messages': catalog['messages']}]:
+            self.assertEqual(metadata.extract({'localization': value}), {})
+        duplicate = json.loads('{"localization":{"version":1,"messages":{"source.name":{"en":"A","EN":"B"}}}}',
+                               object_pairs_hook=metadata.MetadataObject)
+        self.assertEqual(metadata.extract(duplicate), {})
+        # Raw count is bounded before duplicates collapse in json.loads.
+        over = json.loads('{"localization":{"version":1,"messages":{"source.name":{' +
+                          ','.join(['"en":"A"'] * 17) + '}}}}', object_pairs_hook=metadata.MetadataObject)
+        self.assertEqual(metadata.extract(over), {})
 
     def test_safe_navigation_urls_remain_exact_and_do_not_require_names(self):
         for value in ['https://example.org/', 'http://localhost:8080/path',

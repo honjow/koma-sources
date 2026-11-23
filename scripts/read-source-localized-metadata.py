@@ -28,6 +28,103 @@ def valid_unicode(value):
         return False
 
 
+class MetadataObject(dict):
+    """Keep raw member counts for optional catalogs before canonical deduplication."""
+    def __init__(self, pairs):
+        super().__init__(pairs)
+        self.pairs = pairs
+
+
+def raw_entries(value):
+    return value.pairs if isinstance(value, MetadataObject) else list(value.items())
+
+
+def locale_tag(value):
+    if (not isinstance(value, str) or len(value) > 63
+            or not TAG.fullmatch(value) or CONTROL.search(value)):
+        return None
+    return value.lower()
+
+
+def localized_texts(value, limit=None):
+    # Optional translations are individually disposable; the original strict
+    # localizedNames contract below is intentionally not weakened.
+    if not isinstance(value, dict) or len(raw_entries(value)) > 16:
+        return {}
+    seen = set()
+    duplicated = set()
+    texts = {}
+    for tag, text in raw_entries(value):
+        normalized = locale_tag(tag)
+        if normalized is None:
+            continue
+        if normalized in seen:
+            duplicated.add(normalized)
+            texts = {key: value for key, value in texts.items() if key.lower() != normalized}
+            continue
+        seen.add(normalized)
+        if (not isinstance(text, str) or not text.strip(TRIM) or not valid_unicode(text)
+                or (limit is not None and (text != text.strip(TRIM) or CONTROL.search(text) or utf16_length(text) > limit))
+                or (limit is None and re.search(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", text))):
+            continue
+        texts[tag] = text
+    return {} if duplicated else texts
+
+
+def optional_member(value, key):
+    if not isinstance(value, dict) or sum(name == key for name, _ in raw_entries(value)) != 1:
+        return None
+    return value.get(key)
+
+
+def project_localization(metadata, result):
+    # These are existing display roles only. Messages never create an auth
+    # descriptor, new controls, permissions, or operation targets.
+    if sum(name == "localization" for name, _ in raw_entries(metadata)) > 1:
+        raise ValueError("duplicate localization catalog")
+    catalog = optional_member(metadata, "localization")
+    presentation = {"version": 1, "texts": {}}
+    if (isinstance(catalog, dict) and type(optional_member(catalog, "version")) is int
+            and optional_member(catalog, "version") == 1 and isinstance(optional_member(catalog, "messages"), dict)):
+        default = optional_member(catalog, "defaultLocale")
+        if locale_tag(default) is not None:
+            presentation["defaultLocale"] = default
+        messages = catalog["messages"]
+        roles = {"source.name": ("name", 128), "source.description": ("description", None)}
+        if result.get("authentication", {}).get("kind") == "credentials":
+            for role in ("authentication.usernameLabel", "authentication.passwordLabel"):
+                roles[role] = (role, 128)
+        for key, (role, limit) in roles.items():
+            # Repeated JSON message keys are not selected by order.
+            if sum(name == key for name, _ in raw_entries(messages)) != 1:
+                continue
+            texts = localized_texts(messages.get(key), limit)
+            if texts:
+                presentation["texts"][role] = texts
+    names = result.get("localizedNames")
+    projected_names = presentation["texts"].get("name")
+    if names is not None and projected_names is not None:
+        merged = dict(names)
+        old = {tag.lower(): (tag, text) for tag, text in names.items()}
+        for tag, text in projected_names.items():
+            if tag.lower() in old:
+                if old[tag.lower()][1] != text:
+                    raise ValueError("localization source.name conflicts with localizedNames")
+            else:
+                merged[tag] = text
+        if len(merged) > 16:
+            raise ValueError("localizedNames projection exceeds 16 entries")
+        names = merged
+    elif projected_names is not None:
+        names = projected_names
+    if names is not None:
+        result["localizedNames"] = dict(names)
+        if names:
+            presentation["texts"]["name"] = dict(names)
+    if presentation["texts"]:
+        result["presentation"] = presentation
+
+
 def navigation_homepage(value):
     if (not isinstance(value, str) or not value or not valid_unicode(value)
             or any(char.isspace() for char in value) or CONTROL.search(value)
@@ -262,12 +359,13 @@ def extract(metadata, web_origins=None):
     if "homepage" in metadata:
         result["homepage"] = navigation_homepage(metadata["homepage"])
     if "localizedNames" not in metadata:
+        project_localization(metadata, result)
         return result
     names = metadata["localizedNames"]
-    if not isinstance(names, dict) or len(names) > 16:
+    if not isinstance(names, dict) or len(raw_entries(names)) > 16:
         raise ValueError("invalid localizedNames: expected object with at most 16 entries")
     seen = set()
-    for tag, name in names.items():
+    for tag, name in raw_entries(names):
         if (len(tag) > 63 or CONTROL.search(tag) or not TAG.fullmatch(tag)
                 or tag.lower() in seen or not isinstance(name, str)):
             raise ValueError("invalid localizedNames language tag or value")
@@ -276,12 +374,13 @@ def extract(metadata, web_origins=None):
             raise ValueError("invalid localizedNames display name")
         seen.add(tag.lower())
     result["localizedNames"] = names
+    project_localization(metadata, result)
     return result
 
 
 def main():
     path = Path(sys.argv[1])
-    metadata = json.loads(path.read_text()) if path.exists() else {}
+    metadata = json.loads(path.read_text(), object_pairs_hook=MetadataObject) if path.exists() else {}
     origin_file = path.parent / "web-session-origins.json"
     web_origins = json.loads(origin_file.read_text()) if origin_file.exists() else metadata.get("webSessionOrigins", [])
     projected = extract(metadata, web_origins)

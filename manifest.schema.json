@@ -100,6 +100,28 @@
         "publicWorkUrlDomains": { "type": "array" }
       }
     },
+    "presentation": {
+      "type": "object",
+      "description": "Optional static display projection of the source localization catalog. Grants no UI or authentication capability.",
+      "required": ["version", "texts"],
+      "additionalProperties": false,
+      "properties": {
+        "version": { "const": 1 },
+        "defaultLocale": {
+          "type": "string", "maxLength": 63,
+          "pattern": "^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8}){0,5}$"
+        },
+        "texts": {
+          "type": "object",
+          "propertyNames": { "enum": ["name", "description", "authentication.usernameLabel", "authentication.passwordLabel"] },
+          "additionalProperties": {
+            "type": "object", "maxProperties": 16,
+            "propertyNames": { "type": "string", "maxLength": 63, "pattern": "^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8}){0,5}$" },
+            "additionalProperties": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
     "localizedNames": {
       "type": "object",
       "maxProperties": 16,
