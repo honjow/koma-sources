@@ -795,6 +795,8 @@ fn canonical_main_owner<'a>(document: HtmlDescriptor, buffer: &'a mut [u8], requ
 
 const MAIN_CHAPTER_SELECTOR: &[u8] =
     b"#chapter-items .comics-chapters, #chapters_other_list .comics-chapters";
+const EXTRA_CHAPTER_SELECTOR: &[u8] =
+    b".comics-chapters:not(#chapter-items .comics-chapters):not(#chapters_other_list .comics-chapters)";
 
 // Missing, mixed, non-main, truncated or non-contiguous facts still fail closed.
 fn main_catalog(document: HtmlDescriptor, slug: &[u8], request: &[u8]) -> Option<VerifiedMainCatalog> {
@@ -963,8 +965,17 @@ fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, ChapterError> {
     let passes = if main_count > 0 { 2 } else { 1 };
     for pass in 0..passes {
         let reverse_main = main_count > 0 && pass == 0;
-        let count = if reverse_main { main_count as usize } else { total_items };
-        let selector = if reverse_main { MAIN_CHAPTER_SELECTOR } else { b".comics-chapters" };
+        let selector = if reverse_main { MAIN_CHAPTER_SELECTOR }
+            else if main_count > 0 { EXTRA_CHAPTER_SELECTOR } else { b".comics-chapters" };
+        // Never select the main DOM nodes twice: incomplete facts deliberately
+        // bypass exact deduplication, so only external rows may enter pass two.
+        let count = if reverse_main { main_count as usize } else if main_count > 0 {
+            let count = html_select_all(document.0.raw(), selector, &mut []);
+            if count < 0 {
+                return Err(SourceError::parse_error("extra chapter selection failed").into());
+            }
+            count as usize
+        } else { total_items };
         let byte_count = match count.checked_mul(4) {
             Some(bytes) if bytes <= BODY_CAP => bytes,
             _ => return Err(SourceError::source_error("chapters cannot fit current response capacity").into()),
