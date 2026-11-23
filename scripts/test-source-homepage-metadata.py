@@ -83,6 +83,31 @@ class HomepageMetadataTest(unittest.TestCase):
                           ','.join(['"en":"A"'] * 17) + '}}}}', object_pairs_hook=metadata.MetadataObject)
         self.assertEqual(metadata.extract(over), {})
 
+    def test_localized_author_projects_without_overwriting_canonical_author(self):
+        raw = {'localization': {'version': 1, 'defaultLocale': 'zh-Hant', 'messages': {
+            'source.author': {'zh-Hant': '來源作者', 'zh-Hans': '来源作者', 'en': 'Source author'}}}}
+        projected = metadata.extract(raw)
+        self.assertEqual(projected['presentation']['texts'], {'author': raw['localization']['messages']['source.author']})
+        self.assertNotIn('author', projected)
+        expressions = [line.strip().removesuffix(' \\').strip("'")
+                       for line in (ROOT / 'build.sh').read_text().splitlines()
+                       if line.strip().startswith("'{id: $id")]
+        for expression in expressions:
+            command = ['jq', '-n']
+            for name in ['id', 'name', 'version', 'lang', 'author', 'description',
+                         'contentRating', 'minAppVersion', 'icon', 'pkg', 'sha256']:
+                command += ['--arg', name, 'Canonical author' if name == 'author' else 'canonical']
+            command += ['--argjson', 'nsfw', 'false', '--argjson', 'sourceMetadata', json.dumps(projected),
+                        '--argjson', 'webSessionOrigins', '[]', '--argjson', 'distribution', '{}', expression]
+            actual = json.loads(subprocess.check_output(command, text=True))
+            self.assertEqual(actual['author'], 'Canonical author')
+            self.assertEqual(actual['presentation'], projected['presentation'])
+        self.assertEqual(metadata.extract({'author': 'Canonical author'}), {})
+        for invalid in ['x' * 129, '🙂' * 65, ' padded ', 'line\nnext', '\ud800']:
+            with self.subTest(author=repr(invalid)):
+                self.assertEqual(metadata.extract({'localization': {'version': 1, 'messages': {
+                    'source.author': {'en': invalid}}}}), {})
+
     def test_safe_navigation_urls_remain_exact_and_do_not_require_names(self):
         for value in ['https://example.org/', 'http://localhost:8080/path',
                       'HTTPS://Example.org/path?q=1#anchor', 'https://例子.测试/漫画',

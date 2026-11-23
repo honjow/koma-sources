@@ -90,7 +90,8 @@ def project_localization(metadata, result):
         if locale_tag(default) is not None:
             presentation["defaultLocale"] = default
         messages = catalog["messages"]
-        roles = {"source.name": ("name", 128), "source.description": ("description", None)}
+        roles = {"source.name": ("name", 128), "source.description": ("description", None),
+                 "source.author": ("author", 128)}
         if result.get("authentication", {}).get("kind") == "credentials":
             for role in ("authentication.usernameLabel", "authentication.passwordLabel"):
                 roles[role] = (role, 128)

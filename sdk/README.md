@@ -67,7 +67,7 @@ writer仅在`Some`时输出并使用原有JSON字符串转义；默认不输出�
 
 `localization::Catalog` 不需要 `alloc`。采用同一 `metadata.json` 的
 `localization: {version:1, defaultLocale:"zh-Hant", messages:{key:{locale:text}}}`；
-`source.name`、`source.description`、`authentication.usernameLabel` 和
+`source.name`、`source.description`、`source.author`、`authentication.usernameLabel` 和
 `authentication.passwordLabel` 是静态显示 key，其他 key 仅由源显式接入已有显示字段。
 
 ```rust,ignore
@@ -87,8 +87,9 @@ let label: &str = catalog.text(&context, "settings.quality.name", "Image quality
 `Context::environment() -> Option<localization::Environment>` 同时核对
 `source_localization_v1`、顶层 `environment.version == 1`、合法 `uiLocale` 及
 `localeFallbacks`。环境仅限当前请求快照；不猜系统语言、内容语言、UA 或 Accept-Language。
-语言标签使用旧名称字段的 ASCII 子集及 63 字符上限；语言项原始数量先限 16，再规范化去重。
-环境回退链须与 `uiLocale` 的精确→脚本/地区→语言链相符，不能混入另一个语言或脚本。
+语言标签使用旧名称字段的 ASCII 子集及 63 字符上限；原始候选项先限 16。
+环境必须逐项匹配 Host 生成的完整 `uiLocale` 精确→脚本/地区→语言链；
+缺项、额外项、重复或乱序均拒绝，不能先去重修复输入。译文 locale 的归一化规则不变。
 中文 HK/TW/MO 推 Hant、CN/SG 推 Hans，显式脚本优先。
 
 `Catalog::from_metadata(&[u8]) -> Result<Catalog<'_>, localization::Error>` 借用输入；
@@ -96,7 +97,7 @@ let label: &str = catalog.text(&context, "settings.quality.name", "Image quality
 返回调用方缓冲内的完整 UTF-8。已知语言先查其候选，再查目录的明确 defaultLocale 候选，最后
 退该字段 literal；无环境仍走 defaultLocale→literal。目录缺失/未知版本不改变旧源。
 坏的可选译文跳过；同一 key 超过 16 个原始 locale 项或有大小写别名重复时，该 key 不启用。
-名称和认证标签沿原 128 UTF-16 单元、非空、首尾无空白及单行限制；描述保留有效换行和制表符。
+名称、作者显示名和认证标签沿原 128 UTF-16 单元、非空、首尾无空白及单行限制；描述保留有效换行和制表符。
 其他显示字段仍由源调用方容量和原宿主字段预算约束。
 
 `format<'o>(&self, &Context, key, literal, args:&[Argument<'_>], template:&mut[u8], out:&'o mut[u8])`
@@ -108,6 +109,6 @@ let label: &str = catalog.text(&context, "settings.quality.name", "Image quality
 打包从同目录生成可选 `presentation:{version:1,defaultLocale?,texts:{role:{locale:text}}}`，
 仅投影上述静态角色；认证显示角色只用于已有 credentials descriptor，不能创建认证权限。
 同一 name 资源同时生成旧 `localizedNames`，旧映射保严格校验，冲突打包失败。
-仅旧 `localizedNames` 适配 name 资源，不假造默认语言。规范 SourceInfo/name/description 及认证对象
+仅旧 `localizedNames` 适配 name 资源，不假造默认语言。规范 SourceInfo/name/description/author 及认证对象
 均保持旧值，零参 source_info 和 ZIP 的 manifest/WASM/icon 三类成员不变。可选增强不提高最低宿主版本；
 未采用 Catalog 的旧源不会批量改写。

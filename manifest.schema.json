@@ -113,7 +113,7 @@
         },
         "texts": {
           "type": "object",
-          "propertyNames": { "enum": ["name", "description", "authentication.usernameLabel", "authentication.passwordLabel"] },
+          "propertyNames": { "enum": ["name", "description", "author", "authentication.usernameLabel", "authentication.passwordLabel"] },
           "additionalProperties": {
             "type": "object", "maxProperties": 16,
             "propertyNames": { "type": "string", "maxLength": 63, "pattern": "^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8}){0,5}$" },

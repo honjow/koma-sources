@@ -92,11 +92,11 @@ impl Environment {
             if count > MAX_LOCALES {
                 return None;
             }
-            let tag = Locale::from_json(value)?;
-            if !result.fallbacks[..result.len].contains(&tag) {
-                result.fallbacks[result.len] = tag;
-                result.len += 1;
-            }
+            // The Host supplies the complete canonical chain. Preserve raw
+            // positions: deduplication would turn an invalid extra item into a
+            // valid environment (2026-11-23 strict-chain contract).
+            result.fallbacks[result.len] = Locale::from_json(value)?;
+            result.len += 1;
         }
         let expected = Candidates::new(ui_locale);
         if result.len != expected.len
@@ -437,6 +437,7 @@ fn translation<'a>(values: &'a [u8], locale: Locale, key: &str) -> Option<&'a [u
         while let Some(ch) = chars.next() {
             let ch = ch?;
             let single_line = key == "source.name"
+                || key == "source.author"
                 || key == "authentication.usernameLabel"
                 || key == "authentication.passwordLabel";
             if ch == '\u{7f}'
@@ -451,6 +452,7 @@ fn translation<'a>(values: &'a [u8], locale: Locale, key: &str) -> Option<&'a [u
             last = Some(ch);
         }
         let single_line = key == "source.name"
+            || key == "source.author"
             || key == "authentication.usernameLabel"
             || key == "authentication.passwordLabel";
         if count == 0
@@ -460,6 +462,7 @@ fn translation<'a>(values: &'a [u8], locale: Locale, key: &str) -> Option<&'a [u
             return None;
         }
         if (key == "source.name"
+            || key == "source.author"
             || key == "authentication.usernameLabel"
             || key == "authentication.passwordLabel")
             && count > 128
@@ -779,13 +782,28 @@ mod tests {
             r#"{{"hostFeatures":["source_localization_v1"],"environment":{{"version":1,"uiLocale":"en","localeFallbacks":[{}]}}}}"#,
             std::vec!["\"EN\"";16].join(",")
         );
+        // The strict complete-chain decision rejects duplicates even within the
+        // raw budget; it must not repair them before comparing with the Host.
+        assert!(Context::from_request(duplicate.as_bytes())
+            .environment()
+            .is_none());
         assert_eq!(
-            Context::from_request(duplicate.as_bytes())
-                .environment()
-                .unwrap()
-                .ui_locale(),
-            "en"
+            c.text(
+                &Context::from_request(duplicate.as_bytes()),
+                "name",
+                "literal",
+                &mut out
+            ),
+            Ok("Traditional")
         );
+        for fallbacks in [r#""en","en""#, r#""en","zh""#, "", r#""zh","en""#] {
+            let raw = std::format!(
+                r#"{{"hostFeatures":["source_localization_v1"],"environment":{{"version":1,"uiLocale":"en","localeFallbacks":[{fallbacks}]}}}}"#
+            );
+            assert!(Context::from_request(raw.as_bytes())
+                .environment()
+                .is_none());
+        }
         for metadata in [br#"{}"#.as_slice(), br#"{"localization":{"version":2}}"#] {
             assert_eq!(
                 Catalog::from_metadata(metadata)
@@ -965,15 +983,24 @@ mod tests {
             c.format(&ctx, "absent", "🙂", &[], &mut no_template, &mut out),
             Err(Error::BufferTooSmall)
         );
-        let oversized_name = std::format!(
-            r#"{{"localization":{{"version":1,"defaultLocale":"en","messages":{{"source.name":{{"en":"{}"}}}}}}}}"#,
-            "🙂".repeat(65)
-        );
-        assert_eq!(
-            Catalog::from_metadata(oversized_name.as_bytes())
-                .unwrap()
-                .text(&ctx, "source.name", "literal", &mut out),
-            Ok("literal")
-        );
+        for key in [
+            "source.name",
+            "source.author",
+            "authentication.usernameLabel",
+            "authentication.passwordLabel",
+        ] {
+            for invalid in ["🙂".repeat(65), "line\nnext".into(), " padded ".into()] {
+                let invalid = invalid.replace('\\', "\\\\").replace('\n', "\\n");
+                let metadata = std::format!(
+                    r#"{{"localization":{{"version":1,"defaultLocale":"en","messages":{{"{key}":{{"en":"{invalid}"}}}}}}}}"#
+                );
+                assert_eq!(
+                    Catalog::from_metadata(metadata.as_bytes())
+                        .unwrap()
+                        .text(&ctx, key, "literal", &mut out),
+                    Ok("literal")
+                );
+            }
+        }
     }
 }

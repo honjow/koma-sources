@@ -304,11 +304,52 @@ UTF-8按编码字节限制：text512、可选label96、tags1至8条且每tag96�
 空白项、无效UTF-8、超限和容量错误拒绝整段optional；helper预检后原子追加，
 Err不改已有buffer或cursor，调用方应省略增强并保留原item，而非丢弃正常列表。
 原JSONv1及ID/封面/顺序/设置/旧字段保持；只复用当前列表已取到的资料，不增加HTTP。
-显示标签和源文本由源提供普通 UTF-8 字符串；当前请求不提供 UI locale，不能假定其存在。多语言能力实装前沿用本源既有文案回退。
+显示标签和源文本仍由源提供普通 UTF-8 字符串；需要多语言时显式使用下述 Catalog，不从内容语言或 HTTP 请求头猜 UI locale。
 宿主对坏optional可容错忽略；不得把它当整个列表无效。可选增强不提高最低App，
 发布必须有新的源patch；复用真实列表原件核新实际WASM和无feature旧输出。
 缺省摘要复用subtitle、作者/已知状态及明确的内容tags；旧sourceTags可能只是来源标记，
 不得默认当题材展示。需要其它内容或顺序时由源返回listInfo；显式空数组关闭自动摘要。
+
+### 可选书源界面文案本地化
+
+当前 SDK 与打包器使用同一份 `metadata.json` 文案目录；本段记录实装用法，
+不表示正式宿主已发布或真机验收完成。例如：
+
+```json
+{"localization":{"version":1,"defaultLocale":"zh-Hant","messages":{
+  "settings.quality.name":{"zh-Hant":"圖片品質","zh-Hans":"图片质量","en":"Image quality"}
+}}}
+```
+
+标准 `Source` 的 typed 请求（如 `SettingsRequest`）用 `raw_json()` 取得完整原信封，
+在原方法内按显示字段显式调用，不重造 `args` 信封：
+
+```rust
+use koma_source_sdk::{localization::Catalog, runtime::Context, source::SourceError};
+let context = Context::from_request(request.raw_json());
+let catalog = Catalog::from_metadata(include_bytes!("../metadata.json"))
+    .map_err(|_| SourceError::source_error("invalid localization metadata"))?;
+let mut buffer = [0u8; 256];
+let label = catalog.text(&context, "settings.quality.name", "Image quality", &mut buffer)
+    .map_err(|_| SourceError::source_error("localization output failed"))?;
+// label 为缓冲内 &str；用原 JSON 转义写出器写 label.as_bytes()，响应字段仍是普通字符串。
+```
+
+Host 同时提供 `source_localization_v1` 与合法 `environment` 时，Context 才读取 UI 语言。
+`localeFallbacks` 必须与该语言完整 canonical 链逐项一致，不能缺项、额外、重复或乱序。
+Catalog 按精确→保留脚本的地区/脚本→语言候选，再到明确 `defaultLocale` 与字段 literal 回退；
+缺环境的旧 Host 仍走 defaultLocale→literal，目录缺失/未知版本走 literal，不猜英语或内容语言。
+
+打包器仅将 `source.name`、`source.description`、`source.author` 及已有 credentials 认证的
+`authentication.usernameLabel/passwordLabel` 投影到可选 `presentation.texts` 的
+`name/description/author` 及同名认证显示角色，
+并由同一 name 资源生成旧 `localizedNames`；冲突打包失败。canonical SourceInfo 和认证声明不改，
+无资源沿旧值，不增加 ZIP 附件或 UI/授权权限。每 key 最多16个原始 locale项；名称、作者和认证
+译文沿单行128 UTF-16限制，输出仍受调用方缓冲与原字段预算约束。详见 [SDK用法](../sdk/README.md#书源文案与调用语言环境)。
+
+本地化是可选增强，不单独抬最低 App；未接 Catalog 的旧源无需改写。只翻译源自编的显示文案，
+不翻译业务 ID、option value、default、scope、游标、URL、正则或网站正文。旧字符串选项在接入前
+须显式固定与旧请求一致的 ID/value，保持保存值、默认值、顺序与行为，不递归翻译任意字段。
 
 ### get_manga
 
