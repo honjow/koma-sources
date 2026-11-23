@@ -120,3 +120,11 @@ R10实机16:24:25 canonical Web GET仍403，数字入口旧bridge miss后Native4
 通用Host将仅根据envelope.webFetch显式选择WebHTTP，旧普通POST继续Native。Baka仅在协商source_web_http_v1后，对既有浏览/搜索、相关推荐的post()及详情/阅读的view_count()明确增加webFetch:{version:1}；无feature保原wire及失败语义。共享port_support与其它源不改，无额外请求或重试；普通POST15000ms、可选计数1200ms、取消、原表单body和全部业务头保持。计数仍不把响应当目录，也不因失败阻断正文。
 
 R11文档Native BodyRef、正文/封面图片R10 Web BodyRef、全部ID/权限/日期/设置、metadata/selector/图标及临时BKDOC8保持。此为独立本地候选，不覆盖R11产物、不提前交设备、不推送发布，须由父维护者配对Host选路更正。回放复用实际WASM记录器；历史作品真实计数开关为0，计数POST的执行覆盖明确使用受控公开enable/id分支，不冒充当前站点或Native成功。临时诊断待真实捕获完成后再移除。
+
+### 0.1.1 R13 临时匿名403静态文本取证
+
+父维护者在既有定位修复范围内确认此临时本地诊断，并非用户逐项批准的引述。只对本轮匿名get_manga的canonical普通403、已完整取得且UTF-8有效的HTML/XHTML≤8KiB提取title/h1/h2/p静态文本；数字fallback、其它operation和Host-confirmed challenge不捕获正文。原错误、状态/回退、请求、权限、会话、Native文档与Web图片路径不改，且不新增HTTP请求。
+
+仅用既有HTML Host，有界读取最多8个候选节点；排除脚本/样式/表单/input等及显式hidden节点，不采集属性/链接/headers。文本含可识别URL/路径、密钥凭据标签或疑似高熵值时舍弃整项，折叠空白并去重后总量≤1KiB UTF-8，按≤4块base64写BKERR403 ASCII HostLog，每行小于1024字节；base64只是传输编码。此为静态HTML文本，不声称CSS计算后的真实可见性，不执行脚本。所有诊断DOM描述符关闭，取证失败不影响原错误及BodyRef清理；不把诊断文本写入业务结果，不上传或纳入Git业务数据。
+
+这是待父亲审、配套HAP实机取证的临时包，不宣称解决403；采集解码后须移除本模块及既有临时诊断再交付正式包。R12冻结产物保留，不覆盖。

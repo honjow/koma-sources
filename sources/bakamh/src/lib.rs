@@ -21,6 +21,7 @@ use url::Url;
 
 mod dates;
 mod document_body;
+mod error_capture;
 mod filters;
 mod reader;
 
@@ -148,7 +149,7 @@ impl DocumentDiagnostic {
     }
 }
 
-fn log_document_response(response: &[u8]) {
+fn log_document_response(response: &[u8], capture_allowed: bool) {
     let status = source_protocol::direct(response, b"status").ok().flatten()
         .and_then(|raw| core::str::from_utf8(raw).ok())
         .and_then(|raw| raw.parse::<u16>().ok());
@@ -162,6 +163,13 @@ fn log_document_response(response: &[u8]) {
     };
     facts.log(decode, bytes, if bytes < 0 { -1 } else { head.len() as i64 },
         decode != "ok", head, decode == "ok");
+    if capture_allowed && decode == "ok" && (0..=8192).contains(&bytes)
+        && matches!(facts.mime, "html" | "xhtml")
+        && source_protocol::direct(response, b"ok").ok().flatten() == Some(b"true")
+        && source_protocol::body(response, &mut []).err() == Some("forbidden")
+    {
+        error_capture::capture(head);
+    }
 }
 
 fn get_document(url: &Url, request: &[u8]) -> Result<(Node, bool)> {
@@ -198,7 +206,7 @@ fn get_document(url: &Url, request: &[u8]) -> Result<(Node, bool)> {
         let bytes = serde_json::to_vec(&envelope).map_err(|_| "internal_error")?;
         let len = koma_source_sdk::host::http_request(&bytes, http_out())
             .map_err(|_| "network_error")?;
-        log_document_response(&http_out()[..len]);
+        log_document_response(&http_out()[..len], error_capture::allowed(url, request));
         let len = source_protocol::body(&http_out()[..len], body_buf())?;
         String::from_utf8(body_buf()[..len].to_vec()).map_err(|_| "parse_error")?
     } else {

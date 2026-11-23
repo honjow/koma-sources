@@ -24,7 +24,7 @@ fn read_prefix(input: &BodyRef, length: usize, chunk: usize, context: &Context<'
 }
 
 fn log_failure(input: &BodyRef, facts: DocumentDiagnostic, budget: usize,
-    chunk: usize, context: &Context<'_>) {
+    chunk: usize, context: &Context<'_>, capture_allowed: bool) {
     if input.len() > budget || chunk == 0 || context.cancelled() {
         facts.log("unknown", -1, -1, true, &[], false);
         return;
@@ -43,6 +43,9 @@ fn log_failure(input: &BodyRef, facts: DocumentDiagnostic, budget: usize,
     } else {
         facts.log(if complete { "ok" } else { "prefix" },
             if complete { length as i64 } else { -1 }, length as i64, !complete, head, true);
+        if capture_allowed && complete && length <= 8192 && matches!(facts.mime, "html" | "xhtml") {
+            super::error_capture::capture(head);
+        }
     }
 }
 
@@ -81,6 +84,8 @@ pub(super) fn run(url: &Url, request: &[u8]) -> Result<(Node, bool)> {
         Some(source_protocol::body(response.as_json(), &mut []).err().unwrap_or("network_error"))
     };
     let facts = (status == Some(403)).then(|| DocumentDiagnostic::capture(response.as_json()));
+    let capture_allowed = error == Some("forbidden") && super::error_capture::allowed(url, request)
+        && source_protocol::direct(response.as_json(), b"ok").ok().flatten() == Some(b"true");
     let input = response.body_ref();
     // Both ID and public classifications now own their data. Body read/close RPCs
     // may reuse HTTP_OUT only after this response borrow ends.
@@ -97,7 +102,7 @@ pub(super) fn run(url: &Url, request: &[u8]) -> Result<(Node, bool)> {
     let chunk = CHUNK_BYTES.min(context.limit(b"body", b"chunkBytes").unwrap_or(CHUNK_BYTES));
     let parsed = (|| -> Result<(Node, bool)> {
         if let Some(code) = error {
-            if let Some(facts) = facts { log_failure(&input, facts, budget, chunk, &context); }
+            if let Some(facts) = facts { log_failure(&input, facts, budget, chunk, &context, capture_allowed); }
             return Err(code);
         }
         if input.len() > budget || chunk == 0 { return Err("body_limit_exceeded"); }
