@@ -414,7 +414,7 @@ build_source() {
   mkdir -p "$(dirname "$koma_file")"
   rm -f "$koma_file"
   local package_entries=(manifest.json source.wasm "$icon_name")
-  (cd "$pkg_dir" && zip -q "$koma_file" "${package_entries[@]}")
+  (cd "$pkg_dir" && python3 "$SCRIPT_DIR/scripts/create-koma-archive.py" "$koma_file" "${package_entries[@]}")
   
   local size
   size=$(stat -c%s "$koma_file" 2>/dev/null || stat -f%z "$koma_file")
