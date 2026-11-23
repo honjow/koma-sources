@@ -32,14 +32,17 @@ Sources are compiled to WebAssembly (`wasm32-unknown-unknown`, `#![no_std]`) and
 
 ## Quick Start
 
+### 验证页 UA
+
+验证页默认使用系统 WebView UA，即由宿主从当前 ArkWeb UA 派生，在 OpenHarmony 平台标记内追加 `; Android 10`，保留实际引擎版本和移动标记。验证页的 UA 由宿主决定。书源的普通 HTTP 请求头只描述普通请求，制作源包时禁止用桌面浏览器 UA 或其他固定字符串配置验证页。
+
 普通 HTTP UA 与 CF 验证 UA 分别管理。显式采用 `koma_source_sdk::image_headers`
 时，普通 IMAGE 默认值参考 Mihon `c3bf7a78c074079a605ed7de86d8b7f58bea183b`
 的 Chrome141 Android10/K，不改变旧源默认，也不设置或覆盖验证页 UA。共享策略保留
 bare IMAGE 的完整 Referer，未知协议不发送 Priority 或声明压缩能力；匿名 HTTP 的
 SourceCookies 与授权 BrowserGrant 分别选择，Cookie 始终按实际 origin 隔离。
-### 验证页 UA
 
-需要网页验证的源默认使用系统 WebView UA。若真机上确认 Cloudflare managed challenge 在系统 UA 下反复挑战或拿不到 `cf_clearance`，可在 `websitePolicy` 声明 `webSessionAndroidAgent: true`：宿主保留原生 UA 的 Chrome/WebKit 版本和移动指纹，只把括号内的 OS token 换成 `; Android 10`，与华为系统浏览器的行为一致。不要声明桌面 Chrome UA，它会和移动指纹矛盾。该声明默认关闭，启用前要在真机对照验证页加载、cookie/clearance 状态和原请求结果；只改声明、没做设备验证不能记为修复。
+有真机证据表明某个站点需要 ArkWeb 原生 UA 时，可用 `websitePolicy.systemWebAgentOrigins` 精确声明 origin。旧宿主仍需要 `webSessionAndroidAgent: true` 来显式启用 Android 兼容标记。验证时分别检查验证页与 Cookie 状态，以及应用重试后的原请求结果。
 
 ### WebView fetch bridge
 
