@@ -1,9 +1,5 @@
 {
   "homepage": "https://bakamh.com/",
-  "distribution": {
-    "available": false,
-    "reason": "尚未通过完整验收，且依赖未正式发布的 Koma 1.6.1。"
-  },
   "localizedNames": {
     "zh-Hans": "巴卡漫画",
     "zh-Hant": "巴卡漫畫"

@@ -91,7 +91,7 @@
 | <img src="3hentai-zh/icon.png" width="24" alt=""> | 3hentai-zh | 3Hentai | 3Hentai 的中文漫画图集，标示作者、社团、角色与题材标签，每册图集可连续阅读。 |
 | <img src="jiulingmanhua/icon.png" width="24" alt=""> | jiulingmanhua | 90漫画网 | 90漫画网收录日本、韩国、国漫、港台及欧美漫画，题材包含恋爱、校园、冒险与科幻，兼有连载及完结作品。 |
 | <img src="yiqiqimanhua/icon.png" width="24" alt=""> | yiqiqimanhua | 177漫画 | 177漫画收录中文与日文成人漫画、全彩 CG 图集，包含纯图无字画集；每篇图集整册阅读。 |
-| <img src="bakamh/icon.png" width="24" alt=""> | bakamh | 巴卡漫画 | 需 Koma 1.6.1；当前候选待真机验收 |
+| <img src="bakamh/icon.png" width="24" alt=""> | bakamh | 巴卡漫画 | 需 Koma 1.6.1；已通过237阅读、跨章及整章下载验收 |
 | <img src="picacomic/icon.png" width="24" alt=""> | picacomic | 哔咔漫画 | 哔咔漫画的分集漫画书库，以站内分类、题材标签及人气榜整理作品。浏览与阅读均需登录 Picacomic 账号。 |
 | <img src="budingmanhua/icon.png" width="24" alt=""> | budingmanhua | 布丁漫画 | 布丁漫画收录国漫、日漫与韩漫，题材包含恋爱、校园、玄幻、热血与日常生活。 |
 | <img src="jisumanhua/icon.png" width="24" alt=""> | jisumanhua | 极速漫画 | 极速漫画的原创与日本漫画，包含热血冒险、奇幻、恋爱及校园等题材；原站锁定或下架章节依其状态保留。 |

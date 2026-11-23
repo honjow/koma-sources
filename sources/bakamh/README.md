@@ -1,6 +1,6 @@
 # 巴卡漫画
 
-## 0.1.2 普通图片 client 合同候选（待完整验收）
+## 0.1.2 普通图片请求
 
 普通 Native CDN 图片显式采用 SDK 共享 Chrome141 Android10/K UA 与有界 HTTPS
 IMAGE BrowserHeaders，参考 Mihon c3bf7a78 和 Keiyoushi 8947c37，不采用 CF WebView
@@ -14,12 +14,13 @@ WebHTTP/BrowserGrant 保持；无该能力保原会话回退，旧 descriptor �
 与 ordinary403 分类、所有权和单次 BodyRef 交付、页/章ID与正文解析保持，无新增重试。
 
 普通 HTTP UA 是共享客户端身份；不把 CF UA、Cookie 授权、TLS profile 混为一项。
-本候选不含诊断，不改变 App/接口/图标，minApp保持1.6.1，distribution:false保留。
-既有 c0fb 与 text-profile 设备结果均仍403；本版尚未宣称解除阻断，仍需普通宿主
-首中末、跨章、一章自有下载和离线完整验收。源 SOURCE_INFO 由 Cargo 版本生成。
+本版不含诊断，不新增 App 接口或 C++ 传输能力，最低 Koma 1.6.1。
+2026-11-24 已在237实际验证列表封面、两次搜索、《健身教练》104话首/37/73页、
+103→104连续跨章、整章73页下载和冷启动本地首尾页读取；未走网络兜底。
+原11个下载、完整队列和设置已恢复，保留新包并释租。源 SOURCE_INFO 由 Cargo 版本生成。
 
 
-当前为继续验证中的候选，`distribution.available:false` 暂停公开安装索引分发：完整普通宿主验收尚未通过，所需 Koma 1.6.1 也尚未正式发布。保留全部移植、源文件及候选验证工作；待完整验收通过且所需正式宿主可用后再恢复分发，不代表取消移植或删除书源。既有 R15 immutable 候选包不重建、不覆盖。
+完整验收后按用户既有授权恢复书源分发，安装门槛仍为 Koma 1.6.1；宿主是否发布由 App 的独立发布安排控制，不再用开发期 `distribution.available:false` 隐藏已验源。以下旧候选和失败记录是历史依据，当前状态以上述0.1.2具名验收为准，旧产物不重建、不覆盖。
 
 独立源 `com.bakamh.koma`，对应 Mihon 来源 ID `3712194609356981776`，来源分级 NSFW。参考 [Bakamh](https://github.com/keiyoushi/extensions-source/tree/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/src/zh/bakamh) 和同提交的 [Madara／MadaraBase](https://github.com/keiyoushi/extensions-source/tree/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/lib-multisrc/madara)，代码许可 Apache-2.0。
 
