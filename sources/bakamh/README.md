@@ -90,3 +90,9 @@ R7配f2已证实际系统UA（customUaEqualsNative=true、verificationAndroid=fa
 仅在同次canonical Web GET的403响应中，通过既有host日志记固定BKDOC8标签、status、MIME白名单分类、解码状态/UTF-8字节数及64KiB内公开阻断标记。诊断直接用既有缓冲的64KiB窗口解码，不复制完整正文为Value/String。缺失或解码/容量失败时正文长度和扫描长度记-1，正文标记记unknown、scan_truncated=true；不能把未知伪造为0或false。每次最多一条有限ASCII日志，长度小于HostLog的1024字节上限。无原始HTML、title、URL、完整headers或Cookie/token输出，不增加请求，不改变错误、状态或回退；标记只表示命中，不据此把普通403改判challenge。该临时诊断用于实机取证后移除。
 
 现有webSessionReadySelector声明为 `a[href*='/manga/'] img`，仅供授权自动完成的布尔就绪判断，不启用renderedDocumentFallback。既有HTML选择器桥实际消费保留的官网历史目录、作品页及真实CF原件，分别命中12、10、0个节点；历史成功原件不代表当前主页已经通过。此声明必须配父维护者含4a2d94ed仅授权就绪分支的新HAP，不能配旧f2声称已验；普通授权与canonical结果仍待设备owner验证。不新增Host API或Sec-*，不混入DOM正文回放。
+
+### 0.1.1 R9 普通403恢复上游数字入口回退
+
+固定上游8947c37的MadaraBase `supportsPostId` 默认为true，Madara/Bakamh未关闭；Bakamh `fetchMangaUpdate` 仅规范URL大小写后委托父实现。父实现先请求canonical，普通非成功且已有数字post ID时继续 `/?p=<id>`；目录保留数字ID及作品路径。R8以前将普通forbidden列为终止，错误阻止了这一既有入口。R9只把普通forbidden恢复到原数字resolver，不改变resolver的重定向/传输/请求头语义；没有canonical的数字入口与成功路径保持。
+
+`challenge_required` 继续保留实际canonical挑战因果，不落入数字回退；`auth_required`、`rate_limit`、`cancelled` 仍终止。全部作品/章节ID、metadata（含R7原生UA与R8授权就绪selector）、R6 Accept、图片/BodyRef及临时BKDOC8同响应诊断保持；没有新API或DOM fallback，不覆盖已交R8冻结包。受控WASM请求及保留官网原件回放只证明此回退合同与旧成功保持，数字入口今日是否可达仍待配套新HAP实测；取证完成后仍须移除临时诊断。

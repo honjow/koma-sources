@@ -297,9 +297,10 @@ fn series(id: &str, route: Option<&str>, request: &[u8]) -> Result<Series> {
                     complete_document,
                 });
             }
-            // Keep the canonical challenge and its Host-observed GET identity.
-            // Falling through to ?p= would replace it with a different request.
-            Err(code @ ("challenge_required" | "auth_required" | "forbidden" | "rate_limit" | "cancelled")) => {
+            // Keep a Host-confirmed challenge and its observed canonical GET.
+            // Ordinary forbidden still uses Madara's known numeric post-ID resolver;
+            // authorization, rate-limit and cancellation remain terminal.
+            Err(code @ ("challenge_required" | "auth_required" | "rate_limit" | "cancelled")) => {
                 return Err(code)
             }
             _ => {}
