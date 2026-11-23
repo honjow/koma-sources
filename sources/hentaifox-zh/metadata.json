@@ -45,5 +45,16 @@
         }
       ]
     }
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "中文成人漫画与同人志。榜单和随机结果可含其他语言，收藏需原站登录。",
+        "zh-Hant": "中文成人漫畫與同人誌。榜單和隨機結果可含其他語言，收藏需原站登入。",
+        "en": "Chinese adult manga and doujinshi. Rankings and random picks may include other languages; favourites require site login."
+      }
+    }
   }
 }

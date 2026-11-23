@@ -57,11 +57,11 @@ static mut B64_BUF: [u8; B64_CAP] = [0; B64_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hanman18.koma",
     name: "HANMAN18",
-    version: "0.1.7",
+    version: "0.1.8",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "HANMAN18 (hanman18.com) manga18 multi-source framework. NSFW.",
+    description: "成人漫画站HANMAN18，收录分话连载的作品，也有真人漫画。",
     content_rating: "nsfw",
 };
 

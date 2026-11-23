@@ -20,14 +20,43 @@
     "homepageChoices": {
       "setting": "preferredMirror",
       "options": [
-        { "value": "https://baozimh.org", "url": "https://baozimh.org/" },
-        { "value": "https://godamh.com", "url": "https://godamh.com/" },
-        { "value": "https://m.baozimh.one", "url": "https://m.baozimh.one/" },
-        { "value": "https://bzmh.org", "url": "https://bzmh.org/" },
-        { "value": "https://g-mh.org", "url": "https://g-mh.org/" },
-        { "value": "https://m.g-mh.org", "url": "https://m.g-mh.org/" }
+        {
+          "value": "https://baozimh.org",
+          "url": "https://baozimh.org/"
+        },
+        {
+          "value": "https://godamh.com",
+          "url": "https://godamh.com/"
+        },
+        {
+          "value": "https://m.baozimh.one",
+          "url": "https://m.baozimh.one/"
+        },
+        {
+          "value": "https://bzmh.org",
+          "url": "https://bzmh.org/"
+        },
+        {
+          "value": "https://g-mh.org",
+          "url": "https://g-mh.org/"
+        },
+        {
+          "value": "https://m.g-mh.org",
+          "url": "https://m.g-mh.org/"
+        }
       ]
     }
   },
-  "chapterOrder": "newest_first"
+  "chapterOrder": "newest_first",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "G站漫画的中文连载作品，涵盖玄幻、言情、都市等站内分类。",
+        "zh-Hant": "G站漫畫的中文連載作品，涵蓋玄幻、言情、都市等站內分類。",
+        "en": "Chinese serial comics from GoDa, with site categories including fantasy, romance and urban stories."
+      }
+    }
+  }
 }

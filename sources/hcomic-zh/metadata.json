@@ -4,5 +4,16 @@
     "zh-Hant": "H-Comic",
     "en": "H-Comic"
   },
-  "homepage": "https://h-comic.com"
+  "homepage": "https://h-comic.com",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "中文成人漫画图集，包含全彩作品；可按标签挑选，或浏览随机目录。",
+        "zh-Hant": "中文成人漫畫圖集，包含全彩作品；可按標籤挑選，或瀏覽隨機目錄。",
+        "en": "Chinese adult comic galleries, including full-colour works, with tag browsing and a random catalogue."
+      }
+    }
+  }
 }

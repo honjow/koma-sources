@@ -41,7 +41,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "龙禁漫公开 HTML 源；成人内容，单作品分级与用量未知。",
+    description: "中文成人连载漫画，设有新书、最近更新、热搜和周、月排行榜。",
     content_rating: "nsfw",
 };
 

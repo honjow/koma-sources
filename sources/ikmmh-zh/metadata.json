@@ -17,5 +17,16 @@
     "en": "Ikmmh (Chinese)"
   },
   "homepage": "https://ymcdnyfqdapp.ikmmh.com",
-  "chapterOrder": "newest_first"
+  "chapterOrder": "newest_first",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "爱看漫的中文漫画连载，按站内分类组织；部分地区受原站访问限制。",
+        "zh-Hant": "愛看漫的中文漫畫連載，按站內分類組織；部分地區受原站存取限制。",
+        "en": "Chinese serial comics from Ikmmh, organised by site categories. Access is restricted in some regions."
+      }
+    }
+  }
 }

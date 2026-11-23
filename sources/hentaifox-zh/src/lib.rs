@@ -14,11 +14,11 @@ const WEB: &[u8] = b"https://hentaifox.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hentaifox.zh.koma",
     name: "HentaiFox",
-    version: "0.1.7",
+    version: "0.1.8",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "HentaiFox provider Chinese catalogue. Per-work rating and usage unknown.",
+    description: "中文成人漫画与同人志。榜单和随机结果可含其他语言，收藏需原站登录。",
     content_rating: "nsfw",
 };
 #[allow(dead_code)]

@@ -4,5 +4,16 @@
     "zh-Hant": "HentaiHand",
     "en": "HentaiHand"
   },
-  "homepage": "https://hentaihand.com/"
+  "homepage": "https://hentaihand.com/",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "按单册图集收录的中文成人漫画。可按标签筛选作品，区分热门与最近上传。",
+        "zh-Hant": "按單冊圖集收錄的中文成人漫畫。可按標籤篩選作品，區分熱門與最近上傳。",
+        "en": "Chinese adult comics collected as single-volume galleries, with tag filters, popular works and recent uploads."
+      }
+    }
+  }
 }

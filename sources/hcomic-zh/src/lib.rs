@@ -10,11 +10,11 @@ const MAX: usize = 1048576;
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hcomic.zh.koma",
     name: "H-Comic",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "H-Comic 中文公开作品信息；含成人内容，各作品分级及使用情况未知。",
+    description: "中文成人漫画图集，包含全彩作品；可按标签挑选，或浏览随机目录。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
@@ -1164,7 +1164,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
-    let data=r#"{"sourceInfo":{"id":"com.hcomic.zh.koma","name":"H-Comic","version":"0.1.4","apiVersion":"0.2","language":"zh","author":"Koma","description":"H-Comic 中文公开作品信息；含成人内容，各作品分级及使用情况未知。","contentRating":"nsfw","localizedNames":{"zh-Hans":"H-Comic","zh-Hant":"H-Comic","en":"H-Comic"}},"capabilities":{"search":true,"mangaDetail":true,"chapters":true,"pages":true,"listings":true,"mangaList":true,"imageRequest":true,"home":false,"filters":true,"settings":false,"future":{"login":false,"auth":false,"process_page_image":false,"page_description":false,"base_url":false,"deeplink":false,"migration":false}}}"#.as_bytes();
+    let data=r#"{"sourceInfo":{"id":"com.hcomic.zh.koma","name":"H-Comic","version":"0.1.5","apiVersion":"0.2","language":"zh","author":"Koma","description":"中文成人漫画图集，包含全彩作品；可按标签挑选，或浏览随机目录。","contentRating":"nsfw","localizedNames":{"zh-Hans":"H-Comic","zh-Hant":"H-Comic","en":"H-Comic"}},"capabilities":{"search":true,"mangaDetail":true,"chapters":true,"pages":true,"listings":true,"mangaList":true,"imageRequest":true,"home":false,"filters":true,"settings":false,"future":{"login":false,"auth":false,"process_page_image":false,"page_description":false,"base_url":false,"deeplink":false,"migration":false}}}"#.as_bytes();
     response_buffer().write_success_parts("source_info", &[data])
 }
 macro_rules! export_op {

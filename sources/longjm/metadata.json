@@ -1,1 +1,27 @@
-{"localizedNames":{"zh-Hans":"龙禁漫","zh-Hant":"龍禁漫","en":"LongJM"},"homepage":"https://longjm.com","websitePolicy":{"imageUrlFallbacks":[{"from":"img.nnpic.xyz","to":"thumb.niaopic.com"}]}}
+{
+  "localizedNames": {
+    "zh-Hans": "龙禁漫",
+    "zh-Hant": "龍禁漫",
+    "en": "LongJM"
+  },
+  "homepage": "https://longjm.com",
+  "websitePolicy": {
+    "imageUrlFallbacks": [
+      {
+        "from": "img.nnpic.xyz",
+        "to": "thumb.niaopic.com"
+      }
+    ]
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "中文成人连载漫画，设有新书、最近更新、热搜和周、月排行榜。",
+        "zh-Hant": "中文成人連載漫畫，設有新書、最近更新、熱搜和週、月排行榜。",
+        "en": "Chinese adult serial comics, with new releases, recent updates, trending searches and weekly or monthly charts."
+      }
+    }
+  }
+}

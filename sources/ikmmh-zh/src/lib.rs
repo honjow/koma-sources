@@ -10,7 +10,7 @@ type E = &'static str;
 type R<T> = Result<T, E>;
 const MAX: usize = 1048576;
 const WEB: &[u8] = b"https://ymcdnyfqdapp.ikmmh.com";
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.ikmmh.zh.koma",name:"Ikmmh",version:"0.1.4",api_version:"0.2",language:"zh",author:"Koma",description:"Ikmmh anonymous category catalogue and finite query. Per-work rating, picture availability and usage unknown.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.ikmmh.zh.koma",name:"Ikmmh",version:"0.1.5",api_version:"0.2",language:"zh",author:"Koma",description:"爱看漫的中文漫画连载，按站内分类组织；部分地区受原站访问限制。",content_rating:"nsfw"};
 #[allow(dead_code)]
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,

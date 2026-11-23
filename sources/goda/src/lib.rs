@@ -17,11 +17,11 @@ fn selected_base(r: &[u8]) -> &'static [u8] {
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "org.goda.koma",
     name: "GoDa漫画",
-    version: "0.1.10",
+    version: "0.1.11",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "GoDa public source. Upstream SAFE; individual content and usage unknown.",
+    description: "G站漫画的中文连载作品，涵盖玄幻、言情、都市等站内分类。",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

@@ -20,5 +20,16 @@
     "zh-Hant": "瓜子漫畫"
   },
   "homepage": "https://www.guazimanhua.com",
-  "chapterOrder": "newest_first"
+  "chapterOrder": "newest_first",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "提供国漫连载，设有玄幻、都市、恋爱和古风等分类。",
+        "zh-Hant": "提供國漫連載，設有玄幻、都市、戀愛和古風等分類。",
+        "en": "Chinese serial comics, with categories including fantasy, urban stories, romance and historical settings."
+      }
+    }
+  }
 }

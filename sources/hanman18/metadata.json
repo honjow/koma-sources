@@ -21,5 +21,16 @@
     "zh-Hans": "HANMAN18",
     "zh-Hant": "HANMAN18",
     "en": "HANMAN18"
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "成人漫画站HANMAN18，收录分话连载的作品，也有真人漫画。",
+        "zh-Hant": "成人漫畫站HANMAN18，收錄分話連載的作品，也有真人漫畫。",
+        "en": "Adult serial comics from HANMAN18, including illustrated and photographic comics."
+      }
+    }
   }
 }
