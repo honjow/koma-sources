@@ -19,4 +19,16 @@
       }
     }
   },
-"localizedNames":{"zh-Hans":"漫画社","zh-Hant":"漫畫社"},"homepage":"https://www.311s.com","websitePolicy":{"homepageChoices":{"setting":"preferredMirror","options":[{"value":"https://www.311s.com","url":"https://www.311s.com/"},{"value":"https://www.m206.com","url":"https://www.m206.com/"}]}},"chapterOrder":"newest_first"}
+"localizedNames":{"zh-Hans":"漫画社","zh-Hant":"漫畫社"},"homepage":"https://www.311s.com","websitePolicy":{"homepageChoices":{"setting":"preferredMirror","options":[{"value":"https://www.311s.com","url":"https://www.311s.com/"},{"value":"https://www.m206.com","url":"https://www.m206.com/"}]}},"chapterOrder":"newest_first",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "漫畫社收錄熱血、玄幻、都市與冒險等題材漫畫，兼有連載及完結作品。",
+        "zh-Hans": "漫画社收录热血、玄幻、都市与冒险等题材漫画，兼有连载及完结作品。",
+        "en": "Manhuashe carries action, fantasy, urban and adventure comics, including ongoing and completed series."
+      }
+    }
+  }
+}

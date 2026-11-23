@@ -1,5 +1,11 @@
 # 漫画manga
 
+## 0.1.1 簡介與多語言顯示
+
+漫畫manga（mh03.com）的中文漫畫書庫，收錄《一人之下》等分話連載，並按題材整理連載及完結作品。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 独立源 `com.manhuamanga.koma`，主页 mh03.com。对应 Mihon 来源 ID `325122966187249774`。作品、章节分别沿用官网 `/comic_*.html` 与 `/chapter_*.html`。源保留上游 MIXED 分级，Koma 当前把该值显示为未知。参考 [ManhuaManga、Dto、Filters](https://github.com/keiyoushi/extensions-source/tree/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/src/zh/manhuamanga) 和 [MCCMSWeb／MCCMSConfig](https://github.com/keiyoushi/extensions-source/tree/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/lib-multisrc/mccms)，代码许可 Apache-2.0。
 
 | 上游行为 | Koma 入口及实现 |

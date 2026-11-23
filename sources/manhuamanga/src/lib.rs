@@ -39,7 +39,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "漫画manga 的公开目录。",
+    description: "漫畫manga（mh03.com）的中文漫畫書庫，收錄《一人之下》等分話連載，並按題材整理連載及完結作品。",
     content_rating: "unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

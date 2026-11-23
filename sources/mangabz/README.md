@@ -1,5 +1,11 @@
 # Mangabz 0.1.11
 
+## 0.1.18 簡介與多語言顯示
+
+Mangabz 的漫畫書庫涵蓋熱血、校園、冒險、戀愛及科幻，兼有分話與卷本；書目文字可切換簡繁顯示。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 独立源 `com.mangabz.koma`，主页 `https://www.mangabz.com`，API 0.2。提供原热门、最新、搜索、详情、目录和页面；既有源码图像/HTTP守卫与内容分级保持，不增加账户、自动重试或脚本执行。
 
 ## 首选镜像

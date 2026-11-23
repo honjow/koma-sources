@@ -36,5 +36,16 @@
         "hexSuffixLength": 10
       }
     }
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "漫畫1234收錄國漫、日漫、韓漫、歐美及同人漫畫，包含熱血冒險、戀愛日常與四格等作品。",
+        "zh-Hans": "漫画1234收录国漫、日漫、韩漫、欧美及同人漫画，包含热血冒险、恋爱日常与四格等作品。",
+        "en": "Manhua 1234 carries Asian and Western comics and fan comics, including adventure, romance, slice of life and four-panel works."
+      }
+    }
   }
 }

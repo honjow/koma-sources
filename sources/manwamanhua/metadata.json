@@ -22,5 +22,16 @@
     "scopes": [
       "manga"
     ]
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "漫蛙收錄韓漫、日漫、國漫與台漫，設有一般向、BL、GL 及 TL 等作品分類。",
+        "zh-Hans": "漫蛙收录韩漫、日漫、国漫与台漫，设有一般向、BL、GL 及 TL 等作品分类。",
+        "en": "Manwa carries Korean, Japanese, mainland Chinese and Taiwanese comics, with general-audience, BL, GL and TL categories."
+      }
+    }
   }
 }

@@ -15,5 +15,16 @@
   "chapterOrder": "newest_first",
   "requestLimits": [
     {"group": "manhuamanga", "hosts": ["www.mh03.com"], "permits": 2, "periodMs": 1000}
-  ]
+  ],
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "漫畫manga（mh03.com）的中文漫畫書庫，收錄《一人之下》等分話連載，並按題材整理連載及完結作品。",
+        "zh-Hans": "漫画manga（mh03.com）的中文漫画书库，收录《一人之下》等分话连载，并按题材整理连载及完结作品。",
+        "en": "Chinese serial comics at mh03.com, including The Outcast, with ongoing and completed works organized by genre."
+      }
+    }
+  }
 }

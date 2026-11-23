@@ -51,7 +51,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "米卡插画公开图集及作品评论。",
+    description: "米卡插畫收錄插畫、畫師圖集、畫冊、壁紙與 COSPLAY 相冊。此入口閱讀公開圖集，會員或積分下載的高清檔案由原站提供。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

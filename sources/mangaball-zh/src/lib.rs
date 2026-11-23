@@ -21,8 +21,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description:
-        "提供 MangaBall 的中文章节。",
+    description: "MangaBall 的中文章節書庫，同一作品可能有不同翻譯組發布的章節。收錄範圍以章節語言為準，書名不一定是中文。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

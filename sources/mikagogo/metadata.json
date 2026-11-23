@@ -7,5 +7,16 @@
   "comments": {
     "version": 1,
     "scopes": ["manga"]
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "米卡插畫收錄插畫、畫師圖集、畫冊、壁紙與 COSPLAY 相冊。此入口閱讀公開圖集，會員或積分下載的高清檔案由原站提供。",
+        "zh-Hans": "米卡插画收录插画、画师图集、画册、壁纸与 COSPLAY 相册。此入口阅读公开图集，会员或积分下载的高清文件由原站提供。",
+        "en": "Illustrations, art books, wallpapers and cosplay on Mikagogo. Public galleries only; paid high-resolution downloads stay on site."
+      }
+    }
   }
 }

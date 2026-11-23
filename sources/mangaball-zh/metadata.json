@@ -5,5 +5,16 @@
     "en": "MangaBall"
   },
   "comments": {"version": 1, "scopes": ["manga", "chapter"]},
-  "homepage": "https://mangaball.com"
+  "homepage": "https://mangaball.com",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "MangaBall 的中文章節書庫，同一作品可能有不同翻譯組發布的章節。收錄範圍以章節語言為準，書名不一定是中文。",
+        "zh-Hans": "MangaBall 的中文章节书库，同一作品可能有不同翻译组发布的章节。收录范围以章节语言为准，书名不一定是中文。",
+        "en": "MangaBall’s Chinese-language chapters from different translation groups. Work titles may be in other languages."
+      }
+    }
+  }
 }

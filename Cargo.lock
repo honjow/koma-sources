@@ -1650,7 +1650,7 @@ dependencies = [
 
 [[package]]
 name = "koma_manben_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1660,7 +1660,7 @@ dependencies = [
 
 [[package]]
 name = "koma_mangaball_zh_source"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1668,7 +1668,7 @@ dependencies = [
 
 [[package]]
 name = "koma_mangabz_source"
-version = "0.1.17"
+version = "0.1.18"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1724,7 +1724,7 @@ dependencies = [
 
 [[package]]
 name = "koma_manhuamanga_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1741,7 +1741,7 @@ dependencies = [
 
 [[package]]
 name = "koma_manhuashe_source"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1755,7 +1755,7 @@ dependencies = [
 
 [[package]]
 name = "koma_manwamanhua_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1765,7 +1765,7 @@ dependencies = [
 
 [[package]]
 name = "koma_mh1234_source"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1786,7 +1786,7 @@ dependencies = [
 
 [[package]]
 name = "koma_mikagogo_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",

@@ -57,7 +57,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "漫画1234公开漫画目录与阅读源。",
+    description: "漫畫1234收錄國漫、日漫、韓漫、歐美及同人漫畫，包含熱血冒險、戀愛日常與四格等作品。",
     content_rating: "safe",
 };
 

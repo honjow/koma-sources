@@ -1,5 +1,11 @@
 # 漫画社公开适配器
 
+## 0.1.15 簡介與多語言顯示
+
+漫畫社收錄熱血、玄幻、都市與冒險等題材漫畫，兼有連載及完結作品。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 合同参考：Keiyoushi extensions-source `src/zh/manhuashe/.../Manhuashe.kt`，Apache-2.0，修订 `10f06eb833af5990bc5470c84c5e93edc159ad4e`。https://github.com/keiyoushi/extensions-source/blob/10f06eb833af5990bc5470c84c5e93edc159ad4e/LICENSE
 
 稳定源 ID 和旧规范名称保持不变。漫画 `manga:<原始路径>`、章节 `chapter:<原始漫画路径>:<原始章节路径>` 和页 `page:<零基索引>` 身份保持兼容。主站的显式目录反转保留。直到 0.1.5 chapterNumber 为 null；索引只表示那个原始顺序。

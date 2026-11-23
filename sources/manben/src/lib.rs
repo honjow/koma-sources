@@ -65,7 +65,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "漫本公开漫画。",
+    description: "漫本收錄港台、日韓、大陸及歐美漫畫，包含搞笑、奇幻、熱血、科幻與戀愛等題材，並區分少年、少女及青年向作品。",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

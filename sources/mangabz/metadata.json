@@ -68,5 +68,16 @@
         ]
       }
     ]
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "Mangabz 的漫畫書庫涵蓋熱血、校園、冒險、戀愛及科幻，兼有分話與卷本；書目文字可切換簡繁顯示。",
+        "zh-Hans": "Mangabz 的漫画书库涵盖热血、校园、冒险、恋爱及科幻，兼有分话与卷本；书目文字可切换简繁显示。",
+        "en": "Mangabz comics in action, school, adventure, romance and sci-fi, with chapters and volumes. Simplified/Traditional catalogue text."
+      }
+    }
   }
 }
