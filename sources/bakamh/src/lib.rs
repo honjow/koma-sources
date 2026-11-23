@@ -30,6 +30,9 @@ use port_support::{self as port, Node, Result};
 
 const BASE: &str = "https://bakamh.com";
 const LANGUAGE: &str = "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7";
+// Pinned upstream BrowserHeaders Chrome DOCUMENT Accept, on the same public
+// Chromium baseline as IMAGE_ACCEPT; the source does not invent UA/Sec-* hints.
+const DOCUMENT_ACCEPT: &str = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7";
 const AJAX: &str = "https://bakamh.com/wp-admin/admin-ajax.php";
 const PAGE_SIZE: usize = 25;
 const DETAILS_TITLE: &str = "div.post-title h3, div.post-title h1, #manga-title > h1";
@@ -66,7 +69,7 @@ koma_source_sdk::koma_source_helpers!();
 
 fn get_document(url: &Url, request: &[u8]) -> Result<(Node, bool)> {
     let headers = json!({
-        "Accept":"text/html","Accept-Language":LANGUAGE,"Referer":format!("{BASE}/")
+        "Accept":DOCUMENT_ACCEPT,"Accept-Language":LANGUAGE,"Referer":format!("{BASE}/")
     });
     // Only already canonical site documents enter Web HTTP. In particular,
     // WordPress ?p=ID and noncanonical pasted URLs keep their redirect resolver:

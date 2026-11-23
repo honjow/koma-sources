@@ -68,3 +68,11 @@ R3 在237完成自动CF后 Web POST 为200，同源 Native 图片 BodyRef 即使
 ### 0.1.1 R5 canonical challenge 终止
 
 `series()` 将 canonical 文档的 `challenge_required` 与原有权限/限流/取消错误一样立即返回，保留实际失败及 Host 已观察的同一个 GET，不再落入 `/?p=<id>` 覆盖或混淆句柄。没有 canonical 路径及原有非终止解析/查找回退仍保持数字 ID 解析语义；成功响应、全部业务 ID、图片 R4 接线与预算均不变。此次不改 UA、metadata 或 renderedDocumentFallback，R4包保留冻结，R5仍须配套新宿主验收，不宣称站点403已解。
+
+### 0.1.1 R6 文档 Accept 单变量
+
+R5配f2宿主的首批封面已取得 Web GET200并由主维护者亲审；同轮15:07:14 canonical `get_manga` Web GET仍403、普通forbidden无challenge标记。该结果不是全部详情/正文/下载通过。
+
+固定上游 `8947c37` 中，Bakamh只额外声明中文 Accept-Language；KeiSource配置根 Referer并接入 BrowserHeaders；Madara详情/目录/阅读文档使用 `Fetch.DOCUMENT`。其Chromium文档 Accept包含HTML/XHTML/XML、图像格式、通配类型及signed-exchange，原移植仅 `text/html` 确有窄化。R6只恢复该公开文档 Accept的Chromium基线（与当前图片 Accept同族）；上游Chrome155起按实际UA条件增加的JXL不在此静态基线中，不捏造引擎版本或格式能力。既有语言、Referer、请求/身份、R5 challenge终止和R4图片路径均不改。
+
+这是一个已证移植差异的单变量候选，不预先认定它是403原因。UA/`systemWebAgentOrigins`、metadata和RenderedDOM fallback均保持原样；继续由主维护者用同f2宿主核真实结果。无固定UA、Cookie或Sec-*新增，不启用新API，旧R5候选与原件保留。
