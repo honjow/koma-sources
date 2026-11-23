@@ -1,6 +1,6 @@
 [package]
 name = "koma_dm5_source"
-version = "0.1.31"
+version = "0.1.32"
 edition = "2021"
 
 [lib]

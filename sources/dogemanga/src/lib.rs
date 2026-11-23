@@ -26,7 +26,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "漫畫狗。",
+    description: "漫畫狗收錄分話連載與單行本，同一作品可有多個版本；分話與卷本各自保留原站目錄。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

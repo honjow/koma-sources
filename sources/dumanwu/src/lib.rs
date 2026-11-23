@@ -16,7 +16,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "读漫屋公开漫画。",
+    description: "讀漫屋收錄都市、玄幻、冒險、戀愛及古風等題材漫畫，書庫包含連載與完結作品。",
     content_rating: "safe",
 };
 

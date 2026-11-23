@@ -1,5 +1,11 @@
 # 漫小肆韓漫
 
+## 0.1.2 簡介與多語言顯示
+
+漫小肆韓漫的漫畫書庫，地區分類包含韓國、日本與台灣，作品依題材及連載進度整理。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 独立源 `com.ikanmh.koma`。按用户决定沿用 Keiyoushi 的独立移动端扩展和 Mihon 源 ID `8826152585666516354`。站点身份参考 [原移植](https://github.com/keiyoushi/extensions-source/pull/20221) 与 [镜像验证](https://github.com/keiyoushi/extensions-source/pull/20903)。
 
 | 功能 | 上游与 Koma |

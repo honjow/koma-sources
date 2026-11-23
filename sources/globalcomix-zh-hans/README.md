@@ -1,5 +1,11 @@
 # GlobalComix 中文 0.1.4
 
+## 0.1.9 簡介與多語言顯示
+
+GlobalComix 匯集出版社與獨立創作者的數位漫畫，此入口選取中文內容。正文限原站開放的免費頁面。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 源身份 `com.globalcomix.zh-hans.koma`，语言 `zh`，API语言 `cn`。提供公开列表、搜索和详情；目录可按下述能力显示付费记录；正文仍只接受明确免费的 release/page，并校验 comic/release/page 归属，未知或付费章节内容保持拒绝。原ID、目录与图片顺序、原请求头、详情中同实体声明的网页链接保持。
 
 ## 设置

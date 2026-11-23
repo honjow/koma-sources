@@ -1,5 +1,11 @@
 # 拷贝漫画：未发布的独立移植
 
+## 0.1.8 簡介與多語言顯示
+
+拷貝漫畫的繁體中文漫畫書庫，保留各作品原站分組的分話目錄，可切換簡體顯示書目文字。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 固定参考为 coffee522/extensions-copymanga 的 Apache-2.0 commit
 655896cce1dd8a235c10d4c9d4b370d7f265c651；已读全部六个 Kotlin 源文件、
 build 定义与许可证。当前 Rust/WASM 独立实现位于同一源仓，不参加根 workspace、

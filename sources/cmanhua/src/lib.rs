@@ -17,7 +17,7 @@ const INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "CManhua public Chinese catalogue and chapters.",
+    description: "CManhua 的中文連載漫畫書庫，包含歐美漫畫；長篇作品保留原站分段編排的目錄。",
     content_rating: "nsfw",
 };
 const SOURCE_INFO: SourceInfo = INFO;

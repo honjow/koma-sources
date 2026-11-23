@@ -1,5 +1,11 @@
 # 漫畫狗
 
+## 0.1.2 簡介與多語言顯示
+
+漫畫狗收錄分話連載與單行本，同一作品可有多個版本；分話與卷本各自保留原站目錄。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 参考 [Keiyoushi Doge Manga](https://github.com/keiyoushi/extensions-source/tree/f1d882a93ef34a33dc4f4467753ad5f99eab43f4/src/zh/dogemanga)。热门和最近更新沿用服务器的下一页游标，关键词页用真实的 24 条偏移量。目录卡片忽略原站空卡。详情和章节仍以原始作品、章节 ID 为准，界面语言固定为英文以可靠判断原站作品状态。
 
 同一作品的「全部」可混排不同卷、章和版本。保留上游的全部目录数组、标题和原始作品／章节 ID，只按章节业务 ID 去重，不按标题或编号合并。图片继续直接使用站点提供的逐页地址。

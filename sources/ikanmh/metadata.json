@@ -18,5 +18,16 @@
         { "value": "https://www.jjmhw12.top", "url": "https://www.jjmhw12.top/" }
       ]
     }
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "漫小肆韓漫的漫畫書庫，地區分類包含韓國、日本與台灣，作品依題材及連載進度整理。",
+        "zh-Hans": "漫小肆韩漫的漫画书库，地区分类包含韩国、日本与台湾，作品依题材及连载进度整理。",
+        "en": "Ikanmh’s comic library includes Korean, Japanese and Taiwanese categories, organized by genre and publication status."
+      }
+    }
   }
 }

@@ -1279,7 +1279,7 @@ dependencies = [
 
 [[package]]
 name = "koma_cmanhua_source"
-version = "0.1.11"
+version = "0.1.12"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1300,7 +1300,7 @@ dependencies = [
 
 [[package]]
 name = "koma_copymanga_source"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1337,14 +1337,14 @@ dependencies = [
 
 [[package]]
 name = "koma_dm5_source"
-version = "0.1.31"
+version = "0.1.32"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_dogemanga_source"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1368,7 +1368,7 @@ dependencies = [
 
 [[package]]
 name = "koma_dumanwu_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "base64 0.22.1",
  "dlmalloc",
@@ -1407,7 +1407,7 @@ dependencies = [
 
 [[package]]
 name = "koma_globalcomix_zh_hans_source"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1457,7 +1457,7 @@ dependencies = [
 
 [[package]]
 name = "koma_hentaiclub_source"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1502,7 +1502,7 @@ dependencies = [
 
 [[package]]
 name = "koma_ikanmh_source"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",

@@ -1,5 +1,11 @@
 # CManhua source
 
+## 0.1.12 簡介與多語言顯示
+
+CManhua 的中文連載漫畫書庫，包含歐美漫畫；長篇作品保留原站分段編排的目錄。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 Public routes, bounded catalogue parsing and stable work/chapter/page IDs follow the source contract in [NOTICE](NOTICE).
 
 The HTML decoder preserves ordinary literal ampersands and decodes decimal or hexadecimal numeric references with or without a trailing semicolon. This follows the HTML numeric-reference tokenization rule and handles the site's real chapter titles and descriptions without changing the text. Unknown named entities, invalid scalar values and output-buffer overflow retain explicit failure; no markup is executed. Changes must preserve these boundaries and the unchanged catalogue IDs and order.

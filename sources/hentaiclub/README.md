@@ -1,5 +1,11 @@
 # 绅士会所
 
+## 0.1.8 簡介與多語言顯示
+
+紳士俱樂部的漫畫圖集，按題材標籤整理，並分為 R-15 與 R-18 分類；每部圖集整冊閱讀。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 完整 HentaiClub.kt/Filters.kt 的独立 Rust/WASM 移植，位于 Keiyoushi
 de743aed846da53e00c45ab26ee0e77f7bb4355b（extension v1、lib1.6、Apache-2.0）。
 名称绅士会所、zh 语言和原宿主 www.hentaiclub.net 保留。

@@ -1,5 +1,11 @@
 # 读漫屋
 
+## 0.1.1 簡介與多語言顯示
+
+讀漫屋收錄都市、玄幻、冒險、戀愛及古風等題材漫畫，書庫包含連載與完結作品。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 参考 [Keiyoushi 读漫屋](https://github.com/keiyoushi/extensions-source/tree/f1d882a93ef34a33dc4f4467753ad5f99eab43f4/src/zh/dumanwu) 与同提交的 MMLook 模板。
 
 - 浏览调用桌面站 `/rank/1`、`/rank/5`。空关键词筛选优先用榜单，其次分类，结果为单页。非空关键词提交 `POST /s` 的 `k` 字段，沿用上游 12 字符限制。

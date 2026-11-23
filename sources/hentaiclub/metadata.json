@@ -29,5 +29,16 @@
         "www.hentaiclub.net"
       ]
     }
-  ]
+  ],
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "紳士俱樂部的漫畫圖集，按題材標籤整理，並分為 R-15 與 R-18 分類；每部圖集整冊閱讀。",
+        "zh-Hans": "绅士俱乐部的漫画图集，按题材标签整理，并分为 R-15 与 R-18 分类；每部图集整册阅读。",
+        "en": "HentaiClub’s tagged comic galleries are organized into R-15 and R-18 categories. Each gallery is read as a complete book."
+      }
+    }
+  }
 }

@@ -1,5 +1,16 @@
 {
   "homepage": "https://dogemanga.com",
   "localizedNames": {"zh-Hans":"漫画狗","zh-Hant":"漫畫狗","en":"Doge Manga"},
-  "requestLimits": [{"group":"dogemanga-site","hosts":["dogemanga.com"],"permits":5,"periodMs":1000}]
+  "requestLimits": [{"group":"dogemanga-site","hosts":["dogemanga.com"],"permits":5,"periodMs":1000}],
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "漫畫狗收錄分話連載與單行本，同一作品可有多個版本；分話與卷本各自保留原站目錄。",
+        "zh-Hans": "漫画狗收录分话连载与单行本，同一作品可有多个版本；分话与卷本各自保留原站目录。",
+        "en": "DogeManga carries serialized chapters and collected volumes, sometimes in multiple editions. Chapter and volume catalogues remain separate."
+      }
+    }
+  }
 }

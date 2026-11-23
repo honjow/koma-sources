@@ -30,7 +30,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "拷贝漫画。支持公开列表和漫画阅读。",
+    description: "拷貝漫畫的繁體中文漫畫書庫，保留各作品原站分組的分話目錄，可切換簡體顯示書目文字。",
     content_rating: "unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

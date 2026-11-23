@@ -26,7 +26,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "绅士会所公开漫画，包含成人内容。",
+    description: "紳士俱樂部的漫畫圖集，按題材標籤整理，並分為 R-15 與 R-18 分類；每部圖集整冊閱讀。",
     content_rating: "unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

@@ -1,4 +1,15 @@
 {
   "homepage": "http://www.dumanwu1.com",
-  "localizedNames": {"zh-Hans":"读漫屋","zh-Hant":"讀漫屋","en":"Dumanwu"}
+  "localizedNames": {"zh-Hans":"读漫屋","zh-Hant":"讀漫屋","en":"Dumanwu"},
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "讀漫屋收錄都市、玄幻、冒險、戀愛及古風等題材漫畫，書庫包含連載與完結作品。",
+        "zh-Hans": "读漫屋收录都市、玄幻、冒险、恋爱及古风等题材漫画，书库包含连载与完结作品。",
+        "en": "Dumanwu’s comic library includes urban stories, fantasy, adventure, romance and historical settings, with ongoing and completed series."
+      }
+    }
+  }
 }

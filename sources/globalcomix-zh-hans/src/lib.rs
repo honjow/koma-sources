@@ -15,8 +15,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description:
-        "GlobalComix 中文公开漫画，可浏览目录和免费页面。",
+    description: "GlobalComix 匯集出版社與獨立創作者的數位漫畫，此入口選取中文內容。正文限原站開放的免費頁面。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

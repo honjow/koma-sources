@@ -37,7 +37,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "漫小肆韓漫移动端",
+    description: "漫小肆韓漫的漫畫書庫，地區分類包含韓國、日本與台灣，作品依題材及連載進度整理。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

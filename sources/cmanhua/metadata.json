@@ -11,5 +11,16 @@
     }
   },
   "homepage": "https://cmanhua.com",
-  "wasmBuild": {"stackBytes": 262144}
+  "wasmBuild": {"stackBytes": 262144},
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "CManhua 的中文連載漫畫書庫，包含歐美漫畫；長篇作品保留原站分段編排的目錄。",
+        "zh-Hans": "CManhua 的中文连载漫画书库，包含欧美漫画；长篇作品保留原站分段编排的目录。",
+        "en": "Chinese serials on CManhua, including Western comics, with the original segmented chapter catalogues."
+      }
+    }
+  }
 }

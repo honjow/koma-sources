@@ -56,5 +56,16 @@
   "wasmBuild": {
     "optimizeForSize": true,
     "maxBytes": 1048576
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "拷貝漫畫的繁體中文漫畫書庫，保留各作品原站分組的分話目錄，可切換簡體顯示書目文字。",
+        "zh-Hans": "拷贝漫画的繁体中文漫画书库，保留各作品原站分组的分话目录，可切换简体显示书目文字。",
+        "en": "CopyManga’s Traditional Chinese comic library, with original chapter groups and optional Simplified Chinese catalogue text."
+      }
+    }
   }
 }
