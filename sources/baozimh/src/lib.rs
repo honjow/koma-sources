@@ -781,9 +781,11 @@ fn canonical_href<'a>(document: HtmlDescriptor, buffer: &'a mut [u8]) -> Option<
     chapter_duplicates::complete_fact(attr_into(link.0,b"href",buffer),capacity)
 }
 
-fn canonical_main_owner<'a>(document: HtmlDescriptor, buffer: &'a mut [u8], request: &[u8]) -> Option<&'a [u8]> {
+fn canonical_main_owner<'a>(document: HtmlDescriptor, buffer: &'a mut [u8], request: &[u8], slug: &[u8]) -> Option<&'a [u8]> {
     let href = canonical_href(document,buffer)?;
-    let path = mirror::canonical_path(request, href)?.strip_prefix(b"/comic/")?;
+    let path = mirror::canonical_path(request, href)
+        .or_else(|| mirror::app_canonical_alias_path(request, href, slug))?
+        .strip_prefix(b"/comic/")?;
     let owner = path.strip_suffix(b"/").unwrap_or(path);
     if owner.is_empty() || !owner.iter().all(|b|b.is_ascii_alphanumeric() || *b==b'-' || *b==b'_') {
         return None;
@@ -816,7 +818,7 @@ fn main_catalog(document: HtmlDescriptor, slug: &[u8], request: &[u8]) -> Option
             // owner requires the current page's exact public canonical binding.
             if owner != slug {
                 let mut canonical = [0u8;256];
-                if canonical_main_owner(document,&mut canonical,request)? != owner { return None; }
+                if canonical_main_owner(document,&mut canonical,request,slug)? != owner { return None; }
             }
             if owner.is_empty() || owner.len()>verified.owner.len() { return None; }
             verified.owner[..owner.len()].copy_from_slice(owner);

@@ -65,3 +65,24 @@ pub(super) fn canonical_path<'a>(request: &[u8], url: &'a [u8]) -> Option<&'a [u
     if !path.starts_with(b"/") { return None; }
     Some(path.strip_prefix(b"/baozimhapp").unwrap_or(path))
 }
+
+// App pages currently emit a syntactically valid but unusable SEO subdomain.
+// Read only its coordinate path: it must remain in Baozi's own HTTPS namespace
+// and name the caller's exact slug plus an explicit alphanumeric alias suffix.
+// This is not an HTTP target or a cookie/session authorization.
+pub(super) fn app_canonical_alias_path<'a>(request: &[u8], url: &'a [u8], slug: &[u8]) -> Option<&'a [u8]> {
+    let selected = selected(request);
+    if selected.site == selected.origin { return None; }
+    let rest = url.strip_prefix(b"https://")?;
+    let slash = rest.iter().position(|b| *b == b'/')?;
+    let host = &rest[..slash];
+    if !host.ends_with(b".baozimh.com") || !host.iter().all(|b| b.is_ascii_alphanumeric() || *b == b'-' || *b == b'.') {
+        return None;
+    }
+    let path = rest[slash..].strip_prefix(b"/baozimhapp").unwrap_or(&rest[slash..]);
+    let owner = path.strip_prefix(b"/comic/")?;
+    let owner = owner.strip_suffix(b"/").unwrap_or(owner);
+    let suffix = owner.strip_prefix(slug)?.strip_prefix(b"_")?;
+    if suffix.is_empty() || !suffix.iter().all(u8::is_ascii_alphanumeric) { return None; }
+    Some(path)
+}
