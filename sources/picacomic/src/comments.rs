@@ -28,12 +28,25 @@ fn cursor(input: &Value, mid: &str) -> R<Value> {
         _ => Err("invalid_request".into()),
     }
 }
+fn invalid(field: &str, value: &Value) -> E {
+    let kind = match value { Value::Null => "null", Value::Bool(_) => "boolean", Value::Number(_) => "number", Value::String(_) => "string", Value::Array(_) => "array", Value::Object(_) => "object" };
+    host::log_info(format!("Picacomic comments invalid field={} type={}", field, kind).as_bytes());
+    "parse_error".into()
+}
+// The live API sends comments.page as a decimal string, while pages is
+// numeric. Accept either representation without accepting partial/negative IDs.
+fn provider_number(value: &Value, field: &str) -> R<u32> {
+    let n = value.as_u64().or_else(|| value.as_str().and_then(|raw| {
+        raw.parse::<u64>().ok().filter(|n| n.to_string() == raw)
+    })).filter(|n| *n <= i32::MAX as u64).ok_or_else(|| invalid(field, value))?;
+    Ok(n as u32)
+}
 fn parse(row: &Value, parent: Option<&str>, seen: &mut BTreeSet<String>) -> R<Option<Value>> {
-    let raw_id = row["_id"].as_str().ok_or_else(|| E::from("parse_error"))?;
+    let raw_id = row["_id"].as_str().ok_or_else(|| invalid("_id", &row["_id"]))?;
     let cid = id(raw_id).map_err(|_| E::from("parse_error"))?;
     if !seen.insert(cid.clone()) { return Ok(None); }
     let author = row["_user"]["name"].as_str().unwrap_or("");
-    let content = row["content"].as_str().ok_or_else(|| E::from("parse_error"))?;
+    let content = row["content"].as_str().ok_or_else(|| invalid("content", &row["content"]))?;
     let content = parent.map(|name| format!("回复 {}：{}", name, content)).unwrap_or_else(|| content.to_string());
     let mut item = json!({"id":cid,"author":author,"content":content});
     if let Some(date) = row["created_at"].as_str().filter(|s| !s.is_empty()) { item["createdAt"] = json!(date); }
@@ -54,12 +67,12 @@ fn get_page(r: &[u8], input: &Value) -> R<Value> {
     let response = api(r, input, &path, "GET", None)?;
     if host::check_cancel() { return Err("cancelled".into()); }
     let data = &response["data"]["comments"];
-    let docs = data["docs"].as_array().ok_or_else(|| E::from("parse_error"))?;
-    let pages = data["pages"].as_u64().filter(|v| *v <= i32::MAX as u64).ok_or_else(|| E::from("parse_error"))?;
+    let docs = data["docs"].as_array().ok_or_else(|| invalid("comments.docs", &data["docs"]))?;
+    let pages = provider_number(&data["pages"], "comments.pages")?;
     if let Some(returned) = data.get("page") {
-        if returned.as_u64() != Some(current_page as u64) { return Err("parse_error".into()); }
+        if provider_number(returned, "comments.page")? != current_page { return Err(invalid("comments.page", returned)); }
     }
-    let has_more = !docs.is_empty() && (current_page as u64) < pages;
+    let has_more = !docs.is_empty() && current_page < pages;
     let mut items = Vec::new();
     let mut seen = BTreeSet::new();
     for row in docs {
