@@ -76,3 +76,9 @@ R5配f2宿主的首批封面已取得 Web GET200并由主维护者亲审；同�
 固定上游 `8947c37` 中，Bakamh只额外声明中文 Accept-Language；KeiSource配置根 Referer并接入 BrowserHeaders；Madara详情/目录/阅读文档使用 `Fetch.DOCUMENT`。其Chromium文档 Accept包含HTML/XHTML/XML、图像格式、通配类型及signed-exchange，原移植仅 `text/html` 确有窄化。R6只恢复该公开文档 Accept的Chromium基线（与当前图片 Accept同族）；上游Chrome155起按实际UA条件增加的JXL不在此静态基线中，不捏造引擎版本或格式能力。既有语言、Referer、请求/身份、R5 challenge终止和R4图片路径均不改。
 
 这是一个已证移植差异的单变量候选，不预先认定它是403原因。UA/`systemWebAgentOrigins`、metadata和RenderedDOM fallback均保持原样；继续由主维护者用同f2宿主核真实结果。无固定UA、Cookie或Sec-*新增，不启用新API，旧R5候选与原件保留。
+
+### 0.1.1 R7 精确原点系统网页 UA 策略单变量
+
+R6配同f2宿主实测在15:24:31的 canonical `get_manga` Web GET仍403，普通forbidden且无CF/challenge信号；恢复上游文档Accept并未解决该次真实失败。此前封面Web GET200且主维护者已亲审真实图，不据此宣称详情、目录或正文已通过。
+
+R7仅在 `websitePolicy.systemWebAgentOrigins` 声明精确 `https://bakamh.com`，使用宿主既有系统网页UA策略；不扩展到www、其他原点或全局UA，不写固定UA。R6的文档Accept和全部WASM逻辑保留，不增加readySelector、DOM fallback、请求头/Sec-*或新API。授权自动完成分支的后续变更不属于本候选，R7先配同f2按普通授权/请求路径单独验证新UA，不能把旧授权会话的复用当作已切换。当前仍未宣称403解除；旧R6包与诊断原件保留。

@@ -31,6 +31,9 @@
     }
   ],
   "websitePolicy": {
-    "webFetchBridge": true
+    "webFetchBridge": true,
+    "systemWebAgentOrigins": [
+      "https://bakamh.com"
+    ]
   }
 }
