@@ -16,5 +16,16 @@
     "zh-Hant": "鳥鳥韓漫",
     "en": "NNHanman (Chinese)"
   },
-  "homepage": "https://nnhanman.xyz"
+  "homepage": "https://nnhanman.xyz",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "鸟鸟韩漫的中文成人韩漫，按分话连载收录，设有原站排行榜。",
+        "zh-Hant": "鳥鳥韓漫的中文成人韓漫，按分話連載收錄，設有原站排行榜。",
+        "en": "Chinese-language adult Korean comics from NNHanman, collected as serial episodes with the site’s rankings."
+      }
+    }
+  }
 }

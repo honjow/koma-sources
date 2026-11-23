@@ -1,5 +1,9 @@
 # 六漫画源候选
 
+## 书源简介
+
+六漫画的中文连载漫画，包含《全职法师》等作品，按分话目录收录。
+
 规范源 `com.sixmh.koma`，中文内容，按当前 Keiyoushi 元数据为 NSFW；实测用量未知。实现参考：Keiyoushi extensions-source `10f06eb833af5990bc5470c84c5e93edc159ad4e` 的 SixMH.kt/Crypto.kt 与 MCCMSWeb.kt/config（上游 Apache-2.0）。源合同与有限原生验收边界分别记录如下。
 
 热门/最新使用规范公开 PC HTML 路由；详情/目录保留规范 href ID 和目录顺序。章节编号/日期保持未知。搜索沿固定 MCCMS 参考移动端请求合同 `/search/{query}/{page}`。源对 JSON 解码后的查询做百分号编码，保留目录 ID，识别站点的显式空结果，对未知或挑战响应显式失败而不是返回假空列表。可选筛选/设置/登录为 false。缺失/含糊/溢出/验证码/错误结构显式失败。

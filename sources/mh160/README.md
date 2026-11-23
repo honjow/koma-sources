@@ -1,5 +1,9 @@
 # 漫画160 source
 
+## 书源简介
+
+漫画160的国漫与日漫连载，包含《斗破苍穹》《海贼王》等作品。
+
 公开合同参考：Keiyoushi extensions-source `src/zh/mh160/.../Mh160.kt`，修订 `10f06eb833af5990bc5470c84c5e93edc159ad4e`，Apache-2.0：https://github.com/keiyoushi/extensions-source/blob/10f06eb833af5990bc5470c84c5e93edc159ad4e/LICENSE 。保留上游归因。适配器代码使用 Koma 源 SDK 和源助手模式。
 
 上游评级 SAFE；实际源内容未验证，故 Koma 源/内容评级为 unknown。实际使用率未知。无账号、任意 JavaScript 求值或匿名注册。只有显式引用的读者字面量；不受支持/缺失/含糊/溢出的输入失败。声明的能力描述已实现的公开合同，不隐含宿主或 native 验收。

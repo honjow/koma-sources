@@ -26,12 +26,12 @@ use koma_source_sdk::{
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.xcomic.zh-hant.koma",
     name: "XCOMIC",
-    version: "0.1.17",
+    version: "0.1.18",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
     description:
-        "XCOMIC Traditional Chinese public editions; anonymous GraphQL queries and direct original images. Usage unknown.",
+        "漫畫與譯本平台XCOMIC。本源收錄公開的繁體中文章節，保留同作品的不同發布版本。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

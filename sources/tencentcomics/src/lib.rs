@@ -16,7 +16,7 @@ const BASE: &[u8] = b"https://ac.qq.com";
 const MOBILE: &[u8] = b"https://m.ac.qq.com";
 const UA:&[u8]=b"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36";
 const MOBILE_UA:&[u8]=b"Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36";
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.tencentcomics.koma",name:"腾讯动漫",version:env!("CARGO_PKG_VERSION"),api_version:"0.2",language:"zh",author:"Koma",description:"Tencent Comics public catalogues and free chapters; paid content and JavaScript execution are unsupported.",content_rating:"safe"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.tencentcomics.koma",name:"腾讯动漫",version:env!("CARGO_PKG_VERSION"),api_version:"0.2",language:"zh",author:"Koma",description:"腾讯动漫的在线漫画，包含国漫连载。本源仅提供原站明确标为免费的章节。",content_rating:"safe"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,

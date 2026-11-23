@@ -15,5 +15,16 @@
     "zh-Hant": "騰訊動漫",
     "en": "Tencent Comics"
   },
-  "homepage": "https://ac.qq.com"
+  "homepage": "https://ac.qq.com",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "腾讯动漫的在线漫画，包含国漫连载。本源仅提供原站明确标为免费的章节。",
+        "zh-Hant": "騰訊動漫的線上漫畫，包含國漫連載。本源僅提供原站明確標為免費的章節。",
+        "en": "Comics from Tencent’s comics platform, including Chinese series. This source reads only chapters explicitly marked free."
+      }
+    }
+  }
 }

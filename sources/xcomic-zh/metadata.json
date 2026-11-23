@@ -20,5 +20,16 @@
     "zh-Hant": "XCOMIC（中文）",
     "en": "XCOMIC (Chinese)"
   },
-  "homepage": "https://xcomic.me"
+  "homepage": "https://xcomic.me",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "漫画与译本平台XCOMIC。本源收录公开的简体中文章节，保留同作品的不同发布版本。",
+        "zh-Hant": "漫畫與譯本平台XCOMIC。本源收錄公開的簡體中文章節，保留同作品的不同發布版本。",
+        "en": "Manga and translated editions from XCOMIC. This source selects public Simplified Chinese chapters and keeps separate editions."
+      }
+    }
+  }
 }

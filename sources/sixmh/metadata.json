@@ -22,5 +22,16 @@
     "zh-Hant": "六漫畫"
   },
   "homepage": "https://www.liumanhua.com",
-  "chapterOrder": "newest_first"
+  "chapterOrder": "newest_first",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "六漫画的中文连载漫画，包含《全职法师》等作品，按分话目录收录。",
+        "zh-Hant": "六漫畫的中文連載漫畫，包含《全職法師》等作品，按分話目錄收錄。",
+        "en": "Chinese serial comics from SixMH, including Versatile Mage, with episode-based catalogues."
+      }
+    }
+  }
 }

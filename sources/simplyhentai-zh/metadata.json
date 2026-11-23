@@ -13,5 +13,16 @@
         "profile": "firefox133"
       }
     ]
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "以单册图集收录的成人漫画站。本源选择中文作品，搜索可排除指定标签。",
+        "zh-Hant": "以單冊圖集收錄的成人漫畫站。本源選擇中文作品，搜尋可排除指定標籤。",
+        "en": "Adult comics collected as album-style galleries. This source selects Chinese works and lets searches exclude chosen tags."
+      }
+    }
   }
 }

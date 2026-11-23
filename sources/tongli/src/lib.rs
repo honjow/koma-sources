@@ -39,7 +39,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "Tongli JSON API source with Firebase anonymous auth.",
+    description: "東立电子书的漫画书库，按卷册与连载话数收录；部分内容需付费或受地区限制。",
     content_rating: "safe",
 };
 

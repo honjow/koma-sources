@@ -18,7 +18,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     language: "zh",
     author: "Koma",
     description:
-        "Manhua160 public HTML adapter. Upstream rating SAFE; current contents unverified.",
+        "漫画160的国漫与日漫连载，包含《斗破苍穹》《海贼王》等作品。",
     content_rating: "unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

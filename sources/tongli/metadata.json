@@ -14,5 +14,16 @@
       }
     }
   },
-  "homepage": "https://ebook.tongli.com.tw"
+  "homepage": "https://ebook.tongli.com.tw",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "東立电子书的漫画书库，按卷册与连载话数收录；部分内容需付费或受地区限制。",
+        "zh-Hant": "東立電子書的漫畫書庫，按卷冊與連載話數收錄；部分內容需付費或受地區限制。",
+        "en": "Tong Li’s e-book manga catalogue, organised by volumes and serial chapters. Some content is paid or region-restricted."
+      }
+    }
+  }
 }

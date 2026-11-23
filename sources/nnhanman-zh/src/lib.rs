@@ -11,7 +11,7 @@ type E = &'static str;
 type R<T> = Result<T, E>;
 const MAX: usize = 1048576;
 const WEB: &[u8] = b"https://nnhanman.xyz";
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.nnhanman.zh.koma",name:"NNHanman",version:env!("CARGO_PKG_VERSION"),api_version:"0.2",language:"zh",author:"Koma",description:"NNHanman published Chinese ranking and search metadata. Per-work rating, artwork availability and usage unknown.",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.nnhanman.zh.koma",name:"NNHanman",version:env!("CARGO_PKG_VERSION"),api_version:"0.2",language:"zh",author:"Koma",description:"鸟鸟韩漫的中文成人韩漫，按分话连载收录，设有原站排行榜。",content_rating:"nsfw"};
 #[allow(dead_code)]
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,

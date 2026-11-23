@@ -28,5 +28,16 @@
       "https://www.mh160mh.com",
       "https://m.mh160mh.com"
     ]
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "漫画160的国漫与日漫连载，包含《斗破苍穹》《海贼王》等作品。",
+        "zh-Hant": "漫畫160的國漫與日漫連載，包含《鬥破蒼穹》《海賊王》等作品。",
+        "en": "Chinese and Japanese serial comics from Manhua160, including Battle Through the Heavens and One Piece."
+      }
+    }
   }
 }

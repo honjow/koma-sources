@@ -8,11 +8,11 @@ const BASE: &[u8] = b"https://www.liumanhua.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.sixmh.koma",
     name: "六漫画",
-    version: "0.1.11",
+    version: "0.1.12",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "六漫画公开 HTML 目录与搜索适配。",
+    description: "六漫画的中文连载漫画，包含《全职法师》等作品，按分话目录收录。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
