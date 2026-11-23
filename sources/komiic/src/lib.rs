@@ -450,7 +450,22 @@ fn write_manga_card(payload: &mut [u8], c: &mut usize, obj: &[u8], req: &[u8]) -
         && write_names_from_array(payload, c, obj, b"authors")
         && write_bytes(payload, c, br#"],"status":""#)
         && write_bytes(payload, c, status)
-        && write_bytes(payload, c, br#"","contentRating":"nsfw","sourceTags":["komiic"]}"#)
+        && write_bytes(payload, c, br#"","contentRating":"nsfw","sourceTags":["komiic"]"#)
+        // Prefer actual provider categories over the legacy source identity tag.
+        // Keep the host's existing author/status/tags fallback order: no listInfo
+        // override and no extra query. Absent/unrequested categories stay absent.
+        && if koma_source_sdk::source_protocol::feature(req, koma_source_sdk::list_info::HOST_FEATURE) {
+            let categories = koma_source_sdk::source_protocol::direct(obj, b"categories").ok().flatten();
+            match categories.map(<[u8]>::trim_ascii) {
+                Some(raw) if raw.first() == Some(&b'[') && raw.last() == Some(&b']') && strict_json::valid(raw) => {
+                    write_bytes(payload, c, br#", "tags":["#)
+                        && write_names_from_array(payload, c, obj, b"categories")
+                        && write_bytes(payload, c, b"]")
+                }
+                _ => true,
+            }
+        } else { true }
+        && write_bytes(payload, c, b"}")
 }
 
 fn normalize_status(status: &[u8]) -> &'static [u8] {

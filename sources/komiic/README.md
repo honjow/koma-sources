@@ -96,3 +96,14 @@ provider数组顺序和chapter/book版本分组，以完整原数组位置作rea
 章序、邻章函数及反向显示投影，get_pages代表回归独立记录。原件同响应回放
 与最终包代表性真实HTTP均保留于Koma审计static-expanded/及static-final-packages.json。
 这些结果不冒充设备安装、图片解码或普通App UI验收。
+
+## 0.1.24 可选列表题材
+
+协商 `source_manga_list_info_v1` 后，列表卡片把本次原有GraphQL响应的
+`categories[].name` 按现有 `write_names_from_array` 解码规约输出为 `tags`。
+原 `sourceTags:["komiic"]`、作者、status、ID、封面、列表顺序、查询和设置不变；
+没有协商时卡片原字节输出保持。API明确空categories输出 `tags:[]`，未请求、
+缺失或非数组categories不造tags。只用实际列表资料，不追加HTTP或详情请求。
+不写listInfo覆盖宿主fallback，因此同一普通路径仍按已有作者/已知状态/实际
+题材顺序展示；源名不是genre。可选增强不提高最低App，不改变图标或正文。
+真实30条热门列表API原件用于新旧WASM回放；UI验收由父指定197 owner负责。
