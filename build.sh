@@ -111,6 +111,7 @@ bns-zh-hant|bns-zh-hant|false|0.1.1
 genshin-zh|genshin-zh|false|0.1.0
 fgo-zh|fgo-zh|false|0.1.1
 magireco-zh|magireco-zh|false|0.1.1
+bakamh|bakamh|true|1.6.1
 baozimh|baozimh|false|1.4.1
 mangadex|mangadex|true|0.1.0
 mangabz|mangabz|false|1.4.1

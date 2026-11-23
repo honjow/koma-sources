@@ -1,0 +1,48 @@
+# 巴卡漫画
+
+独立源 `com.bakamh.koma`，对应 Mihon 来源 ID `3712194609356981776`，来源分级 NSFW。参考 [Bakamh](https://github.com/keiyoushi/extensions-source/tree/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/src/zh/bakamh) 和同提交的 [Madara／MadaraBase](https://github.com/keiyoushi/extensions-source/tree/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/lib-multisrc/madara)，代码许可 Apache-2.0。
+
+| 上游行为 | Koma 入口及实现 |
+| --- | --- |
+| 热门、更新、搜索走 `POST /wp-admin/admin-ajax.php` 的 `madara_load_more`，查 `wp-manga` 的漫画类条目。每页 25 条，满页才续 | `get_manga_list`／`search` → `browse`、`filters::archive_form`，取 `args.page.cursor` 并换算为上游从 0 起的 `page`。保留上游中文 Accept-Language 和每秒两次请求。 |
+| 作者、画师、年份、状态多选、排序、成人内容、题材多选和任一/全部匹配 | `get_filters` → `filters::schema`，题材选项延迟使用 `/manga/` 的真实链接。 `filters::search` 按上游的 taxonomy、meta 和排序形状组 POST。空词与词搜使用同一操作。 |
+| 目录卡片的 WordPress 作品数字 ID 和路径提供详情；路径小写化，短链 `?p=` 用作补取。复制同站章节地址时通过其所属作品 ID 打开作品 | `get_manga` → `series`／`details`，保留标题、作者、画师、状态、封面、简介、别名和题材。普通 `search` 支持作品与章节地址，当前书源 ABI 无独立站点链接分派导出。 |
+| 相关作品按最多三个题材查询随机列表，过滤泛分类并排除当前作品 | 具备 `source_related_manga_v1` 的宿主可用 `get_manga` 的 `relatedManga`。此请求失效时保留作品详情。 |
+| 章节取作品页 `ul.version-chap > li`，以作品身份和章路径末段定位；日期优先采用图标 alt、提示 title、章节日期 | `get_chapters` 用 SDK 分组目录保留站点顺序和章身份。完整单平面 `no-volumn` 目录经身份、文档尾和第一章/最新章控制确认后，按站点最新优先数组赋予 `bakamh-main` 位置；无号也保前后。不完整、嵌套或多组尚未确认时保手动条目，不串独立版本。绝对中文日期和 Madara 相对日期都保留，后者按宿主时钟以 UTC 计算。 |
+| 分页阅读切换 `style=list`，处理登录提示及工具警告，读取懒加载图或还原 Madara 的页表 JSON，图像请求以实际阅读文档为 Referer | `reader::pages`、`reader::image_request`。站点下发的页表只产生普通图像 URL，无独立像素处理器。只在锁提示明确要求登录时报告 `auth_required`，保留上游的账号提示。 |
+| 上游在站点启用时为详情和阅读文档异步提交浏览计数 | 宿主 HTTP 为同步接口，详情及页表以短超时发尽力请求。目录和详情在 Koma 分开调用，取目录时不重复发送。 |
+| 上游 `getHomeUrl` 是热门归档地址，登录通过 WebView | 源没有独立首页或设置。Web 会话仅声明 `https://bakamh.com`，由宿主处理同源登录与授权。 |
+
+## 2026-11-20 原核查记录
+
+以下为原候选时的范围与失败，保留作为历史记录，不代表本轮最终状态。
+
+目前 [官网首页存档](https://web.archive.org/web/20250522060918id_/https://bakamh.com/) 和 [目录存档](https://web.archive.org/web/20250522060918id_/https://bakamh.com/manga/) 可核对品牌、作品卡片和题材路由。站点直连 403 或超时，存档未覆盖真实 AJAX 响应、完整作品目录及正文流程。
+
+当前 WASM 的宿主 runner 验证了静态筛选，动态题材与热门直连均返回 403。 热门和搜索将站点 HTTP 403 保留给宿主显示；WordPress 的 AJAX 返回值 `0` 标记为无效响应。用官网目录存档回放提取了题材和作品卡片，并检查了搜索表单字段。合成样本覆盖 SDK 章 ID、绝对与相对日期、`style=list`、实际阅读页 Referer、页表还原及明确登录锁。真实章节与页图下载待站点可达后核验。
+
+## 0.1.1 Web 上下文 HTTP 候选
+
+保留原 Madara 普通 POST、完整表单/筛选/分页和阅读实现，声明通用 `websitePolicy.webFetchBridge:true`。此次依赖的是宿主 Web 上下文 HTTP 的 method/headers/body 支持，不是新增 Baka 专用 API，也不将已有普通 POST 写成缺失。最低 Koma 锚定 1.6.1；候选待本轮实际桥接宿主和普通真机路径验收，不提前公开。
+
+2026-11-20 的403、GET返回0及旧合成验证仍是原历史证据；本轮真实原件、目录方向和最终包证据另存 Koma 的 source-candidates-20261120/bakamh/web-http-20261123，不以旧结果替代今日可用性。
+
+### 完整单目录的阅读方向
+
+新增真实[作品存档](https://web.archive.org/web/20241103022347id_/https://bakamh.com/manga/%E8%B5%98%E5%A9%BF%E8%A6%81%E9%80%9A%E5%90%83/)《赘婿要通吃》（WordPress ID 5929）的61章完整原件。
+页面 `btn-read-first` 文案“观看最新章”、`btn-read-last` 文案“观看第一章”；其实际引用的
+[template.js](https://web.archive.org/web/20241203105725id_/https://bakamh.com/wp-content/themes/madara/js/template.js?ver=1.7.3)
+分别绑定章节DOM第0项和末项，倒序控制只反转原节点数组。因此以完整原数组赋位置，
+不按标题、日期或数字ID重排。末项无号“预告篇”的旧ID仍为 `chapter:5929:c-43`，
+位置0；其后是原第一话。61条均保留旧字段和原数组，只新增协商后的组/位置/可续读合同。
+
+自动链仅用于有完整HTML文档尾、确切作品ID、唯一单平面 `ul.main.version-chap.no-volumn`、
+第一章/最新章控制，以及全部同作品canonical路径的目录。缺字段、截断、嵌套/多个分区或
+混入其它作品/版本时不推断位置；保留原条目、权限/登录提示及旧宿主未协商输出。
+
+真实官网归档目录的题材读取、单目录61章及实际新WASM已回放；旧 `style=list`、
+加密页表和明确登录锁沿原受控样本回归，不能称真实正文成功。历史原件不算今日直连或
+Native通过。今日普通POST仍实际403，Edge目录访问仍是Cloudflare验证页。
+最终候选须在通用WebHTTP bridge的新1.6.1宿主，用普通POST/搜索/筛选/分页/详情/目录、
+实际正文图片和下载验收后交付。多分区和未取得的权限反例继续按实物核验，不以全部手动
+或受控样本冒充整源完成。保留全部既有表单、选项、日期、图像Referer和阅读还原实现。

@@ -1,0 +1,36 @@
+{
+  "homepage": "https://bakamh.com/",
+  "localizedNames": {
+    "zh-Hans": "巴卡漫画",
+    "zh-Hant": "巴卡漫畫"
+  },
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "3712194609356981776"
+      ],
+      "work": {
+        "pathPrefix": "",
+        "idPrefix": "manga:"
+      },
+      "chapter": {
+        "pathPrefix": "",
+        "idPrefix": "",
+        "targetIdSegment": 2
+      }
+    }
+  },
+  "requestLimits": [
+    {
+      "group": "bakamh",
+      "hosts": [
+        "bakamh.com"
+      ],
+      "permits": 2,
+      "periodMs": 1000
+    }
+  ],
+  "websitePolicy": {
+    "webFetchBridge": true
+  }
+}

@@ -1,0 +1,18 @@
+[package]
+name = "koma_bakamh_source"
+version = "0.1.1"
+edition = "2021"
+license = "Apache-2.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+aes = { version = "=0.8.4", default-features = false }
+base64 = { version = "=0.22.1", default-features = false, features = ["alloc"] }
+cbc = { version = "=0.1.2", default-features = false, features = ["block-padding"] }
+dlmalloc = { version = "=0.2.14", features = ["global"] }
+koma_source_sdk = { path = "../../sdk" }
+md-5 = { version = "=0.10.6", default-features = false }
+serde_json = { version = "=1.0.150", default-features = false, features = ["alloc"] }
+url = { version = "=2.5.8", default-features = false }
