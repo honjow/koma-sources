@@ -1,5 +1,9 @@
 # 漫画柜 / Manhuagui 0.1.8
 
+## 书源简介
+
+收录国产、日韩及欧美漫画的中文漫画站。本源使用普通公开目录，不包含隐藏目录。
+
 源 ID `com.manhuagui.koma`，语言 `zh`，NSFW 标记保持。生产主站固定 `https://www.manhuagui.com`，没有 `settings.baseUrl` 或自由镜像。当前图标是用户已采用的满幅桌面快捷方式身份衍生图，不新增底板、阴影或圆角；具体素材依据见 [ASSET_SOURCES.md](ASSET_SOURCES.md)。
 
 支持普通公开热门/最新分页、文字搜索、详情、目录、固定 Base64-LZ/radix62 图片元数据解析与原图片请求。保既有 Chrome 140、Accept-Language、Referer 和 Origin。HTTP 失败、网络超时、损坏/截断、容量及未知打包形式明确失败，不重试或换 UA 制造成功。

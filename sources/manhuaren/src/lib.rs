@@ -44,7 +44,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "漫画人 (manhuaren.com) API source.",
+    description: "漫画人的漫画连载与单行本。部分章节需付费，部分作品受原站访问限制。",
     content_rating: "unknown",
 };
 

@@ -23,5 +23,16 @@
   "websitePolicy": {
     "preserveRouteCover": true,
     "routeCoverPlaceholderSuffix": "/nopic.jpg"
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "漫画人的漫画连载与单行本。部分章节需付费，部分作品受原站访问限制。",
+        "zh-Hant": "漫畫人的漫畫連載與單行本。部分章節需付費，部分作品受原站存取限制。",
+        "en": "Serial comics and collected volumes from Manhuaren. Some chapters are paid, and some works have site access restrictions."
+      }
+    }
   }
 }

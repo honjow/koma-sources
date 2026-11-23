@@ -15,7 +15,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     language: "zh",
     author: "Koma",
     description:
-        "Manhuawu public MCCMSWeb HTML adapter. Upstream SAFE; individual works unclassified.",
+        "漫画屋收录日本、港台、韩国及欧美漫画，包含连载与完结作品。",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

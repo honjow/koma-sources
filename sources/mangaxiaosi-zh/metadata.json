@@ -1,5 +1,10 @@
 {
-  "comments": {"version": 1, "scopes": ["manga"]},
+  "comments": {
+    "version": 1,
+    "scopes": [
+      "manga"
+    ]
+  },
   "identity": {
     "mihon": {
       "sourceIds": [
@@ -26,10 +31,27 @@
     "homepageChoices": {
       "setting": "preferredMirror",
       "options": [
-        { "value": "https://www.jjmhw2.top", "url": "https://www.jjmhw2.top/" },
-        { "value": "https://www.jjmh.top", "url": "https://www.jjmh.top/" }
+        {
+          "value": "https://www.jjmhw2.top",
+          "url": "https://www.jjmhw2.top/"
+        },
+        {
+          "value": "https://www.jjmh.top",
+          "url": "https://www.jjmh.top/"
+        }
       ]
     }
   },
-  "chapterOrder": "newest_first"
+  "chapterOrder": "newest_first",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "漫小肆的成人韩漫与都市漫画，按作品分话连载，并按题材、地区及进度分类。",
+        "zh-Hant": "漫小肆的成人韓漫與都市漫畫，按作品分話連載，並按題材、地區及進度分類。",
+        "en": "Adult Korean and urban comics from Manga Xiao Si, published in episodes and categorised by genre, region and status."
+      }
+    }
+  }
 }

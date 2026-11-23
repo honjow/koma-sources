@@ -22,5 +22,16 @@
         "m.ykmh.net"
       ]
     }
-  ]
+  ],
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "优酷漫画的中文连载漫画，保留同一作品的不同版本。本源提供原站公开免费章节。",
+        "zh-Hant": "優酷漫畫的中文連載漫畫，保留同一作品的不同版本。本源提供原站公開免費章節。",
+        "en": "Chinese serial comics from Manhuadui (Youku Manga), retaining separate editions and offering the site’s public free chapters."
+      }
+    }
+  }
 }

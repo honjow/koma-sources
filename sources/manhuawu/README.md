@@ -1,5 +1,9 @@
 # 漫画屋 0.1.8
 
+## 书源简介
+
+漫画屋收录日本、港台、韩国及欧美漫画，包含连载与完结作品。
+
 源身份 `com.manhuawu.koma`，主页 `https://www.mhua5.com/`；参考 Keiyoushi 固定 revision `10f06eb833af5990bc5470c84c5e93edc159ad4e` 的 Manhuawu / MCCMSWeb / KeiSource，Apache-2.0。源级分级为 SAFE，单部作品的内容分级未知。标准构建：`bash build.sh --source manhuawu`，最低宿主版本 0.1.0。
 
 ## 身份和目录

@@ -21,5 +21,16 @@
     "zh-Hant": "MangaDex（簡體中文）",
     "en": "MangaDex (Simplified Chinese)"
   },
-  "homepage": "https://mangadex.org"
+  "homepage": "https://mangadex.org",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "MangaDex站内标记为简体中文的漫画章节版本。只收录站内托管章节，不包含外站阅读链接。",
+        "zh-Hant": "MangaDex站內標記為簡體中文的漫畫章節版本。只收錄站內託管章節，不包含外站閱讀連結。",
+        "en": "MangaDex chapters tagged as Simplified Chinese. Only on-site chapters are included, not external reading links."
+      }
+    }
+  }
 }

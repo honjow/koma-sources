@@ -15,5 +15,16 @@
       "samePageOrder": true
     }
   },
-  "homepage": "https://mangadex.org/"
+  "homepage": "https://mangadex.org/",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "en",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "收录多语言版本的漫画平台。本源可选择章节语言，默认英语；外站阅读章节不在范围内。",
+        "zh-Hant": "收錄多語言版本的漫畫平台。本源可選擇章節語言，預設英語；外站閱讀章節不在範圍內。",
+        "en": "Manga in multiple languages. Chapter language is selectable, with English as default; externally hosted chapters are excluded."
+      }
+    }
+  }
 }

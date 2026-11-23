@@ -36,5 +36,16 @@
       "readySelector": ".common-comic-item .comic__title, .de-info__box .comic-title, .chapter__list-box li, img[data-original]"
     },
     "webFetchBridge": true
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "漫画屋收录日本、港台、韩国及欧美漫画，包含连载与完结作品。",
+        "zh-Hant": "漫畫屋收錄日本、港台、韓國及歐美漫畫，包含連載與完結作品。",
+        "en": "Japanese, Hong Kong, Taiwanese, Korean and Western comics from Manhuawu, including ongoing and completed series."
+      }
+    }
   }
 }

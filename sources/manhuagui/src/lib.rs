@@ -12,7 +12,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "漫画柜普通公开 HTML 适配；不支持成人隐藏目录或挑战。",
+    description: "收录国产、日韩及欧美漫画的中文漫画站。本源使用普通公开目录，不包含隐藏目录。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

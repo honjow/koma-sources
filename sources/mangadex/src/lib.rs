@@ -145,7 +145,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "en",
     author: "Koma",
-    description: "MangaDex API source (JSON, no HTML scraping).",
+    description: "Manga in multiple languages. Chapter language is selectable, with English as default; externally hosted chapters are excluded.",
     content_rating: "unknown",
 };
 

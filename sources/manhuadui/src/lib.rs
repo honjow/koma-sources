@@ -59,7 +59,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "优酷漫画公开浏览、完整分组目录及站方允许的免费章节。",
+    description: "优酷漫画的中文连载漫画，保留同一作品的不同版本。本源提供原站公开免费章节。",
     content_rating: "nsfw",
 };
 

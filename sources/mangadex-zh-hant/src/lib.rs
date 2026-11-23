@@ -10,7 +10,7 @@ use koma_source_sdk::{
 mod chapter_chronology;
 type E = &'static str;
 const MAX: usize = 1048576;
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"org.mangadex.zh-hant.koma",name:"MangaDex",version:env!("CARGO_PKG_VERSION"),api_version:"0.2",language:"zh-Hant",author:"Koma",description:"MangaDex 繁體中文目錄（zh-hk），頁面用字可能不同；使用情況未知，關注較多列表不代表使用排行。",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"org.mangadex.zh-hant.koma",name:"MangaDex",version:env!("CARGO_PKG_VERSION"),api_version:"0.2",language:"zh-Hant",author:"Koma",description:"MangaDex站內標記為繁體中文的漫畫章節版本。只收錄站內託管章節，不包含外站閱讀連結。",content_rating:"nsfw"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,

@@ -1,5 +1,9 @@
 # MangaDex 0.1.20
 
+## 书源简介
+
+Manga in multiple languages. Chapter language is selectable, with English as default; externally hosted chapters are excluded.
+
 独立源 `org.mangadex.koma`，API 0.2，语言 en。既有 `mdx:` 漫画 ID、`ch:` 章节身份、原官方图标和[资产归属](ASSET_SOURCES.md)保持。普通公开搜索/列表/详情/Home、精确章节恢复和既有筛选保持；不跟随外部提供方体。
 
 设置保留 `language`（默认 en）和 `dataSaver`（默认 false）。旧宿主保留 `defaultContentRating`（默认 suggestive）。显式请求筛选保留既有优先级。`thumbnailQuality_en` 遵循固定 Keiyoushi 949dea252eb8e867b7b40834a26e13088764ff55：original、medium `.512.jpg`、low `.256.jpg`。非空宿主值 `original` 编码上游空后缀。缺失/未知质量保持原 URL 不变。所选发布后缀被搜索、列表、详情和所有 Home 栏目消费；既有缺失封面处理不变。

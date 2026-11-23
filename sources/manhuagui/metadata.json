@@ -49,5 +49,16 @@
         "maxPermits": 10
       }
     }
-  ]
+  ],
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "收录国产、日韩及欧美漫画的中文漫画站。本源使用普通公开目录，不包含隐藏目录。",
+        "zh-Hant": "收錄國產、日韓及歐美漫畫的中文漫畫站。本源使用普通公開目錄，不包含隱藏目錄。",
+        "en": "Chinese, Japanese, Korean and Western comics from Manhuagui. This source uses the public catalogue and excludes hidden entries."
+      }
+    }
+  }
 }
