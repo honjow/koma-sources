@@ -21,7 +21,6 @@ use url::Url;
 
 mod dates;
 mod document_body;
-mod error_capture;
 mod filters;
 mod reader;
 
@@ -69,109 +68,6 @@ koma_source_sdk::koma_source_buffers! {
 }
 koma_source_sdk::koma_source_helpers!();
 
-// Temporary bounded diagnostics for the same canonical 403 response only.
-// Never emit provider text, URLs, headers, titles or credentials, and never infer
-// a source error/challenge from these markers. Remove after the Native capture.
-fn diagnostic_contains(bytes: &[u8], needle: &[u8]) -> bool {
-    bytes.windows(needle.len()).any(|part| part.eq_ignore_ascii_case(needle))
-}
-
-fn diagnostic_header(response: &[u8], name: &[u8]) -> Option<String> {
-    let headers = source_protocol::direct(response, b"headers").ok()??;
-    let values = source_protocol::direct(headers, name).ok()??;
-    if values.len() > 2048 { return None; }
-    let values: Vec<String> = serde_json::from_slice(values).ok()?;
-    if values.len() != 1 { return None; }
-    values.into_iter().next()
-}
-
-fn diagnostic_cf_managed(bytes: &[u8]) -> bool {
-    let Some(start) = bytes.windows(b"_cf_chl_opt".len()).position(|part| part.eq_ignore_ascii_case(b"_cf_chl_opt")) else { return false; };
-    let tail = &bytes[start..bytes.len().min(start + 8192)];
-    let Some(open) = tail.iter().position(|byte| *byte == b'{') else { return false; };
-    if open > 64 { return false; }
-    let tail = &tail[open + 1..];
-    let options = &tail[..tail.iter().position(|byte| *byte == b'}').unwrap_or(tail.len())];
-    for (start, key) in options.windows(5).enumerate() {
-        if !key.eq_ignore_ascii_case(b"ctype") ||
-            (start > 0 && (options[start - 1].is_ascii_alphanumeric() || options[start - 1] == b'_')) { continue; }
-        let mut value = &options[start + 5..];
-        if matches!(value.first(), Some(b'\'' | b'"')) { value = &value[1..]; }
-        value = value.trim_ascii_start();
-        if value.first() != Some(&b':') { continue; }
-        value = value[1..].trim_ascii_start();
-        let Some(quote @ (b'\'' | b'"')) = value.first().copied() else { continue; };
-        if value.len() >= 9 && value[1..8].eq_ignore_ascii_case(b"managed") && value[8] == quote { return true; }
-    }
-    false
-}
-
-// Only fixed public classifications survive before a BodyRef read reuses HTTP_OUT.
-#[derive(Clone, Copy)]
-struct DocumentDiagnostic {
-    mime: &'static str,
-    cf_mitigated: bool,
-    host_challenge: bool,
-}
-
-impl DocumentDiagnostic {
-    fn capture(response: &[u8]) -> Self {
-        let content_type = diagnostic_header(response, b"content-type");
-        let mime = match content_type.as_deref().and_then(|value| value.split(';').next()).map(str::trim) {
-            Some(value) if value.eq_ignore_ascii_case("text/html") => "html",
-            Some(value) if value.eq_ignore_ascii_case("application/xhtml+xml") => "xhtml",
-            Some(value) if value.eq_ignore_ascii_case("application/json") => "json",
-            Some(value) if value.eq_ignore_ascii_case("text/plain") => "plain",
-            Some(_) => "other",
-            None => "missing_or_invalid",
-        };
-        Self {
-            mime,
-            cf_mitigated: diagnostic_header(response, b"cf-mitigated")
-                .is_some_and(|value| value.trim().eq_ignore_ascii_case("challenge")),
-            host_challenge: source_protocol::raw_string(response, b"accessSignal").ok().flatten()
-                == Some(b"challenge_required".as_slice()),
-        }
-    }
-
-    fn log(self, decode: &str, utf8_bytes: i64, scanned_bytes: i64,
-        incomplete: bool, head: &[u8], markers_known: bool) {
-        let marker = |present| if !markers_known { "unknown" } else if present { "true" } else { "false" };
-        let cf_platform = diagnostic_contains(head, b"_cf_chl_opt") ||
-            diagnostic_contains(head, b"cf-chl-") || diagnostic_contains(head, b"challenge-platform/");
-        let wp = diagnostic_contains(head, b"wp-content/") || diagnostic_contains(head, b"wp-includes/");
-        let message = format!("BKDOC8 status=403 mime={} decode={} utf8_bytes={} scanned_bytes={} scan_truncated={} cf_mitigated={} host_challenge={} cf_managed={} cf_platform={} wp={} wp_die={} forbidden_text={} access_denied_text={} site_tool_warning={} site_login_lock={}",
-            self.mime, decode, utf8_bytes, scanned_bytes, incomplete, self.cf_mitigated, self.host_challenge,
-            marker(diagnostic_cf_managed(head)), marker(cf_platform), marker(wp), marker(diagnostic_contains(head, b"wp-die-message")),
-            marker(diagnostic_contains(head, b"403 forbidden")), marker(diagnostic_contains(head, b"access denied")),
-            marker(diagnostic_contains(head, b"mkjp-tool-warning")), marker(diagnostic_contains(head, b"mkjp-ea-lock__title")));
-        koma_source_sdk::host::log_info(message.as_bytes());
-    }
-}
-
-fn log_document_response(response: &[u8], capture_allowed: bool) {
-    let status = source_protocol::direct(response, b"status").ok().flatten()
-        .and_then(|raw| core::str::from_utf8(raw).ok())
-        .and_then(|raw| raw.parse::<u16>().ok());
-    if status != Some(403) { return; }
-    let facts = DocumentDiagnostic::capture(response);
-    // The legacy text path remains bounded and never scans partial decoded data.
-    let (decode, bytes, head) = match source_protocol::text(response, b"bodyText", &mut body_buf()[..65536]) {
-        Ok(Some(body)) => ("ok", body.len() as i64, body),
-        Ok(None) => ("missing", -1, &[][..]),
-        Err(_) => ("unknown", -1, &[][..]),
-    };
-    facts.log(decode, bytes, if bytes < 0 { -1 } else { head.len() as i64 },
-        decode != "ok", head, decode == "ok");
-    if capture_allowed && decode == "ok" && (0..=8192).contains(&bytes)
-        && matches!(facts.mime, "html" | "xhtml")
-        && source_protocol::direct(response, b"ok").ok().flatten() == Some(b"true")
-        && source_protocol::body(response, &mut []).err() == Some("forbidden")
-    {
-        error_capture::capture(head);
-    }
-}
-
 fn get_document(url: &Url, request: &[u8]) -> Result<(Node, bool)> {
     // BodyRef is generic response data. Only the already-declared exact origin
     // uses this Native document lane; legacy/foreign inputs keep the R10 path.
@@ -206,7 +102,6 @@ fn get_document(url: &Url, request: &[u8]) -> Result<(Node, bool)> {
         let bytes = serde_json::to_vec(&envelope).map_err(|_| "internal_error")?;
         let len = koma_source_sdk::host::http_request(&bytes, http_out())
             .map_err(|_| "network_error")?;
-        log_document_response(&http_out()[..len], error_capture::allowed(url, request));
         let len = source_protocol::body(&http_out()[..len], body_buf())?;
         String::from_utf8(body_buf()[..len].to_vec()).map_err(|_| "parse_error")?
     } else {
@@ -271,30 +166,6 @@ fn manga_path(raw: &str) -> Option<String> {
     } else {
         None
     }
-}
-
-// Temporary route-shape evidence only; no raw route/query/account data is logged.
-fn log_manga_route_shape(raw: &str, normalized: &str, request: &[u8]) {
-    if source_protocol::raw_string(request, b"operation").ok().flatten() != Some(b"get_manga") { return; }
-    let raw = raw.split(['?', '#']).next().unwrap_or("");
-    let path = if let Some((_, authority)) = raw.split_once("://") {
-        authority.find('/').map(|start| &authority[start..]).unwrap_or("")
-    } else if let Some(authority) = raw.strip_prefix("//") {
-        authority.find('/').map(|start| &authority[start..]).unwrap_or("")
-    } else { raw };
-    let has_upper = path.as_bytes().windows(3).any(|part| part[0] == b'%'
-        && part[1..].iter().all(u8::is_ascii_hexdigit) && part[1..].iter().any(u8::is_ascii_uppercase));
-    let has_lower = path.as_bytes().windows(3).any(|part| part[0] == b'%'
-        && part[1..].iter().all(u8::is_ascii_hexdigit) && part[1..].iter().any(u8::is_ascii_lowercase));
-    // Compare the already URL-encoded slug with manga_path's result. Standard
-    // Unicode percent encoding is distinct from a subsequent opaque-slug rewrite.
-    let changed = port::absolute(BASE, raw).ok().is_some_and(|url| {
-        url.path().strip_prefix("/manga/").map(|slug| slug.trim_end_matches('/'))
-            != normalized.strip_prefix("/manga/").map(|slug| slug.trim_end_matches('/'))
-    });
-    let message = format!("BKPATH15 hasUpperEscape={} hasLowerEscape={} containsUnicode={} normalizationChangedEncoding={}",
-        has_upper, has_lower, !path.is_ascii(), changed);
-    koma_source_sdk::host::log_info(message.as_bytes());
 }
 
 fn shortlink_id(url: &Url) -> Option<String> {
@@ -364,7 +235,6 @@ fn work_id(args: &Value) -> Result<&str> {
 
 fn series(id: &str, route: Option<&str>, request: &[u8]) -> Result<Series> {
     if let Some(path) = route.and_then(manga_path) {
-        if let Some(raw) = route { log_manga_route_shape(raw, &path, request); }
         let url = port::absolute(BASE, &path)?;
         match get_document(&url, request) {
             Ok((doc, complete_document)) if doc.one(DETAILS_TITLE).is_some() && post_id(&doc).as_deref() == Some(id) => {

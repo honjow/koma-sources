@@ -83,13 +83,11 @@ R5配f2宿主的首批封面已取得 Web GET200并由主维护者亲审；同�
 
 R6配同f2宿主实测在15:24:31的 canonical `get_manga` Web GET仍403，普通forbidden且无CF/challenge信号；恢复上游文档Accept并未解决该次真实失败。此前封面Web GET200且主维护者已亲审真实图，不据此宣称详情、目录或正文已通过。
 
-R7仅在 `websitePolicy.systemWebAgentOrigins` 声明精确 `https://bakamh.com`，使用宿主既有系统网页UA策略；不扩展到www、其他原点或全局UA，不写固定UA。R6的文档Accept和全部WASM逻辑保留，不增加readySelector、DOM fallback、请求头/Sec-*或新API。授权自动完成分支的后续变更不属于本候选，R7先配同f2按普通授权/请求路径单独验证新UA，不能把旧授权会话的复用当作已切换。当前仍未宣称403解除；旧R6包与诊断原件保留。
+R7仅在 `websitePolicy.systemWebAgentOrigins` 声明精确 `https://bakamh.com`，使用宿主既有系统网页UA策略；不扩展到www、其他原点或全局UA，不写固定UA。R6的文档Accept和全部WASM逻辑保留，不增加readySelector、DOM fallback、请求头/Sec-*或新API。授权自动完成分支的后续变更不属于本候选，R7先配同f2按普通授权/请求路径单独验证新UA，不能把旧授权会话的复用当作已切换。当前仍未宣称403解除；旧R6包与失败原件保留。
 
-### 0.1.1 R8 授权就绪与有限403诊断候选
+### 0.1.1 R8 授权就绪候选
 
 R7配f2已证实际系统UA（customUaEqualsNative=true、verificationAndroid=false）；真人CF后automatic=true且POST200，但15:34:34 canonical文档Web GET仍403、普通forbidden无CF信号。这些事实尚未定位阻断原因。R8保留R7原生UA策略、R6 Accept及全部请求/身份/图片逻辑。
-
-仅在同次canonical Web GET的403响应中，通过既有host日志记固定BKDOC8标签、status、MIME白名单分类、解码状态/UTF-8字节数及64KiB内公开阻断标记。诊断直接用既有缓冲的64KiB窗口解码，不复制完整正文为Value/String。缺失或解码/容量失败时正文长度和扫描长度记-1，正文标记记unknown、scan_truncated=true；不能把未知伪造为0或false。每次最多一条有限ASCII日志，长度小于HostLog的1024字节上限。无原始HTML、title、URL、完整headers或Cookie/token输出，不增加请求，不改变错误、状态或回退；标记只表示命中，不据此把普通403改判challenge。该临时诊断用于实机取证后移除。
 
 现有webSessionReadySelector声明为 `a[href*='/manga/'] img`，仅供授权自动完成的布尔就绪判断，不启用renderedDocumentFallback。既有HTML选择器桥实际消费保留的官网历史目录、作品页及真实CF原件，分别命中12、10、0个节点；历史成功原件不代表当前主页已经通过。此声明必须配父维护者含4a2d94ed仅授权就绪分支的新HAP，不能配旧f2声称已验；普通授权与canonical结果仍待设备owner验证。不新增Host API或Sec-*，不混入DOM正文回放。
 
@@ -97,15 +95,15 @@ R7配f2已证实际系统UA（customUaEqualsNative=true、verificationAndroid=fa
 
 固定上游8947c37的MadaraBase `supportsPostId` 默认为true，Madara/Bakamh未关闭；Bakamh `fetchMangaUpdate` 仅规范URL大小写后委托父实现。父实现先请求canonical，普通非成功且已有数字post ID时继续 `/?p=<id>`；目录保留数字ID及作品路径。R8以前将普通forbidden列为终止，错误阻止了这一既有入口。R9只把普通forbidden恢复到原数字resolver，不改变resolver的重定向/传输/请求头语义；没有canonical的数字入口与成功路径保持。
 
-`challenge_required` 继续保留实际canonical挑战因果，不落入数字回退；`auth_required`、`rate_limit`、`cancelled` 仍终止。全部作品/章节ID、metadata（含R7原生UA与R8授权就绪selector）、R6 Accept、图片/BodyRef及临时BKDOC8同响应诊断保持；没有新API或DOM fallback，不覆盖已交R8冻结包。受控WASM请求及保留官网原件回放只证明此回退合同与旧成功保持，数字入口今日是否可达仍待配套新HAP实测；取证完成后仍须移除临时诊断。
+`challenge_required` 继续保留实际canonical挑战因果，不落入数字回退；`auth_required`、`rate_limit`、`cancelled` 仍终止。全部作品/章节ID、metadata（含R7原生UA与R8授权就绪selector）、R6 Accept、图片/BodyRef保持；没有新API或DOM fallback，不覆盖已交R8冻结包。受控WASM请求及保留官网原件回放只证明此回退合同与旧成功保持，数字入口今日是否可达仍待配套新HAP实测。
 
 ### 0.1.1 R10 显式WebHTTP文档Accept适配单变量
 
 R9真实结果为canonical Web403，随后既有 `/?p=<id>` legacy retry/miss、Native403（body4547），源未通过。数字入口的legacy默认Accept与canonical显式WebHTTP不是同一对照，不能据此前者失败否定后者的单变量核验。
 
-固定上游BrowserHeaders把完整DOCUMENT Accept与 `Dest:document` / `Mode:navigate` 配套；XHR类使用 `Accept:*/*` / `Dest:empty`。实际Web fetch的请求元数据由浏览器控制，不能伪造导航Sec-*。R10仅在已协商 `source_web_http_v1` 的精确canonical文档WebHTTP分支将Accept设为 `*/*`；非Web/native/数字resolver仍保完整DOCUMENT Accept。其它公开头、原生UA、授权selector、BKDOC8诊断、普通403数字回退、全部ID/正文/图片/预算保持，无新API或DOM fallback。
+固定上游BrowserHeaders把完整DOCUMENT Accept与 `Dest:document` / `Mode:navigate` 配套；XHR类使用 `Accept:*/*` / `Dest:empty`。实际Web fetch的请求元数据由浏览器控制，不能伪造导航Sec-*。R10仅在已协商 `source_web_http_v1` 的精确canonical文档WebHTTP分支将Accept设为 `*/*`；非Web/native/数字resolver仍保完整DOCUMENT Accept。其它公开头、原生UA、授权selector、普通403数字回退、全部ID/正文/图片/预算保持，无新API或DOM fallback。
 
-这是有待真实验证的传输适配假设，不认定它是403根因。候选可配原236539dff51c或父维护者的新只读观测HAP，保持其余行为变量不变；保留所有旧失败及冻结包，临时诊断在新取证后仍须移除。最小旧新实际WASM wire只核此Accept变化与原Native完整头保持，不扩大重跑业务。
+这是有待真实验证的传输适配假设，不认定它是403根因。候选可配原236539dff51c或父维护者的新只读观测HAP，保持其余行为变量不变；保留所有旧失败及冻结包。最小旧新实际WASM wire只核此Accept变化与原Native完整头保持，不扩大重跑业务。
 
 ### 0.1.1 R11 Native BodyRef原始文档候选
 
@@ -115,29 +113,21 @@ R10实机16:24:25 canonical Web GET仍403，数字入口旧bridge miss后Native4
 
 输入BodyRef只读，先取状态、严格原错误及句柄后结束Response借用，再用HTTP_OUT作RPC缓冲。正文直接分块读入既有缓冲，源内最多4MiB、单块最多64KiB且服从宿主更小预算；超限、提前短读、UTF-8不合法或取消均失败。解析HTML后关闭输入，所有成功/失败/HTTP错误都尝试close；清理错误不覆盖原业务错误，Host调用作用域作最终回收。无image_result、writable复制或完整HTML String副本。
 
-普通403仍按R9用原数字ID入口回退；Host challenge/auth/rate/cancel仍终止，不绕CF或登录。临时BKDOC8诊断同样消费本次BodyRef前最多64KiB，新增已知site_tool_warning/site_login_lock布尔/unknown，锁标题标记本身不等于必须登录；无正文/title/URL/headers/凭据日志，HostLog仍小于1024。原始正文权限、章节顺序、日期、ID、设置与metadata/selector均不变。真实保留HTML回放与受控资源失败只证明源适配，当前Native文档可达性、正文/下载仍待设备owner验证；新捕获后须移除临时诊断。
+普通403仍按R9用原数字ID入口回退；Host challenge/auth/rate/cancel仍终止，不绕CF或登录。原始正文权限、章节顺序、日期、ID、设置与metadata/selector均不变。真实保留HTML回放与受控资源失败只证明源适配，当前Native文档可达性、正文/下载仍待设备owner验证。
 
 ### 0.1.1 R12 POST显式WebHTTP选路兼容
 
 通用Host将仅根据envelope.webFetch显式选择WebHTTP，旧普通POST继续Native。Baka仅在协商source_web_http_v1后，对既有浏览/搜索、相关推荐的post()及详情/阅读的view_count()明确增加webFetch:{version:1}；无feature保原wire及失败语义。共享port_support与其它源不改，无额外请求或重试；普通POST15000ms、可选计数1200ms、取消、原表单body和全部业务头保持。计数仍不把响应当目录，也不因失败阻断正文。
 
-R11文档Native BodyRef、正文/封面图片R10 Web BodyRef、全部ID/权限/日期/设置、metadata/selector/图标及临时BKDOC8保持。此为独立本地候选，不覆盖R11产物、不提前交设备、不推送发布，须由父维护者配对Host选路更正。回放复用实际WASM记录器；历史作品真实计数开关为0，计数POST的执行覆盖明确使用受控公开enable/id分支，不冒充当前站点或Native成功。临时诊断待真实捕获完成后再移除。
+R11文档Native BodyRef、正文/封面图片R10 Web BodyRef、全部ID/权限/日期/设置、metadata/selector/图标保持。此为独立本地候选，不覆盖R11产物、不提前交设备、不推送发布，须由父维护者配对Host选路更正。回放复用实际WASM记录器；历史作品真实计数开关为0，计数POST的执行覆盖明确使用受控公开enable/id分支，不冒充当前站点或Native成功。
 
-### 0.1.1 R13 临时匿名403静态文本取证
-
-父维护者在既有定位修复范围内确认此临时本地诊断，并非用户逐项批准的引述。只对本轮匿名get_manga的canonical普通403、已完整取得且UTF-8有效的HTML/XHTML≤8KiB提取title/h1/h2/p静态文本；数字fallback、其它operation和Host-confirmed challenge不捕获正文。原错误、状态/回退、请求、权限、会话、Native文档与Web图片路径不改，且不新增HTTP请求。
-
-仅用既有HTML Host，有界读取最多8个候选节点；排除脚本/样式/表单/input等及显式hidden节点，不采集属性/链接/headers。文本含可识别URL/路径、密钥凭据标签或疑似高熵值时舍弃整项，折叠空白并去重后总量≤1KiB UTF-8，按≤4块base64写BKERR403 ASCII HostLog，每行小于1024字节；base64只是传输编码。此为静态HTML文本，不声称CSS计算后的真实可见性，不执行脚本。所有诊断DOM描述符关闭，取证失败不影响原错误及BodyRef清理；不把诊断文本写入业务结果，不上传或纳入Git业务数据。
-
-这是待父亲审、配套HAP实机取证的临时包，不宣称解决403；采集解码后须移除本模块及既有临时诊断再交付正式包。R12冻结产物保留，不覆盖。
-
-### 0.1.1 R14 canonical Web BodyRef同响应取证
+### 0.1.1 R14 canonical Web BodyRef
 
 R13实机本地解码已见Cloudflare明确block页（Attention Required / Sorry you have been blocked），提示security solution triggered；不是托管挑战，具体触发规则仍未知。首个显式Web POST200且无cancel，去重已有实证。不能据标记或标题猜站点规则。
 
-R14仅在已走既有文档BodyRef、精确原点canonical `/manga/.../` GET且协商source_web_http_v1时显式增加webFetch v1。公共头恢复R10 Web组：Accept:*/*、既有Accept-Language和根Referer；绝不把Native导航Sec-*、Upgrade-Insecure-Requests或Priority送入Browser fetch。数字 `?p` 及缺Webfeature仍原R13 Native DOCUMENT组。读取、错误映射、匿名403文本取证及全部close流程保持R13，不新增请求或Host API。
+R14仅在已走既有文档BodyRef、精确原点canonical `/manga/.../` GET且协商source_web_http_v1时显式增加webFetch v1。公共头恢复R10 Web组：Accept:*/*、既有Accept-Language和根Referer；绝不把Native导航Sec-*、Upgrade-Insecure-Requests或Priority送入Browser fetch。数字 `?p` 及缺Webfeature仍原R13 Native DOCUMENT组。读取、错误映射及全部close流程保持R13，不新增请求或Host API。
 
-保R12显式POST、正文/封面图片Web BodyRef、全部metadata/原生UA/selector/IDs/权限/日期/设置/图标，旧R13包及失败原件不覆盖。此候选配df49280dd4b3同组HAP读取此前Web403的小错误页原文，不宣称解除403；若真实Web200才沿普通路径继续核实际目录/阅读。仍是临时诊断，取证完成须移除全部临时日志后正式交付。制作规范locale单句已独立docs提交ea64b812，本轮不再改规范。
+保R12显式POST、正文/封面图片Web BodyRef、全部metadata/原生UA/selector/IDs/权限/日期/设置/图标，旧R13包及失败原件不覆盖。当前不宣称解除403；详情、完整目录和阅读仍须沿普通宿主路径核验。制作规范locale单句已独立docs提交ea64b812，本轮不再改规范。
 
 ### 0.1.1 R15 provider opaque路径编码大小写parity
 
@@ -145,4 +135,8 @@ R14仅在已走既有文档BodyRef、精确原点canonical `/manga/.../` GET且�
 
 调用方边界：卡片验证不改原URL；详情/目录/reader文档请求保provider路由；作品ID仍数字、章ID仍数字+原章节叶slug，目录ownership guard、标签/status小写去重不变。旧页ID嵌了已小写的工作slug，因此仅在页ID序列化保原工作slug表示，章节叶slug/query保持；该identity兼容字符串不用于HTTP文档路由，原get_image_request及图片Referer保持。不得以路由更正重新命名用户已有ID；日后改变此身份合同须另有迁移授权。
 
-只新增临时BKPATH15固定布尔日志，正常get_manga route一次：hasUpperEscape/hasLowerEscape/containsUnicode只检查query/fragment之外的输入路径；normalizationChangedEncoding比较Url已编码slug与manga_path结果，区别标准Unicode编码和主动改写。不记rawURL/query/凭据，不新增请求，采后与BKDOC8/BKERR403一并移除。版本/默认设置/权限、R14文档与图片/显式POST传输、metadata/UA/selector/素材均不改，保所有冻结旧包。
+版本/默认设置/权限、R14文档与图片/显式POST传输、metadata/UA/selector/素材均不改，保所有冻结旧包。
+
+### 当前源码清理边界
+
+临时站点响应取证代码及其专用正文读取、HTML描述符和字段已移除，保留正常文档读取与全部错误/关闭路径。R15的provider路径保真、旧页ID、原错误分类和数字回退、BodyRef/Web/Native路由及权限均不变；未实施Native profile或viewport后备。设备owner继续使用已安装的原R15冻结包作独立对照，旧包与证据不覆盖。当前源码继续保持distribution不可用，等待完整验收和正式宿主。

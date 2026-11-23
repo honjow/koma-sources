@@ -8,7 +8,7 @@ use koma_source_sdk::{
     source_protocol,
 };
 use url::Url;
-use super::{body_buf, http_out, http_req_buf, DocumentDiagnostic, Node, Result, BASE, DOCUMENT_ACCEPT, LANGUAGE};
+use super::{body_buf, http_out, http_req_buf, Node, Result, BASE, DOCUMENT_ACCEPT, LANGUAGE};
 
 fn read_prefix(input: &BodyRef, length: usize, chunk: usize, context: &Context<'_>) -> Result<()> {
     let mut offset = 0;
@@ -22,32 +22,6 @@ fn read_prefix(input: &BodyRef, length: usize, chunk: usize, context: &Context<'
         offset += read;
     }
     Ok(())
-}
-
-fn log_failure(input: &BodyRef, facts: DocumentDiagnostic, budget: usize,
-    chunk: usize, context: &Context<'_>, capture_allowed: bool) {
-    if input.len() > budget || chunk == 0 || context.cancelled() {
-        facts.log("unknown", -1, -1, true, &[], false);
-        return;
-    }
-    let length = input.len().min(CHUNK_BYTES);
-    if read_prefix(input, length, chunk, context).is_err() {
-        facts.log("unknown", -1, -1, true, &[], false);
-        return;
-    }
-    let head = &body_buf()[..length];
-    // A truncated prefix may split UTF-8: its ASCII marker scan is still bounded
-    // raw data, but only a complete validated document gets an exact UTF-8 length.
-    let complete = input.len() == length;
-    if complete && core::str::from_utf8(head).is_err() {
-        facts.log("unknown", -1, length as i64, true, &[], false);
-    } else {
-        facts.log(if complete { "ok" } else { "prefix" },
-            if complete { length as i64 } else { -1 }, length as i64, !complete, head, true);
-        if capture_allowed && complete && length <= 8192 && matches!(facts.mime, "html" | "xhtml") {
-            super::error_capture::capture(head);
-        }
-    }
 }
 
 pub(super) fn run(url: &Url, request: &[u8]) -> Result<(Node, bool)> {
@@ -106,26 +80,19 @@ pub(super) fn run(url: &Url, request: &[u8]) -> Result<(Node, bool)> {
     let error = if context.cancelled() { Some("cancelled") } else if success { None } else {
         Some(source_protocol::body(response.as_json(), &mut []).err().unwrap_or("network_error"))
     };
-    let facts = (status == Some(403)).then(|| DocumentDiagnostic::capture(response.as_json()));
-    let capture_allowed = error == Some("forbidden") && super::error_capture::allowed(url, request)
-        && source_protocol::direct(response.as_json(), b"ok").ok().flatten() == Some(b"true");
     let input = response.body_ref();
-    // Both ID and public classifications now own their data. Body read/close RPCs
-    // may reuse HTTP_OUT only after this response borrow ends.
+    // The ID now owns its data. Body read/close RPCs may reuse HTTP_OUT only
+    // after this response borrow ends.
     drop(response);
     let input = match input {
         Ok(input) => input,
-        Err(_) => {
-            if let Some(facts) = facts { facts.log("missing", -1, -1, true, &[], false); }
-            return Err(error.unwrap_or("invalid_response"));
-        }
+        Err(_) => return Err(error.unwrap_or("invalid_response")),
     };
     let budget = body_buf().len().min(4 * 1024 * 1024)
         .min(context.limit(b"body", b"maxBytes").unwrap_or(4 * 1024 * 1024));
     let chunk = CHUNK_BYTES.min(context.limit(b"body", b"chunkBytes").unwrap_or(CHUNK_BYTES));
     let parsed = (|| -> Result<(Node, bool)> {
         if let Some(code) = error {
-            if let Some(facts) = facts { log_failure(&input, facts, budget, chunk, &context, capture_allowed); }
             return Err(code);
         }
         if input.len() > budget || chunk == 0 { return Err("body_limit_exceeded"); }
