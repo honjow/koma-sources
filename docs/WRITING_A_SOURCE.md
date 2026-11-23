@@ -223,7 +223,13 @@ URL encoding it, rather than encoding its literal escape bytes. feature reads
 only the actual hostFeatures array. Existing sources are not silently switched.
 
 source_protocol::body preserves HTTP refusal/rate status first, then checks the
-Host's top-level ok completion, and reuses decode_json_body_into. A 200 response
+Host's top-level ok completion, and reuses decode_json_body_into. For HTTP 403,
+only the Host's strict top-level accessSignal:"challenge_required" becomes the
+existing challenge_required error; absent or unknown string signals remain
+forbidden. Nested fields and body text never promote a denial to a challenge;
+duplicate or non-string accessSignal fields are invalid transport data and
+return network_error. Other HTTP statuses retain their original mappings.
+http::RequireSuccess uses this same policy. A 200 response
 whose body transfer failed (ok:false, response_body/network_error) remains a
 network error, not a site parse error. Site HTML parsing happens only after a
 complete body. This centralizes the direct/duplicate/type checks already used

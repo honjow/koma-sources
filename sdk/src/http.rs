@@ -463,6 +463,48 @@ mod tests {
     }
 
     #[test]
+    fn strict_http_policy_preserves_only_explicit_top_level_403_challenges() {
+        // Exercise both production users of require_http_success. These are
+        // controlled Host envelopes, not evidence of a live provider response.
+        let cases: &[(&[u8], Result<(), &str>)] = &[
+            (br#"{"ok":true,"status":403,"accessSignal":"challenge_required"}"#, Err("challenge_required")),
+            (br#"{"ok":true,"status":403}"#, Err("forbidden")),
+            (br#"{"ok":true,"status":403,"accessSignal":"unknown"}"#, Err("forbidden")),
+            (br#"{"ok":true,"status":403,"data":{"accessSignal":"challenge_required"}}"#, Err("forbidden")),
+            (br#"{"ok":true,"status":403,"bodyText":"challenge_required"}"#, Err("forbidden")),
+            (br#"{"ok":true,"status":403,"accessSignal":"challenge_required","accessSignal":"unknown"}"#, Err("network_error")),
+            (br#"{"ok":true,"status":403,"accessSignal":"challenge_required","access\u0053ignal":"challenge_required"}"#, Err("network_error")),
+            (br#"{"ok":true,"status":403,"accessSignal":null}"#, Err("network_error")),
+            (br#"{"ok":true,"status":403,"accessSignal":true}"#, Err("network_error")),
+            (br#"{"ok":true,"status":403,"accessSignal":{"value":"challenge_required"}}"#, Err("network_error")),
+            (br#"{"ok":true,"status":403,"accessSignal":"challenge_required""#, Err("network_error")),
+            (br#"{"ok":true,"status":401,"accessSignal":"challenge_required"}"#, Err("auth_required")),
+            (br#"{"ok":true,"status":404,"accessSignal":"challenge_required"}"#, Err("not_found")),
+            (br#"{"ok":true,"status":429,"accessSignal":"challenge_required"}"#, Err("rate_limit")),
+            (br#"{"ok":true,"status":500,"accessSignal":"challenge_required"}"#, Err("server_error")),
+            (br#"{"ok":true,"status":503,"accessSignal":"challenge_required"}"#, Err("server_error")),
+            (br#"{"ok":true,"status":200,"bodyText":"ok","accessSignal":"challenge_required"}"#, Ok(())),
+            (br#"{"ok":false,"status":200,"bodyText":"incomplete"}"#, Err("network_error")),
+        ];
+        let client: Client<'_> = Client {
+            chain: Chain {
+                interceptors: &[&RequireSuccess],
+                transport: |response, out| {
+                    out[..response.len()].copy_from_slice(response);
+                    Ok(response.len())
+                },
+            },
+        };
+        for &(json, expected) in cases {
+            assert_eq!(source_protocol::body(json, &mut [0; 32]).map(|_| ()), expected);
+            assert_eq!(
+                client.send(Request::from_json(json), &mut [0; 512]).map(|_| ()),
+                expected.map_err(CallError::Rejected)
+            );
+        }
+    }
+
+    #[test]
     fn binary_body_preserves_bytes_and_rejects_invalid_or_oversized_payloads() {
         let response = Response {
             json: br#"{"bodyBase64":"AP+JUE5HAIA="}"#,

@@ -241,7 +241,17 @@ pub(crate) fn require_http_success(response: &[u8]) -> R<()> {
     if let Some(s) = status {
         match s {
             401 => return Err("auth_required"),
-            403 => return Err("forbidden"),
+            403 => {
+                // A Host-confirmed challenge is actionable; a plain HTTP 403 is
+                // still forbidden. Read only the strict top-level marker, never
+                // nested fields or site HTML. Other status mappings stay intact.
+                let signal = raw_string(response, b"accessSignal").map_err(|_| "network_error")?;
+                return Err(if signal == Some(b"challenge_required".as_slice()) {
+                    "challenge_required"
+                } else {
+                    "forbidden"
+                });
+            }
             404 => return Err("not_found"),
             429 => return Err("rate_limit"),
             500..=599 => return Err("server_error"),
