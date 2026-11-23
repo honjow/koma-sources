@@ -91,6 +91,7 @@
 | <img src="3hentai-zh/icon.png" width="24" alt=""> | 3hentai-zh | 3Hentai |  |
 | <img src="jiulingmanhua/icon.png" width="24" alt=""> | jiulingmanhua | 90漫画网 | 公开目录、搜索与逐页阅读 |
 | <img src="yiqiqimanhua/icon.png" width="24" alt=""> | yiqiqimanhua | 177漫画 | WordPress 公开图集 |
+| <img src="bakamh/icon.png" width="24" alt=""> | bakamh | 巴卡漫画 | 需 Koma 1.6.1；当前候选待真机验收 |
 | <img src="picacomic/icon.png" width="24" alt=""> | picacomic | 哔咔漫画 | 浏览与阅读需账号登录；含 DNS 引导策略 |
 | <img src="budingmanhua/icon.png" width="24" alt=""> | budingmanhua | 布丁漫画 | 公开目录，含成人内容 |
 | <img src="jisumanhua/icon.png" width="24" alt=""> | jisumanhua | 极速漫画 | 公开目录，含成人内容 |
