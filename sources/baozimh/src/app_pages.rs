@@ -1,7 +1,7 @@
 // Baozi.kt appChapterUrl/getPageList: every mirror uses its selected app
 // origin and the complete .comic-contain img[data-src] array. Web mirrors use
 // AppCN; AppGB stays AppGB. Keep stable chapter/page identities and the existing
-// CDN/banner contracts; placeholder AMP documents are never a reader fallback.
+// CDN/banner contracts. This module reads the App document directly.
 use super::{
     append_json_escaped, attr_into, body_buf, cdn_selection, fetch_html_with_attempts, host,
     html_parse, html_select_all, http_out, log_cdn_result, mirror, payload_buf, probe_image_head,
@@ -152,9 +152,9 @@ pub(super) fn run(req: &[u8], chapter_id: &[u8], slug: &[u8], slot: &[u8]) -> u3
     }
     let mut probes = 0;
     let mut head_succeeded = false;
-    // Keep the existing finite CDN candidates. New upstream .baozicdn.com
-    // rewriting and its 404 fallback are not implemented by this older helper;
-    // unsupported hosts stay unchanged for the parent image-request path.
+    // Keep the established finite CDN probes. Upstream's direct-host rewrite
+    // and conditional 404 retry are one image-request chain; do not introduce
+    // a primary-host change here without its corresponding fallback.
     let selection = match cdn_selection::choose(&first_uri_buffer[..first_len], slug, |parts| {
         probes += 1;
         let result = probe_image_head(parts);

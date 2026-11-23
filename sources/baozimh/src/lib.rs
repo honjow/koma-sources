@@ -1179,10 +1179,8 @@ fn run_get_pages(req: &[u8]) -> u32 {
     if slug.is_empty() || !slug.iter().all(|b| b.is_ascii_alphanumeric() || *b == b'-' || *b == b'_') {
         return write_error("get_pages", "invalid_request", "invalid chapter owner");
     }
-    // Fixed upstream 5d54f0d Baozi.kt:210-214 always uses appChapterUrl.
-    // Web AMP can return HTTP 200 and complete placeholder URLs: the retained
-    // first-chapter P2 is a blurred gradient image, not a readable comic page.
-    // Keep old chapter/page identities; only choose the provider's app reader.
+    // Fixed upstream 5d54f0d Baozi.kt:210-232 always uses appChapterUrl.
+    // Keep old chapter/page identities and read the complete App image array.
     // app_pages preserves AppCN for web mirrors and AppGB for the GB choice.
     app_pages::run(req, chapter_id, slug, slot)
 }
@@ -1319,8 +1317,7 @@ fn banner_feature(req: &[u8]) -> bool {
 }
 
 fn run_modify_image_request(req: &[u8]) -> u32 {
-    // baozimh images are freely accessible, no modification needed.
-    // Just extract the URL and return an unmodified request
+    // Keep the provider URL, established HTTP error path and optional banner hint.
     let url = match extract_json_string(req, b"url") {
         Some(u) => u,
         None => return write_error("get_image_request", "invalid_request", "missing url"),
