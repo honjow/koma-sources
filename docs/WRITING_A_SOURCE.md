@@ -292,7 +292,8 @@ You build response JSON in `payload_buf()` using `write_bytes` and `append_json_
 `{"type":"text","text":"第123话","label":"更新"}`（label可省）或
 `{"type":"tags","items":["冒险","奇幻"]}`。均为纯文本，不传HTML或宿主样式。
 SDK公开 `list_info::ListInfo` 和 `list_info::append(dst, cursor, request, entries)`；
-在当前 item 的闭合花括号前调用。无 feature 或整个 entries 为空时不写字段；
+在当前 item 的闭合花括号前调用。无 feature 时不写字段；协商后显式传空 entries
+写 `listInfo:[]`，表示源主动关闭旧字段摘要；不调用helper才表示缺省fallback。
 UTF-8按编码字节限制：text512、可选label96、tags1至8条且每tag96。
 空白项、无效UTF-8、超限和容量错误拒绝整段optional；helper预检后原子追加，
 Err不改已有buffer或cursor，调用方应省略增强并保留原item，而非丢弃正常列表。

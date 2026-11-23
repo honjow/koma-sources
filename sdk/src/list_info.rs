@@ -74,7 +74,9 @@ fn quote(dst: &mut [u8], at: &mut usize, text: &[u8]) -> bool {
 }
 
 /// Append `,"listInfo":[...]` before the existing item object's closing brace.
-/// Ok(false) means no negotiated feature or no entries. Empty/whitespace-only
+/// Ok(false) means no negotiated feature. Empty entries explicitly write []
+/// to disable legacy field summaries; omitting this call preserves fallback.
+/// Empty/whitespace-only
 /// fields, invalid UTF-8 and byte/count limits reject the whole optional field.
 /// Text512/label96, tags1..=8/tag96, entries1..=3 are UTF-8 byte limits, not chars.
 /// This does not fetch, infer labels/locales, parse HTML or alter existing fields.
@@ -85,7 +87,7 @@ pub fn append(
     request: &[u8],
     entries: &[ListInfo<'_>],
 ) -> Result<bool, EncodeError> {
-    if !feature(request, HOST_FEATURE) || entries.is_empty() {
+    if !feature(request, HOST_FEATURE) {
         return Ok(false);
     }
     if entries.len() > 3 {
@@ -216,10 +218,37 @@ mod tests {
             assert_eq!(n, 3);
             assert_eq!(b, before);
         }
+    }
+    // App ABI: absent preserves legacy author/subtitle summaries; present []
+    // is the source's explicit opt-out. This expectation comes from that ABI,
+    // not from the previous SDK omission behavior.
+    #[test]
+    fn explicit_empty_disables_legacy_summary_but_omitted_or_legacy_does_not() {
         let mut b = [7; 64];
         let mut n = 3;
-        assert_eq!(append(&mut b, &mut n, MODERN, &[]), Ok(false));
-        assert_eq!(b, [7; 64]);
+        assert_eq!(append(&mut b, &mut n, MODERN, &[]), Ok(true));
+        assert_eq!(&b[..3], &[7; 3]);
+        assert_eq!(&b[3..n], br#","listInfo":[]"#);
+        println!(
+            "SDK_LIST_INFO_EMPTY {}",
+            core::str::from_utf8(&b[3..n]).unwrap()
+        );
+        let mut legacy = [7; 64];
+        let mut cursor = 3;
+        assert_eq!(
+            append(&mut legacy, &mut cursor, br#"{"hostFeatures":[]}"#, &[]),
+            Ok(false)
+        );
+        assert_eq!(legacy, [7; 64]);
+        assert_eq!(cursor, 3);
+        let before = b;
+        let mut cursor = 3;
+        assert_eq!(
+            append(&mut b[..16], &mut cursor, MODERN, &[]),
+            Err(EncodeError::Capacity)
+        );
+        assert_eq!(b, before);
+        assert_eq!(cursor, 3);
     }
     #[test]
     fn utf8_empty_and_count_byte_boundaries_are_atomic() {
