@@ -118,7 +118,7 @@ pub(crate) fn pages(args: &Value, request: &[u8]) -> core::result::Result<Value,
         url.query_pairs_mut().append_pair("style", "list");
         doc = get(&url, request)?;
     }
-    view_count(&doc, &url);
+    view_count(&doc, &url, request);
     if let Some(lock) = doc.one(".mkjp-ea-lock__title") {
         if doc
             .one(".mkjp-ea-lock [data-target='#form-login']")

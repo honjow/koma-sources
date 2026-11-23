@@ -216,16 +216,26 @@ fn get(url: &Url, request: &[u8]) -> Result<Node> {
     get_document(url, request).map(|(document, _)| document)
 }
 
-fn post(mut form: filters::Form, referer: &str) -> Result<String> {
-    port::request(
-        AJAX,
-        "POST",
-        json!({
-            "Accept-Language":LANGUAGE,"X-Requested-With":"XMLHttpRequest",
-            "Content-Type":"application/x-www-form-urlencoded","Referer":referer
-        }),
-        Some(&form.finish()),
-    )
+fn post(mut form: filters::Form, referer: &str, request: &[u8]) -> Result<String> {
+    let headers = json!({
+        "Accept-Language":LANGUAGE,"X-Requested-With":"XMLHttpRequest",
+        "Content-Type":"application/x-www-form-urlencoded","Referer":referer
+    });
+    let body = form.finish();
+    if !source_protocol::feature(request, b"source_web_http_v1") {
+        return port::request(AJAX, "POST", headers, Some(&body));
+    }
+    if koma_source_sdk::host::check_cancel() { return Err("cancelled"); }
+    // Source-owned explicit selection: ordinary POSTs in other sources remain
+    // Native. Preserve the original method/body/headers/budget and error policy.
+    let envelope = json!({
+        "version":1,"url":AJAX,"method":"POST","headers":headers,"body":body,
+        "responseKind":"bodyText","timeoutMs":15000,"webFetch":{"version":1}
+    });
+    let bytes = serde_json::to_vec(&envelope).map_err(|_| "internal_error")?;
+    let len = koma_source_sdk::host::http_request(&bytes, http_out()).map_err(|_| "network_error")?;
+    let len = source_protocol::body(&http_out()[..len], body_buf())?;
+    String::from_utf8(body_buf()[..len].to_vec()).map_err(|_| "parse_error")
 }
 
 fn numeric_id(id: &str) -> bool {
@@ -499,7 +509,7 @@ fn browse(args: &Value, request: &[u8], search: bool) -> Result<Value> {
             _ => return Err("invalid_request"),
         }
     }
-    let rows = parse_archive(&post(form, &format!("{BASE}/"))?, request)?;
+    let rows = parse_archive(&post(form, &format!("{BASE}/"), request)?, request)?;
     let next = if rows.len() == PAGE_SIZE {
         page.checked_add(1)
     } else {
@@ -529,7 +539,7 @@ fn genre_links(doc: &Node, selector: &str, url: &Url) -> Result<Vec<(String, Str
     Ok(result)
 }
 
-fn view_count(doc: &Node, url: &Url) {
+fn view_count(doc: &Node, url: &Url, request: &[u8]) {
     let data = doc
         .one("script#wp-manga-js-extra")
         .and_then(|script| script.text().ok())
@@ -562,11 +572,14 @@ fn view_count(doc: &Node, url: &Url) {
     // The runtime provides synchronous HTTP. Keep the optional view count
     // within a short budget, and never interpret its response as chapter data.
     if !koma_source_sdk::host::check_cancel() {
-        let request = json!({"version":1,"url":AJAX,"method":"POST","headers":{
+        let mut envelope = json!({"version":1,"url":AJAX,"method":"POST","headers":{
             "Accept-Language":LANGUAGE,"X-Requested-With":"XMLHttpRequest",
             "Content-Type":"application/x-www-form-urlencoded","Referer":url.as_str()
         },"body":form.finish(),"responseKind":"bodyText","timeoutMs":1200});
-        if let Ok(bytes) = serde_json::to_vec(&request) {
+        if source_protocol::feature(request, b"source_web_http_v1") {
+            envelope["webFetch"] = json!({"version":1});
+        }
+        if let Ok(bytes) = serde_json::to_vec(&envelope) {
             let _ = koma_source_sdk::host::http_request(&bytes, http_out());
         }
     }
@@ -783,7 +796,7 @@ fn related_manga(id: &str, genres: Vec<(String, String)>, referer: &Url, request
         0,
         preferred.into_iter().take(3).map(|(slug, _)| slug.as_str()),
     );
-    parse_archive(&post(form, referer.as_str())?, request)
+    parse_archive(&post(form, referer.as_str(), request)?, request)
 }
 
 // The real 5929 MangaPage and its referenced template.js bind btn-read-first
@@ -900,7 +913,7 @@ fn dispatch(operation: &str, request: &[u8]) -> Result<Value> {
         "get_filters" => filters::schema(args, request),
         "get_manga" => {
             let series = series(work_id(args)?, args["mangaUrl"].as_str(), request)?;
-            view_count(&series.doc, &series.link()?);
+            view_count(&series.doc, &series.link()?, request);
             Ok(
                 json!({"manga":details(&series, source_protocol::feature(request,b"source_related_manga_v1"), request)?}),
             )

@@ -114,3 +114,9 @@ R10实机16:24:25 canonical Web GET仍403，数字入口旧bridge miss后Native4
 输入BodyRef只读，先取状态、严格原错误及句柄后结束Response借用，再用HTTP_OUT作RPC缓冲。正文直接分块读入既有缓冲，源内最多4MiB、单块最多64KiB且服从宿主更小预算；超限、提前短读、UTF-8不合法或取消均失败。解析HTML后关闭输入，所有成功/失败/HTTP错误都尝试close；清理错误不覆盖原业务错误，Host调用作用域作最终回收。无image_result、writable复制或完整HTML String副本。
 
 普通403仍按R9用原数字ID入口回退；Host challenge/auth/rate/cancel仍终止，不绕CF或登录。临时BKDOC8诊断同样消费本次BodyRef前最多64KiB，新增已知site_tool_warning/site_login_lock布尔/unknown，锁标题标记本身不等于必须登录；无正文/title/URL/headers/凭据日志，HostLog仍小于1024。原始正文权限、章节顺序、日期、ID、设置与metadata/selector均不变。真实保留HTML回放与受控资源失败只证明源适配，当前Native文档可达性、正文/下载仍待设备owner验证；新捕获后须移除临时诊断。
+
+### 0.1.1 R12 POST显式WebHTTP选路兼容
+
+通用Host将仅根据envelope.webFetch显式选择WebHTTP，旧普通POST继续Native。Baka仅在协商source_web_http_v1后，对既有浏览/搜索、相关推荐的post()及详情/阅读的view_count()明确增加webFetch:{version:1}；无feature保原wire及失败语义。共享port_support与其它源不改，无额外请求或重试；普通POST15000ms、可选计数1200ms、取消、原表单body和全部业务头保持。计数仍不把响应当目录，也不因失败阻断正文。
+
+R11文档Native BodyRef、正文/封面图片R10 Web BodyRef、全部ID/权限/日期/设置、metadata/selector/图标及临时BKDOC8保持。此为独立本地候选，不覆盖R11产物、不提前交设备、不推送发布，须由父维护者配对Host选路更正。回放复用实际WASM记录器；历史作品真实计数开关为0，计数POST的执行覆盖明确使用受控公开enable/id分支，不冒充当前站点或Native成功。临时诊断待真实捕获完成后再移除。
