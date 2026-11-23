@@ -37,7 +37,11 @@ Sources are compiled to WebAssembly (`wasm32-unknown-unknown`, `#![no_std]`) and
 
 ### WebView fetch bridge
 
-原生网络栈被站点拒绝、但验证后的 WebView 会话能正常读取文档时，可声明 `webFetchBridge: true`。宿主在验证完成后保留一个隐藏的 WebView 会话，同源 GET 用页面内 fetch 读取，把 HTML 作为 200 bodyText 回放给源。只支持同源 GET、无 body；每个新 URL 需要一次页面内 fetch，但不再弹验证页。启用前要在真机验证列表、封面、详情、章节和阅读图片，不能只声明就发布。
+原生请求被站点拒绝、但验证后的 WebView 会话可读取时，可声明 `websitePolicy.webFetchBridge: true`，沿已有精确同源授权使用隐藏 WebView。旧 `source_web_fetch_bridge_v1` 保留无正文 GET → 200 `bodyText` 的文档回放。
+
+需要表单或二进制数据时，先协商 `source_web_http_v1`，再逐请求显式设置 `webFetch: {version: 1}`。新通道支持 GET、HEAD、POST、PUT、PATCH、DELETE，返回真实 HTTP 状态；GET/HEAD 禁止正文。正文类型、响应类型、预算和引用作用域遵守唯一 [Web HTTP ABI](https://github.com/honjow/Koma/blob/master/docs/source-runtime-abi.md#站点规则声明)。未显式选择本通道的 POST 等仍走原生路径；Web 请求已发出后不得转原生重放。
+
+启用前须在真机验证列表、封面、详情、章节和阅读图片，并按实际依赖声明最低正式 App 版本，不能只声明就发布。
 
 
 ```bash
