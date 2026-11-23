@@ -37,6 +37,8 @@ jobs:
 
       - name: Build and package
         run: ./build.sh --tag "${{ steps.tag.outputs.tag }}"
+      - name: Retain explicitly pinned official packages
+        run: python3 scripts/apply-release-package-pins.py --pins release-package-pins.json --output-dir dist
 
       - name: Test sources
         run: |

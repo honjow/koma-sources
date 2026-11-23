@@ -5,6 +5,10 @@
     "en": "YKMH"
   },
   "homepage": "https://www.ykmh.net",
+  "distribution": {
+    "available": false,
+    "reason": "依赖尚未正式发布的 Koma 1.6.1；公开安装入口暂保留正式 0.1.7。"
+  },
   "websitePolicy": {
     "webFetchBridge": true,
     "renderedDocumentFallback": {

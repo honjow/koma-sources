@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "repository": "https://github.com/honjow/koma-sources",
+  "pins": [
+    {
+      "id": "com.manhuadui.koma",
+      "tag": "sources-045be2eb27931aefb594d18d6dc809720ce968ec",
+      "indexSha256": "4fe21a3e98ce0b541326fcd22159b782fb090aa8d9ca648c67c36a1b8d51123b",
+      "version": "0.1.7",
+      "pkg": "manhuadui-0.1.7.koma",
+      "packageSha256": "d9a1b40aaa4119ce5e53d76dc9902109936c9de7b67648ec19e7457523e6f9e6",
+      "icon": "manhuadui-icon.png",
+      "iconSha256": "9311f79865cb691b51fa006f07a99c58828b1a8c97b36ed3538b0334cfef2061",
+      "reason": "保留正式0.1.7安装入口，直到依赖的Koma 1.6.1正式发布；本地构建或提交不解除保留。"
+    }
+  ]
+}

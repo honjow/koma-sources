@@ -66,9 +66,11 @@ jobs:
           done
       - name: Package source library without provider requests
         run: bash build.sh --package-only --tag "sources-${GITHUB_SHA}"
+      - name: Retain explicitly pinned official packages
+        run: python3 scripts/apply-release-package-pins.py --pins release-package-pins.json --output-dir dist
       - name: Publication coverage
         run: |
-          jq -r '"Installable: \([.[] | select(.available)] | length)\nUnavailable: \([.[] | select(.available == false)] | length)", (.[] | select(.available == false) | "- \(.name) (\(.id)): \(.reason)")' dist/catalogue.json >> "$GITHUB_STEP_SUMMARY"
+          jq -r --slurpfile installable dist/index.json '"Installable: \($installable[0] | length)\nUnavailable candidates: \([.[] | select(.available == false)] | length)", (.[] | select(.available == false) | "- \(.name) (\(.id)): \(.reason)")' dist/catalogue.json >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
           name: source-library-${{ github.sha }}

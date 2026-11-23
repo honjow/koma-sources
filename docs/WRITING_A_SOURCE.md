@@ -759,6 +759,18 @@ When writing Chinese text to JSON output, use `append_json_escaped` — it handl
 
 Output: `dist/sources/<name>/<name>-<version>.koma` (zip with `manifest.json`, `source.wasm`, and exactly one required package-owned root icon). The generated manifest carries `author`, `description`, and `contentRating` from `SOURCE_INFO`; its `minAppVersion` comes from that source's `SOURCE_ENTRIES` row. Keep these source-level fields accurate because Koma preserves them in the installed source details. `minAppVersion` must use canonical `MAJOR.MINOR.PATCH` text, for example `0.1.0`.
 
+### 发布时保留已发布稳定包
+
+依赖尚未正式发布宿主的候选在源 `metadata.json` 中声明 `distribution.available: false` 和具体原因。它仍保留在候选 `catalogue.json`；不可通过降低最低版本发布候选，也不应因此删除已有稳定版本的安装入口。
+
+确需保留旧入口时，只在仓根 `release-package-pins.json` 明确登记源 ID、固定 `sources-<commit>` tag、版本、索引／整包／图标 SHA256 及保留原因。两个既有发布工作流在完整打包后、上传和创建 Release 前运行：
+
+```bash
+python3 scripts/apply-release-package-pins.py --pins release-package-pins.json --output-dir dist
+```
+
+脚本只读取明确 pin 的官方 GitHub Release，验证旧索引、完整包的身份／版本／manifest／三个根成员及原图标，按原 `release-packages`／`release-icons` 布局恢复完整旧条目。旧 manifest、WASM、包及图标不重写，不与候选字段混合；其余索引记录及候选 catalogue 保持。SHA、身份或未发布资产文件名冲突使发布前步骤失败；脚本不调用 Release 写接口，不覆写已发布资产。普通 `build.sh` 和本地单源构建不调用该联网步骤；没有 pin 时脚本不联网。正式宿主发布后由维护者复核解除条件，同时移除对应 pin 和不可用声明；局部 App 构建或提交成功不自动解除。
+
 ### Third-party source repos
 
 Create your own repo with the same structure. Users add your release index URL in Koma settings.
