@@ -158,3 +158,9 @@ websitePolicy只在原授权https://bakamh.com声明responseUrlOrigins与pathPre
 阅读最终地址必须是精确HTTPS原点、无userinfo/fragment，仍为当前作品及章节的原完整reader path和query；不能把重定向的其它作品、章节、登录页或不同阅读模式当成本章。有公开postID时还须等于chapter ID的数字owner。通过校验的真实地址用于相对/加密页表资源基址、浏览计数Referer及reader归属；原权限/工具提示在页表解析前保持。页ID仍从原请求路径按历史工作slug规则生成，含style=list，不因finalURL或encoded case重命名旧下载；图像resolver继续按既有页ID还原Referer和既有Web/Native二进制通道，不增加网络或新的会话字段。
 
 本候选用已有实际WASM/生产HTML桥对照旧作品原件和既有reader边界样本；受控响应地址只证明校验与接线，不能冒充今日reader200。正文跨章、真实图片及下载须由设备owner继续验收后才可公开。
+
+### 图片Referer上游策略更正
+
+固定8947c37的MadaraBase将阅读文档地址交给图片Referer；其BrowserHeaders随后采用strict-origin-when-cross-origin：同origin保留完整阅读地址（去userinfo/fragment），跨origin只发送阅读站点根origin、移除path/query，HTTPS降到HTTP不发送Referer。源此前无条件发送旧pageId还原的完整章节地址，遗漏了后一步；此次仅补齐该公开头策略，同时用于已有BodyRef和无body能力的descriptor通道。
+
+旧pageId、章节ID、图片URL及下载identity不变；同origin仍沿原pageId还原逻辑，不混入真实finalURL与legacy ID分离。Accept/语言、UA/Cookie归属、Web/Native二进制选路、预算、图像校验、权限及BodyRef清理保持，不新增Host API或授权。routing5ac-11已实证页表Native200、正文get_image_request Native403；本次是独立已证移植parity更正，不能据此宣称当前403已定位或修好。原482e包与失败证据保留，需设备owner完成包子后在原104首图路径回归。
