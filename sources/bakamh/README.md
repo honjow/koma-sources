@@ -136,3 +136,11 @@ R13实机本地解码已见Cloudflare明确block页（Attention Required / Sorry
 R14仅在已走既有文档BodyRef、精确原点canonical `/manga/.../` GET且协商source_web_http_v1时显式增加webFetch v1。公共头恢复R10 Web组：Accept:*/*、既有Accept-Language和根Referer；绝不把Native导航Sec-*、Upgrade-Insecure-Requests或Priority送入Browser fetch。数字 `?p` 及缺Webfeature仍原R13 Native DOCUMENT组。读取、错误映射、匿名403文本取证及全部close流程保持R13，不新增请求或Host API。
 
 保R12显式POST、正文/封面图片Web BodyRef、全部metadata/原生UA/selector/IDs/权限/日期/设置/图标，旧R13包及失败原件不覆盖。此候选配df49280dd4b3同组HAP读取此前Web403的小错误页原文，不宣称解除403；若真实Web200才沿普通路径继续核实际目录/阅读。仍是临时诊断，取证完成须移除全部临时日志后正式交付。制作规范locale单句已独立docs提交ea64b812，本轮不再改规范。
+
+### 0.1.1 R15 provider opaque路径编码大小写parity
+
+固定8947c37正常卡片先把href经Jsoup/OkHttp变为encodedPath存memo.path，manga.url保存数字ID；Bakamh对manga.url的小写不改memo。此前Koma manga_path却主动ASCII小写编码slug，遇原始大写转义、Unicode或大写ASCII slug会产生额外路径改写。R15只保留Url正常编码后的原slug大小写，不再把opaque provider路由小写；不是403根因判断。
+
+调用方边界：卡片验证不改原URL；详情/目录/reader文档请求保provider路由；作品ID仍数字、章ID仍数字+原章节叶slug，目录ownership guard、标签/status小写去重不变。旧页ID嵌了已小写的工作slug，因此仅在页ID序列化保原工作slug表示，章节叶slug/query保持；该identity兼容字符串不用于HTTP文档路由，原get_image_request及图片Referer保持。不得以路由更正重新命名用户已有ID；日后改变此身份合同须另有迁移授权。
+
+只新增临时BKPATH15固定布尔日志，正常get_manga route一次：hasUpperEscape/hasLowerEscape/containsUnicode只检查query/fragment之外的输入路径；normalizationChangedEncoding比较Url已编码slug与manga_path结果，区别标准Unicode编码和主动改写。不记rawURL/query/凭据，不新增请求，采后与BKDOC8/BKERR403一并移除。版本/默认设置/权限、R14文档与图片/显式POST传输、metadata/UA/selector/素材均不改，保所有冻结旧包。

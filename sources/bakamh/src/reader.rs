@@ -170,9 +170,17 @@ pub(crate) fn pages(args: &Value, request: &[u8]) -> core::result::Result<Value,
     }
     // Page IDs carry the chapter document path so the image resolver can set
     // the exact Referer without loading the series or replaying view counts.
+    // Compatibility only: historical page IDs were made after manga_path had
+    // lowercased the work slug. Keep those IDs (and their stored image Referer)
+    // byte-stable; HTTP chapter routes above retain the provider's encoded case.
+    // Do not use this legacy identity string to construct a provider request.
+    let identity_path = url.path().strip_prefix("/manga/")
+        .and_then(|rest| rest.split_once('/'))
+        .map(|(work, tail)| format!("/manga/{}/{}", work.to_ascii_lowercase(), tail))
+        .unwrap_or_else(|| String::from(url.path()));
     let referer = format!(
         "{}{}",
-        url.path(),
+        identity_path,
         url.query().map(|q| format!("?{q}")).unwrap_or_default()
     );
     let pages: Vec<_> = images.into_iter().map(|(index, image)| {

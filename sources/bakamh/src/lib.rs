@@ -265,10 +265,36 @@ fn manga_path(raw: &str) -> Option<String> {
     }
     let slug = url.path().strip_prefix("/manga/")?.trim_end_matches('/');
     if path_segment(slug) {
-        Some(format!("/manga/{}/", slug.to_ascii_lowercase()))
+        // Fixed upstream stores encodedPath in memo.path; lowercasing its numeric
+        // manga.url does not authorize rewriting this provider-owned opaque slug.
+        Some(format!("/manga/{slug}/"))
     } else {
         None
     }
+}
+
+// Temporary route-shape evidence only; no raw route/query/account data is logged.
+fn log_manga_route_shape(raw: &str, normalized: &str, request: &[u8]) {
+    if source_protocol::raw_string(request, b"operation").ok().flatten() != Some(b"get_manga") { return; }
+    let raw = raw.split(['?', '#']).next().unwrap_or("");
+    let path = if let Some((_, authority)) = raw.split_once("://") {
+        authority.find('/').map(|start| &authority[start..]).unwrap_or("")
+    } else if let Some(authority) = raw.strip_prefix("//") {
+        authority.find('/').map(|start| &authority[start..]).unwrap_or("")
+    } else { raw };
+    let has_upper = path.as_bytes().windows(3).any(|part| part[0] == b'%'
+        && part[1..].iter().all(u8::is_ascii_hexdigit) && part[1..].iter().any(u8::is_ascii_uppercase));
+    let has_lower = path.as_bytes().windows(3).any(|part| part[0] == b'%'
+        && part[1..].iter().all(u8::is_ascii_hexdigit) && part[1..].iter().any(u8::is_ascii_lowercase));
+    // Compare the already URL-encoded slug with manga_path's result. Standard
+    // Unicode percent encoding is distinct from a subsequent opaque-slug rewrite.
+    let changed = port::absolute(BASE, raw).ok().is_some_and(|url| {
+        url.path().strip_prefix("/manga/").map(|slug| slug.trim_end_matches('/'))
+            != normalized.strip_prefix("/manga/").map(|slug| slug.trim_end_matches('/'))
+    });
+    let message = format!("BKPATH15 hasUpperEscape={} hasLowerEscape={} containsUnicode={} normalizationChangedEncoding={}",
+        has_upper, has_lower, !path.is_ascii(), changed);
+    koma_source_sdk::host::log_info(message.as_bytes());
 }
 
 fn shortlink_id(url: &Url) -> Option<String> {
@@ -338,6 +364,7 @@ fn work_id(args: &Value) -> Result<&str> {
 
 fn series(id: &str, route: Option<&str>, request: &[u8]) -> Result<Series> {
     if let Some(path) = route.and_then(manga_path) {
+        if let Some(raw) = route { log_manga_route_shape(raw, &path, request); }
         let url = port::absolute(BASE, &path)?;
         match get_document(&url, request) {
             Ok((doc, complete_document)) if doc.one(DETAILS_TITLE).is_some() && post_id(&doc).as_deref() == Some(id) => {
