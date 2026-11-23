@@ -1,5 +1,10 @@
 {
-  "comments": {"version": 1, "scopes": ["manga"]},
+  "comments": {
+    "version": 1,
+    "scopes": [
+      "manga"
+    ]
+  },
   "identity": {
     "mihon": {
       "sourceIds": [
@@ -16,8 +21,14 @@
     "homepageChoices": {
       "setting": "preferredMirror",
       "options": [
-        { "value": "https://komiic.com", "url": "https://komiic.com/" },
-        { "value": "https://komiic.cc", "url": "https://komiic.cc/" }
+        {
+          "value": "https://komiic.com",
+          "url": "https://komiic.com/"
+        },
+        {
+          "value": "https://komiic.cc",
+          "url": "https://komiic.cc/"
+        }
       ]
     }
   },
@@ -34,5 +45,156 @@
     "credentialStorage": "memory",
     "usernameLabel": "電子郵件",
     "passwordLabel": "密碼"
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.name": {
+        "zh-Hant": "Komiic",
+        "zh-Hans": "Komiic",
+        "en": "Komiic"
+      },
+      "source.description": {
+        "zh-Hant": "Komiic 作品目錄、搜尋與閱讀。",
+        "zh-Hans": "Komiic 作品目录、搜索与阅读。",
+        "en": "Browse, search and read manga from Komiic."
+      },
+      "authentication.usernameLabel": {
+        "zh-Hant": "電子郵件",
+        "zh-Hans": "电子邮件",
+        "en": "Email"
+      },
+      "authentication.passwordLabel": {
+        "zh-Hant": "密碼",
+        "zh-Hans": "密码",
+        "en": "Password"
+      },
+      "settings.CHAPTER_FILTER.name": {
+        "zh-Hant": "章節列表顯示",
+        "zh-Hans": "章节列表显示",
+        "en": "Chapter list"
+      },
+      "settings.CHAPTER_FILTER.option.all": {
+        "zh-Hant": "同時顯示卷和章節",
+        "zh-Hans": "同时显示卷和章节",
+        "en": "Volumes and chapters"
+      },
+      "settings.CHAPTER_FILTER.option.chapter": {
+        "zh-Hant": "僅顯示章節",
+        "zh-Hans": "仅显示章节",
+        "en": "Chapters only"
+      },
+      "settings.CHAPTER_FILTER.option.book": {
+        "zh-Hant": "僅顯示卷",
+        "zh-Hans": "仅显示卷",
+        "en": "Volumes only"
+      },
+      "settings.preferredMirror.name": {
+        "zh-Hant": "首選鏡像",
+        "zh-Hans": "首选镜像",
+        "en": "Preferred mirror"
+      },
+      "listings.popular.name": {
+        "zh-Hant": "熱門",
+        "zh-Hans": "热门",
+        "en": "Popular"
+      },
+      "listings.latest.name": {
+        "zh-Hant": "最近更新",
+        "zh-Hans": "最近更新",
+        "en": "Latest updates"
+      },
+      "listings.reader-recommended-week.name": {
+        "zh-Hant": "讀者推薦 · 本週",
+        "zh-Hans": "读者推荐 · 本周",
+        "en": "Reader picks · This week"
+      },
+      "listings.reader-recommended-month.name": {
+        "zh-Hant": "讀者推薦 · 本月",
+        "zh-Hans": "读者推荐 · 本月",
+        "en": "Reader picks · This month"
+      },
+      "listings.reader-recommended-year.name": {
+        "zh-Hant": "讀者推薦 · 年度",
+        "zh-Hans": "读者推荐 · 年度",
+        "en": "Reader picks · This year"
+      },
+      "listings.ai-recommended.name": {
+        "zh-Hant": "AI 推薦",
+        "zh-Hans": "AI 推荐",
+        "en": "AI recommendations"
+      },
+      "filters.header.name": {
+        "zh-Hant": "篩選條件（搜索關鍵字時無效）",
+        "zh-Hans": "筛选条件（搜索关键字时无效）",
+        "en": "Filters (unavailable for keyword searches)"
+      },
+      "filters.categories.name": {
+        "zh-Hant": "類型（同時包含全部所選類型）",
+        "zh-Hans": "类型（同时包含全部所选类型）",
+        "en": "Categories (include all selected)"
+      },
+      "filters.sort.name": {
+        "zh-Hant": "排序",
+        "zh-Hans": "排序",
+        "en": "Sort"
+      },
+      "filters.sort.option.DATE_UPDATED": {
+        "zh-Hant": "更新",
+        "zh-Hans": "更新",
+        "en": "Updated"
+      },
+      "filters.sort.option.MONTH_VIEWS": {
+        "zh-Hant": "本月觀看數（不能篩選類型）",
+        "zh-Hans": "本月观看数（不能筛选类型）",
+        "en": "Monthly views (category filter unavailable)"
+      },
+      "filters.sort.option.VIEWS": {
+        "zh-Hant": "觀看數",
+        "zh-Hans": "观看数",
+        "en": "Views"
+      },
+      "filters.sort.option.FAVORITE_COUNT": {
+        "zh-Hant": "喜愛數",
+        "zh-Hans": "喜爱数",
+        "en": "Favorites"
+      },
+      "filters.status.name": {
+        "zh-Hant": "狀態",
+        "zh-Hans": "状态",
+        "en": "Status"
+      },
+      "filters.status.option.all": {
+        "zh-Hant": "全部",
+        "zh-Hans": "全部",
+        "en": "All"
+      },
+      "filters.status.option.ONGOING": {
+        "zh-Hant": "連載",
+        "zh-Hans": "连载",
+        "en": "Ongoing"
+      },
+      "filters.status.option.END": {
+        "zh-Hant": "完結",
+        "zh-Hans": "完结",
+        "en": "Completed"
+      },
+      "filters.rating.name": {
+        "zh-Hant": "色氣程度",
+        "zh-Hans": "色气程度",
+        "en": "Suggestiveness"
+      },
+      "filters.rating.option.all": {
+        "zh-Hant": "全部",
+        "zh-Hans": "全部",
+        "en": "All"
+      },
+      "filters.rating.option.0": {
+        "zh-Hant": "無",
+        "zh-Hans": "无",
+        "en": "None"
+      }
+    }
   }
 }
