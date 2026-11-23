@@ -15,7 +15,7 @@ use crate::{
     get, image_from, manga_path, numeric_id, path_segment, port, view_count, Node, Result, BASE,
 };
 
-fn chapter_route(args: &Value, request: &[u8]) -> Result<Url> {
+fn chapter_route<'a>(args: &'a Value, request: &[u8]) -> Result<(Url, &'a str)> {
     let chapter = args["chapterId"]
         .as_str()
         .and_then(|id| id.strip_prefix("chapter:"))
@@ -34,7 +34,17 @@ fn chapter_route(args: &Value, request: &[u8]) -> Result<Url> {
         .and_then(manga_path)
         .map(Ok)
         .unwrap_or_else(|| crate::series(work_id, None, request)?.canonical_path())?;
-    port::absolute(BASE, &format!("{path}{slug}/"))
+    Ok((port::absolute(BASE, &format!("{path}{slug}/"))?, work_id))
+}
+
+fn document(url: &Url, request: &[u8], owner: &str) -> Result<(Node, Url)> {
+    if Context::from_request(request).supports(b"source_http_response_metadata_v1") {
+        let document = crate::document_text::reader(url, request, owner)?;
+        let location = document.final_url.ok_or("invalid_response")?;
+        Ok((document.doc, location))
+    } else {
+        Ok((get(url, request)?, url.clone()))
+    }
 }
 
 fn encrypted_pages(script: &Node, base: &Url) -> Result<Vec<Url>> {
@@ -112,11 +122,12 @@ impl From<&'static str> for PageError {
 }
 
 pub(crate) fn pages(args: &Value, request: &[u8]) -> core::result::Result<Value, PageError> {
-    let mut url = chapter_route(args, request)?;
-    let mut doc = get(&url, request)?;
+    let (mut route, owner) = chapter_route(args, request)?;
+    let (mut doc, mut url) = document(&route, request, owner)?;
     if doc.one("#single-pager").is_some() {
-        url.query_pairs_mut().append_pair("style", "list");
-        doc = get(&url, request)?;
+        // Upstream requests style=list from the original chapter route.
+        route.query_pairs_mut().append_pair("style", "list");
+        (doc, url) = document(&route, request, owner)?;
     }
     view_count(&doc, &url, request);
     if let Some(lock) = doc.one(".mkjp-ea-lock__title") {
@@ -174,14 +185,14 @@ pub(crate) fn pages(args: &Value, request: &[u8]) -> core::result::Result<Value,
     // lowercased the work slug. Keep those IDs (and their stored image Referer)
     // byte-stable; HTTP chapter routes above retain the provider's encoded case.
     // Do not use this legacy identity string to construct a provider request.
-    let identity_path = url.path().strip_prefix("/manga/")
+    let identity_path = route.path().strip_prefix("/manga/")
         .and_then(|rest| rest.split_once('/'))
         .map(|(work, tail)| format!("/manga/{}/{}", work.to_ascii_lowercase(), tail))
-        .unwrap_or_else(|| String::from(url.path()));
+        .unwrap_or_else(|| String::from(route.path()));
     let referer = format!(
         "{}{}",
         identity_path,
-        url.query().map(|q| format!("?{q}")).unwrap_or_default()
+        route.query().map(|q| format!("?{q}")).unwrap_or_default()
     );
     let pages: Vec<_> = images.into_iter().map(|(index, image)| {
         json!({"id":format!("page:{index}:{referer}"),"index":index,"image":{"kind":"url","url":image.as_str()}})

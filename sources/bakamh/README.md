@@ -148,3 +148,13 @@ R14仅在已走既有文档BodyRef、精确原点canonical `/manga/.../` GET且�
 websitePolicy只在原授权https://bakamh.com声明responseUrlOrigins与pathPrefix:/的chrome131_android，覆盖canonical及原/?p数字入口。Host仍仅对无body文本GET选择该已有实现，不扩大原点或会话授权。它是移动Chromium兼容候选，现有设备证据仅有UA相等布尔，没有授权UA浏览器族/主版本，不能称已验证主版本精确匹配，也不按403结果轮换浏览器族。profile名不写成UA，真实授权UA/Cookie仍由Host持有；不声明新原点、私有session或伪造finalURL。底层profile实体上限1MiB、源正文4MiB与原完整文档/作品/目录守卫均保留。reader文档、图片、POST、权限与chapter/page ID算法不改，旧下载页ID不重写。普通403及非终止错误仍走原数字fallback；challenge/auth/rate/cancel仍终止。
 
 这是CORS候选仍403后的独立后备。标准单源构建和实际WASM回放已完成：保留116659字节真实作品文档、完整61章，覆盖Native text/finalURL请求、无效最终地址、上游数字fallback和旧能力/reader URL搜索边界；受控最终地址元数据只验证接线，不冒充站点真实跳转或Native profile成功。普通宿主实际profile eligible/status、详情/目录/正文与下载仍待验，不宣称解除站点阻断。已移除的临时取证代码不恢复，distribution.available:false继续保留。
+
+### Native text 阅读文档与实际最终地址候选
+
+详情与当前105章目录已由237普通宿主取得Native profile200；chapter104页表仍走旧WebHTTP并返回403，尚无正文图片或完整下载验收。此次只将协商source_http_response_metadata_v1后的阅读文档接到已有document_text读取；没有该能力仍逐字沿旧文档通道。图片/封面BodyRef与显式POST选路、版本、metadata和distribution不可用门禁均保持。
+
+固定8947c37的Response.asJsoup以真实response.request.url作基址；Madara getPageList读取原chapter URL，必要时再请求原地址的style=list，parsePages以document.location给相对图片及Page referer，浏览计数同用该文档地址。Koma复用同一Native text GET、DOCUMENT公共头、默认BrowserGrant与真实responseMetadata.finalUrl，不填虚构地址切路。真实授权UA/Cookie和mobile131 profile选择仍归Host，不冒称已匹配授权UA主版本。
+
+阅读最终地址必须是精确HTTPS原点、无userinfo/fragment，仍为当前作品及章节的原完整reader path和query；不能把重定向的其它作品、章节、登录页或不同阅读模式当成本章。有公开postID时还须等于chapter ID的数字owner。通过校验的真实地址用于相对/加密页表资源基址、浏览计数Referer及reader归属；原权限/工具提示在页表解析前保持。页ID仍从原请求路径按历史工作slug规则生成，含style=list，不因finalURL或encoded case重命名旧下载；图像resolver继续按既有页ID还原Referer和既有Web/Native二进制通道，不增加网络或新的会话字段。
+
+本候选用已有实际WASM/生产HTML桥对照旧作品原件和既有reader边界样本；受控响应地址只证明校验与接线，不能冒充今日reader200。正文跨章、真实图片及下载须由设备owner继续验收后才可公开。
