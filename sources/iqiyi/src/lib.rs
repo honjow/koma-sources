@@ -6,7 +6,7 @@ use koma_source_sdk::{
 };
 type E = &'static str;
 const MAX: usize = 1048576;
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.iqiyi.koma",name:"Iqiyi",version:"0.1.5",api_version:"0.2",language:"zh-Hans",author:"Koma",description:"Iqiyi Bada public metadata API; requires real host clock and entropy. Usage and per-work rating unknown.",content_rating:"safe"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.iqiyi.koma",name:"Iqiyi",version:"0.1.6",api_version:"0.2",language:"zh-Hans",author:"Koma",description: "愛奇藝叭嗒的漫畫頻道，包含戀愛、奇幻、懸疑與冒險等題材。付費章節仍需原站授權。",content_rating:"safe"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -754,7 +754,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
-    response_buffer().write_success_parts("source_info",&[b"{\"sourceInfo\":{\"id\":\"com.iqiyi.koma\",\"name\":\"Iqiyi\",\"version\":\"", SOURCE_INFO.version.as_bytes(), b"\",\"apiVersion\":\"0.2\",\"language\":\"zh-Hans\",\"author\":\"Koma\",\"contentRating\":\"safe\",\"localizedNames\":{", "\"zh-Hans\":\"爱奇艺叭嗒\",\"zh-Hant\":\"愛奇藝叭嗒\",\"en\":\"Iqiyi Bada\"".as_bytes(), b"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":false,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}"])
+    response_buffer().write_success_parts("source_info",&[b"{\"sourceInfo\":{\"id\":\"com.iqiyi.koma\",\"name\":\"Iqiyi\",\"version\":\"", SOURCE_INFO.version.as_bytes(), b"\",\"apiVersion\":\"0.2\",\"language\":\"zh-Hans\",\"author\":\"Koma\",\"description\":\"", SOURCE_INFO.description.as_bytes(), b"\",\"contentRating\":\"safe\",\"localizedNames\":{", "\"zh-Hans\":\"爱奇艺叭嗒\",\"zh-Hant\":\"愛奇藝叭嗒\",\"en\":\"Iqiyi Bada\"".as_bytes(), b"}},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":false,\"settings\":false,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}"])
 }
 macro_rules! export_op {
     ($f:ident,$op:literal,$run:ident) => {

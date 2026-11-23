@@ -6,5 +6,16 @@
   },
   "requestLimits": [
     {"group": "jiulingmanhua", "hosts": ["www.90mh.cc", "m.90mh.cc"], "permits": 2, "periodMs": 1000}
-  ]
+  ],
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "90漫畫網收錄日本、韓國、國漫、港台及歐美漫畫，題材包含戀愛、校園、冒險與科幻，兼有連載及完結作品。",
+        "zh-Hans": "90漫画网收录日本、韩国、国漫、港台及欧美漫画，题材包含恋爱、校园、冒险与科幻，兼有连载及完结作品。",
+        "en": "90 Manhua carries Asian and Western comics, from school romance to adventure and science fiction, both ongoing and completed."
+      }
+    }
+  }
 }

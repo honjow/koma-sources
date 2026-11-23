@@ -1,5 +1,11 @@
 # 禁漫天堂 JM
 
+## 0.1.10 簡介與多語言顯示
+
+禁漫天堂（JM）的漫畫與分集圖集，按站內分類及標籤整理。此入口提供匿名公開內容，帳號收藏與簽到請在原站使用。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 书源 ID `com.jmcomic.koma` 对应 `https://18comic.vip`，与 HANMAN18 分开。参考用户指定 Keiyoushi 索引中的 source `6286738698187452081`，扩展版本 1.6.64。行为参考和图标均固定在 [Keiyoushi `de743aed` 的 `zh/jinmantiantang`](https://github.com/keiyoushi/extensions-source/tree/de743aed846da53e00c45ab26ee0e77f7bb4355b/src/zh/jinmantiantang)。最低 Koma 版本为 1.4.3。
 
 | 行为 | 上游与 Koma 实现 |

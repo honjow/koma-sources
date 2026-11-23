@@ -1,5 +1,16 @@
 {
   "homepage":"https://www.1kkk.com",
   "localizedNames":{"zh-Hans":"极速漫画","zh-Hant":"極速漫畫","en":"Jisu Manhua"},
-  "comments":{"version":1,"scopes":["chapter"]}
+  "comments":{"version":1,"scopes":["chapter"]},
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "極速漫畫的原創與日本漫畫，包含熱血冒險、奇幻、戀愛及校園等題材；原站鎖定或下架章節依其狀態保留。",
+        "zh-Hans": "极速漫画的原创与日本漫画，包含热血冒险、奇幻、恋爱及校园等题材；原站锁定或下架章节依其状态保留。",
+        "en": "Original and Japanese comics from Jisu Manhua. Action, fantasy and romance; locked or removed chapters retain their status."
+      }
+    }
+  }
 }

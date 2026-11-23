@@ -28,7 +28,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "禁漫天堂 JM 漫画。支持匿名浏览与阅读，账号功能在原站使用。",
+    description: "禁漫天堂（JM）的漫畫與分集圖集，按站內分類及標籤整理。此入口提供匿名公開內容，帳號收藏與簽到請在原站使用。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

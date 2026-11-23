@@ -8,5 +8,16 @@
       "chapter": {"pathPrefix": "/", "idPrefix": "/"},
       "samePageOrder": true
     }
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "看漫畫收錄熱血、冒險、玄幻、戀愛及古風等題材的連載作品。可讀免費章節，付費鎖定章節保留原站標記。",
+        "zh-Hans": "看漫画收录热血、冒险、玄幻、恋爱及古风等题材的连载作品。可读免费章节，付费锁定章节保留原站标记。",
+        "en": "Kanman comics in action, adventure, fantasy and romance. Free chapters are readable; paid chapters remain locked."
+      }
+    }
   }
 }

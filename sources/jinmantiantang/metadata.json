@@ -59,5 +59,16 @@
         }
       ]
     }
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "禁漫天堂（JM）的漫畫與分集圖集，按站內分類及標籤整理。此入口提供匿名公開內容，帳號收藏與簽到請在原站使用。",
+        "zh-Hans": "禁漫天堂（JM）的漫画与分集图集，按站内分类及标签整理。此入口提供匿名公开内容，账号收藏与签到请在原站使用。",
+        "en": "JM’s tagged comics and episodic galleries. Anonymous public reading; account favorites and check-ins remain on the website."
+      }
+    }
   }
 }

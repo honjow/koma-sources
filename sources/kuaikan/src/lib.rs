@@ -9,11 +9,11 @@ use koma_source_sdk::{fetch_error_code, FetchError};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.kuaikan.koma",
     name: "快看漫画",
-    version: "0.1.10",
+    version: "0.1.11",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "Kuaikan public catalogue and free chapters.",
+    description: "快看的國漫、韓漫與日漫，涵蓋戀愛、古風、奇幻、懸疑及熱血等題材。正文限免費章節，付費與會員內容請在原站使用。",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

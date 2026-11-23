@@ -1,1 +1,13 @@
-{"homepage":"https://kiutaku.com","chapterOrder":"newest_first"}
+{"homepage":"https://kiutaku.com","chapterOrder":"newest_first",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "Kiutaku 的多語言圖集，包含成人內容；每冊按原站頁次編排，標籤與相關圖集可協助尋找相近作品。",
+        "zh-Hans": "Kiutaku 的多语言图集，包含成人内容；每册按原站页次编排，标签与相关图集可协助寻找相近作品。",
+        "en": "Multilingual galleries on Kiutaku, including adult content, with original page order, tags and related albums."
+      }
+    }
+  }
+}

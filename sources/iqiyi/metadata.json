@@ -24,5 +24,16 @@
     "zh-Hans": "爱奇艺叭嗒",
     "zh-Hant": "愛奇藝叭嗒"
   },
-  "homepage": "https://bud.m.iqiyi.com"
+  "homepage": "https://bud.m.iqiyi.com",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "愛奇藝叭嗒的漫畫頻道，包含戀愛、奇幻、懸疑與冒險等題材。付費章節仍需原站授權。",
+        "zh-Hans": "爱奇艺叭嗒的漫画频道，包含恋爱、奇幻、悬疑与冒险等题材。付费章节仍需原站授权。",
+        "en": "iQIYI Bada comics in romance, fantasy, mystery and adventure. Paid chapters require the site’s authorization."
+      }
+    }
+  }
 }

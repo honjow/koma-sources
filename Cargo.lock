@@ -1526,7 +1526,7 @@ dependencies = [
 
 [[package]]
 name = "koma_iqiyi_source"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1540,7 +1540,7 @@ dependencies = [
 
 [[package]]
 name = "koma_jinmantiantang_source"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "aes",
  "base64 0.22.1",
@@ -1552,7 +1552,7 @@ dependencies = [
 
 [[package]]
 name = "koma_jisumanhua_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1562,14 +1562,14 @@ dependencies = [
 
 [[package]]
 name = "koma_jiuermanhua_source"
-version = "0.1.13"
+version = "0.1.14"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_jiulingmanhua_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1579,7 +1579,7 @@ dependencies = [
 
 [[package]]
 name = "koma_kanman_source"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1589,7 +1589,7 @@ dependencies = [
 
 [[package]]
 name = "koma_kiutaku_source"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1608,7 +1608,7 @@ dependencies = [
 
 [[package]]
 name = "koma_kuaikan_source"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "koma_source_sdk",
 ]

@@ -1,5 +1,11 @@
 # Kiutaku
 
+## 0.1.2 簡介與多語言顯示
+
+Kiutaku 的多語言圖集，包含成人內容；每冊按原站頁次編排，標籤與相關圖集可協助尋找相近作品。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 书源 ID `com.kiutaku.koma`，多语言，标记为成人内容。参考 [Keiyoushi Kiutaku](https://github.com/keiyoushi/extensions-source/blob/b647c92fd14801fda23e866d5a7da7d5fdd7ec92/src/all/kiutaku/src/eu/kanade/tachiyomi/extension/all/kiutaku/Kiutaku.kt)，扩展 1.6 (versionCode 1)，上游源 ID `3040035304874076216`。
 
 | 行为 | 参考与实现 |

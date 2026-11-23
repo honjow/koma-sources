@@ -63,7 +63,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "",
+    description: "92漫畫收錄連載分話、單行本及其他分組作品，書目按少年、少女、青年等讀者分類整理。",
     content_rating: "nsfw",
 };
 

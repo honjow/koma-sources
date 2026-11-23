@@ -64,7 +64,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "看漫画官网公开漫画目录与免费章节。",
+    description: "看漫畫收錄熱血、冒險、玄幻、戀愛及古風等題材的連載作品。可讀免費章節，付費鎖定章節保留原站標記。",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

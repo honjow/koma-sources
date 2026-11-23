@@ -1,5 +1,11 @@
 # 看漫画
 
+## 0.1.2 簡介與多語言顯示
+
+看漫畫收錄熱血、冒險、玄幻、戀愛及古風等題材的連載作品。可讀免費章節，付費鎖定章節保留原站標記。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 参考：[Keiyoushi `Kanman.kt`、DTO、筛选及构建配置](https://github.com/keiyoushi/extensions-source/tree/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/src/zh/kanman)。上游 `zh` v1 来源 ID `3710922009941786183`；作品 `/数字/` 映射为裸 ID，章节保留 `/作品/章节.html`。许可见 `LICENSE` 和 `NOTICE`。
 
 | 上游行为 | Koma 入口与实现 |

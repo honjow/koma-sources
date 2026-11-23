@@ -53,7 +53,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "90漫画网的公开漫画。",
+    description: "90漫畫網收錄日本、韓國、國漫、港台及歐美漫畫，題材包含戀愛、校園、冒險與科幻，兼有連載及完結作品。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

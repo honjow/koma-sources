@@ -23,5 +23,16 @@
     "zh-Hans": "92漫画",
     "zh-Hant": "92漫畫",
     "en": "92Manhua"
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "92漫畫收錄連載分話、單行本及其他分組作品，書目按少年、少女、青年等讀者分類整理。",
+        "zh-Hans": "92漫画收录连载分话、单行本及其他分组作品，书目按少年、少女、青年等读者分类整理。",
+        "en": "92 Manhua carries serialized chapters, collected volumes and other editions, with shonen, shojo and seinen catalogue sections."
+      }
+    }
   }
 }

@@ -21,5 +21,16 @@
     "zh-Hant": "快看漫畫"
   },
   "homepage": "https://www.kuaikanmanhua.com",
-  "chapterOrder": "oldest_first"
+  "chapterOrder": "oldest_first",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "快看的國漫、韓漫與日漫，涵蓋戀愛、古風、奇幻、懸疑及熱血等題材。正文限免費章節，付費與會員內容請在原站使用。",
+        "zh-Hans": "快看的国漫、韩漫与日漫，涵盖恋爱、古风、奇幻、悬疑及热血等题材。正文限免费章节，付费与会员内容请在原站使用。",
+        "en": "Chinese, Korean and Japanese comics from Kuaikan. Free chapters only; paid and membership content stays on the website."
+      }
+    }
+  }
 }
