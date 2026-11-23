@@ -1,5 +1,7 @@
 # 巴卡漫画
 
+当前为继续验证中的候选，`distribution.available:false` 暂停公开安装索引分发：完整普通宿主验收尚未通过，所需 Koma 1.6.1 也尚未正式发布。保留全部移植、源文件及候选验证工作；待完整验收通过且所需正式宿主可用后再恢复分发，不代表取消移植或删除书源。既有 R15 immutable 候选包不重建、不覆盖。
+
 独立源 `com.bakamh.koma`，对应 Mihon 来源 ID `3712194609356981776`，来源分级 NSFW。参考 [Bakamh](https://github.com/keiyoushi/extensions-source/tree/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/src/zh/bakamh) 和同提交的 [Madara／MadaraBase](https://github.com/keiyoushi/extensions-source/tree/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/lib-multisrc/madara)，代码许可 Apache-2.0。
 
 | 上游行为 | Koma 入口及实现 |
