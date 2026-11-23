@@ -1,5 +1,11 @@
 # 哔咔漫画（同名站）
 
+## 0.1.2 簡介與多語言顯示
+
+bikamanhua.com 的漫畫書庫，按題材、人氣與更新整理作品。這是同名網頁站，與 Picacomic 帳號服務不同。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 独立源 `com.bikamanhua.koma`，对接 `m.bikamanhua.com`。采用上游独立 Mihon ID `8976260719331701966`。官网部分作品封面和正文沿用包子漫画的图片域，作品和章节按本站真实地址保存。
 
 | 行为 | 上游与 Koma |

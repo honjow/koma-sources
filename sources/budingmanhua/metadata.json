@@ -9,5 +9,16 @@
     "scopes": [
       "manga"
     ]
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "布丁漫畫收錄國漫、日漫與韓漫，題材包含戀愛、校園、玄幻、熱血與日常生活。",
+        "zh-Hans": "布丁漫画收录国漫、日漫与韩漫，题材包含恋爱、校园、玄幻、热血与日常生活。",
+        "en": "Buding Manhua carries Chinese, Japanese and Korean comics, including romance, school stories, fantasy, action and slice of life."
+      }
+    }
   }
 }

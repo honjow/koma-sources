@@ -29,7 +29,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "bikamanhua.com 网页漫画目录",
+    description: "bikamanhua.com 的漫畫書庫，按題材、人氣與更新整理作品。這是同名網頁站，與 Picacomic 帳號服務不同。",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

@@ -17,5 +17,16 @@
   },
   "homepage": "https://comic.acgn.cc",
   "chapterOrder": "newest_first",
-  "requestLimits": [{"group":"main", "permits":2, "periodMs":1000, "hosts":["comic.acgn.cc"], "oncePerRequest":true}]
+  "requestLimits": [{"group":"main", "permits":2, "periodMs":1000, "hosts":["comic.acgn.cc"], "oncePerRequest":true}],
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "動漫戲說收錄連載漫畫、單行本與畫集，題材包含冒險、科幻、戀愛及推理。",
+        "zh-Hans": "动漫戏说收录连载漫画、单行本与画集，题材包含冒险、科幻、恋爱及推理。",
+        "en": "ACGN carries serialized comics, collected volumes and art books, including adventure, science fiction, romance and mystery."
+      }
+    }
+  }
 }

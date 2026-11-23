@@ -1,5 +1,11 @@
 # 3Hentai 中文 0.1.5
 
+## 0.1.10 簡介與多語言顯示
+
+3Hentai 的中文漫畫圖集，標示作者、社團、角色與題材標籤，每冊圖集可連續閱讀。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 独立源身份 `com.hentai3.zh.koma`，API 0.2，主页 `https://3hentai.net`，最低App0.1.1。公开中文popular列表、搜索、筛选、详情、单作品章节及原图描述已实现；latest、home不提供。混合成人源，单作品分级及用量未知。不登录、不发送凭据。
 
 ## 标题设置

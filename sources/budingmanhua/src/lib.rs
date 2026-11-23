@@ -24,7 +24,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "布丁漫画。",
+    description: "布丁漫畫收錄國漫、日漫與韓漫，題材包含戀愛、校園、玄幻、熱血與日常生活。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = book_site::CAPABILITIES;

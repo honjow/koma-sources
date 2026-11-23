@@ -4,5 +4,16 @@
     "zh-Hant": "3Hentai",
     "en": "3Hentai"
   },
-  "homepage": "https://3hentai.net"
+  "homepage": "https://3hentai.net",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "3Hentai 的中文漫畫圖集，標示作者、社團、角色與題材標籤，每冊圖集可連續閱讀。",
+        "zh-Hans": "3Hentai 的中文漫画图集，标示作者、社团、角色与题材标签，每册图集可连续阅读。",
+        "en": "Chinese-language comic galleries from 3Hentai, with artist, group, character and subject tags. Each gallery is read as a complete book."
+      }
+    }
+  }
 }

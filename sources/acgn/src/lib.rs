@@ -23,11 +23,11 @@ const BASE: &str = "https://comic.acgn.cc";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "cc.acgn.koma",
     name: "動漫戲說",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "",
+    description: "動漫戲說收錄連載漫畫、單行本與畫集，題材包含冒險、科幻、戀愛及推理。",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

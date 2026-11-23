@@ -1,5 +1,11 @@
 # 布丁漫画
 
+## 0.1.1 簡介與多語言顯示
+
+布丁漫畫收錄國漫、日漫與韓漫，題材包含戀愛、校園、玄幻、熱血與日常生活。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 参考 [Keiyoushi 布丁漫画](https://github.com/keiyoushi/extensions-source/tree/f1d882a93ef34a33dc4f4467753ad5f99eab43f4/src/zh/budingmanhua)。原站同时提供不同的桌面和移动 HTML，源的列表、详情和页表均明确请求已核对的移动模板。
 
 - 布丁的默认栏目按上游使用可读的分类书单，避开旧榜单。按主题、地区和进度筛选。站点备用域名顺序与上游一致。

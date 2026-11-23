@@ -1,5 +1,11 @@
 # 動漫戲說（ACGN）
 
+## 0.1.3 簡介與多語言顯示
+
+動漫戲說收錄連載漫畫、單行本與畫集，題材包含冒險、科幻、戀愛及推理。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 参考 Keiyoushi 固定版本 `b23481f77aeb7fc0957f15566fb9de647e4b3d3d` 的 `src/zh/acgn`。官网 https://comic.acgn.cc。图标来源见 [ASSET_SOURCES.md](ASSET_SOURCES.md)。
 
 | 功能 | 上游及本源行为 |

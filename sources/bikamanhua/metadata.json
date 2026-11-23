@@ -9,5 +9,16 @@
   "requestLimits": [
     { "group": "bika-requests", "hosts": ["m.bikamanhua.com"], "permits": 2, "periodMs": 1000 },
     { "group": "bika-search", "hosts": ["m.bikamanhua.com"], "requestHeaders": ["sec-fetch-user"], "permits": 1, "periodMs": 1500 }
-  ]
+  ],
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "bikamanhua.com 的漫畫書庫，按題材、人氣與更新整理作品。這是同名網頁站，與 Picacomic 帳號服務不同。",
+        "zh-Hans": "bikamanhua.com 的漫画书库，按题材、人气与更新整理作品。这是同名网页站，与 Picacomic 账号服务不同。",
+        "en": "Comics at bikamanhua.com, grouped by genre and updates. A namesake website, separate from the Picacomic account service."
+      }
+    }
+  }
 }

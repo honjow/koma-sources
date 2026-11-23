@@ -29,7 +29,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "嗶哩漫畫（bilimanga.net）。包含不同內容分級的作品。",
+    description: "嗶哩漫畫（bilimanga.net）收錄日本、韓國、港台、歐美與大陸漫畫，涵蓋奇幻冒險、校園戀愛及懸疑驚悚等題材。",
     content_rating: "suggestive",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

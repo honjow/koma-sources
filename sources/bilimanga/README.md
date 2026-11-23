@@ -1,5 +1,11 @@
 # 嗶哩漫畫
 
+## 0.1.13 簡介與多語言顯示
+
+嗶哩漫畫（bilimanga.net）收錄日本、韓國、港台、歐美與大陸漫畫，涵蓋奇幻冒險、校園戀愛及懸疑驚悚等題材。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 `net.bilimanga.koma` 对应 `https://www.bilimanga.net` 的「嗶哩漫畫」。参考 Keiyoushi
 `16cde44564d45c3fa9c14371b4d9152606a9821d` 的 `zh/bilimanga` 和固定 Core，扩展
 1.6.15，来源语言 `zh`。Mihon 网络参考固定到 `70c73c728b6350dd9f1447420e9cef54e8403b41`。
