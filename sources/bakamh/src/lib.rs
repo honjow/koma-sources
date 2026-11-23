@@ -20,6 +20,7 @@ use serde_json::{json, Value};
 use url::Url;
 
 mod dates;
+mod document_body;
 mod filters;
 mod reader;
 
@@ -104,46 +105,74 @@ fn diagnostic_cf_managed(bytes: &[u8]) -> bool {
     false
 }
 
+// Only fixed public classifications survive before a BodyRef read reuses HTTP_OUT.
+#[derive(Clone, Copy)]
+struct DocumentDiagnostic {
+    mime: &'static str,
+    cf_mitigated: bool,
+    host_challenge: bool,
+}
+
+impl DocumentDiagnostic {
+    fn capture(response: &[u8]) -> Self {
+        let content_type = diagnostic_header(response, b"content-type");
+        let mime = match content_type.as_deref().and_then(|value| value.split(';').next()).map(str::trim) {
+            Some(value) if value.eq_ignore_ascii_case("text/html") => "html",
+            Some(value) if value.eq_ignore_ascii_case("application/xhtml+xml") => "xhtml",
+            Some(value) if value.eq_ignore_ascii_case("application/json") => "json",
+            Some(value) if value.eq_ignore_ascii_case("text/plain") => "plain",
+            Some(_) => "other",
+            None => "missing_or_invalid",
+        };
+        Self {
+            mime,
+            cf_mitigated: diagnostic_header(response, b"cf-mitigated")
+                .is_some_and(|value| value.trim().eq_ignore_ascii_case("challenge")),
+            host_challenge: source_protocol::raw_string(response, b"accessSignal").ok().flatten()
+                == Some(b"challenge_required".as_slice()),
+        }
+    }
+
+    fn log(self, decode: &str, utf8_bytes: i64, scanned_bytes: i64,
+        incomplete: bool, head: &[u8], markers_known: bool) {
+        let marker = |present| if !markers_known { "unknown" } else if present { "true" } else { "false" };
+        let cf_platform = diagnostic_contains(head, b"_cf_chl_opt") ||
+            diagnostic_contains(head, b"cf-chl-") || diagnostic_contains(head, b"challenge-platform/");
+        let wp = diagnostic_contains(head, b"wp-content/") || diagnostic_contains(head, b"wp-includes/");
+        let message = format!("BKDOC8 status=403 mime={} decode={} utf8_bytes={} scanned_bytes={} scan_truncated={} cf_mitigated={} host_challenge={} cf_managed={} cf_platform={} wp={} wp_die={} forbidden_text={} access_denied_text={} site_tool_warning={} site_login_lock={}",
+            self.mime, decode, utf8_bytes, scanned_bytes, incomplete, self.cf_mitigated, self.host_challenge,
+            marker(diagnostic_cf_managed(head)), marker(cf_platform), marker(wp), marker(diagnostic_contains(head, b"wp-die-message")),
+            marker(diagnostic_contains(head, b"403 forbidden")), marker(diagnostic_contains(head, b"access denied")),
+            marker(diagnostic_contains(head, b"mkjp-tool-warning")), marker(diagnostic_contains(head, b"mkjp-ea-lock__title")));
+        koma_source_sdk::host::log_info(message.as_bytes());
+    }
+}
+
 fn log_document_response(response: &[u8]) {
     let status = source_protocol::direct(response, b"status").ok().flatten()
         .and_then(|raw| core::str::from_utf8(raw).ok())
         .and_then(|raw| raw.parse::<u16>().ok());
     if status != Some(403) { return; }
-    let content_type = diagnostic_header(response, b"content-type");
-    let mime = match content_type.as_deref().and_then(|value| value.split(';').next()).map(str::trim) {
-        Some(value) if value.eq_ignore_ascii_case("text/html") => "html",
-        Some(value) if value.eq_ignore_ascii_case("application/xhtml+xml") => "xhtml",
-        Some(value) if value.eq_ignore_ascii_case("application/json") => "json",
-        Some(value) if value.eq_ignore_ascii_case("text/plain") => "plain",
-        Some(_) => "other",
-        None => "missing_or_invalid",
-    };
-    let cf_mitigated = diagnostic_header(response, b"cf-mitigated")
-        .is_some_and(|value| value.trim().eq_ignore_ascii_case("challenge"));
-    let host_challenge = source_protocol::raw_string(response, b"accessSignal").ok().flatten()
-        == Some(b"challenge_required".as_slice());
-    // Decode without the success-status guard; the original error mapping below
-    // still consumes the untouched HTTP envelope. Existing buffers are distinct.
-    // Diagnostic decoding itself is capped at 64KiB, with no full-body allocation.
-    // The decoder has no partial-length result: on missing/invalid/capacity failure
-    // mark the body unknown; never scan unwritten bytes or claim a negative marker.
+    let facts = DocumentDiagnostic::capture(response);
+    // The legacy text path remains bounded and never scans partial decoded data.
     let (decode, bytes, head) = match source_protocol::text(response, b"bodyText", &mut body_buf()[..65536]) {
         Ok(Some(body)) => ("ok", body.len() as i64, body),
         Ok(None) => ("missing", -1, &[][..]),
         Err(_) => ("unknown", -1, &[][..]),
     };
-    let marker = |present| if decode != "ok" { "unknown" } else if present { "true" } else { "false" };
-    let cf_platform = diagnostic_contains(head, b"_cf_chl_opt") ||
-        diagnostic_contains(head, b"cf-chl-") || diagnostic_contains(head, b"challenge-platform/");
-    let wp = diagnostic_contains(head, b"wp-content/") || diagnostic_contains(head, b"wp-includes/");
-    let message = format!("BKDOC8 status=403 mime={} decode={} utf8_bytes={} scanned_bytes={} scan_truncated={} cf_mitigated={} host_challenge={} cf_managed={} cf_platform={} wp={} wp_die={} forbidden_text={} access_denied_text={}",
-        mime, decode, bytes, if bytes < 0 { -1 } else { head.len() as i64 }, decode != "ok", cf_mitigated, host_challenge,
-        marker(diagnostic_cf_managed(head)), marker(cf_platform), marker(wp), marker(diagnostic_contains(head, b"wp-die-message")),
-        marker(diagnostic_contains(head, b"403 forbidden")), marker(diagnostic_contains(head, b"access denied")));
-    koma_source_sdk::host::log_info(message.as_bytes());
+    facts.log(decode, bytes, if bytes < 0 { -1 } else { head.len() as i64 },
+        decode != "ok", head, decode == "ok");
 }
 
 fn get_document(url: &Url, request: &[u8]) -> Result<(Node, bool)> {
+    // BodyRef is generic response data. Only the already-declared exact origin
+    // uses this Native document lane; legacy/foreign inputs keep the R10 path.
+    if url.origin().ascii_serialization() == BASE
+        && source_protocol::feature(request, b"source_http_body_v1")
+        && source_protocol::feature(request, b"source_body_v1")
+    {
+        return document_body::run(url, request);
+    }
     let headers = json!({
         "Accept":DOCUMENT_ACCEPT,"Accept-Language":LANGUAGE,"Referer":format!("{BASE}/")
     });

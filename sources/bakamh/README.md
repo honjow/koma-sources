@@ -104,3 +104,13 @@ R9真实结果为canonical Web403，随后既有 `/?p=<id>` legacy retry/miss、
 固定上游BrowserHeaders把完整DOCUMENT Accept与 `Dest:document` / `Mode:navigate` 配套；XHR类使用 `Accept:*/*` / `Dest:empty`。实际Web fetch的请求元数据由浏览器控制，不能伪造导航Sec-*。R10仅在已协商 `source_web_http_v1` 的精确canonical文档WebHTTP分支将Accept设为 `*/*`；非Web/native/数字resolver仍保完整DOCUMENT Accept。其它公开头、原生UA、授权selector、BKDOC8诊断、普通403数字回退、全部ID/正文/图片/预算保持，无新API或DOM fallback。
 
 这是有待真实验证的传输适配假设，不认定它是403根因。候选可配原236539dff51c或父维护者的新只读观测HAP，保持其余行为变量不变；保留所有旧失败及冻结包，临时诊断在新取证后仍须移除。最小旧新实际WASM wire只核此Accept变化与原Native完整头保持，不扩大重跑业务。
+
+### 0.1.1 R11 Native BodyRef原始文档候选
+
+R10实机16:24:25 canonical Web GET仍403，数字入口旧bridge miss后Native403；隐藏观测已证UA/origin匹配、1×1视口、selector=true/CF=false。Accept单变量未解决，R11也不预认定阻断根因。
+
+仅在精确已声明原点的文档GET同时协商source_http_body_v1与source_body_v1时，使用既有Native HTTP BodyRef与默认BrowserGrant，无webFetch、source session或虚构finalURL；Host仍负责真实授权UA/Cookie、网络权限、重定向及状态。新Native文档公共头为固定上游DOCUMENT Accept/语言/根Referer，及navigate/document/same-origin/?1、Upgrade-Insecure-Requests:1、DOCUMENT Priority:u=0, i。不生成私有UA/Cookie、客户端提示或伪造协议；上游Chrome的HTTP/1.1 Priority过滤/底层wire-order不由源伪造。Sec-*绝不进入Browser fetch。缺body能力或非精确原点保原R10路径；正文/封面图片仍原R10 Web BodyRef。
+
+输入BodyRef只读，先取状态、严格原错误及句柄后结束Response借用，再用HTTP_OUT作RPC缓冲。正文直接分块读入既有缓冲，源内最多4MiB、单块最多64KiB且服从宿主更小预算；超限、提前短读、UTF-8不合法或取消均失败。解析HTML后关闭输入，所有成功/失败/HTTP错误都尝试close；清理错误不覆盖原业务错误，Host调用作用域作最终回收。无image_result、writable复制或完整HTML String副本。
+
+普通403仍按R9用原数字ID入口回退；Host challenge/auth/rate/cancel仍终止，不绕CF或登录。临时BKDOC8诊断同样消费本次BodyRef前最多64KiB，新增已知site_tool_warning/site_login_lock布尔/unknown，锁标题标记本身不等于必须登录；无正文/title/URL/headers/凭据日志，HostLog仍小于1024。原始正文权限、章节顺序、日期、ID、设置与metadata/selector均不变。真实保留HTML回放与受控资源失败只证明源适配，当前Native文档可达性、正文/下载仍待设备owner验证；新捕获后须移除临时诊断。
