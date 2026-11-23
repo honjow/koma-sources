@@ -115,7 +115,7 @@ baozimh|baozimh|false|1.4.1
 mangadex|mangadex|true|0.1.0
 mangabz|mangabz|false|1.4.1
 manhuaren|manhuaren|false|1.4.1
-manhuadui|manhuadui|true|1.4.2
+manhuadui|manhuadui|true|1.6.1
 zaimanhua|zaimanhua|false|0.1.0
 happymh|happymh|false|0.1.0
 manhuagui|manhuagui|true|1.4.1
