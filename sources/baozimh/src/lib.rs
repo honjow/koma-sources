@@ -1687,7 +1687,9 @@ fn run_get_settings(req: &[u8]) -> u32 {
     let payload = payload_buf();
     let mut n = 0;
     let original = SETTINGS_JSON.as_bytes();
-    if !write_bytes(payload, &mut n, r#"{"settings":[{"id":"preferred_mirror","name":"首选镜像","kind":"select","default":"2","options":["#.as_bytes()) {
+    if !(write_bytes(payload, &mut n, r#"{"settings":[{"id":"preferred_mirror","name":"首选镜像","kind":"select","default":""#.as_bytes())
+        && write_usize(payload, &mut n, mirror::DEFAULT_INDEX)
+        && write_bytes(payload, &mut n, br#"","options":["#)) {
         return write_error("get_settings", "internal_error", "payload overflow");
     }
     for (index, mirror) in mirror::MIRRORS.iter().enumerate() {

@@ -4,7 +4,7 @@
     "zh-Hant": "包子漫畫",
     "en": "Baozimh"
   },
-  "homepage": "https://www.baozimh.com/",
+  "homepage": "https://tw.webmota.com/",
   "websitePolicy": {
     "publicWorkUrlDomains": [
       "baozimh.com",
@@ -28,12 +28,12 @@
           "url": "https://tw.baozimh.com/"
         },
         {
-          "value": "3",
-          "url": "https://cn.webmota.com/"
+          "value": "2",
+          "url": "https://www.baozimh.com/"
         },
         {
-          "value": "4",
-          "url": "https://tw.webmota.com/"
+          "value": "3",
+          "url": "https://cn.webmota.com/"
         },
         {
           "value": "5",

@@ -7,9 +7,13 @@ pub(super) struct Mirror {
     pub app: &'static [u8],
 }
 
-// The published source already defaults to WWW. Keep that choice for existing
-// users; expose every upstream mirror without changing stable work/chapter IDs.
-pub(super) const DEFAULT: Mirror = MIRRORS[2];
+// The user selected TW Webmota as the default. Saved explicit choices retain
+// their original indices; absent or invalid settings use this same index.
+pub(super) const DEFAULT_INDEX: usize = 4;
+pub(super) const DEFAULT: Mirror = MIRRORS[DEFAULT_INDEX];
+// WWW SEO canonical is an independent provider coordinate authority, not the
+// current default entry. Changing the default must not invalidate old catalogs.
+const WWW_CANONICAL_ORIGIN: &[u8] = b"https://www.baozimh.com";
 pub(super) const MIRRORS: [Mirror; 17] = [
     Mirror { origin: b"https://cn.baozimh.com", site: b"https://cn.baozimh.com", app: b"https://appcn.baozimh.com" },
     Mirror { origin: b"https://tw.baozimh.com", site: b"https://tw.baozimh.com", app: b"https://appcn.baozimh.com" },
@@ -61,7 +65,7 @@ pub(super) fn canonical_path<'a>(request: &[u8], url: &'a [u8]) -> Option<&'a [u
     // App and regional pages may use the official WWW SEO canonical. This
     // validates provider coordinates only; it never authorizes or follows it.
     let path = url.strip_prefix(chosen.origin)
-        .or_else(|| url.strip_prefix(DEFAULT.origin))?;
+        .or_else(|| url.strip_prefix(WWW_CANONICAL_ORIGIN))?;
     if !path.starts_with(b"/") { return None; }
     Some(path.strip_prefix(b"/baozimhapp").unwrap_or(path))
 }
