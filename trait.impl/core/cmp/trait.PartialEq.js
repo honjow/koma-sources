@@ -1,9 +1,9 @@
 (function() {
-    const implementors = Object.fromEntries([["koma_source_sdk",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.100.0/core/cmp/trait.PartialEq.html\" title=\"trait core::cmp::PartialEq\">PartialEq</a> for <a class=\"enum\" href=\"koma_source_sdk/http/enum.CallError.html\" title=\"enum koma_source_sdk::http::CallError\">CallError</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.100.0/core/cmp/trait.PartialEq.html\" title=\"trait core::cmp::PartialEq\">PartialEq</a> for <a class=\"enum\" href=\"koma_source_sdk/enum.FetchError.html\" title=\"enum koma_source_sdk::FetchError\">FetchError</a>",0]]]]);
+    const implementors = Object.fromEntries([["koma_source_sdk",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.100.0/core/cmp/trait.PartialEq.html\" title=\"trait core::cmp::PartialEq\">PartialEq</a> for <a class=\"enum\" href=\"koma_source_sdk/http/enum.CallError.html\" title=\"enum koma_source_sdk::http::CallError\">CallError</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.100.0/core/cmp/trait.PartialEq.html\" title=\"trait core::cmp::PartialEq\">PartialEq</a> for <a class=\"enum\" href=\"koma_source_sdk/list_info/enum.EncodeError.html\" title=\"enum koma_source_sdk::list_info::EncodeError\">EncodeError</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.100.0/core/cmp/trait.PartialEq.html\" title=\"trait core::cmp::PartialEq\">PartialEq</a> for <a class=\"enum\" href=\"koma_source_sdk/enum.FetchError.html\" title=\"enum koma_source_sdk::FetchError\">FetchError</a>",0]]]]);
     if (window.register_implementors) {
         window.register_implementors(implementors);
     } else {
         window.pending_implementors = implementors;
     }
 })()
-//{"start":59,"fragment_lengths":[589]}
+//{"start":59,"fragment_lengths":[893]}
