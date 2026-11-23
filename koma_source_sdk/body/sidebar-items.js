@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["CHUNK_BYTES"],"struct":["BodyRef"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MAX_LOCALES"],"enum":["Error","Value"],"struct":["Argument","Catalog","Environment","Locale"]};
