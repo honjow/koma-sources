@@ -216,6 +216,12 @@ pub mod request {
             Some(Self { bytes })
         }
 
+        /// Borrow the complete original call envelope, including hostFeatures and
+        /// environment. Never reconstruct it from args/settings for Context.
+        pub fn raw_json(&self) -> &'a [u8] {
+            self.bytes
+        }
+
         pub fn contains(&self, needle: &[u8]) -> bool {
             contains_bytes(self.bytes, needle)
         }
@@ -467,6 +473,20 @@ pub mod source {
     pub struct ImageRequestInput<'a> {
         request: Request<'a>,
     }
+
+    // Every existing typed Source operation can compose runtime::Context and
+    // future request-envelope helpers without unsafe ABI access or new fields.
+    macro_rules! raw_operation_request {
+        ($($kind:ident),+ $(,)?) => { $(
+            impl<'a> $kind<'a> {
+                /// The complete original JSON envelope, borrowed for this call.
+                pub fn raw_json(&self) -> &'a [u8] { self.request.raw_json() }
+            }
+        )+ };
+    }
+    raw_operation_request!(SearchRequest, MangaId, ChapterId, ChapterListRequest,
+        ListingsRequest, MangaListRequest, HomeRequest, FiltersRequest,
+        SettingsRequest, ImageRequestInput);
 
     pub struct JsonPayload {
         bytes: &'static [u8],

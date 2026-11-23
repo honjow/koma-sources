@@ -692,6 +692,70 @@ mod tests {
         )
     }
     #[test]
+    fn typed_source_requests_preserve_the_complete_context_envelope() {
+        use crate::{request::Request, source::*};
+        let raw = request("zh-Hans-CN");
+        let bytes = raw.as_bytes();
+        macro_rules! preserves { ($($kind:ident),+ $(,)?) => { $(
+            let typed = $kind::from_request(Request::from_bytes_for_test(bytes).unwrap());
+            assert_eq!(typed.raw_json(), bytes);
+            assert_eq!(typed.raw_json().as_ptr(), bytes.as_ptr());
+            assert_eq!(Context::from_request(typed.raw_json()).environment().unwrap().ui_locale(), "zh-hans-cn");
+        )+ }; }
+        preserves!(
+            SearchRequest,
+            MangaId,
+            ChapterId,
+            ChapterListRequest,
+            ListingsRequest,
+            MangaListRequest,
+            HomeRequest,
+            FiltersRequest,
+            SettingsRequest,
+            ImageRequestInput
+        );
+        struct TypedSource;
+        impl Source for TypedSource {
+            fn info(&self) -> SourceInfo {
+                SourceInfo {
+                    id: "test",
+                    name: "Test",
+                    version: "0.1.0",
+                    api_version: "0.2.0",
+                    language: "zh",
+                    author: "Test",
+                    description: "",
+                    content_rating: "safe",
+                }
+            }
+            fn search(&self, _: SearchRequest<'_>) -> SourceResult {
+                Err(SourceError::unimplemented())
+            }
+            fn get_manga(&self, _: MangaId<'_>) -> SourceResult {
+                Err(SourceError::unimplemented())
+            }
+            fn get_chapters(&self, _: ChapterListRequest<'_>) -> SourceResult {
+                Err(SourceError::unimplemented())
+            }
+            fn get_pages(&self, _: ChapterId<'_>) -> SourceResult {
+                Err(SourceError::unimplemented())
+            }
+            fn get_settings(&self, request: SettingsRequest<'_>) -> SourceResult {
+                let context = Context::from_request(request.raw_json());
+                let catalog = Catalog::from_metadata(METADATA).unwrap();
+                let mut buffer = [0; 128];
+                assert_eq!(
+                    catalog.text(&context, "name", "literal", &mut buffer),
+                    Ok("Simplified")
+                );
+                Ok(JsonPayload::new(br#"{"settings":[]}"#))
+            }
+        }
+        let typed = SettingsRequest::from_request(Request::from_bytes_for_test(bytes).unwrap());
+        assert!(Source::get_settings(&TypedSource, typed).is_ok());
+    }
+
+    #[test]
     fn locale_environment_and_legacy_fallback_are_explicit() {
         let c = Catalog::from_metadata(METADATA).unwrap();
         let mut out = [0; 128];
@@ -705,6 +769,23 @@ mod tests {
             let ctx=Context::from_request(r); assert!(ctx.environment().is_none());
             assert_eq!(c.text(&ctx,"name","literal",&mut out),Ok("Traditional"));
         }
+        for raw in [
+            br#"{"hostFeatures":["source_localization_v1"],"args":{"environment":{"version":1,"uiLocale":"en","localeFallbacks":["en"]}}}"#.as_slice(),
+            br#"{"hostFeatures":["source_localization_v1"],"environment":{"version":1,"uiLocale":"en","localeFallbacks":["zh-Hans"]}}"#,
+            br#"{"hostFeatures":["source_localization_v1"],"environment":{"version":1,"version":1,"uiLocale":"en","localeFallbacks":["en"]}}"#,
+            br#"{"hostFeatures":["source_localization_v1"],"environment":{"version":1,"uiLocale":"en","localeFallbacks":["en",null]}}"#,
+        ] { assert!(Context::from_request(raw).environment().is_none()); }
+        let duplicate = std::format!(
+            r#"{{"hostFeatures":["source_localization_v1"],"environment":{{"version":1,"uiLocale":"en","localeFallbacks":[{}]}}}}"#,
+            std::vec!["\"EN\"";16].join(",")
+        );
+        assert_eq!(
+            Context::from_request(duplicate.as_bytes())
+                .environment()
+                .unwrap()
+                .ui_locale(),
+            "en"
+        );
         for metadata in [br#"{}"#.as_slice(), br#"{"localization":{"version":2}}"#] {
             assert_eq!(
                 Catalog::from_metadata(metadata)
@@ -730,6 +811,29 @@ mod tests {
                 c.text(
                     &Context::from_request(req.as_bytes()),
                     key,
+                    "literal",
+                    &mut out
+                ),
+                Ok(expected)
+            );
+        }
+        let regional = Catalog::from_metadata(br#"{"localization":{"version":1,"defaultLocale":"en","messages":{"x":{"zh-Hant-HK":"Inferred region","zh-Hant":"Script","zh":"Language","en-US":"Region","en":"Default"}}}}"#).unwrap();
+        for (locale, fallbacks, expected) in [
+            (
+                "zh-HK",
+                r#""zh-HK","zh-Hant-HK","zh-Hant","zh""#,
+                "Inferred region",
+            ),
+            ("en-US-posix", r#""en-US-posix","en-US","en""#, "Region"),
+            ("en-GB", r#""en-GB","en""#, "Default"),
+        ] {
+            let raw = std::format!(
+                r#"{{"hostFeatures":["source_localization_v1"],"environment":{{"version":1,"uiLocale":"{locale}","localeFallbacks":[{fallbacks}]}}}}"#
+            );
+            assert_eq!(
+                regional.text(
+                    &Context::from_request(raw.as_bytes()),
+                    "x",
                     "literal",
                     &mut out
                 ),
@@ -813,5 +917,63 @@ mod tests {
             Err(Error::BufferTooSmall)
         );
         assert_eq!(&small, b"!!");
+        for literal in ["{", "}", "{not valid}", "{who"] {
+            assert_eq!(
+                c.format(&ctx, "absent", literal, &args, &mut template, &mut small),
+                Err(Error::InvalidTemplate)
+            );
+            assert_eq!(&small, b"!!");
+        }
+        let repeated = [
+            Argument {
+                name: "n",
+                value: Value::Unsigned(0),
+            },
+            Argument {
+                name: "n",
+                value: Value::Unsigned(1),
+            },
+        ];
+        assert_eq!(
+            c.format(&ctx, "absent", "{n}", &repeated, &mut template, &mut small),
+            Err(Error::InvalidTemplate)
+        );
+        assert_eq!(&small, b"!!");
+        let limits = [
+            Argument {
+                name: "min",
+                value: Value::Signed(i64::MIN),
+            },
+            Argument {
+                name: "max",
+                value: Value::Unsigned(u64::MAX),
+            },
+        ];
+        assert_eq!(
+            c.format(
+                &ctx,
+                "absent",
+                "{min}/{max}",
+                &limits,
+                &mut template,
+                &mut out
+            ),
+            Ok("-9223372036854775808/18446744073709551615")
+        );
+        let mut no_template = [];
+        assert_eq!(
+            c.format(&ctx, "absent", "🙂", &[], &mut no_template, &mut out),
+            Err(Error::BufferTooSmall)
+        );
+        let oversized_name = std::format!(
+            r#"{{"localization":{{"version":1,"defaultLocale":"en","messages":{{"source.name":{{"en":"{}"}}}}}}}}"#,
+            "🙂".repeat(65)
+        );
+        assert_eq!(
+            Catalog::from_metadata(oversized_name.as_bytes())
+                .unwrap()
+                .text(&ctx, "source.name", "literal", &mut out),
+            Ok("literal")
+        );
     }
 }

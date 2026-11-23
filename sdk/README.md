@@ -79,6 +79,11 @@ let label: &str = catalog.text(&context, "settings.quality.name", "Image quality
 // 以 label.as_bytes() 交给原 JSON 转义写出器；字段仍是普通字符串。
 ```
 
+标准 `Source` trait 的全部 typed 请求及底层 `request::Request` 提供
+`raw_json() -> &[u8]`，借用完整原始信封；例如 `get_settings(request: SettingsRequest<'_>)`
+内使用 `Context::from_request(request.raw_json())`。不从 `args` 重造信封，也不使用
+`raw_contains` 猜语言；原操作签名和私有字段不变，外部实现者不需新增必需 trait 方法。
+
 `Context::environment() -> Option<localization::Environment>` 同时核对
 `source_localization_v1`、顶层 `environment.version == 1`、合法 `uiLocale` 及
 `localeFallbacks`。环境仅限当前请求快照；不猜系统语言、内容语言、UA 或 Accept-Language。
