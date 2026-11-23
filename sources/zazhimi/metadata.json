@@ -14,5 +14,16 @@
       }
     }
   },
-  "homepage": "https://www.zazhimi.net"
+  "homepage": "https://www.zazhimi.net",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "日本时尚杂志阅读来源，涵盖服饰、美妆、美发与居家生活等分类，按刊物期号收录。",
+        "zh-Hant": "日本時尚雜誌閱讀來源，涵蓋服飾、美妝、美髮與居家生活等分類，按刊物期號收錄。",
+        "en": "Japanese fashion magazines covering clothing, beauty, hair and home life, organised by publication and issue."
+      }
+    }
+  }
 }

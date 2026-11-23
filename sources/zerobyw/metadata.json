@@ -20,5 +20,16 @@
     "zh-Hant": "zero搬運網",
     "en": "Zerobyw"
   },
-  "homepage": "https://www.zerobyw.com/"
+  "homepage": "https://www.zerobyw.com/",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "Zero搬运网的漫画资源，包含中文翻译与机翻版本；部分章节需登录或VIP权限。",
+        "zh-Hant": "Zero搬運網的漫畫資源，包含中文翻譯與機翻版本；部分章節需登入或VIP權限。",
+        "en": "Comics from Zero, including Chinese and machine-translated editions. Some chapters require login or VIP access."
+      }
+    }
+  }
 }

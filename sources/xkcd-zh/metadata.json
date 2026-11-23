@@ -5,5 +5,16 @@
     "en": "xkcd"
   },
   "homepage": "https://xkcd.tw/",
-  "chapterOrder": "newest_first"
+  "chapterOrder": "newest_first",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "围绕数学、语言和讽刺幽默的xkcd中文译作。本源不收录互动及动画作品。",
+        "zh-Hant": "圍繞數學、語言和諷刺幽默的xkcd中文譯作。本源不收錄互動及動畫作品。",
+        "en": "Chinese xkcd translations covering maths, language and satire. Interactive and animated comics are excluded."
+      }
+    }
+  }
 }

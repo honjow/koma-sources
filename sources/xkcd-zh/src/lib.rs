@@ -8,11 +8,11 @@ use koma_source_sdk::{
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.xkcd.zh.koma",
     name: "xkcd",
-    version: "0.1.8",
+    version: "0.1.9",
     api_version: "0.2",
     language: "zh",
     author: "Koma source contributors",
-    description: "Chinese xkcd translations. Actual image pages only; no synthesized text pages.",
+    description: "围绕数学、语言和讽刺幽默的xkcd中文译作。本源不收录互动及动画作品。",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

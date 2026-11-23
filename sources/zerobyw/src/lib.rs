@@ -59,11 +59,11 @@ static mut SELECT_BUF: [u8; SELECT_CAP] = [0; SELECT_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.zerobyw.koma",
     name: "Zerobyw",
-    version: "0.1.12",
+    version: "0.1.13",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "Zerobyw HTML scraping source.",
+    description: "Zero搬运网的漫画资源，包含中文翻译与机翻版本；部分章节需登录或VIP权限。",
     content_rating: "nsfw",
 };
 

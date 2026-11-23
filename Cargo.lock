@@ -2134,7 +2134,7 @@ dependencies = [
 
 [[package]]
 name = "koma_xkcd_zh_source"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -2168,14 +2168,14 @@ dependencies = [
 
 [[package]]
 name = "koma_zazhimi_source"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_zerobyw_source"
-version = "0.1.12"
+version = "0.1.13"
 dependencies = [
  "koma_source_sdk",
 ]

@@ -28,11 +28,11 @@ static mut URL_BUF: [u8; URL_CAP] = [0; URL_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.zazhimi.koma",
     name: "杂志迷",
-    version: "0.1.5",
+    version: "0.1.6",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "杂志迷 JSON API magazine source.",
+    description: "日本时尚杂志阅读来源，涵盖服饰、美妆、美发与居家生活等分类，按刊物期号收录。",
     content_rating: "safe",
 };
 
