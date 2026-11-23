@@ -6,6 +6,8 @@ mod chapter_duplicates;
 mod chapter_number;
 mod access_signal;
 mod cdn_selection;
+mod mirror;
+mod app_pages;
 
 use koma_source_sdk::chapters::{
     numbered_chapter_heading, reading_order_supported, Chapter, ChapterNumber, ChapterPage, ChapterPlacement,
@@ -95,7 +97,6 @@ fn html_select_all(descriptor: i32, selector: &[u8], out: &mut [u8]) -> i32 {
 /// Buffer to hold descriptors returned by html_select_all (up to 4000 results)
 static mut SELECT_ALL_BUF: [u8; 16000] = [0; 16000]; // 4000 * 4 bytes
 
-const SITE_BASE: &[u8] = b"https://www.baozimh.com";
 const READER_BASE: &[u8] = b"https://www.twmanga.com";
 koma_source_sdk::koma_source_buffers! {
     payload: 1024 * 1024,
@@ -136,18 +137,22 @@ const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
 
 
 fn fetch_html(url_bytes: &[u8], request:&[u8]) -> Result<usize, FetchError> {
+    fetch_html_with_attempts(url_bytes, request, 3)
+}
+
+fn fetch_html_with_attempts(url_bytes: &[u8], request: &[u8], attempts: u8) -> Result<usize, FetchError> {
     let req_len = build_get_request(http_req_buf(), url_bytes, None, &[]).ok_or(FetchError::Network)?;
     let req_len=if challenge_cause_enabled(request) {let b=http_req_buf();let mut n=req_len.checked_sub(1).ok_or(FetchError::Network)?;if !write_bytes(b,&mut n,br#", "wantChallengeRequestId":true}"#){return Err(FetchError::Network)}n}else{req_len};
     // Retry transport-level failures (DNS/connect/TLS/timeout) up to 3 times.
     // HTTP 4xx/5xx come back as Ok and are classified below.
     let mut resp_len = 0usize;
     let mut transport_failed = true;
-    for attempt in 0..3u8 {
+    for attempt in 0..attempts {
         let req_slice = &http_req_buf()[..req_len];
         match http_request(req_slice, http_out()) {
             Ok(n) => { resp_len = n; transport_failed = false; break; }
             Err(_) => {
-                if attempt < 2 { log_info(b"baozimh: http transport error, retrying"); }
+                if attempt + 1 < attempts { log_info(b"baozimh: http transport error, retrying"); }
             }
         }
     }
@@ -309,6 +314,124 @@ fn slug_from_comic_path(path: &[u8], out: &mut [u8]) -> Option<usize> {
     if len == 0 { None } else { Some(len) }
 }
 
+
+// Both upstream layouts use cards; app mirrors put the stable slug in onclick
+// instead of href. These bytes are parsed as data and are never evaluated.
+fn onclick_slug<'a>(onclick: &'a [u8], kind: &[u8]) -> Option<&'a [u8]> {
+    let prefix = if kind == b"comic" { b"['comic',".as_slice() } else { b"['chapter',".as_slice() };
+    let start = find_subslice(onclick, prefix)? + prefix.len();
+    let rest = onclick[start..].trim_ascii_start().strip_prefix(b"'")?;
+    let end = rest.iter().position(|byte| *byte == b'\'')?;
+    let slug = &rest[..end];
+    if slug.is_empty() || !slug.iter().all(|b| b.is_ascii_alphanumeric() || *b == b'-' || *b == b'_') {
+        return None;
+    }
+    Some(slug)
+}
+
+fn resolved_image_uri(raw: &[u8], request: &[u8], out: &mut [u8]) -> Option<usize> {
+    // The site's resizer may wrap a foreign original; follow the original as
+    // upstream does rather than asking that resizer for an unavailable image.
+    let nested = contains_bytes(raw, b"/cover/https://") || contains_bytes(raw, b"/cover/http://");
+    let raw = if let Some(index) = find_subslice(raw, b"/cover/https://") {
+        &raw[index + b"/cover/".len()..]
+    } else if let Some(index) = find_subslice(raw, b"/cover/http://") {
+        &raw[index + b"/cover/".len()..]
+    } else { raw };
+    let raw = if nested { raw.split(|b| *b == b'?').next().unwrap_or(raw) } else { raw };
+    let base = mirror::selected(request);
+    if raw.is_empty() || contains_bytes(raw, b"{{") { return None; }
+    if raw.starts_with(b"https://") || raw.starts_with(b"http://") {
+        mirror::join(out, b"", raw)
+    } else if raw.starts_with(b"//") {
+        mirror::join(out, b"https:", raw)
+    } else if raw.starts_with(b"/") {
+        mirror::join(out, base.origin, raw)
+    } else {
+        let mut cursor = 0;
+        (write_bytes(out, &mut cursor, base.site) && write_bytes(out, &mut cursor, b"/")
+            && write_bytes(out, &mut cursor, raw)).then_some(cursor)
+    }
+}
+
+fn node_cover_uri(node: HtmlDescriptor, request: &[u8], slug: &[u8], out: &mut [u8]) -> Option<usize> {
+    let image = html_select(node, b"amp-img, img").ok().map(OwnedDescriptor);
+    let mut raw = [0u8; 4096];
+    if let Some(image) = image {
+        let value = attr_into(image.0, b"data-src", &mut raw)
+            .filter(|value| !value.is_empty()).map(|value| value.len());
+        let len = value.or_else(|| attr_into(image.0, b"src", &mut raw).map(|value| value.len()));
+        if let Some(len) = len.filter(|len| *len < raw.len()) {
+            if let Some(len) = resolved_image_uri(&raw[..len], request, out) { return Some(len); }
+        }
+    }
+    let mut cursor = 0;
+    (write_bytes(out, &mut cursor, b"https://static-tw.baozimh.com/cover/")
+        && write_bytes(out, &mut cursor, slug) && write_bytes(out, &mut cursor, b".jpg"))
+        .then_some(cursor)
+}
+
+fn append_card(payload: &mut [u8], cursor: &mut usize, node: HtmlDescriptor,
+    request: &[u8], complete: bool, separator: bool) -> Result<bool, ()> {
+    let poster = match html_select(node, b".comics-card__poster") {
+        Ok(poster) => OwnedDescriptor(poster), Err(_) => return Ok(false),
+    };
+    let mut title = [0u8; 1024];
+    let title_node = html_select(node, b".comics-card__title").ok().map(OwnedDescriptor);
+    let title_len = title_node.as_ref().and_then(|n| text_into(n.0, &mut title).map(|t| t.len()))
+        .or_else(|| attr_into(poster.0, b"title", &mut title).map(|t| t.len()));
+    let Some(title_len) = title_len.filter(|len| *len < title.len()) else { return Ok(false); };
+    let title = trim_ascii(&title[..title_len]);
+    if title.is_empty() || contains_bytes(title, b"{{") { return Ok(false); }
+    let mut href = [0u8; 1024];
+    let href_len = attr_into(poster.0, b"href", &mut href).map(|v| v.len());
+    let mut slug = [0u8; 256];
+    let slug_len = href_len.filter(|len| *len < href.len())
+        .and_then(|len| mirror::relative_path(&href[..len]))
+        .and_then(|relative| slug_from_comic_path(relative, &mut slug));
+    let slug_len = slug_len.or_else(|| {
+        let len = attr_into(poster.0, b"onclick", &mut href)?.len();
+        if len == href.len() { return None; }
+        let value = onclick_slug(&href[..len], b"comic")?;
+        if value.len() > slug.len() { return None; }
+        slug[..value.len()].copy_from_slice(value);
+        Some(value.len())
+    });
+    let Some(slug_len) = slug_len else { return Ok(false); };
+    let mut cover = [0u8; 4096];
+    let cover_len = node_cover_uri(poster.0, request, &slug[..slug_len], &mut cover).ok_or(())?;
+    let ok = (!separator || write_bytes(payload, cursor, b","))
+        && write_bytes(payload, cursor, br#"{"id":"manga:"#)
+        && append_json_escaped(payload, cursor, &slug[..slug_len])
+        && write_bytes(payload, cursor, br#"","title":""#)
+        && append_json_escaped(payload, cursor, title)
+        && write_bytes(payload, cursor, br#"","cover":{"kind":"url","url":""#)
+        && append_json_escaped(payload, cursor, &cover[..cover_len])
+        && write_bytes(payload, cursor, br#""}"#)
+        && (!complete || write_bytes(payload, cursor,
+            br#", "authors":[],"status":"unknown","contentRating":"unknown","description":"","sourceTags":["baozimh"]"#))
+        && write_bytes(payload, cursor, b"}");
+    if ok { Ok(true) } else { Err(()) }
+}
+
+fn append_card_list(document: HtmlDescriptor, payload: &mut [u8], cursor: &mut usize,
+    request: &[u8], limit: usize, complete: bool) -> Result<usize, ()> {
+    let count = html_select_all(document.raw(), b"div.comics-card", &mut []);
+    let count = usize::try_from(count).map_err(|_| ())?.min(limit);
+    let byte_count = count.checked_mul(4).filter(|n| *n <= 16000).ok_or(())?;
+    let buffer = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
+    let selected = if count == 0 { 0 } else { html_select_all(document.raw(), b"div.comics-card", &mut buffer[..byte_count]) };
+    if selected < 0 { return Err(()); }
+    let nodes = PageDescriptors { bytes: &buffer[..byte_count], count: (selected as usize).min(count) };
+    let mut written = 0;
+    for i in 0..nodes.count {
+        if append_card(payload, cursor, nodes.get(i).ok_or(())?, request, complete, written > 0)? {
+            written += 1;
+        }
+    }
+    Ok(written)
+}
+
 fn run_search(req: &[u8]) -> u32 {
     let args = json_object_member(req, b"args").unwrap_or(req);
     let raw = match json_object_member(args, b"query") {
@@ -322,9 +445,10 @@ fn run_search(req: &[u8]) -> u32 {
         Ok(v) if core::str::from_utf8(v).is_ok() => v,
         _ => return write_error("search", "invalid_request", "invalid query"),
     };
+    if query.is_empty() { return run_get_manga_list(req); }
     let url_buf = scratch_a();
     let mut url_cursor = 0usize;
-    if !write_bytes(url_buf, &mut url_cursor, SITE_BASE) {
+    if !write_bytes(url_buf, &mut url_cursor, mirror::selected(req).site) {
         return write_error("search", "internal_error", "url buffer overflow");
     }
     if !write_bytes(url_buf, &mut url_cursor, b"/search?q=") {
@@ -346,63 +470,11 @@ fn run_search(req: &[u8]) -> u32 {
         Err(_) => return write_error("search", "parse_error", "html_parse failed"),
     };
 
-    // Use html_select_all to get all comics-card poster links
-    let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
-    let count = html_select_all(document.0.raw(), b"a.comics-card__poster", select_buf);
-
     let payload = payload_buf();
-    let mut c = 0usize;
-
-    if !write_bytes(payload, &mut c, br#"{"items":["#) {
-        return write_error("search", "internal_error", "payload overflow");
-    }
-
-    let mut written = 0usize;
-    let max_items = if count > 0 { count as usize } else { 0 };
-    let max_items = if max_items > 500 { 500 } else { max_items };
-
-    for i in 0..max_items {
-        let offset = i * 4;
-        if offset + 4 > select_buf.len() { break; }
-        let desc = i32::from_le_bytes([
-            select_buf[offset],
-            select_buf[offset + 1],
-            select_buf[offset + 2],
-            select_buf[offset + 3],
-        ]);
-        if desc < 0 { continue; }
-
-        let scratch_href = scratch_a();
-        let scratch_title = scratch_b();
-        let hd: HtmlDescriptor = unsafe { core::mem::transmute(desc) };
-        let href_bytes = attr_into(hd, b"href", scratch_href);
-        let title_bytes = attr_into(hd, b"title", scratch_title);
-
-        if let (Some(href), Some(title)) = (href_bytes, title_bytes) {
-            let mut slug_buf = [0u8; 128];
-            if let Some(slug_len) = slug_from_comic_path(href, &mut slug_buf) {
-                let slug = &slug_buf[..slug_len];
-                if written > 0 {
-                    if !write_bytes(payload, &mut c, b",") {
-                        return write_error("search", "internal_error", "payload overflow");
-                    }
-                }
-                let ok = write_bytes(payload, &mut c, br#"{"id":"manga:"#)
-                    && append_json_escaped(payload, &mut c, slug)
-                    && write_bytes(payload, &mut c, br#"","title":""#)
-                    && append_json_escaped(payload, &mut c, title)
-                    && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":"https://static-tw.baozimh.com/cover/"#)
-                    && append_json_escaped(payload, &mut c, slug)
-                    && write_bytes(payload, &mut c, br#".jpg"},"authors":[],"status":"unknown","contentRating":"unknown","description":"","sourceTags":["baozimh"]}"#);
-                if !ok {
-                    return write_error("search", "internal_error", "payload overflow");
-                }
-                written += 1;
-            }
-        }
-        // Close the descriptor
-        // Safety: HtmlDescriptor is repr(transparent) over i32
-        let _ = html_close(unsafe { core::mem::transmute::<i32, HtmlDescriptor>(desc) });
+    let mut c = 0;
+    if !write_bytes(payload, &mut c, br#"{"items":["#)
+        || append_card_list(document.0, payload, &mut c, req, 500, true).is_err() {
+        return write_error("search", "parse_error", "card selection or serialization failed");
     }
 
     if !write_bytes(payload, &mut c, br#"],"page":{"nextCursor":null,"hasMore":false}}"#) {
@@ -425,7 +497,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
 
     let url_buf = scratch_a();
     let mut url_cursor = 0usize;
-    if !(write_bytes(url_buf, &mut url_cursor, SITE_BASE)
+    if !(write_bytes(url_buf, &mut url_cursor, mirror::selected(req).site)
         && write_bytes(url_buf, &mut url_cursor, b"/comic/")
         && write_bytes(url_buf, &mut url_cursor, slug))
     {
@@ -479,6 +551,26 @@ fn run_get_manga(req: &[u8]) -> u32 {
         None
     };
 
+    let mut cover_buffer = [0u8; 4096];
+    let mut cover_length = None;
+    let cover_node = html_select(document.0, br#"meta[name="og:image"], meta[property="og:image"]"#)
+        .ok().map(OwnedDescriptor);
+    if let Some(cover_node) = cover_node {
+        let mut raw = [0u8; 4096];
+        if let Some(length) = attr_into(cover_node.0, b"content", &mut raw).map(|value| value.len()) {
+            if length < raw.len() {
+                cover_length = resolved_image_uri(&raw[..length], req, &mut cover_buffer);
+            }
+        }
+    }
+    let cover_length = cover_length.unwrap_or_else(|| {
+        let mut n = 0;
+        if write_bytes(&mut cover_buffer, &mut n, b"https://static-tw.baozimh.com/cover/")
+            && write_bytes(&mut cover_buffer, &mut n, slug)
+            && write_bytes(&mut cover_buffer, &mut n, b".jpg") { n } else { 0 }
+    });
+    if cover_length == 0 { return write_error("get_manga", "source_error", "cover URI exceeds capacity"); }
+
     let payload = payload_buf();
     let mut c = 0usize;
     let ok = write_bytes(payload, &mut c, br#"{"manga":{"id":"manga:"#)
@@ -501,9 +593,9 @@ fn run_get_manga(req: &[u8]) -> u32 {
     }
     let ok = write_bytes(payload, &mut c, br#"],"description":""#)
         && append_json_escaped(payload, &mut c, desc_text.unwrap_or(&[]))
-        && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":"https://static-tw.baozimh.com/cover/"#)
-        && append_json_escaped(payload, &mut c, slug)
-        && write_bytes(payload, &mut c, br#".jpg"},"authors":["#);
+        && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":""#)
+        && append_json_escaped(payload, &mut c, &cover_buffer[..cover_length])
+        && write_bytes(payload, &mut c, br#""},"authors":["#);
 
     if !ok {
         return write_error("get_manga", "internal_error", "payload overflow");
@@ -581,7 +673,9 @@ fn run_get_manga(req: &[u8]) -> u32 {
         tag_written += 1;
     }
 
-    if !write_bytes(payload, &mut c, br#"],"links":[{"kind":"source","url":"https://www.baozimh.com/comic/"#) {
+    if !(write_bytes(payload, &mut c, br#"],"links":[{"kind":"source","url":""#)
+        && append_json_escaped(payload, &mut c, mirror::selected(req).site)
+        && write_bytes(payload, &mut c, b"/comic/")) {
         return write_error("get_manga", "internal_error", "payload overflow");
     }
     if !append_json_escaped(payload, &mut c, slug) {
@@ -614,6 +708,58 @@ fn reference_title_has_digit(title: &[u8]) -> bool {
     core::str::from_utf8(title).map(|s| s.chars().any(|c| ND.iter().any(|(a,b)| (*a..=*b).contains(&(c as u32))))).unwrap_or(false)
 }
 
+
+fn chapter_title<'a>(node: HtmlDescriptor, out: &'a mut [u8]) -> Option<&'a [u8]> {
+    let link = html_select(node, b"a[href]").ok().map(OwnedDescriptor);
+    match link { Some(link) => text_into(link.0, out), None => text_into(node, out) }
+}
+
+fn write_chapter_link<'a>(owner: &[u8], section: &[u8], slot: &[u8], out: &'a mut [u8]) -> Option<&'a [u8]> {
+    if owner.is_empty() || !owner.iter().all(|b| b.is_ascii_alphanumeric() || *b == b'-' || *b == b'_')
+        || section.is_empty() || !section.iter().all(u8::is_ascii_digit)
+        || slot.is_empty() || !slot.iter().all(u8::is_ascii_digit) { return None; }
+    let mut n = 0;
+    (write_bytes(out, &mut n, b"/user/page_direct?comic_id=")
+        && write_bytes(out, &mut n, owner) && write_bytes(out, &mut n, b"&section_slot=")
+        && write_bytes(out, &mut n, section) && write_bytes(out, &mut n, b"&chapter_slot=")
+        && write_bytes(out, &mut n, slot)).then_some(&out[..n])
+}
+
+fn chapter_link<'a>(node: HtmlDescriptor, out: &'a mut [u8]) -> Option<&'a [u8]> {
+    let mut raw = [0u8; 2048];
+    let link = html_select(node, b"a[href]").ok().map(OwnedDescriptor);
+    let href_len = attr_into(node, b"href", &mut raw).map(|v| v.len())
+        .or_else(|| link.as_ref().and_then(|link| attr_into(link.0, b"href", &mut raw).map(|v| v.len())));
+    if let Some(len) = href_len.filter(|len| *len < raw.len()) {
+        let href = &raw[..len];
+        let relative = mirror::relative_path(href).unwrap_or(href);
+        if let Some(path) = relative.strip_prefix(b"/comic/chapter/") {
+            let slash = path.iter().position(|b| *b == b'/')?;
+            let owner = &path[..slash];
+            let file = path[slash + 1..].strip_suffix(b".html")?;
+            let underscore = file.iter().position(|b| *b == b'_')?;
+            return write_chapter_link(owner, &file[..underscore], &file[underscore+1..], out);
+        }
+        let mut n = 0;
+        return write_bytes(out, &mut n, relative).then_some(&out[..n]);
+    }
+    let action = html_select(node, b"[onclick]").ok().map(OwnedDescriptor);
+    let len = attr_into(node, b"onclick", &mut raw).map(|v| v.len())
+        .or_else(|| action.as_ref().and_then(|n| attr_into(n.0, b"onclick", &mut raw).map(|v| v.len())))?;
+    if len == raw.len() { return None; }
+    let raw = &raw[..len];
+    let marker = b"['chapter',";
+    let tail = raw[find_subslice(raw, marker)? + marker.len()..].trim_ascii_start().strip_prefix(b"'")?;
+    let end = tail.iter().position(|b| *b == b'\'')?;
+    let owner = &tail[..end];
+    let tail = tail[end+1..].trim_ascii_start().strip_prefix(b",")?.trim_ascii_start();
+    let comma = tail.iter().position(|b| *b == b',')?;
+    let section = tail[..comma].trim_ascii();
+    let tail = tail[comma+1..].trim_ascii_start();
+    let end = tail.iter().position(|b| *b == b']')?;
+    write_chapter_link(owner, section, tail[..end].trim_ascii(), out)
+}
+
 // Stable work/chapter IDs use the caller's slug. The current official page may
 // instead use a canonical alias in every main href. Only that unique same-origin
 // canonical plus a single owner and complete section-0 slots can establish the
@@ -635,9 +781,11 @@ fn canonical_href<'a>(document: HtmlDescriptor, buffer: &'a mut [u8]) -> Option<
     chapter_duplicates::complete_fact(attr_into(link.0,b"href",buffer),capacity)
 }
 
-fn canonical_main_owner<'a>(document: HtmlDescriptor, buffer: &'a mut [u8]) -> Option<&'a [u8]> {
+fn canonical_main_owner<'a>(document: HtmlDescriptor, buffer: &'a mut [u8], request: &[u8], slug: &[u8]) -> Option<&'a [u8]> {
     let href = canonical_href(document,buffer)?;
-    let path = href.strip_prefix(SITE_BASE)?.strip_prefix(b"/comic/")?;
+    let path = mirror::canonical_path(request, href)
+        .or_else(|| mirror::app_canonical_alias_path(request, href, slug))?
+        .strip_prefix(b"/comic/")?;
     let owner = path.strip_suffix(b"/").unwrap_or(path);
     if owner.is_empty() || !owner.iter().all(|b|b.is_ascii_alphanumeric() || *b==b'-' || *b==b'_') {
         return None;
@@ -647,9 +795,9 @@ fn canonical_main_owner<'a>(document: HtmlDescriptor, buffer: &'a mut [u8]) -> O
 
 // Preserve the initial+expanded main panels and the reversed latest summary.
 // Missing, mixed, non-main, truncated or non-contiguous facts still fail closed.
-fn main_catalog(document: HtmlDescriptor, slug: &[u8]) -> Option<VerifiedMainCatalog> {
+fn main_catalog(document: HtmlDescriptor, slug: &[u8], request: &[u8]) -> Option<VerifiedMainCatalog> {
     const SELECTOR: &[u8] =
-        b"#chapter-items a.comics-chapters__item, #chapters_other_list a.comics-chapters__item";
+        b"#chapter-items .comics-chapters, #chapters_other_list .comics-chapters";
     let count = usize::try_from(html_select_all(document.raw(), SELECTOR, &mut [])).ok()?;
     if count == 0 { return None; }
     let byte_count = count.checked_mul(4)?;
@@ -661,7 +809,7 @@ fn main_catalog(document: HtmlDescriptor, slug: &[u8]) -> Option<VerifiedMainCat
     for position in 0..count {
         let mut href_buf = [0u8; 256];
         let capacity = href_buf.len();
-        let href = attr_into(descriptors.get(position)?, b"href", &mut href_buf)?;
+        let href = chapter_link(descriptors.get(position)?, &mut href_buf)?;
         let href = chapter_duplicates::complete_fact(Some(href), capacity)?;
         if position == 0 {
             let query = href.strip_prefix(b"/user/page_direct?")?;
@@ -670,7 +818,7 @@ fn main_catalog(document: HtmlDescriptor, slug: &[u8]) -> Option<VerifiedMainCat
             // owner requires the current page's exact public canonical binding.
             if owner != slug {
                 let mut canonical = [0u8;256];
-                if canonical_main_owner(document,&mut canonical)? != owner { return None; }
+                if canonical_main_owner(document,&mut canonical,request,slug)? != owner { return None; }
             }
             if owner.is_empty() || owner.len()>verified.owner.len() { return None; }
             verified.owner[..owner.len()].copy_from_slice(owner);
@@ -729,7 +877,7 @@ fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, ChapterError> {
 
     let url_buf = scratch_a();
     let mut url_cursor = 0usize;
-    if !(write_bytes(url_buf, &mut url_cursor, SITE_BASE)
+    if !(write_bytes(url_buf, &mut url_cursor, mirror::selected(req).site)
         && write_bytes(url_buf, &mut url_cursor, b"/comic/")
         && write_bytes(url_buf, &mut url_cursor, slug))
     {
@@ -746,13 +894,13 @@ fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, ChapterError> {
     };
 
     let mut verified_catalog = if reading_order_supported(req) {
-        main_catalog(document.0, slug)
+        main_catalog(document.0, slug, req)
     } else {
         None
     };
 
     // Same production SelectAll ownership contract as the pages consumer.
-    let count = html_select_all(document.0.raw(), b"a.comics-chapters__item", &mut scratch_a()[..0]);
+    let count = html_select_all(document.0.raw(), b".comics-chapters", &mut scratch_a()[..0]);
     if count < 0 {
         return Err(SourceError::parse_error("chapter selection failed").into());
     }
@@ -763,7 +911,7 @@ fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, ChapterError> {
     };
     let handles = &mut body_buf()[..descriptor_bytes];
     let selected = if total_items == 0 { 0 } else {
-        html_select_all(document.0.raw(), b"a.comics-chapters__item", handles)
+        html_select_all(document.0.raw(), b".comics-chapters", handles)
     };
     if selected < 0 {
         return Err(SourceError::parse_error("chapter selection failed").into());
@@ -784,7 +932,7 @@ fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, ChapterError> {
         for i in 0..total_items {
             let mut href_buffer = [0u8;256];
             let capacity = href_buffer.len();
-            let href = descriptors.get(i).and_then(|node|attr_into(node,b"href",&mut href_buffer));
+            let href = descriptors.get(i).and_then(|node|chapter_link(node,&mut href_buffer));
             if chapter_duplicates::complete_fact(href,capacity)
                 .and_then(|href|main_chapter_slot(href,verified.owner()))
                 .map_or(false,|slot|slot>=verified.len) {
@@ -805,11 +953,11 @@ fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, ChapterError> {
         };
         let mut title_buf = [0u8; 256];
         let title_capacity = title_buf.len();
-        let raw_title = text_into(hd, &mut title_buf);
+        let raw_title = chapter_title(hd, &mut title_buf);
         let title = raw_title.map(trim_ascii);
         let mut href_buf = [0u8; 256];
         let href_capacity = href_buf.len();
-        let href = attr_into(hd, b"href", &mut href_buf);
+        let href = chapter_link(hd, &mut href_buf);
 
         let mut chapter_slot_buf = [0u8; 16];
         let chapter_slot = if let Some(h) = href {
@@ -817,7 +965,19 @@ fn run_get_chapters(req: &[u8]) -> ChapterResult<'static, ChapterError> {
         } else {
             None
         };
-        let slot = chapter_slot.unwrap_or(b"0");
+        let mut section_buffer = [0u8; 16];
+        let section = href.and_then(|href| extract_query_param(href, b"section_slot", &mut section_buffer))
+            .unwrap_or(b"0");
+        let mut section_slot_buffer = [0u8; 40];
+        let slot = if section == b"0" { chapter_slot.unwrap_or(b"0") } else {
+            let mut n = 0;
+            if !(write_bytes(&mut section_slot_buffer, &mut n, section)
+                && write_bytes(&mut section_slot_buffer, &mut n, b"_")
+                && write_bytes(&mut section_slot_buffer, &mut n, chapter_slot.unwrap_or(b"0"))) {
+                return Err(SourceError::source_error("chapter slot exceeds capacity").into());
+            }
+            &section_slot_buffer[..n]
+        };
 
         // Latest/full-list DOM groups may repeat the very same link. An ID alone
         // is insufficient: section links or conflicting titles must stay visible.
@@ -1001,6 +1161,20 @@ fn run_get_pages(req: &[u8]) -> u32 {
     let slug = &rest[..colon_idx];
     let full_slot = &rest[colon_idx + 1..];
     let slot = full_slot.split(|c| *c == b'#').next().unwrap_or(full_slot);
+    if slug.is_empty() || !slug.iter().all(|b| b.is_ascii_alphanumeric() || *b == b'-' || *b == b'_') {
+        return write_error("get_pages", "invalid_request", "invalid chapter owner");
+    }
+    let selected = mirror::selected(req);
+    // App mirrors have their own complete reader. Preserve the already accepted
+    // web AMP path (including long-chapter pagination) when it still supplies
+    // real pages; an unavailable/empty web entry falls back to upstream's app
+    // reader once. Do not multiply the existing transport retry budget.
+    if selected.site != selected.origin || slot.contains(&b'_') {
+        return app_pages::run(req, chapter_id, slug, slot);
+    }
+    if slot.is_empty() || !slot.iter().all(u8::is_ascii_digit) {
+        return write_error("get_pages", "invalid_request", "invalid chapter slot");
+    }
 
     let mut url = [0u8; 4352];
     let mut part = 1;
@@ -1009,7 +1183,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
     };
     let html_len = match fetch_html(&url[..url_length], req) {
         Ok(n) => n,
-        Err(e) => return write_fetch_error("get_pages", e),
+        Err(_) => return app_pages::run(req, chapter_id, slug, slot),
     };
     let html_bytes = &body_buf()[..html_len];
 
@@ -1028,6 +1202,10 @@ fn run_get_pages(req: &[u8]) -> u32 {
         },
         None => b"",
     };
+    if first_uri.is_empty() {
+        drop(document);
+        return app_pages::run(req, chapter_id, slug, slot);
+    }
     if host::check_cancel() { return write_error("get_pages", "cancelled", "cancelled"); }
     let mut probes = 0;
     let mut head_succeeded = false;
@@ -1203,9 +1381,15 @@ fn run_get_pages(req: &[u8]) -> u32 {
     result
 }
 
-fn run_get_listings(_req: &[u8]) -> u32 {
-    // Listing descriptors are local metadata, not the first network result page.
-    let listings = r#"{"listings":[{"id":"popular","name":"熱門","kind":"popular"}]}"#.as_bytes();
+fn run_get_listings(req: &[u8]) -> u32 {
+    // Web latest ignores filters. App mirrors intentionally reuse popular,
+    // including its filters; expose only controls the selected branch consumes.
+    let chosen = mirror::selected(req);
+    let listings = if chosen.site == chosen.origin {
+        r#"{"listings":[{"id":"popular","name":"熱門","kind":"popular"},{"id":"latest","name":"最近更新","kind":"latest","supportsFilters":false}]}"#
+    } else {
+        r#"{"listings":[{"id":"popular","name":"熱門","kind":"popular"},{"id":"latest","name":"最近更新","kind":"latest"}]}"#
+    }.as_bytes();
     payload_buf()[..listings.len()].copy_from_slice(listings);
     write_success_payload("get_listings", listings.len())
 }
@@ -1214,7 +1398,7 @@ fn run_get_filters(_req: &[u8]) -> u32 {
     // Return filter definitions for baozimh classify page
     // Filters: region, state, type (genre)
     // Using &str (not byte string) because labels contain non-ASCII (Chinese)
-    const FILTERS_JSON: &str = "{\"filters\":[{\"id\":\"region\",\"name\":\"地區\",\"kind\":\"select\",\"options\":[{\"value\":\"all\",\"label\":\"全部\"},{\"value\":\"cn\",\"label\":\"國漫\"},{\"value\":\"jp\",\"label\":\"日本\"},{\"value\":\"kr\",\"label\":\"韓國\"},{\"value\":\"en\",\"label\":\"歐美\"}],\"default\":\"all\"},{\"id\":\"state\",\"name\":\"狀態\",\"kind\":\"select\",\"options\":[{\"value\":\"all\",\"label\":\"全部\"},{\"value\":\"serial\",\"label\":\"連載中\"},{\"value\":\"pub\",\"label\":\"已完結\"}],\"default\":\"all\"},{\"id\":\"type\",\"name\":\"類型\",\"kind\":\"select\",\"options\":[{\"value\":\"all\",\"label\":\"全部\"},{\"value\":\"lianai\",\"label\":\"戀愛\"},{\"value\":\"chunai\",\"label\":\"純愛\"},{\"value\":\"gufeng\",\"label\":\"古風\"},{\"value\":\"yineng\",\"label\":\"異能\"},{\"value\":\"xuanyi\",\"label\":\"懸疑\"},{\"value\":\"juqing\",\"label\":\"劇情\"},{\"value\":\"kehuan\",\"label\":\"科幻\"},{\"value\":\"qihuan\",\"label\":\"奇幻\"},{\"value\":\"xuanhuan\",\"label\":\"玄幻\"},{\"value\":\"chuanyue\",\"label\":\"穿越\"},{\"value\":\"mouxian\",\"label\":\"冒險\"},{\"value\":\"tuili\",\"label\":\"推理\"},{\"value\":\"wuxia\",\"label\":\"武俠\"},{\"value\":\"gedou\",\"label\":\"格鬥\"},{\"value\":\"zhanzheng\",\"label\":\"戰爭\"},{\"value\":\"rexie\",\"label\":\"熱血\"},{\"value\":\"gaoxiao\",\"label\":\"搞笑\"},{\"value\":\"danuzhu\",\"label\":\"大女主\"},{\"value\":\"dushi\",\"label\":\"都市\"},{\"value\":\"zongcai\",\"label\":\"總裁\"},{\"value\":\"hougong\",\"label\":\"後宮\"},{\"value\":\"richang\",\"label\":\"日常\"},{\"value\":\"hanman\",\"label\":\"韓漫\"},{\"value\":\"shaonian\",\"label\":\"少年\"},{\"value\":\"qita\",\"label\":\"其它\"}],\"default\":\"all\"}]}";
+    const FILTERS_JSON: &str = "{\"filters\":[{\"id\":\"region\",\"name\":\"地區\",\"kind\":\"select\",\"options\":[{\"value\":\"all\",\"label\":\"全部\"},{\"value\":\"cn\",\"label\":\"國漫\"},{\"value\":\"jp\",\"label\":\"日本\"},{\"value\":\"kr\",\"label\":\"韓國\"},{\"value\":\"en\",\"label\":\"歐美\"}],\"default\":\"all\"},{\"id\":\"state\",\"name\":\"進度\",\"kind\":\"select\",\"options\":[{\"value\":\"all\",\"label\":\"全部\"},{\"value\":\"serial\",\"label\":\"連載中\"},{\"value\":\"pub\",\"label\":\"已完結\"}],\"default\":\"all\"},{\"id\":\"type\",\"name\":\"標籤\",\"kind\":\"select\",\"options\":[{\"value\":\"all\",\"label\":\"全部\"},{\"value\":\"lianai\",\"label\":\"戀愛\"},{\"value\":\"chunai\",\"label\":\"純愛\"},{\"value\":\"gufeng\",\"label\":\"古風\"},{\"value\":\"yineng\",\"label\":\"異能\"},{\"value\":\"xuanyi\",\"label\":\"懸疑\"},{\"value\":\"juqing\",\"label\":\"劇情\"},{\"value\":\"kehuan\",\"label\":\"科幻\"},{\"value\":\"qihuan\",\"label\":\"奇幻\"},{\"value\":\"xuanhuan\",\"label\":\"玄幻\"},{\"value\":\"chuanyue\",\"label\":\"穿越\"},{\"value\":\"mouxian\",\"label\":\"冒險\"},{\"value\":\"tuili\",\"label\":\"推理\"},{\"value\":\"wuxia\",\"label\":\"武俠\"},{\"value\":\"gedou\",\"label\":\"格鬥\"},{\"value\":\"zhanzheng\",\"label\":\"戰爭\"},{\"value\":\"rexie\",\"label\":\"熱血\"},{\"value\":\"gaoxiao\",\"label\":\"搞笑\"},{\"value\":\"danuzhu\",\"label\":\"大女主\"},{\"value\":\"dushi\",\"label\":\"都市\"},{\"value\":\"zongcai\",\"label\":\"總裁\"},{\"value\":\"hougong\",\"label\":\"後宮\"},{\"value\":\"richang\",\"label\":\"日常\"},{\"value\":\"hanman\",\"label\":\"韓漫\"},{\"value\":\"shaonian\",\"label\":\"少年\"},{\"value\":\"qita\",\"label\":\"其它\"}],\"default\":\"all\"},{\"id\":\"filter\",\"name\":\"標題開頭\",\"kind\":\"select\",\"options\":[{\"value\":\"*\",\"label\":\"全部\"},{\"value\":\"ABCD\",\"label\":\"ABCD\"},{\"value\":\"EFGH\",\"label\":\"EFGH\"},{\"value\":\"IJKL\",\"label\":\"IJKL\"},{\"value\":\"MNOP\",\"label\":\"MNOP\"},{\"value\":\"QRST\",\"label\":\"QRST\"},{\"value\":\"UVW\",\"label\":\"UVW\"},{\"value\":\"XYZ\",\"label\":\"XYZ\"},{\"value\":\"0-9\",\"label\":\"0-9\"}],\"default\":\"*\"}]}";
     let filters_bytes = FILTERS_JSON.as_bytes();
 
     let payload = payload_buf();
@@ -1242,6 +1426,15 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
         match state_default { b"serial" | b"pub" => state_default, _ => b"all" }
     } else { state_filter };
     let manga_type = extract_json_string(filters, b"type").unwrap_or(b"all");
+    let initial = match extract_json_string(filters, b"filter").unwrap_or(b"*") {
+        value @ (b"ABCD" | b"EFGH" | b"IJKL" | b"MNOP" | b"QRST" | b"UVW" | b"XYZ" | b"0-9") => value,
+        _ => b"*".as_slice(),
+    };
+    let selected = mirror::selected(req);
+    let latest = extract_json_string(args, b"listingId") == Some(b"latest".as_slice())
+        && selected.site == selected.origin;
+    // Upstream's web latest has one /list/new document. App mirrors use
+    // popular with its normal paging; keep the user's selected mirror.
     let page_num = request_page_number(req);
     if page_num > 1000 {
         return write_error("get_manga_list", "invalid_request", "page limit");
@@ -1250,15 +1443,20 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     // Build URL: /classify?type=X&region=Y&state=Z&filter=*&page=N
     let url_buf = scratch_a();
     let mut url_cursor = 0usize;
-    let ok = write_bytes(url_buf, &mut url_cursor, SITE_BASE)
+    let ok = if latest {
+        write_bytes(url_buf, &mut url_cursor, selected.site)
+            && write_bytes(url_buf, &mut url_cursor, b"/list/new")
+    } else { write_bytes(url_buf, &mut url_cursor, selected.site)
         && write_bytes(url_buf, &mut url_cursor, b"/classify?type=")
         && write_bytes(url_buf, &mut url_cursor, manga_type)
         && write_bytes(url_buf, &mut url_cursor, b"&region=")
         && write_bytes(url_buf, &mut url_cursor, region)
         && write_bytes(url_buf, &mut url_cursor, b"&state=")
         && write_bytes(url_buf, &mut url_cursor, state)
-        && write_bytes(url_buf, &mut url_cursor, b"&filter=%2a&page=")
-        && write_usize(url_buf, &mut url_cursor, page_num);
+        && write_bytes(url_buf, &mut url_cursor, b"&filter=")
+        && write_bytes(url_buf, &mut url_cursor, if initial == b"*" { b"%2a" } else { initial })
+        && write_bytes(url_buf, &mut url_cursor, b"&page=")
+        && write_usize(url_buf, &mut url_cursor, page_num) };
     if !ok {
         return write_error("get_manga_list", "internal_error", "url overflow");
     }
@@ -1275,57 +1473,19 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
         Err(_) => return write_error("get_manga_list", "parse_error", "html_parse failed"),
     };
 
-    let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
-    let count = html_select_all(document.0.raw(), b"a.comics-card__poster", select_buf);
-
     let payload = payload_buf();
-    let mut c = 0usize;
-
+    let mut c = 0;
     if !write_bytes(payload, &mut c, br#"{"items":["#) {
         return write_error("get_manga_list", "internal_error", "payload overflow");
     }
-
-    let max_items = if count > 0 { (count as usize).min(500) } else { 0 };
-    let mut written = 0usize;
-
-    for i in 0..max_items {
-        let offset = i * 4;
-        if offset + 4 > select_buf.len() { break; }
-        let desc = i32::from_le_bytes([
-            select_buf[offset], select_buf[offset+1], select_buf[offset+2], select_buf[offset+3],
-        ]);
-        if desc < 0 { continue; }
-
-        let hd: HtmlDescriptor = unsafe { core::mem::transmute(desc) };
-        let scratch_href = scratch_a();
-        let scratch_title = scratch_b();
-        let href_bytes = attr_into(hd, b"href", scratch_href);
-        let title_bytes = attr_into(hd, b"title", scratch_title);
-
-        if let (Some(href), Some(title)) = (href_bytes, title_bytes) {
-            let mut slug_buf = [0u8; 128];
-            if let Some(slug_len) = slug_from_comic_path(href, &mut slug_buf) {
-                let slug = &slug_buf[..slug_len];
-                if written > 0 {
-                    if !write_bytes(payload, &mut c, b",") { break; }
-                }
-                let ok = write_bytes(payload, &mut c, br#"{"id":"manga:"#)
-                    && append_json_escaped(payload, &mut c, slug)
-                    && write_bytes(payload, &mut c, br#"","title":""#)
-                    && append_json_escaped(payload, &mut c, title)
-                    && write_bytes(payload, &mut c, br#"","cover":{"kind":"url","url":"https://static-tw.baozimh.com/cover/"#)
-                    && append_json_escaped(payload, &mut c, slug)
-                    && write_bytes(payload, &mut c, br#".jpg"},"authors":[],"status":"unknown","contentRating":"unknown","sourceTags":["baozimh"]}"#);
-                if !ok { break; }
-                written += 1;
-            }
-        }
-        let _ = html_close(hd);
-    }
+    let written = match append_card_list(document.0, payload, &mut c, req, 500, true) {
+        Ok(written) => written,
+        Err(()) => return write_error("get_manga_list", "parse_error", "card selection or serialization failed"),
+    };
 
     // A terminal page must not advertise a cursor: the App treats any cursor
     // as a next page even when hasMore is false.
-    let has_more = written >= 36;
+    let has_more = !latest && written >= 36;
     if !write_bytes(payload, &mut c, br#"],"page":{"nextCursor":"#) {
         return write_error("get_manga_list", "internal_error", "payload overflow");
     }
@@ -1409,55 +1569,13 @@ fn parse_cards_into_section(payload: &mut [u8], c: &mut usize, section_id: &[u8]
         && write_bytes(payload, c, br#"","items":["#);
     if !ok { return Err(HomeSectionError::Overflow); }
 
-    let mut item_count = 0usize;
-
-    let html_len = fetch_html(url,req).map_err(HomeSectionError::Fetch)?;
-    let html_bytes = &body_buf()[..html_len];
-    let doc_desc = html_parse(html_bytes).map_err(|_| HomeSectionError::Parse)?;
-    {
-            let doc = OwnedDescriptor(doc_desc);
-            let select_buf = unsafe { &mut *core::ptr::addr_of_mut!(SELECT_ALL_BUF) };
-            // Home deliberately returns only the existing summary size. Ask the
-            // host to allocate only those handles, and own every written handle
-            // through all normal and error exits before closing the document.
-            let descriptor_bytes = max_items.checked_mul(4)
-                .filter(|bytes| *bytes <= select_buf.len())
-                .ok_or(HomeSectionError::Overflow)?;
-            let count = html_select_all(doc.0.raw(), b"a.comics-card__poster",
-                &mut select_buf[..descriptor_bytes]);
-            if count < 0 { return Err(HomeSectionError::Selection); }
-            let descriptors = PageDescriptors {
-                bytes: &select_buf[..descriptor_bytes],
-                count: (count as usize).min(max_items),
-            };
-
-            for i in 0..descriptors.count {
-                let hd = descriptors.get(i).ok_or(HomeSectionError::Selection)?;
-                let scratch_href = scratch_a();
-                let scratch_title = scratch_b();
-                let href_bytes = attr_into(hd, b"href", scratch_href);
-                let title_bytes = attr_into(hd, b"title", scratch_title);
-
-                if let (Some(href), Some(title)) = (href_bytes, title_bytes) {
-                    let mut slug_buf = [0u8; 128];
-                    if let Some(slug_len) = slug_from_comic_path(href, &mut slug_buf) {
-                        let slug = &slug_buf[..slug_len];
-                        if item_count > 0 {
-                            if !write_bytes(payload, c, b",") { return Err(HomeSectionError::Overflow); }
-                        }
-                        let ok2 = write_bytes(payload, c, br#"{"id":"manga:"#)
-                            && append_json_escaped(payload, c, slug)
-                            && write_bytes(payload, c, br#"","title":""#)
-                            && append_json_escaped(payload, c, title)
-                            && write_bytes(payload, c, br#"","cover":{"kind":"url","url":"https://static-tw.baozimh.com/cover/"#)
-                            && append_json_escaped(payload, c, slug)
-                            && write_bytes(payload, c, br#".jpg"}}"#);
-                        if !ok2 { return Err(HomeSectionError::Overflow); }
-                        item_count += 1;
-                    }
-                }
-            }
-    }
+    let mut address = [0u8; 1024];
+    let length = mirror::join(&mut address, mirror::selected(req).site, url)
+        .ok_or(HomeSectionError::Overflow)?;
+    let html_len = fetch_html(&address[..length], req).map_err(HomeSectionError::Fetch)?;
+    let document = OwnedDescriptor(html_parse(&body_buf()[..html_len]).map_err(|_| HomeSectionError::Parse)?);
+    append_card_list(document.0, payload, c, req, max_items, false)
+        .map_err(|_| HomeSectionError::Selection)?;
 
     write_bytes(payload, c, b"]}").then_some(()).ok_or(HomeSectionError::Overflow)
 }
@@ -1472,7 +1590,7 @@ fn run_get_home(req: &[u8]) -> u32 {
     // Section 1: 熱門 (default classify page)
     if let Err(error) = parse_cards_into_section(payload, &mut c,
         b"home:popular", "熱門漫畫".as_bytes(),
-        b"https://www.baozimh.com/classify", 12, req) {
+        b"/classify", 12, req) {
         return write_home_section_error(error);
     }
 
@@ -1482,7 +1600,7 @@ fn run_get_home(req: &[u8]) -> u32 {
     }
     if let Err(error) = parse_cards_into_section(payload, &mut c,
         b"home:cn", "國漫推薦".as_bytes(),
-        b"https://www.baozimh.com/classify?type=all&region=cn", 12, req) {
+        b"/classify?type=all&region=cn", 12, req) {
         return write_home_section_error(error);
     }
 
@@ -1492,7 +1610,7 @@ fn run_get_home(req: &[u8]) -> u32 {
     }
     if let Err(error) = parse_cards_into_section(payload, &mut c,
         b"home:jp", "日本漫畫".as_bytes(),
-        b"https://www.baozimh.com/classify?type=all&region=jp", 12, req) {
+        b"/classify?type=all&region=jp", 12, req) {
         return write_home_section_error(error);
     }
 
@@ -1502,7 +1620,7 @@ fn run_get_home(req: &[u8]) -> u32 {
     }
     if let Err(error) = parse_cards_into_section(payload, &mut c,
         b"home:kr", "韓國漫畫".as_bytes(),
-        b"https://www.baozimh.com/classify?type=all&region=kr", 12, req) {
+        b"/classify?type=all&region=kr", 12, req) {
         return write_home_section_error(error);
     }
 
@@ -1522,7 +1640,22 @@ fn run_get_settings(req: &[u8]) -> u32 {
     let payload = payload_buf();
     let mut n = 0;
     let original = SETTINGS_JSON.as_bytes();
-    if !write_bytes(payload, &mut n, &original[..original.len()-2]) ||
+    if !write_bytes(payload, &mut n, r#"{"settings":[{"id":"preferred_mirror","name":"首选镜像","kind":"select","default":"2","options":["#.as_bytes()) {
+        return write_error("get_settings", "internal_error", "payload overflow");
+    }
+    for (index, mirror) in mirror::MIRRORS.iter().enumerate() {
+        let label = mirror.origin.strip_prefix(b"https://").unwrap_or(mirror.origin);
+        if !((index == 0 || write_bytes(payload, &mut n, b","))
+            && write_bytes(payload, &mut n, br#"{"value":""#)
+            && write_usize(payload, &mut n, index)
+            && write_bytes(payload, &mut n, br#"","label":""#)
+            && append_json_escaped(payload, &mut n, label)
+            && write_bytes(payload, &mut n, br#""}"#)) {
+            return write_error("get_settings", "internal_error", "payload overflow");
+        }
+    }
+    if !write_bytes(payload, &mut n, b"]},")
+        || !write_bytes(payload, &mut n, &original[b"{\"settings\":[".len()..original.len()-2]) ||
         (banner_feature(req) && !write_bytes(payload, &mut n, &BANNER.as_bytes()[..BANNER.len()-2])) ||
         (chapter_identity_feature(req) && !write_bytes(payload, &mut n, &ORDER.as_bytes()[..ORDER.len()-2])) ||
         !write_bytes(payload, &mut n, b"]}") {
