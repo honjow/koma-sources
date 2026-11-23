@@ -19,9 +19,15 @@ class HomepageMetadataTest(unittest.TestCase):
         self.assertEqual(metadata.extract({}), {})
         self.assertEqual(metadata.extract({'localizedNames': {}}), {'localizedNames': {}})
         names = {'zh-Hans': '漫画', 'zh-Hant': '漫畫', 'en': 'Comic'}
-        # The reviewed localization contract adapts legacy names without inventing a default locale.
-        self.assertEqual(metadata.extract({'localizedNames': names}), {'localizedNames': names,
-            'presentation': {'version': 1, 'texts': {'name': names}}})
+        # Actual App counterexample: a description default must not replace the
+        # canonical name fallback for an unsupported UI language (ja-JP).
+        self.assertEqual(metadata.extract({'localizedNames': names}), {'localizedNames': names})
+        description_only = metadata.extract({'localizedNames': names, 'localization': {
+            'version': 1, 'defaultLocale': 'zh-Hans',
+            'messages': {'source.description': {'zh-Hans': '漫畫目錄'}}}})
+        self.assertEqual(description_only['localizedNames'], names)
+        self.assertNotIn('name', description_only['presentation']['texts'])
+        self.assertEqual(description_only['presentation']['texts']['description'], {'zh-Hans': '漫畫目錄'})
         for invalid in [None, [], {'en': ' padded '}, {'en': 'X', 'EN': 'Y'}, {'bad tag': 'X'}]:
             with self.subTest(names=invalid), self.assertRaises(ValueError):
                 metadata.extract({'localizedNames': invalid})

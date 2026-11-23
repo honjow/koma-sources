@@ -347,8 +347,9 @@ Catalog 按精确→保留脚本的地区/脚本→语言候选，再到明确 `
 打包器仅将 `source.name`、`source.description`、`source.author` 及已有 credentials 认证的
 `authentication.usernameLabel/passwordLabel` 投影到可选 `presentation.texts` 的
 `name/description/author` 及同名认证显示角色，
-并由同一 name 资源生成旧 `localizedNames`；冲突打包失败。canonical SourceInfo 和认证声明不改，
-无资源沿旧值，不增加 ZIP 附件或 UI/授权权限。每 key 最多16个原始 locale项；名称、作者和认证
+并由同一 name 资源生成旧 `localizedNames`；冲突打包失败。没有显式 `source.name` 时，旧名称继续
+使用原 `localizedNames` 及其回退，不受新增简介默认语言影响。翻译投影不按 UI 语言改写固定
+SourceInfo 或认证声明；作者随源版本修订基准简介时应同步译文。无资源沿旧值，不增加 ZIP 附件或 UI/授权权限。每 key 最多16个原始 locale项；名称、作者和认证
 译文沿单行128 UTF-16限制，输出仍受调用方缓冲与原字段预算约束。详见 [SDK用法](../sdk/README.md#书源文案与调用语言环境)。
 
 本地化是可选增强，不单独抬最低 App；未接 Catalog 的旧源无需改写。只翻译源自编的显示文案，

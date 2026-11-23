@@ -109,6 +109,7 @@ let label: &str = catalog.text(&context, "settings.quality.name", "Image quality
 打包从同目录生成可选 `presentation:{version:1,defaultLocale?,texts:{role:{locale:text}}}`，
 仅投影上述静态角色；认证显示角色只用于已有 credentials descriptor，不能创建认证权限。
 同一 name 资源同时生成旧 `localizedNames`，旧映射保严格校验，冲突打包失败。
-仅旧 `localizedNames` 适配 name 资源，不假造默认语言。规范 SourceInfo/name/description/author 及认证对象
-均保持旧值，零参 source_info 和 ZIP 的 manifest/WASM/icon 三类成员不变。可选增强不提高最低宿主版本；
-未采用 Catalog 的旧源不会批量改写。
+仅有旧 `localizedNames` 时保留原字段与原回退；Catalog 未显式提供 `source.name` 时不投影 name 角色，
+避免简介等其他文案的默认语言改变旧名称。翻译投影不按 UI 语言改写规范 SourceInfo 或认证对象；
+作者仍可随源版本修订固定基准简介。零参 source_info 和 ZIP 的 manifest/WASM/icon 三类成员不变。
+可选增强不提高最低宿主版本；未采用 Catalog 的旧源保持原行为。

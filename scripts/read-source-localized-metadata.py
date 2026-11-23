@@ -120,7 +120,9 @@ def project_localization(metadata, result):
         names = projected_names
     if names is not None:
         result["localizedNames"] = dict(names)
-        if names:
+        # A description-only Catalog must not give legacy names a new default
+        # language. Keep their original resolver unless source.name opts in.
+        if names and projected_names is not None:
             presentation["texts"]["name"] = dict(names)
     if presentation["texts"]:
         result["presentation"] = presentation
