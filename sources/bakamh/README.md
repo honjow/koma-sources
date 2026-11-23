@@ -16,15 +16,17 @@
 | 题材全部匹配为 taxonomy `operator=AND` | `filters::search` 修正原 `operation`；题材为空不添加，任一匹配仍省略，作者等 taxonomy 索引顺序保持。 |
 | 详情排除与主标题相同及 Updating 的别名；新版简介改用 Markdown | Koma 保留独立 `alternateTitles`，不把别名重复附入 `description`；本轮补同标题去重。现有 `port::Node` / SDK 只有选择器、属性、纯文本读取，没有可复用 DOM→Markdown 处理，因此简介保留原 `p` 段落／无段落时全文；**HTML 强调、链接等 Markdown 转换尚未同步**，不新增源专用宿主能力或不完整 HTML 解析器。 |
 
-237 初次复验时，搜索验证通过后可以正常返回结果，但打开筛选的题材获取仍返回403。日志明确该 GET 走 WebHTTP 子资源 fetch；上游 MadaraBase.fetchFilterData 对同一 `/manga/` 使用 Fetch.DOCUMENT。本轮补 `document_text::catalogue`，复用已存在的 Native DOCUMENT 请求及实际最终地址交付，仅接受同站漫画归档（规范尾斜杠可变），不放宽作品或阅读页所有者校验。题材链接按真实最终地址解析；失败不伪造空选项，不添加站点专用宿主接口。此补修仍待最终包及237复验。
+237 初次复验时，搜索验证通过后可以正常返回结果，但打开筛选的题材获取仍返回403。日志明确该 GET 走 WebHTTP 子资源 fetch；上游 MadaraBase.fetchFilterData 对同一 `/manga/` 使用 Fetch.DOCUMENT。本轮补 `document_text::catalogue`，复用已存在的 Native DOCUMENT 请求及实际最终地址交付，仅接受同站漫画归档（规范尾斜杠可变），不放宽作品或阅读页所有者校验。题材链接按真实最终地址解析；失败不伪造空选项，不添加站点专用宿主接口。237重新取得包绑定的网页授权后，该Native文档请求实返200且携带当前WebView UA／Cookie。实站归档已变为作品卡片，没有上游 `div.genres` 目录；仅见的12个题材链接全属当页作品标签，不能视为完整选项。对齐Madara在题材目录为空时省略题材控件的语义，保留作者／画师／年份／状态／排序／成人筛选；不把空目录报为整个筛选失败，也不从卡片伪造选项。保留有目录时的动态题材与AND参数。临时公开DOM诊断已移除。最终包e16978b在237读回一致：两路搜索200，同词重复搜索无新验证；Native题材文档200并成功返回固定6项，筛选页实际展示作者、画师、年份、状态、排序和成人内容。
 
 本轮只改源内搜索、复合题材、题材选项读取和同名别名。既有请求 profile、全 client 2次/秒
 oncePerRequest、Native IMAGE/CDN/SourceCookies、WebHTTP/BrowserGrant、章节／页身份、
 登录及全部设置保持；最低 Koma 仍为1.6.1，无新宿主能力，图标未改。
 
-本轮已通过正式 `build.sh --source bakamh` 构建，最终包实际 WASM 的13项搜索／筛选／分页／失败与取消执行校验通过。第二路返回同时取消的竞态已在源内修正，并用同一份校验复测通过。237普通路径与实站效果仍由根代理继续验收，未公开发布；0.1.2验收不能沿用为0.1.3已验。
+本轮已通过正式 `build.sh --source bakamh` 构建，最终包实际 WASM 的13项搜索／筛选／分页／失败与取消、9项文档请求边界均通过；真实旧归档仍提取6题材，只有当页卡片标签的页面按上游省略题材控件，原有执行期望未改。第二路返回同时取消的竞态已在源内修正。237普通路径已验0.1.3“迷宫”查询返回4个去重作品，两路POST200；首次安装验证自动收起并恢复原查询，同词重复搜索不再弹验证。Native题材文档带包绑定的授权Cookie及WebView UA，HTTP200，六项固定筛选上下段均已检查。本轮没有新增作品、阅读或下载，不借用0.1.2阅读／下载结果作为0.1.3新验收；未公开发布。
 验收重点：别名独有命中、两路交叠与翻页、带全匹配题材的两路查询、空词及作品／章节URL、
 任一路HTTP失败、详情别名和阅读图片回归。
+
+### 本轮中间包回放（历史，最终包验收见上）
 
 本执行者已通过 `git diff --check -- sources/bakamh`，以及对 `src/lib.rs`、
 `src/filters.rs` 分别执行 `rustfmt --edition 2021 --config skip_children=true --emit stdout`

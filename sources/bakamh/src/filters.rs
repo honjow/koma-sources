@@ -68,7 +68,10 @@ pub(crate) fn schema(args: &Value, request: &[u8]) -> Result<Value> {
                 .map(|(slug, name)| json!({"value":slug,"label":name}))
                 .collect::<Vec<_>>();
             if options.is_empty() {
-                return Err("parse_error");
+                // Madara omits genre controls when the archive has no genre
+                // directory. Current card tags are not a complete taxonomy;
+                // never promote those partial labels into filter choices.
+                return Ok(json!({"filters":filters,"useSearchForFilters":true,"supportsFilterFetching":dynamic}));
             }
             genres["options"] = json!(options);
         }
