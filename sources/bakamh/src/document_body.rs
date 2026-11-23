@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
-//! Native raw-document delivery through existing generic HTTP BodyRef, not images.
+//! Raw-document BodyRef delivery; canonical Web vs existing Native, not images.
+use alloc::vec::Vec;
 use koma_source_sdk::{
     body::{BodyRef, CHUNK_BYTES},
-    http::{CallError, Client, Header, RequestSpec, ResponseKind},
+    http::{CallError, Client, Header, Request, RequestSpec, ResponseKind},
     runtime::Context,
     source_protocol,
 };
@@ -66,13 +67,35 @@ pub(super) fn run(url: &Url, request: &[u8]) -> Result<(Node, bool)> {
         Header { name: b"Priority", value: b"u=0, i" },
     ];
     if url.origin().ascii_serialization() != BASE { return Err("invalid_request"); }
+    let canonical_web = context.supports(b"source_web_http_v1")
+        && url.path().starts_with("/manga/") && url.path().ends_with('/')
+        && url.query_pairs().all(|(key, value)| key == "style" && value == "list");
+    // Same canonical selection and public Web headers as R10. Browser fetch owns
+    // its request metadata: never send Native navigation Sec/UIC/Priority here.
+    let web_headers = [
+        Header { name: b"Accept", value: b"*/*" },
+        Header { name: b"Accept-Language", value: LANGUAGE.as_bytes() },
+        Header { name: b"Referer", value: b"https://bakamh.com/" },
+    ];
     let mut spec = RequestSpec::get(url.as_str().as_bytes());
     // BrowserGrant is the SDK default. Do not substitute a source session, image
-    // purpose, final URL or Web fetch; the Host keeps admission and redirect guards.
-    spec.headers = &headers;
+    // purpose or final URL; the Host keeps admission and redirect guards.
+    spec.headers = if canonical_web { &web_headers } else { &headers };
     spec.response = ResponseKind::BodyRef;
     spec.response_headers = context.supports(b"source_http_headers_v1");
+    let request_capacity = http_req_buf().len();
     let encoded = spec.encode(http_req_buf())?;
+    let mut web_request = Vec::new();
+    let encoded = if canonical_web {
+        let prefix = encoded.as_json().strip_suffix(b"}").ok_or("internal_error")?;
+        let extension = br#","webFetch":{"version":1}}"#;
+        let length = prefix.len().checked_add(extension.len())
+            .filter(|length| *length <= request_capacity).ok_or("buffer_overflow")?;
+        web_request.reserve(length);
+        web_request.extend_from_slice(prefix);
+        web_request.extend_from_slice(extension);
+        Request::from_json(&web_request)
+    } else { encoded };
     let response = Client::<CallError>::new(&[]).send(encoded, http_out())
         .map_err(|_| "network_error")?;
     let status = response.status();

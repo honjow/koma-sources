@@ -128,3 +128,11 @@ R11文档Native BodyRef、正文/封面图片R10 Web BodyRef、全部ID/权限/�
 仅用既有HTML Host，有界读取最多8个候选节点；排除脚本/样式/表单/input等及显式hidden节点，不采集属性/链接/headers。文本含可识别URL/路径、密钥凭据标签或疑似高熵值时舍弃整项，折叠空白并去重后总量≤1KiB UTF-8，按≤4块base64写BKERR403 ASCII HostLog，每行小于1024字节；base64只是传输编码。此为静态HTML文本，不声称CSS计算后的真实可见性，不执行脚本。所有诊断DOM描述符关闭，取证失败不影响原错误及BodyRef清理；不把诊断文本写入业务结果，不上传或纳入Git业务数据。
 
 这是待父亲审、配套HAP实机取证的临时包，不宣称解决403；采集解码后须移除本模块及既有临时诊断再交付正式包。R12冻结产物保留，不覆盖。
+
+### 0.1.1 R14 canonical Web BodyRef同响应取证
+
+R13实机本地解码已见Cloudflare明确block页（Attention Required / Sorry you have been blocked），提示security solution triggered；不是托管挑战，具体触发规则仍未知。首个显式Web POST200且无cancel，去重已有实证。不能据标记或标题猜站点规则。
+
+R14仅在已走既有文档BodyRef、精确原点canonical `/manga/.../` GET且协商source_web_http_v1时显式增加webFetch v1。公共头恢复R10 Web组：Accept:*/*、既有Accept-Language和根Referer；绝不把Native导航Sec-*、Upgrade-Insecure-Requests或Priority送入Browser fetch。数字 `?p` 及缺Webfeature仍原R13 Native DOCUMENT组。读取、错误映射、匿名403文本取证及全部close流程保持R13，不新增请求或Host API。
+
+保R12显式POST、正文/封面图片Web BodyRef、全部metadata/原生UA/selector/IDs/权限/日期/设置/图标，旧R13包及失败原件不覆盖。此候选配df49280dd4b3同组HAP读取此前Web403的小错误页原文，不宣称解除403；若真实Web200才沿普通路径继续核实际目录/阅读。仍是临时诊断，取证完成须移除全部临时日志后正式交付。制作规范locale单句已独立docs提交ea64b812，本轮不再改规范。
