@@ -4,6 +4,7 @@ pub mod chapters;
 pub mod gallery_titles;
 pub mod list_info;
 pub mod http;
+pub mod image_headers;
 pub mod body;
 pub mod runtime;
 pub mod localization;

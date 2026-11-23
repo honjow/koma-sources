@@ -31,6 +31,12 @@ Sources are compiled to WebAssembly (`wasm32-unknown-unknown`, `#![no_std]`) and
 若源可读取 Mihon 扩展所记录的同一目录，在 `identity.mihon` 声明对应的十进制来源编号字符串（`sourceIds`）及 `work` 路径规则。规则去掉站内地址的 `pathPrefix` 与可选 `pathSuffix`，将剩余标识加上 `idPrefix` 与可选 `idSuffix`，交给现有详情接口。裸 ID 可用空前缀。固定查询键写进路径前缀，源记录完整地址时可声明固定 HTTPS 前缀。变量部分是普通标识或路径，一些源使用逗号分隔标识。宿主只把转换后的标识传给书源自己的接口。可选 `chapter` 使用同样规则，生成的标识须存在于该作品当前目录。章节 ID 包含可变页数时，`targetIdSegment` 可声明按冒号拆分后从 0 开始的稳定标识位置。只有确认两端图片顺序一致才设置 `samePageOrder: true`。打包器输出可选字段 `mihonImport`，旧客户端仍通过原操作浏览和阅读。 章节地址同时包含作品 ID 和章节 ID 时，可用固定 `pathWorkIdSeparator` 分隔两者。支持该字段的宿主会验证该章属于当前作品，详见 [Koma 源运行时 ABI](https://github.com/honjow/Koma/blob/master/docs/source-runtime-abi.md#作品与章节身份)。
 
 ## Quick Start
+
+普通 HTTP UA 与 CF 验证 UA 分别管理。显式采用 `koma_source_sdk::image_headers`
+时，普通 IMAGE 默认值参考 Mihon `c3bf7a78c074079a605ed7de86d8b7f58bea183b`
+的 Chrome141 Android10/K，不改变旧源默认，也不设置或覆盖验证页 UA。共享策略保留
+bare IMAGE 的完整 Referer，未知协议不发送 Priority 或声明压缩能力；匿名 HTTP 的
+SourceCookies 与授权 BrowserGrant 分别选择，Cookie 始终按实际 origin 隔离。
 ### 验证页 UA
 
 需要网页验证的源默认使用系统 WebView UA。若真机上确认 Cloudflare managed challenge 在系统 UA 下反复挑战或拿不到 `cf_clearance`，可在 `websitePolicy` 声明 `webSessionAndroidAgent: true`：宿主保留原生 UA 的 Chrome/WebKit 版本和移动指纹，只把括号内的 OS token 换成 `; Android 10`，与华为系统浏览器的行为一致。不要声明桌面 Chrome UA，它会和移动指纹矛盾。该声明默认关闭，启用前要在真机对照验证页加载、cookie/clearance 状态和原请求结果；只改声明、没做设备验证不能记为修复。

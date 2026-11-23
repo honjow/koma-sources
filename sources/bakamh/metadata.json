@@ -27,11 +27,9 @@
   "requestLimits": [
     {
       "group": "bakamh",
-      "hosts": [
-        "bakamh.com"
-      ],
       "permits": 2,
-      "periodMs": 1000
+      "periodMs": 1000,
+      "oncePerRequest": true
     }
   ],
   "websitePolicy": {

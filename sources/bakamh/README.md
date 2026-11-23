@@ -1,5 +1,24 @@
 # 巴卡漫画
 
+## 0.1.2 普通图片 client 合同候选（待完整验收）
+
+普通 Native CDN 图片显式采用 SDK 共享 Chrome141 Android10/K UA 与有界 HTTPS
+IMAGE BrowserHeaders，参考 Mihon c3bf7a78 和 Keiyoushi 8947c37，不采用 CF WebView
+UA。按已核实际 origin/site 关系生成 CH、Accept、Mode/Dest/Site 和适用 Storage-Access；
+未知 HTTP 协议不发送 H2 Priority，不声明压缩能力，完整章节 Referer 不收窄。
+
+非 BASE 的 Native HTTPS 图像在协商现有 cookie-session 能力后选 SourceCookies，
+仅用 Host 精确 origin 的 HTTP Jar，不读取或复制 BASE/WebView 授权。BASE 的原
+WebHTTP/BrowserGrant 保持；无该能力保原会话回退，旧 descriptor 不变。全 client
+共享2次/秒、oncePerRequest限速，覆盖CDN。现有 SDK 的 challenge/auth/rate/cancel
+与 ordinary403 分类、所有权和单次 BodyRef 交付、页/章ID与正文解析保持，无新增重试。
+
+普通 HTTP UA 是共享客户端身份；不把 CF UA、Cookie 授权、TLS profile 混为一项。
+本候选不含诊断，不改变 App/接口/图标，minApp保持1.6.1，distribution:false保留。
+既有 c0fb 与 text-profile 设备结果均仍403；本版尚未宣称解除阻断，仍需普通宿主
+首中末、跨章、一章自有下载和离线完整验收。源 SOURCE_INFO 由 Cargo 版本生成。
+
+
 当前为继续验证中的候选，`distribution.available:false` 暂停公开安装索引分发：完整普通宿主验收尚未通过，所需 Koma 1.6.1 也尚未正式发布。保留全部移植、源文件及候选验证工作；待完整验收通过且所需正式宿主可用后再恢复分发，不代表取消移植或删除书源。既有 R15 immutable 候选包不重建、不覆盖。
 
 独立源 `com.bakamh.koma`，对应 Mihon 来源 ID `3712194609356981776`，来源分级 NSFW。参考 [Bakamh](https://github.com/keiyoushi/extensions-source/tree/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/src/zh/bakamh) 和同提交的 [Madara／MadaraBase](https://github.com/keiyoushi/extensions-source/tree/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/lib-multisrc/madara)，代码许可 Apache-2.0。

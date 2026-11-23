@@ -7,6 +7,8 @@ use koma_source_sdk::{
     body::BodyRef,
     http::{CallError, Client, Header, Request, RequestSpec, RequireSuccess, ResponseKind},
     runtime::Context,
+    image_headers::{ImageHeaders, SiteRelation},
+    session::SessionRef,
 };
 use serde_json::{json, Value};
 use url::Url;
@@ -245,32 +247,39 @@ fn image_prefix(bytes: &[u8]) -> bool {
                 matches!(brand, b"avif" | b"avis" | b"heic" | b"heix" | b"hevc" | b"hevx" | b"mif1" | b"msf1"))))
 }
 
+// image_request already validates the initiator as bakamh.com. This known
+// registrable site needs no guessed last-two-label rule for arbitrary domains.
+fn image_relation(image: &Url, referer: &Url) -> SiteRelation {
+    if image.origin() == referer.origin() { return SiteRelation::SameOrigin; }
+    let host = image.host_str().unwrap_or("");
+    if referer.host_str() == Some("bakamh.com")
+        && (host == "bakamh.com" || host.ends_with(".bakamh.com"))
+    { SiteRelation::SameSite } else { SiteRelation::CrossSite }
+}
+
 fn image_body(image: &Url, referer: &Url, request: &[u8]) -> Result<Value> {
     let context = Context::from_request(request);
     if context.cancelled() { return Err("cancelled"); }
-    let headers = [
+    let legacy_headers = [
         Header { name: b"Referer", value: referer.as_str().as_bytes() },
         Header { name: b"Accept", value: IMAGE_ACCEPT },
         Header { name: b"Accept-Language", value: crate::LANGUAGE.as_bytes() },
-        Header { name: b"Sec-Fetch-Mode", value: b"no-cors" },
-        Header { name: b"Sec-Fetch-Dest", value: b"image" },
-        Header { name: b"Sec-Fetch-Site", value: b"cross-site" },
     ];
+    let native_cdn = image.origin().ascii_serialization() != BASE;
+    let ordinary = if native_cdn {
+        Some(ImageHeaders::new(referer.as_str().as_bytes(), crate::LANGUAGE.as_bytes())?)
+    } else { None };
+    let ordinary_headers = ordinary.as_ref().map(|policy| policy.headers(image_relation(image, referer)));
     let mut spec = RequestSpec::get(image.as_str().as_bytes());
-    // Pinned BrowserHeaders IMAGE semantics; the actual P1 is com -> de.
-    // Limit this source-only adaptation to that observed Native HTTPS CDN.
-    // BASE WebFetch and other origins retain their original three headers.
-    // No browser UA/client hints or credential scope is invented here.
-    spec.headers = if image.origin().ascii_serialization() == "https://t1.bakamh.de"
-        && referer.origin().ascii_serialization() == BASE
-    {
-        &headers
-    } else {
-        &headers[..3]
-    };
+    spec.headers = ordinary_headers.as_ref().map(|h| h.as_slice()).unwrap_or(&legacy_headers);
+    // Anonymous CDN HTTP cookies stay in the existing exact-origin Host jar.
+    // BASE authorization/WebHTTP continues with the default BrowserGrant.
+    if native_cdn && context.supports(b"source_http_cookie_session_v1") {
+        spec.session = SessionRef::SourceCookies;
+    }
     spec.response = ResponseKind::BodyRef;
-    // BrowserGrant is the SDK default: the ordinary Host HTTP path attaches
-    // only the already-authorized exact-origin session, including on redirects.
+    // Both cookie modes remain Host-owned; BASE keeps its exact-origin grant
+    // while anonymous CDN responses use only their selected HTTP cookie jar.
     spec.response_headers = context.supports(b"source_http_headers_v1");
     let request_capacity = crate::http_req_buf().len();
     let encoded = spec.encode(crate::http_req_buf())?;
