@@ -15,4 +15,16 @@
       }
     }
   },
-"homepage":"https://bx.yaimer.com","chapterOrder":"newest_first"}
+"homepage":"https://bx.yaimer.com","chapterOrder":"newest_first",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "Utifa 的中文漫畫書庫，包含《七龍珠完全版》《魔導少年》等卷本作品；此入口不含同站小說與影音內容。",
+        "zh-Hans": "Utifa 的中文漫画书库，包含《龙珠完全版》《魔导少年》等卷本作品；此入口不含同站小说与影音内容。",
+        "en": "Utifa’s Chinese comic volumes include Dragon Ball Kanzenban and Fairy Tail. The site’s novels and videos are outside this source."
+      }
+    }
+  }
+}

@@ -60,5 +60,16 @@
   "wasmBuild": {
     "optimizeForSize": true,
     "maxBytes": 1048576
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "WNACG 收錄同人誌、單行本、CG 與寫真／Cosplay 圖集，包含中文、日文及英文分類。部分內容需在原站登入。",
+        "zh-Hans": "WNACG 收录同人志、单行本、CG 与写真／Cosplay 图集，包含中文、日文及英文分类。部分内容需在原站登录。",
+        "en": "WNACG’s doujinshi, comic volumes, CG, photo and cosplay galleries in Chinese, Japanese and English. Some content needs login."
+      }
+    }
   }
 }

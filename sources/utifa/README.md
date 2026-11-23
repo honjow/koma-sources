@@ -1,5 +1,11 @@
 # Utifa
 
+## 0.1.2 簡介與多語言顯示
+
+Utifa 的中文漫畫書庫，包含《七龍珠完全版》《魔導少年》等卷本作品；此入口不含同站小說與影音內容。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 独立移植 Keiyoushi `zh.utifa` v1.6.1，固定
 `fc7a827769f612dfa6dccb51e819f5b4eecaeab5` 的 Utifa.kt、Dto.kt 和
 Filters.kt，原参考 Apache-2.0。沿用 `https://bx.yaimer.com` 的匿名入口。

@@ -58,7 +58,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "熱辣漫畫。",
+    description: "熱辣漫畫收錄戀愛、冒險、奇幻、校園等題材。普通瀏覽為免費作品，搜尋亦可能列出付費作品，其鎖定預覽不等於完整正文。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

@@ -27,5 +27,16 @@
         {"value": "https://rouvb2.xyz/", "url": "https://rouvb2.xyz"}
       ]
     }
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "肉漫屋收錄韓國漫畫，包含劇情、現代奇幻等分類，兼有連載與完結作品。",
+        "zh-Hans": "肉漫屋收录韩国漫画，包含剧情、现代奇幻等分类，兼有连载与完结作品。",
+        "en": "Roumanwu carries Korean comics, including drama and urban-fantasy titles, with ongoing and completed series."
+      }
+    }
   }
 }

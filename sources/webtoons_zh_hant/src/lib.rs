@@ -11,12 +11,11 @@ const MOBILE: &[u8] = b"https://m.webtoons.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.webtoons.zh-hant.koma",
     name: "LINE WEBTOON (Traditional Chinese)",
-    version: "0.1.13",
+    version: "0.1.14",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma source contributors",
-    description:
-        "",
+    description: "LINE WEBTOON 的繁體中文漫畫，包含 Originals 連載與 CANVAS 創作者作品，閱讀範圍以此語言入口公開的章節為準。",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

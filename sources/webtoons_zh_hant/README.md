@@ -1,5 +1,11 @@
 # LINE WEBTOON（繁体中文）0.1.10
 
+## 0.1.14 簡介與多語言顯示
+
+LINE WEBTOON 的繁體中文漫畫，包含 Originals 連載與 CANVAS 創作者作品，閱讀範圍以此語言入口公開的章節為準。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 独立源 ID `com.webtoons.zh-hant.koma`、内容语言 `zh-Hant`；英文 WEBTOON 与简体咚漫是另外的源，不别名迁移或共用历史。普通网站为 `https://www.webtoons.com`，图标与身份资源保持，素材依据见 [ASSET_SOURCES.md](ASSET_SOURCES.md)。上游 SAFE 是源级标记，不是逐作品分类或使用验收。
 
 公开列表由 trending/popular/originals/canvas 四个有限榜单组成，热门列表 cursor 1..4 对应四桶。搜索保持原 All 首屏的结果与顺序，按其真实“查看全部”入口依次续取 Originals 和 Canvas 的原分页；仅依据原当前页和下一页链接推进，查询、分类或页码不匹配时失败。两类首页与 All 重叠时，保留完全相同的原作品 MID，由宿主按 sourceId + MID 合并去重，空批按已有宿主续取；不猜固定偏移。详情使用原桌面页，目录使用手机 JSON，普通 viewer 使用 `#_imageList` 原图。

@@ -1,1 +1,26 @@
-{"comments":{"version":1,"scopes":["chapter"]},"homepage":"https://tapas.io","chapterOrder":"newest_first","authentication":{"kind":"web","loginUrl":"https://tapas.io/account/signin","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:105.0) Gecko/20100101 Firefox/105.0"}}
+{
+  "comments": {
+    "version": 1,
+    "scopes": [
+      "chapter"
+    ]
+  },
+  "homepage": "https://tapas.io",
+  "chapterOrder": "newest_first",
+  "authentication": {
+    "kind": "web",
+    "loginUrl": "https://tapas.io/account/signin",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:105.0) Gecko/20100101 Firefox/105.0"
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "Tapas 的英文漫畫連載，包含平台與創作者社群作品。此入口不含小說，付費章節與排期限制依原站狀態。",
+        "zh-Hans": "Tapas 的英文漫画连载，包含平台与创作者社区作品。此入口不含小说，付费章节与排期限制依原站状态。",
+        "en": "English comics from Tapas creators and its community, excluding novels. Paid and scheduled episodes follow site access rules."
+      }
+    }
+  }
+}

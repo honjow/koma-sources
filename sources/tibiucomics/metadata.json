@@ -8,5 +8,16 @@
       "chapter": {"pathPrefix":"/chapter/","idPrefix":"/chapter/"},
       "samePageOrder": true
     }
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "TIBIU 的 BL 向漫畫書庫，收錄連載及完結作品，閱讀範圍限原站公開章節。",
+        "zh-Hans": "TIBIU 的 BL 向漫画书库，收录连载及完结作品，阅读范围限原站公开章节。",
+        "en": "TIBIU’s BL comic library includes ongoing and completed series. Reading is limited to chapters publicly available on the site."
+      }
+    }
   }
 }

@@ -35,7 +35,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "紳士漫畫公开相册与合集；部分内容需要登录。",
+    description: "WNACG 收錄同人誌、單行本、CG 與寫真／Cosplay 圖集，包含中文、日文及英文分類。部分內容需在原站登入。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

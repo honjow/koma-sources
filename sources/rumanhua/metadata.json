@@ -1,5 +1,16 @@
 {
   "comments": {"version": 1, "scopes": ["manga", "chapter"]},
   "homepage": "http://www.rumanhua2.com",
-  "localizedNames": {"zh-Hans":"如漫画","zh-Hant":"如漫畫","en":"Rumanhua"}
+  "localizedNames": {"zh-Hans":"如漫画","zh-Hant":"如漫畫","en":"Rumanhua"},
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "如漫畫收錄都市、玄幻、冒險、戀愛、穿越與古風等題材，兼有連載及完結漫畫。",
+        "zh-Hans": "如漫画收录都市、玄幻、冒险、恋爱、穿越与古风等题材，兼有连载及完结漫画。",
+        "en": "Rumanhua carries urban, fantasy, adventure, romance, time-travel and historical comics, including ongoing and completed series."
+      }
+    }
+  }
 }

@@ -1,5 +1,11 @@
 # 紳士漫畫 (WNACG)
 
+## 0.1.10 簡介與多語言顯示
+
+WNACG 收錄同人誌、單行本、CG 與寫真／Cosplay 圖集，包含中文、日文及英文分類。部分內容需在原站登入。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 Keiyoushi `de743aed846da53e00c45ab26ee0e77f7bb4355b`（extension v6、lib1.6、Apache-2.0）处完整公开 WNACG.kt、Filters.kt、Preferences.kt 和镜像行为的独立 no_std Rust/WASM 移植。保留源名称、zh 语言、NSFW 分类、默认 buzz/站点镜像和精确原桌面 User-Agent。相关作品和 ONLY_FETCH_ONCE 不由当前 Koma ABI 暴露。
 
 匿名热门/最新、关键词搜索、标签/分类/排行/排序筛选、支持的画廊/阅读器/合集 URL 导入、元数据、单画廊和完整分页合集章节，以及每个原画廊图像匹配都已实现。合集保留每个 data-chid 的首次出现并反转完整原目录。重复图像 URL 保持原位置和独立 ID。单画廊日期和合集日期保留 Asia/Taipei 午夜。图像不筛选、不裁剪、不解乱。每个宿主进程的首次请求（包括缓存页图像请求）的镜像发现遵循原 BaseUrlFetchInterceptor。为精确先前镜像宿主构建的请求以不变路径/查询移到当前镜像；外部 CDN 从不猜测或重写。源侧所有者校验覆盖 PageID、可选漫画/章节/URL 所有者和 /data/<前缀>/<两位>/ 路径中可证明不同的 CID 分区。不透明 CDN 路径接受而不猜测其宿主或归属。

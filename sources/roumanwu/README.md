@@ -1,5 +1,11 @@
 # 肉漫屋
 
+## 0.1.1 簡介與多語言顯示
+
+肉漫屋收錄韓國漫畫，包含劇情、現代奇幻等分類，兼有連載與完結作品。
+
+零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
+
 Koma `com.roumanwu.koma`，Mihon 来源 `3647420805839021718`。行为移植自 [Keiyoushi 固定版本](https://github.com/keiyoushi/extensions-source/tree/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/src/zh/roumanwu) 与其 [Apache-2.0 许可](https://github.com/keiyoushi/extensions-source/blob/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/LICENSE)。
 
 | 原有行为 | Koma 调用与消费 |

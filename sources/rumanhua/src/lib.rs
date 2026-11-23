@@ -16,7 +16,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "如漫画公开漫画。",
+    description: "如漫畫收錄都市、玄幻、冒險、戀愛、穿越與古風等題材，兼有連載及完結漫畫。",
     content_rating: "safe",
 };
 

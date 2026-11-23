@@ -6,5 +6,16 @@
   },
   "comments": {"version": 1, "scopes": ["chapter"]},
   "homepage": "https://www.webtoons.com",
-  "chapterOrder": "newest_first"
+  "chapterOrder": "newest_first",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hant": "LINE WEBTOON 的繁體中文漫畫，包含 Originals 連載與 CANVAS 創作者作品，閱讀範圍以此語言入口公開的章節為準。",
+        "zh-Hans": "LINE WEBTOON 的繁体中文漫画，包含 Originals 连载与 CANVAS 创作者作品，阅读范围以此语言入口公开的章节为准。",
+        "en": "LINE WEBTOON’s Traditional Chinese Originals and CANVAS creator comics. Reading covers publicly available chapters."
+      }
+    }
+  }
 }

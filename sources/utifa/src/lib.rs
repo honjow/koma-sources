@@ -30,11 +30,11 @@ const UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/2010
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.utifa.koma",
     name: "Utifa",
-    version: "0.1.1",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "Utifa 中文漫画。",
+    description: "Utifa 的中文漫畫書庫，包含《七龍珠完全版》《魔導少年》等卷本作品；此入口不含同站小說與影音內容。",
     content_rating: "unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

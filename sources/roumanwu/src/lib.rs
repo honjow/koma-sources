@@ -38,7 +38,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
-    description: "肉漫屋的公開目錄與原站可讀章節。",
+    description: "肉漫屋收錄韓國漫畫，包含劇情、現代奇幻等分類，兼有連載與完結作品。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
