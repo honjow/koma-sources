@@ -34,6 +34,7 @@
     "webFetchBridge": true,
     "systemWebAgentOrigins": [
       "https://bakamh.com"
-    ]
+    ],
+    "webSessionReadySelector": "a[href*='/manga/'] img"
   }
 }

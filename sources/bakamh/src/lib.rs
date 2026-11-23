@@ -67,6 +67,82 @@ koma_source_sdk::koma_source_buffers! {
 }
 koma_source_sdk::koma_source_helpers!();
 
+// Temporary bounded diagnostics for the same canonical 403 response only.
+// Never emit provider text, URLs, headers, titles or credentials, and never infer
+// a source error/challenge from these markers. Remove after the Native capture.
+fn diagnostic_contains(bytes: &[u8], needle: &[u8]) -> bool {
+    bytes.windows(needle.len()).any(|part| part.eq_ignore_ascii_case(needle))
+}
+
+fn diagnostic_header(response: &[u8], name: &[u8]) -> Option<String> {
+    let headers = source_protocol::direct(response, b"headers").ok()??;
+    let values = source_protocol::direct(headers, name).ok()??;
+    if values.len() > 2048 { return None; }
+    let values: Vec<String> = serde_json::from_slice(values).ok()?;
+    if values.len() != 1 { return None; }
+    values.into_iter().next()
+}
+
+fn diagnostic_cf_managed(bytes: &[u8]) -> bool {
+    let Some(start) = bytes.windows(b"_cf_chl_opt".len()).position(|part| part.eq_ignore_ascii_case(b"_cf_chl_opt")) else { return false; };
+    let tail = &bytes[start..bytes.len().min(start + 8192)];
+    let Some(open) = tail.iter().position(|byte| *byte == b'{') else { return false; };
+    if open > 64 { return false; }
+    let tail = &tail[open + 1..];
+    let options = &tail[..tail.iter().position(|byte| *byte == b'}').unwrap_or(tail.len())];
+    for (start, key) in options.windows(5).enumerate() {
+        if !key.eq_ignore_ascii_case(b"ctype") ||
+            (start > 0 && (options[start - 1].is_ascii_alphanumeric() || options[start - 1] == b'_')) { continue; }
+        let mut value = &options[start + 5..];
+        if matches!(value.first(), Some(b'\'' | b'"')) { value = &value[1..]; }
+        value = value.trim_ascii_start();
+        if value.first() != Some(&b':') { continue; }
+        value = value[1..].trim_ascii_start();
+        let Some(quote @ (b'\'' | b'"')) = value.first().copied() else { continue; };
+        if value.len() >= 9 && value[1..8].eq_ignore_ascii_case(b"managed") && value[8] == quote { return true; }
+    }
+    false
+}
+
+fn log_document_response(response: &[u8]) {
+    let status = source_protocol::direct(response, b"status").ok().flatten()
+        .and_then(|raw| core::str::from_utf8(raw).ok())
+        .and_then(|raw| raw.parse::<u16>().ok());
+    if status != Some(403) { return; }
+    let content_type = diagnostic_header(response, b"content-type");
+    let mime = match content_type.as_deref().and_then(|value| value.split(';').next()).map(str::trim) {
+        Some(value) if value.eq_ignore_ascii_case("text/html") => "html",
+        Some(value) if value.eq_ignore_ascii_case("application/xhtml+xml") => "xhtml",
+        Some(value) if value.eq_ignore_ascii_case("application/json") => "json",
+        Some(value) if value.eq_ignore_ascii_case("text/plain") => "plain",
+        Some(_) => "other",
+        None => "missing_or_invalid",
+    };
+    let cf_mitigated = diagnostic_header(response, b"cf-mitigated")
+        .is_some_and(|value| value.trim().eq_ignore_ascii_case("challenge"));
+    let host_challenge = source_protocol::raw_string(response, b"accessSignal").ok().flatten()
+        == Some(b"challenge_required".as_slice());
+    // Decode without the success-status guard; the original error mapping below
+    // still consumes the untouched HTTP envelope. Existing buffers are distinct.
+    // Diagnostic decoding itself is capped at 64KiB, with no full-body allocation.
+    // The decoder has no partial-length result: on missing/invalid/capacity failure
+    // mark the body unknown; never scan unwritten bytes or claim a negative marker.
+    let (decode, bytes, head) = match source_protocol::text(response, b"bodyText", &mut body_buf()[..65536]) {
+        Ok(Some(body)) => ("ok", body.len() as i64, body),
+        Ok(None) => ("missing", -1, &[][..]),
+        Err(_) => ("unknown", -1, &[][..]),
+    };
+    let marker = |present| if decode != "ok" { "unknown" } else if present { "true" } else { "false" };
+    let cf_platform = diagnostic_contains(head, b"_cf_chl_opt") ||
+        diagnostic_contains(head, b"cf-chl-") || diagnostic_contains(head, b"challenge-platform/");
+    let wp = diagnostic_contains(head, b"wp-content/") || diagnostic_contains(head, b"wp-includes/");
+    let message = format!("BKDOC8 status=403 mime={} decode={} utf8_bytes={} scanned_bytes={} scan_truncated={} cf_mitigated={} host_challenge={} cf_managed={} cf_platform={} wp={} wp_die={} forbidden_text={} access_denied_text={}",
+        mime, decode, bytes, if bytes < 0 { -1 } else { head.len() as i64 }, decode != "ok", cf_mitigated, host_challenge,
+        marker(diagnostic_cf_managed(head)), marker(cf_platform), marker(wp), marker(diagnostic_contains(head, b"wp-die-message")),
+        marker(diagnostic_contains(head, b"403 forbidden")), marker(diagnostic_contains(head, b"access denied")));
+    koma_source_sdk::host::log_info(message.as_bytes());
+}
+
 fn get_document(url: &Url, request: &[u8]) -> Result<(Node, bool)> {
     let headers = json!({
         "Accept":DOCUMENT_ACCEPT,"Accept-Language":LANGUAGE,"Referer":format!("{BASE}/")
@@ -89,6 +165,7 @@ fn get_document(url: &Url, request: &[u8]) -> Result<(Node, bool)> {
         let bytes = serde_json::to_vec(&envelope).map_err(|_| "internal_error")?;
         let len = koma_source_sdk::host::http_request(&bytes, http_out())
             .map_err(|_| "network_error")?;
+        log_document_response(&http_out()[..len]);
         let len = source_protocol::body(&http_out()[..len], body_buf())?;
         String::from_utf8(body_buf()[..len].to_vec()).map_err(|_| "parse_error")?
     } else {
