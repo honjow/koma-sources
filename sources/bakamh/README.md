@@ -64,3 +64,7 @@ HTTP 必须成功，空正文、HTML/JSON 错误文档及没有图像签名/图�
 R3 在237完成自动CF后 Web POST 为200，同源 Native 图片 BodyRef 即使附已授权 Cookie/真实网页 UA 仍403。R4 仅在原三项 body 能力齐备、图片精确 origin 为 `https://bakamh.com`，且协商 `source_web_http_v1` 时，给同一个已编码的图片 GET/headers/BodyRef request 增加 `webFetch:{version:1}`。不新增站点 API 或能力 flag；非同源或没有 WebHTTP 能力时继续 R3 Native BodyRef，缺 body 能力时继续原 descriptor。
 
 公开请求头、实际章节 Referer、图片验证、分块预算、只读输入复制到 writable BodyRef 的所有权交接均保留，无额外失败重试，不输出 Cookie/UA，也不添加固定 UA 或 Sec-*。这是未公开1.6.1开发合同中的既有 WebHTTP 数据类型扩展候选；旧 ead42 不支持该组合，R4 不可提前交设备安装。须由主维护者配对支持 WebHTTP bodyBytes/bodyRef 的新HAP后普通路径验证，当前不宣称已消除403。原GET和R3候选及失败证据保持冻结。
+
+### 0.1.1 R5 canonical challenge 终止
+
+`series()` 将 canonical 文档的 `challenge_required` 与原有权限/限流/取消错误一样立即返回，保留实际失败及 Host 已观察的同一个 GET，不再落入 `/?p=<id>` 覆盖或混淆句柄。没有 canonical 路径及原有非终止解析/查找回退仍保持数字 ID 解析语义；成功响应、全部业务 ID、图片 R4 接线与预算均不变。此次不改 UA、metadata 或 renderedDocumentFallback，R4包保留冻结，R5仍须配套新宿主验收，不宣称站点403已解。

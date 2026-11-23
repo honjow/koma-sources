@@ -217,7 +217,9 @@ fn series(id: &str, route: Option<&str>, request: &[u8]) -> Result<Series> {
                     complete_document,
                 });
             }
-            Err(code @ ("auth_required" | "forbidden" | "rate_limit" | "cancelled")) => {
+            // Keep the canonical challenge and its Host-observed GET identity.
+            // Falling through to ?p= would replace it with a different request.
+            Err(code @ ("challenge_required" | "auth_required" | "forbidden" | "rate_limit" | "cancelled")) => {
                 return Err(code)
             }
             _ => {}
