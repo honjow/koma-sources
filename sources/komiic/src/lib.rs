@@ -11,6 +11,7 @@ mod browse;
 mod recommendations;
 mod session;
 mod comments;
+mod localization;
 koma_source_sdk::koma_source_comments_export!(comments::run);
 
 use koma_source_sdk::host::{http_request, log_info};
@@ -581,13 +582,22 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     run_popular_list("get_manga_list", req)
 }
 
-fn run_get_listings(_req: &[u8]) -> u32 {
+fn run_get_listings(req: &[u8]) -> u32 {
     let payload = payload_buf();
     let mut c = 0usize;
     if !write_bytes(payload, &mut c, r#"{"listings":[{"id":"popular","name":"熱門","kind":"popular","supportsPaging":true},{"id":"latest","name":"最近更新","kind":"latest","supportsPaging":true},{"id":"reader-recommended-week","name":"讀者推薦 · 本週","supportsFilters":false},{"id":"reader-recommended-month","name":"讀者推薦 · 本月","supportsFilters":false},{"id":"reader-recommended-year","name":"讀者推薦 · 年度","supportsFilters":false},{"id":"ai-recommended","name":"AI 推薦","supportsFilters":false}]}"#.as_bytes()) {
         return write_error("get_listings", "internal_error", "overflow");
     }
-    write_success_payload("get_listings", c)
+    write_ui_payload("get_listings", req, c)
+}
+
+// A missing/invalid optional translation must not discard an otherwise valid schema.
+fn write_ui_payload(operation: &str, request: &[u8], original_len: usize) -> u32 {
+    let len = match localization::render(operation, request, &payload_buf()[..original_len], body_buf()) {
+        Ok(len) => { payload_buf()[..len].copy_from_slice(&body_buf()[..len]); len },
+        Err(_) => original_len,
+    };
+    write_success_payload(operation, len)
 }
 
 // The popular listing is not an independent home feed.
@@ -1038,8 +1048,8 @@ koma_source_sdk::koma_source_authentication_exports!("komiic");
 
 #[no_mangle]
 pub extern "C" fn koma_source_get_settings(req_ptr: u32, req_len: u32) -> u32 {
-    if read_request(req_ptr, req_len).is_none() { return write_error("get_settings", "invalid_request", "empty"); }
+    let req = match read_request(req_ptr, req_len) { Some(req) => req, None => return write_error("get_settings", "invalid_request", "empty") };
     let p = "{\"settings\":[{\"id\":\"CHAPTER_FILTER\",\"name\":\"章節列表顯示\",\"kind\":\"select\",\"options\":[{\"value\":\"all\",\"label\":\"同時顯示卷和章節\"},{\"value\":\"chapter\",\"label\":\"僅顯示章節\"},{\"value\":\"book\",\"label\":\"僅顯示卷\"}],\"default\":\"all\"},{\"id\":\"preferredMirror\",\"name\":\"首選鏡像\",\"kind\":\"select\",\"options\":[{\"value\":\"https://komiic.com\",\"label\":\"komiic.com\"},{\"value\":\"https://komiic.cc\",\"label\":\"komiic.cc\"}],\"default\":\"https://komiic.com\"}]}".as_bytes();
     payload_buf()[..p.len()].copy_from_slice(p);
-    write_success_payload("get_settings", p.len())
+    write_ui_payload("get_settings", req, p.len())
 }

@@ -88,5 +88,5 @@ pub fn run_filters(req:&[u8])->u32 {
         if !(write_bytes(b,&mut n,br#"{"query":""#)&&append_json_escaped(b,&mut n,CATEGORIES)&&write_bytes(b,&mut n,br#"","variables":{}}"#)) {return super::write_error("get_filters","internal_error","filter request overflow")}
         match post_graphql(req,&b[..n]) {Ok(v)=>Some(v),Err(e)=>{let(c,m)=super::fetch_error_code(e);return super::write_error("get_filters",c,m)}}
     }else{None};
-    match schema(req,response){Ok(n)=>super::write_success_payload("get_filters",n),Err(())=>super::write_error("get_filters","source_error","filter data unavailable")}
+    match schema(req,response){Ok(n)=>super::write_ui_payload("get_filters",req,n),Err(())=>super::write_error("get_filters","source_error","filter data unavailable")}
 }
