@@ -158,6 +158,10 @@ fn get_document(url: &Url, request: &[u8]) -> Result<(Node, bool)> {
         if koma_source_sdk::host::check_cancel() {
             return Err("cancelled");
         }
+        // Web fetch is a subresource request, not upstream's DOCUMENT navigation.
+        // Its Sec-Fetch-* metadata belongs to the browser; change only this Accept.
+        let mut headers = headers;
+        headers["Accept"] = json!("*/*");
         let envelope = json!({
             "version":1,"method":"GET","url":url.as_str(),"headers":headers,
             "responseKind":"bodyText","timeoutMs":15000,"webFetch":{"version":1}

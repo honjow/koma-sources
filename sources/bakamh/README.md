@@ -96,3 +96,11 @@ R7配f2已证实际系统UA（customUaEqualsNative=true、verificationAndroid=fa
 固定上游8947c37的MadaraBase `supportsPostId` 默认为true，Madara/Bakamh未关闭；Bakamh `fetchMangaUpdate` 仅规范URL大小写后委托父实现。父实现先请求canonical，普通非成功且已有数字post ID时继续 `/?p=<id>`；目录保留数字ID及作品路径。R8以前将普通forbidden列为终止，错误阻止了这一既有入口。R9只把普通forbidden恢复到原数字resolver，不改变resolver的重定向/传输/请求头语义；没有canonical的数字入口与成功路径保持。
 
 `challenge_required` 继续保留实际canonical挑战因果，不落入数字回退；`auth_required`、`rate_limit`、`cancelled` 仍终止。全部作品/章节ID、metadata（含R7原生UA与R8授权就绪selector）、R6 Accept、图片/BodyRef及临时BKDOC8同响应诊断保持；没有新API或DOM fallback，不覆盖已交R8冻结包。受控WASM请求及保留官网原件回放只证明此回退合同与旧成功保持，数字入口今日是否可达仍待配套新HAP实测；取证完成后仍须移除临时诊断。
+
+### 0.1.1 R10 显式WebHTTP文档Accept适配单变量
+
+R9真实结果为canonical Web403，随后既有 `/?p=<id>` legacy retry/miss、Native403（body4547），源未通过。数字入口的legacy默认Accept与canonical显式WebHTTP不是同一对照，不能据此前者失败否定后者的单变量核验。
+
+固定上游BrowserHeaders把完整DOCUMENT Accept与 `Dest:document` / `Mode:navigate` 配套；XHR类使用 `Accept:*/*` / `Dest:empty`。实际Web fetch的请求元数据由浏览器控制，不能伪造导航Sec-*。R10仅在已协商 `source_web_http_v1` 的精确canonical文档WebHTTP分支将Accept设为 `*/*`；非Web/native/数字resolver仍保完整DOCUMENT Accept。其它公开头、原生UA、授权selector、BKDOC8诊断、普通403数字回退、全部ID/正文/图片/预算保持，无新API或DOM fallback。
+
+这是有待真实验证的传输适配假设，不认定它是403根因。候选可配原236539dff51c或父维护者的新只读观测HAP，保持其余行为变量不变；保留所有旧失败及冻结包，临时诊断在新取证后仍须移除。最小旧新实际WASM wire只核此Accept变化与原Native完整头保持，不扩大重跑业务。
