@@ -64,15 +64,33 @@ koma_source_sdk::koma_source_buffers! {
 }
 koma_source_sdk::koma_source_helpers!();
 
-fn get_document(url: &Url) -> Result<(Node, bool)> {
-    let html = port::request(
-        url.as_str(),
-        "GET",
-        json!({
-            "Accept":"text/html","Accept-Language":LANGUAGE,"Referer":format!("{BASE}/")
-        }),
-        None,
-    )?;
+fn get_document(url: &Url, request: &[u8]) -> Result<(Node, bool)> {
+    let headers = json!({
+        "Accept":"text/html","Accept-Language":LANGUAGE,"Referer":format!("{BASE}/")
+    });
+    // Only already canonical site documents enter Web HTTP. In particular,
+    // WordPress ?p=ID and noncanonical pasted URLs keep their redirect resolver:
+    // the negotiated text lane deliberately rejects even same-origin redirects.
+    let canonical = url.origin().ascii_serialization() == BASE
+        && url.path().starts_with("/manga/")
+        && url.path().ends_with('/')
+        && url.query_pairs().all(|(key, value)| key == "style" && value == "list");
+    let html = if canonical && source_protocol::feature(request, b"source_web_http_v1") {
+        if koma_source_sdk::host::check_cancel() {
+            return Err("cancelled");
+        }
+        let envelope = json!({
+            "version":1,"method":"GET","url":url.as_str(),"headers":headers,
+            "responseKind":"bodyText","timeoutMs":15000,"webFetch":{"version":1}
+        });
+        let bytes = serde_json::to_vec(&envelope).map_err(|_| "internal_error")?;
+        let len = koma_source_sdk::host::http_request(&bytes, http_out())
+            .map_err(|_| "network_error")?;
+        let len = source_protocol::body(&http_out()[..len], body_buf())?;
+        String::from_utf8(body_buf()[..len].to_vec()).map_err(|_| "parse_error")?
+    } else {
+        port::request(url.as_str(), "GET", headers, None)?
+    };
     // A repaired DOM alone cannot establish that a complete MangaPage arrived.
     // Require the document tail before granting the verified flat catalogue.
     let lower = html.to_ascii_lowercase();
@@ -81,8 +99,8 @@ fn get_document(url: &Url) -> Result<(Node, bool)> {
     Ok((Node::parse(&html)?, complete))
 }
 
-fn get(url: &Url) -> Result<Node> {
-    get_document(url).map(|(document, _)| document)
+fn get(url: &Url, request: &[u8]) -> Result<Node> {
+    get_document(url, request).map(|(document, _)| document)
 }
 
 fn post(mut form: filters::Form, referer: &str) -> Result<String> {
@@ -187,10 +205,10 @@ fn work_id(args: &Value) -> Result<&str> {
         .ok_or("invalid_request")
 }
 
-fn series(id: &str, route: Option<&str>) -> Result<Series> {
+fn series(id: &str, route: Option<&str>, request: &[u8]) -> Result<Series> {
     if let Some(path) = route.and_then(manga_path) {
         let url = port::absolute(BASE, &path)?;
-        match get_document(&url) {
+        match get_document(&url, request) {
             Ok((doc, complete_document)) if doc.one(DETAILS_TITLE).is_some() && post_id(&doc).as_deref() == Some(id) => {
                 return Ok(Series {
                     id: id.to_string(),
@@ -206,7 +224,7 @@ fn series(id: &str, route: Option<&str>) -> Result<Series> {
         }
     }
     let url = port::absolute(BASE, &format!("/?p={id}"))?;
-    let (doc, complete_document) = get_document(&url)?;
+    let (doc, complete_document) = get_document(&url, request)?;
     doc.require(DETAILS_TITLE)?;
     if post_id(&doc).is_some_and(|reported| reported != id) {
         return Err("not_found");
@@ -219,13 +237,13 @@ fn series(id: &str, route: Option<&str>) -> Result<Series> {
     })
 }
 
-fn series_for_url(url: Url) -> Result<Series> {
+fn series_for_url(url: Url, request: &[u8]) -> Result<Series> {
     if url.host_str() != Some("bakamh.com") {
         return Err("not_found");
     }
-    let (doc, complete_document) = get_document(&url)?;
+    let (doc, complete_document) = get_document(&url, request)?;
     if doc.one("body.reading-manga").is_some() {
-        return series(&post_id(&doc).ok_or("not_found")?, None);
+        return series(&post_id(&doc).ok_or("not_found")?, None, request);
     }
     doc.require(DETAILS_TITLE)?;
     let id = post_id(&doc)
@@ -275,16 +293,29 @@ fn image_from(node: &Node, base: &Url) -> Option<Url> {
     port::absolute(base.as_str(), &node.attr("src").ok()?).ok()
 }
 
-fn manga_item(id: &str, title: &str, cover: Option<Url>, link: &Url) -> Value {
+fn image_body_supported(request: &[u8]) -> bool {
+    [b"source_http_body_v1".as_slice(), b"source_image_body_v1", b"source_body_v1"]
+        .iter().all(|feature| source_protocol::feature(request, feature))
+}
+
+fn manga_item(id: &str, title: &str, cover: Option<Url>, link: &Url, request: &[u8]) -> Value {
     let cover = cover.map_or_else(
         || json!({"kind":"none"}),
-        |image| json!({"kind":"url","url":image.as_str(),"headers":{"Referer":format!("{BASE}/")}}),
+        |image| {
+            if image.scheme() == "https" && image_body_supported(request) {
+                // A granted image needs the source resolver, not the public-cover
+                // shortcut that sends only static headers through NetworkKit.
+                json!({"kind":"url","url":image.as_str()})
+            } else {
+                json!({"kind":"url","url":image.as_str(),"headers":{"Referer":format!("{BASE}/")}})
+            }
+        },
     );
     json!({"id":format!("manga:{id}"),"title":title,"cover":cover,
         "url":link.as_str(),"links":[{"kind":"source","url":link.as_str()}]})
 }
 
-fn parse_archive(html: &str) -> Result<Vec<Value>> {
+fn parse_archive(html: &str, request: &[u8]) -> Result<Vec<Value>> {
     let html = html.trim();
     if html.is_empty() {
         return Ok(Vec::new());
@@ -317,6 +348,7 @@ fn parse_archive(html: &str) -> Result<Vec<Value>> {
                 &link.text()?,
                 card.one("img").and_then(|img| image_from(&img, &base)),
                 &url,
+                request,
             ));
         }
     }
@@ -332,8 +364,8 @@ fn browse(args: &Value, request: &[u8], search: bool) -> Result<Value> {
         let query = args["query"].as_str().unwrap_or("");
         if let Ok(url) = Url::parse(query.trim()) {
             if matches!(url.scheme(), "https" | "http") {
-                let series = series_for_url(url)?;
-                return Ok(port::items(vec![details(&series, false)?], None));
+                let series = series_for_url(url, request)?;
+                return Ok(port::items(vec![details(&series, false, request)?], None));
             }
         }
     }
@@ -351,7 +383,7 @@ fn browse(args: &Value, request: &[u8], search: bool) -> Result<Value> {
             _ => return Err("invalid_request"),
         }
     }
-    let rows = parse_archive(&post(form, &format!("{BASE}/"))?)?;
+    let rows = parse_archive(&post(form, &format!("{BASE}/"))?, request)?;
     let next = if rows.len() == PAGE_SIZE {
         page.checked_add(1)
     } else {
@@ -543,7 +575,7 @@ fn status(doc: &Node) -> Result<&'static str> {
     Ok("unknown")
 }
 
-fn details(series: &Series, related: bool) -> Result<Value> {
+fn details(series: &Series, related: bool, request: &[u8]) -> Result<Value> {
     let doc = &series.doc;
     let url = series.link()?;
     let title = doc.require(DETAILS_TITLE)?.text()?;
@@ -553,7 +585,7 @@ fn details(series: &Series, related: bool) -> Result<Value> {
     let cover = doc
         .one("div.summary_image img")
         .and_then(|node| image_from(&node, &url));
-    let mut work = manga_item(&series.id, &title, cover, &url);
+    let mut work = manga_item(&series.id, &title, cover, &url, request);
     let authors: Vec<_> = text_list(doc, "div.author-content > a, div.manga-authors > a")?
         .into_iter()
         .filter(|value| !value.is_empty() && !updating(value))
@@ -604,14 +636,14 @@ fn details(series: &Series, related: bool) -> Result<Value> {
     work["description"] = json!(description);
     if related && !genres.is_empty() {
         // Related works are optional in the Koma detail contract.
-        if let Ok(items) = related_manga(&series.id, genres, &url) {
+        if let Ok(items) = related_manga(&series.id, genres, &url, request) {
             work["relatedManga"] = json!(items);
         }
     }
     Ok(work)
 }
 
-fn related_manga(id: &str, genres: Vec<(String, String)>, referer: &Url) -> Result<Vec<Value>> {
+fn related_manga(id: &str, genres: Vec<(String, String)>, referer: &Url, request: &[u8]) -> Result<Vec<Value>> {
     let specific = genres
         .iter()
         .filter(|(slug, _)| {
@@ -635,7 +667,7 @@ fn related_manga(id: &str, genres: Vec<(String, String)>, referer: &Url) -> Resu
         0,
         preferred.into_iter().take(3).map(|(slug, _)| slug.as_str()),
     );
-    parse_archive(&post(form, referer.as_str())?)
+    parse_archive(&post(form, referer.as_str())?, request)
 }
 
 // The real 5929 MangaPage and its referenced template.js bind btn-read-first
@@ -668,7 +700,7 @@ fn run_get_chapters(request: &[u8]) -> ChapterResult<'static, &'static str> {
     let input = port::input(request)?;
     let id = work_id(&input["args"])?;
     let owner = format!("manga:{id}");
-    let series = series(id, input["args"]["mangaUrl"].as_str())?;
+    let series = series(id, input["args"]["mangaUrl"].as_str(), request)?;
     let url = series.link()?;
     let items = series.doc.all("ul.version-chap > li")?;
     let mut verified = verified_flat_catalogue(&series, items.len())?;
@@ -751,13 +783,13 @@ fn dispatch(operation: &str, request: &[u8]) -> Result<Value> {
         "search" => browse(args, request, true),
         "get_filters" => filters::schema(args, request),
         "get_manga" => {
-            let series = series(work_id(args)?, args["mangaUrl"].as_str())?;
+            let series = series(work_id(args)?, args["mangaUrl"].as_str(), request)?;
             view_count(&series.doc, &series.link()?);
             Ok(
-                json!({"manga":details(&series, source_protocol::feature(request,b"source_related_manga_v1"))?}),
+                json!({"manga":details(&series, source_protocol::feature(request,b"source_related_manga_v1"), request)?}),
             )
         }
-        "get_image_request" => reader::image_request(args),
+        "get_image_request" => reader::image_request(args, request),
         _ => Err("not_implemented"),
     }
 }
@@ -778,7 +810,7 @@ fn run_get_manga(r: &[u8]) -> u32 {
 fn run_get_pages(r: &[u8]) -> u32 {
     let result = port::input(r)
         .map_err(reader::PageError::from)
-        .and_then(|input| reader::pages(&input["args"]));
+        .and_then(|input| reader::pages(&input["args"], r));
     match result {
         Ok(payload) => port::write_result("get_pages", Ok(payload)),
         Err(error) => match error.message.as_deref() {

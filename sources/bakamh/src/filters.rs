@@ -59,7 +59,7 @@ pub(crate) fn schema(args: &Value, request: &[u8]) -> Result<Value> {
             json!({"type":"multiselect","scope":"search","id":"genres","name":"题材","default":[]});
         if args["fetchFilterData"] == true {
             let url = port::absolute(BASE, "/manga/")?;
-            let doc = get(&url)?;
+            let doc = get(&url, request)?;
             let options = genre_links(&doc, "div.genres a[href*='/manga-genre/']", &url)?
                 .into_iter()
                 .map(|(slug, name)| json!({"value":slug,"label":name}))

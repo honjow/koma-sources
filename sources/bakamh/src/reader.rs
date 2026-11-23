@@ -3,6 +3,11 @@ use aes::cipher::{block_padding::Pkcs7, BlockDecryptMut, KeyIvInit};
 use alloc::{format, string::String, vec::Vec};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use md5::{Digest, Md5};
+use koma_source_sdk::{
+    body::BodyRef,
+    http::{CallError, Client, Header, RequestSpec, RequireSuccess, ResponseKind},
+    runtime::Context,
+};
 use serde_json::{json, Value};
 use url::Url;
 
@@ -10,7 +15,7 @@ use crate::{
     get, image_from, manga_path, numeric_id, path_segment, port, view_count, Node, Result, BASE,
 };
 
-fn chapter_route(args: &Value) -> Result<Url> {
+fn chapter_route(args: &Value, request: &[u8]) -> Result<Url> {
     let chapter = args["chapterId"]
         .as_str()
         .and_then(|id| id.strip_prefix("chapter:"))
@@ -28,7 +33,7 @@ fn chapter_route(args: &Value) -> Result<Url> {
         .as_str()
         .and_then(manga_path)
         .map(Ok)
-        .unwrap_or_else(|| crate::series(work_id, None)?.canonical_path())?;
+        .unwrap_or_else(|| crate::series(work_id, None, request)?.canonical_path())?;
     port::absolute(BASE, &format!("{path}{slug}/"))
 }
 
@@ -106,12 +111,12 @@ impl From<&'static str> for PageError {
     }
 }
 
-pub(crate) fn pages(args: &Value) -> core::result::Result<Value, PageError> {
-    let mut url = chapter_route(args)?;
-    let mut doc = get(&url)?;
+pub(crate) fn pages(args: &Value, request: &[u8]) -> core::result::Result<Value, PageError> {
+    let mut url = chapter_route(args, request)?;
+    let mut doc = get(&url, request)?;
     if doc.one("#single-pager").is_some() {
         url.query_pairs_mut().append_pair("style", "list");
-        doc = get(&url)?;
+        doc = get(&url, request)?;
     }
     view_count(&doc, &url);
     if let Some(lock) = doc.one(".mkjp-ea-lock__title") {
@@ -176,7 +181,7 @@ pub(crate) fn pages(args: &Value) -> core::result::Result<Value, PageError> {
     Ok(json!({"pages":pages}))
 }
 
-pub(crate) fn image_request(args: &Value) -> Result<Value> {
+pub(crate) fn image_request(args: &Value, request: &[u8]) -> Result<Value> {
     let page_id = args["pageId"].as_str().ok_or("invalid_request")?;
     let image = Url::parse(args["url"].as_str().ok_or("invalid_request")?)
         .map_err(|_| "invalid_request")?;
@@ -197,5 +202,99 @@ pub(crate) fn image_request(args: &Value) -> Result<Value> {
     } else {
         port::absolute(BASE, "/")?
     };
+    if image.scheme() == "https" && crate::image_body_supported(request) {
+        return image_body(&image, &referer, request);
+    }
+    // No negotiated body channel: preserve the original descriptor byte shape.
     Ok(json!({"url":image.as_str(),"headers":{"Referer":referer.as_str()}}))
+}
+
+// Public Fetch.IMAGE headers from pinned upstream BrowserHeaders/Bakamh. The
+// host owns the granted origin's UA/Cookie; no UA, Cookie or Sec-* is forged.
+const IMAGE_ACCEPT: &[u8] = b"image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8";
+
+fn image_prefix(bytes: &[u8]) -> bool {
+    bytes.starts_with(b"\x89PNG\r\n\x1a\n")
+        || bytes.starts_with(b"\xff\xd8\xff")
+        || bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a")
+        || (bytes.starts_with(b"RIFF") && bytes.get(8..12) == Some(b"WEBP"))
+        || bytes.starts_with(b"BM") || bytes.starts_with(b"II*\0") || bytes.starts_with(b"MM\0*")
+        || bytes.starts_with(b"\0\0\x01\0") || bytes.starts_with(b"\0\0\x02\0")
+        || bytes.starts_with(b"\xff\x0a") || bytes.starts_with(b"\0\0\0\x0cJXL \r\n\x87\n")
+        || (bytes.get(4..8) == Some(b"ftyp") && bytes.get(8..).is_some_and(|brands|
+            brands.chunks_exact(4).take(15).any(|brand|
+                matches!(brand, b"avif" | b"avis" | b"heic" | b"heix" | b"hevc" | b"hevx" | b"mif1" | b"msf1"))))
+}
+
+fn image_body(image: &Url, referer: &Url, request: &[u8]) -> Result<Value> {
+    let context = Context::from_request(request);
+    if context.cancelled() { return Err("cancelled"); }
+    let headers = [
+        Header { name: b"Referer", value: referer.as_str().as_bytes() },
+        Header { name: b"Accept", value: IMAGE_ACCEPT },
+        Header { name: b"Accept-Language", value: crate::LANGUAGE.as_bytes() },
+    ];
+    let mut spec = RequestSpec::get(image.as_str().as_bytes());
+    spec.headers = &headers;
+    spec.response = ResponseKind::BodyRef;
+    // BrowserGrant is the SDK default: the ordinary Host HTTP path attaches
+    // only the already-authorized exact-origin session, including on redirects.
+    spec.response_headers = context.supports(b"source_http_headers_v1");
+    let encoded = spec.encode(crate::http_req_buf())?;
+    let response = Client::<CallError>::new(&[&RequireSuccess])
+        .send(encoded, crate::http_out()).map_err(|error| match error {
+            CallError::Rejected(code) => code,
+            _ => "network_error",
+        })?;
+    if !response.status().is_some_and(|status| (200..300).contains(&status)) {
+        return Err("invalid_response");
+    }
+    let mime = response.header_values_json(b"content-type")?
+        .map(serde_json::from_slice::<Vec<String>>).transpose().map_err(|_| "invalid_response")?
+        .and_then(|values| values.into_iter().next())
+        .map(|value| value.split(';').next().unwrap_or("").trim().to_ascii_lowercase());
+    let input = response.body_ref()?;
+    // Own the reference before any read/write reuses http_out; Response borrows it.
+    drop(response);
+    let copied = (|| -> Result<BodyRef> {
+        if input.is_empty() { return Err("body_empty_image"); }
+        if context.limit(b"body", b"maxBytes").is_some_and(|max| input.len() > max) {
+            return Err("body_limit_exceeded");
+        }
+        let chunk_limit = context.limit(b"body", b"chunkBytes")
+            .unwrap_or(koma_source_sdk::body::CHUNK_BYTES)
+            .min(koma_source_sdk::body::CHUNK_BYTES);
+        if chunk_limit == 0 { return Err("body_limit_exceeded"); }
+        let mut output = BodyRef::create()?;
+        let result = (|| -> Result<()> {
+            let mut offset = 0;
+            while offset < input.len() {
+                if context.cancelled() { return Err("cancelled"); }
+                let chunk = &mut crate::body_buf()[..chunk_limit.min(input.len() - offset)];
+                let length = input.read(offset, chunk, crate::http_out())?;
+                if length == 0 || length > chunk.len() { return Err("invalid_response"); }
+                if offset == 0 {
+                    let prefix = String::from_utf8_lossy(&chunk[..length.min(512)]).to_ascii_lowercase();
+                    let error_document = prefix.contains("<html") || prefix.contains("<!doctype html")
+                        || prefix.trim_start().starts_with('{') || prefix.trim_start().starts_with('[');
+                    let declared_image = mime.as_deref().is_some_and(|mime| mime.starts_with("image/"));
+                    if !image_prefix(&chunk[..length]) && (!declared_image || error_document) {
+                        return Err("parse_error");
+                    }
+                }
+                // HTTP body references are read-only. Copy bounded chunks to a
+                // new writable reference before transferring ownership as image.
+                output.write(offset, &chunk[..length], crate::http_out())?;
+                offset += length;
+            }
+            Ok(())
+        })();
+        if let Err(code) = result { let _ = output.close(); return Err(code); }
+        Ok(output)
+    })();
+    let closed = input.close();
+    let output = copied?;
+    if let Err(code) = closed { let _ = output.close(); return Err(code); }
+    let length = output.image_result(crate::scratch_a())?;
+    serde_json::from_slice(&crate::scratch_a()[..length]).map_err(|_| "internal_error")
 }

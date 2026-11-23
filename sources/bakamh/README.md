@@ -46,3 +46,15 @@ Native通过。今日普通POST仍实际403，Edge目录访问仍是Cloudflare�
 最终候选须在通用WebHTTP bridge的新1.6.1宿主，用普通POST/搜索/筛选/分页/详情/目录、
 实际正文图片和下载验收后交付。多分区和未取得的权限反例继续按实物核验，不以全部手动
 或受控样本冒充整源完成。保留全部既有表单、选项、日期、图像Referer和阅读还原实现。
+
+### 0.1.1 canonical 文档 GET
+
+237 普通路径已验证同源授权后的热门 POST 及“健身”重复搜索200；旧文档 GET bridge 重试未命中后由带 Cookie/网页 UA 的 Native 返回403，封面直取也返回403，详情、完整目录、正文及下载尚未验收。前段 Mac 与归档记录保留各自的历史边界。
+
+`get_document` 仅在协商 `source_web_http_v1` 后，为精确本站 HTTPS origin 下已有规范 `/manga/.../` 文档显式加入 `webFetch:{version:1}`，支持既有阅读 `style=list`。保留原 Accept、Accept-Language、同源 Referer、超时和解析。无能力、WordPress `/?p=<id>`、缺少末尾斜杠或其它需解析地址仍沿原请求与重定向路径。该选择不改变作品/章节/页身份、筛选、权限、章序或图标，不增加请求。图片 `get_image_request` 继续保留原 Referer；此处不新增图片传输或凭据字段。新版实际目录、图片与下载可用性仍由普通宿主路径验收。
+
+### 0.1.1 已有 BodyRef 图片候选（待普通宿主验收）
+
+图片仅在 `source_http_body_v1`、`source_image_body_v1`、`source_body_v1` 三项均存在时走源内 `get_image_request`：原 URL、章 ID 校验和实际章节 Referer 保留；使用上游公开图片 Accept 与中文 Accept-Language，普通 Host HTTP 默认 BrowserGrant 按精确原点附已有授权 Cookie/UA，不读取或输出凭据，不添加固定 UA、Sec-* 或新 Web 二进制接口。HTTPS 封面在同样协商下省略公开 `cover.headers`，由现有图片 resolver 取得 body，避免静态封面捷径绕过会话；缺能力或旧 HTTP 图片保持原 descriptor。
+
+HTTP 必须成功，空正文、HTML/JSON 错误文档及没有图像签名/图像内容类型的响应拒绝。按宿主 chunk/maxBytes 预算将只读 HTTP BodyRef 分块复制到新 writable BodyRef，再经 SDK `image_result` 交现有阅读/封面/下载缓存；失败关闭本次引用，取消停止复制，不在403后暗中改传输重试。此包仍待237实测，Native 带会话的文档403不作为图片必定失败或成功的结论。GET-only候选另存，不覆盖。
