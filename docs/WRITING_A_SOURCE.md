@@ -286,6 +286,24 @@ You build response JSON in `payload_buf()` using `write_bytes` and `append_json_
 }
 ```
 
+### 可选列表补充信息 listInfo
+
+每个列表 item 可在协商 `source_manga_list_info_v1` 后带有序 `listInfo`，最多3项：
+`{"type":"text","text":"第123话","label":"更新"}`（label可省）或
+`{"type":"tags","items":["冒险","奇幻"]}`。均为纯文本，不传HTML或宿主样式。
+SDK公开 `list_info::ListInfo` 和 `list_info::append(dst, cursor, request, entries)`；
+在当前 item 的闭合花括号前调用。无 feature 时不写字段；协商后显式传空 entries
+写 `listInfo:[]`，表示源主动关闭旧字段摘要；不调用helper才表示缺省fallback。
+UTF-8按编码字节限制：text512、可选label96、tags1至8条且每tag96。
+空白项、无效UTF-8、超限和容量错误拒绝整段optional；helper预检后原子追加，
+Err不改已有buffer或cursor，调用方应省略增强并保留原item，而非丢弃正常列表。
+原JSONv1及ID/封面/顺序/设置/旧字段保持；只复用当前列表已取到的资料，不增加HTTP。
+显示标签和源文本由源按请求既有locale负责，不另造本地化机制。
+宿主对坏optional可容错忽略；不得把它当整个列表无效。可选增强不提高最低App，
+发布必须有新的源patch；复用真实列表原件核新实际WASM和无feature旧输出。
+缺省摘要复用subtitle、作者/已知状态及明确的内容tags；旧sourceTags可能只是来源标记，
+不得默认当题材展示。需要其它内容或顺序时由源返回listInfo；显式空数组关闭自动摘要。
+
 ### get_manga
 
 ```json
