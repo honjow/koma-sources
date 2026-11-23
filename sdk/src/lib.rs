@@ -6,6 +6,7 @@ pub mod list_info;
 pub mod http;
 pub mod body;
 pub mod runtime;
+pub mod localization;
 pub mod session;
 mod wire;
 

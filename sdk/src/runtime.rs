@@ -22,6 +22,14 @@ impl<'a> Context<'a> {
             .parse()
             .ok()
     }
+    /// A validated call snapshot, never the operating system or content language.
+    /// Older hosts (or malformed/unknown environments) deliberately return None.
+    pub fn environment(&self) -> Option<crate::localization::Environment> {
+        if !self.supports(b"source_localization_v1") {
+            return None;
+        }
+        crate::localization::Environment::from_request(self.request)
+    }
     pub fn cancelled(&self) -> bool {
         host::check_cancel()
     }

@@ -62,3 +62,47 @@ writer仅在`Some`时输出并使用原有JSON字符串转义；默认不输出�
 原JSON保持不变。URL不参与业务ID、分组、阅读位置、权限或网络授权，不是新
 宿主能力，不增加hostFeatures或最低宿主版本。雀魂等已有URL的源显式传入原值，
 无需为typed目录迁移删除字段。`items`/`chapters`兼容包装仍由既有App消费链处理。
+
+## 书源文案与调用语言环境
+
+`localization::Catalog` 不需要 `alloc`。采用同一 `metadata.json` 的
+`localization: {version:1, defaultLocale:"zh-Hant", messages:{key:{locale:text}}}`；
+`source.name`、`source.description`、`authentication.usernameLabel` 和
+`authentication.passwordLabel` 是静态显示 key，其他 key 仅由源显式接入已有显示字段。
+
+```rust,ignore
+use koma_source_sdk::{localization::Catalog, runtime::Context};
+let catalog = Catalog::from_metadata(include_bytes!("../metadata.json"))?;
+let context = Context::from_request(request);
+let mut buffer = [0u8; 256];
+let label: &str = catalog.text(&context, "settings.quality.name", "Image quality", &mut buffer)?;
+// 以 label.as_bytes() 交给原 JSON 转义写出器；字段仍是普通字符串。
+```
+
+`Context::environment() -> Option<localization::Environment>` 同时核对
+`source_localization_v1`、顶层 `environment.version == 1`、合法 `uiLocale` 及
+`localeFallbacks`。环境仅限当前请求快照；不猜系统语言、内容语言、UA 或 Accept-Language。
+语言标签使用旧名称字段的 ASCII 子集及 63 字符上限；语言项原始数量先限 16，再规范化去重。
+环境回退链须与 `uiLocale` 的精确→脚本/地区→语言链相符，不能混入另一个语言或脚本。
+中文 HK/TW/MO 推 Hant、CN/SG 推 Hans，显式脚本优先。
+
+`Catalog::from_metadata(&[u8]) -> Result<Catalog<'_>, localization::Error>` 借用输入；
+`text<'o>(&self, &Context, key:&str, literal:&str, out:&'o mut[u8]) -> Result<&'o str, Error>`
+返回调用方缓冲内的完整 UTF-8。已知语言先查其候选，再查目录的明确 defaultLocale 候选，最后
+退该字段 literal；无环境仍走 defaultLocale→literal。目录缺失/未知版本不改变旧源。
+坏的可选译文跳过；同一 key 超过 16 个原始 locale 项或有大小写别名重复时，该 key 不启用。
+名称和认证标签沿原 128 UTF-16 单元、非空、首尾无空白及单行限制；描述保留有效换行和制表符。
+其他显示字段仍由源调用方容量和原宿主字段预算约束。
+
+`format<'o>(&self, &Context, key, literal, args:&[Argument<'_>], template:&mut[u8], out:&'o mut[u8])`
+同样返回 `Result<&'o str, Error>`。`Argument {name, value: Value::Text/Unsigned/Signed}`
+仅替换 `{name}`，`{{`/`}}` 表示字面大括号；缺参数/重复参数/坏模板明确失败。
+模板及结果都由调用方提供缓冲，最终容量不足不会产出半个 UTF-8 字符。文本参数仍须通过原 JSON
+转义写出；模板不执行 HTML/代码，也不翻译 ID、枚举值、游标、URL、认证声明或网站正文。
+
+打包从同目录生成可选 `presentation:{version:1,defaultLocale?,texts:{role:{locale:text}}}`，
+仅投影上述静态角色；认证显示角色只用于已有 credentials descriptor，不能创建认证权限。
+同一 name 资源同时生成旧 `localizedNames`，旧映射保严格校验，冲突打包失败。
+仅旧 `localizedNames` 适配 name 资源，不假造默认语言。规范 SourceInfo/name/description 及认证对象
+均保持旧值，零参 source_info 和 ZIP 的 manifest/WASM/icon 三类成员不变。可选增强不提高最低宿主版本；
+未采用 Catalog 的旧源不会批量改写。
