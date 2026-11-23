@@ -498,7 +498,7 @@ build_source() {
     --arg minAppVersion "$min_app_version" \
     --argjson sourceMetadata "$source_metadata" \
     --argjson distribution "$distribution" \
-    '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, pkg: $pkg, sha256: $sha256, icon: $icon, minAppVersion: $minAppVersion} + ($sourceMetadata | {homepage, localizedNames, presentation} | with_entries(select(.value != null))) + $distribution'
+    '{id: $id, name: $name, version: $version, lang: $lang, nsfw: $nsfw, author: $author, description: $description, contentRating: $contentRating, pkg: $pkg, sha256: $sha256, icon: $icon, minAppVersion: $minAppVersion} + ($sourceMetadata | del(.mihonImport, .comments)) + $distribution'
 }
 
 validate_index_packages() {
