@@ -66,7 +66,7 @@ eighteenmanhua|eighteenmanhua|true|1.4.1
 creativecomic|creativecomic|false|1.5.5
 kanman|kanman|false|1.4.1
 tibiucomics|tibiucomics|true|1.4.1
-bookwalkertw|bookwalkertw|false|1.5.5
+bookwalkertw|bookwalkertw|false|1.5.6
 toptoon|toptoon|false|1.4.1
 vomic|vomic|false|1.4.1
 boylove|boylove|true|1.5.5
