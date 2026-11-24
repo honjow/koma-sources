@@ -70,5 +70,11 @@
         "en": "JM’s tagged comics and episodic galleries. Anonymous public reading; account favorites and check-ins remain on the website."
       }
     }
+  },
+  "comments": {
+    "version": 1,
+    "scopes": [
+      "manga"
+    ]
   }
 }

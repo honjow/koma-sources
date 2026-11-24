@@ -144,7 +144,7 @@ webtoons|webtoons|false|0.1.0
 lol-zh|lol-zh|false|0.1.1
 honorofkings-zh|honorofkings-zh|false|0.1.1
 pgr-zh|pgr-zh|false|0.1.1
-picacomic|picacomic|true|1.4.1
+picacomic|picacomic|true|1.6.1
 copymanga|copymanga|true|1.4.1
 wnacg|wnacg|true|1.4.1
 hentaiclub|hentaiclub|true|1.4.1

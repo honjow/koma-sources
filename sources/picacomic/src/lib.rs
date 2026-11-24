@@ -1,5 +1,7 @@
 #![no_std]
 extern crate alloc;
+mod comments;
+koma_source_sdk::koma_source_comments_export!(comments::run);
 // Independent complete reference port: Keiyoushi de743aed846da53e00c45ab26ee0e77f7bb4355b, Picacomic v14, Apache2.
 use alloc::{
     format,
@@ -763,6 +765,7 @@ fn dispatch(op: &str, r: &[u8]) -> R<Value> {
             json!({"listings":[{"id":"random","name":"最新","supportsPaging":true},{"id":"popular","name":"热门","supportsPaging":true}]}),
         ),
         "get_filters" => Ok(filters()),
+        "get_comments" => comments::get(r, &v),
         "get_settings" => Ok(settings()),
         "get_authentication" => authentication::status(r),
         "authenticate" => authentication::authenticate(r, &v),

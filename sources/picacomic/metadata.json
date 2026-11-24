@@ -52,5 +52,11 @@
         "en": "Picacomic’s episodic comics, organized by categories, tags and popularity. An account is required for browsing and reading."
       }
     }
+  },
+  "comments": {
+    "version": 1,
+    "scopes": [
+      "manga"
+    ]
   }
 }

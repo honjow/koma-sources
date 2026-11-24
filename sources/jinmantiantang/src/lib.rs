@@ -1,5 +1,7 @@
 #![no_std]
 extern crate alloc;
+mod comments;
+koma_source_sdk::koma_source_comments_export!(comments::run);
 // Independent Rust port of the complete Keiyoushi Jinmantiantang source,
 // Apache-2.0, de743aed846da53e00c45ab26ee0e77f7bb4355b (extension v64).
 // This is the real JM API source, NOT the historical hanman18 source.
@@ -1029,6 +1031,7 @@ fn dispatch(op: &str, r: &[u8]) -> R<Value> {
             Ok(out)
         }
         "get_home" => Err("not_implemented".into()),
+        "get_comments" => comments::get(r, &input),
         _ => {
             match op {
                 "get_manga" | "get_chapters" => {
