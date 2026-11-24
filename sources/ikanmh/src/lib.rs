@@ -472,3 +472,6 @@ fn run_get_image_request(r: &[u8]) -> u32 {
     run("get_image_request", r)
 }
 koma_source_sdk::koma_source_exports!("ikanmh", typed_chapters, write_chapter_failure);
+
+mod comments;
+koma_source_sdk::koma_source_comments_export!(comments::run);

@@ -1,4 +1,5 @@
 {
+  "comments": {"version": 1, "scopes": ["manga"]},
  "homepage":"https://www.manben.com",
  "localizedNames":{"zh-Hans":"漫本","zh-Hant":"漫本","en":"Manben"},
   "localization": {

@@ -20,6 +20,9 @@ mod javascript_packer;
 mod port_support;
 use port_support::{self as port, Node, Result};
 
+mod comments;
+koma_source_sdk::koma_source_comments_export!(comments::run);
+
 const BASE: &str = "https://www.manben.com";
 const SORT: &[(&str, &str)] = &[("", "跟随栏目"), ("4", "热门人气"), ("2", "更新时间")];
 const STATUS: &[(&str, &str)] = &[("", "全部"), ("1", "连载"), ("2", "完结")];

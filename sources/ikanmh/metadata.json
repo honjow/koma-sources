@@ -2,6 +2,7 @@
   "homepage": "https://ikanmh.xyz",
   "localizedNames": { "zh-Hans": "漫小肆韩漫", "zh-Hant": "漫小肆韓漫", "en": "Ikanmh" },
   "chapterOrder": "newest_first",
+  "comments": { "version": 1, "scopes": ["manga"] },
   "identity": {
     "mihon": {
       "sourceIds": ["8826152585666516354"],
