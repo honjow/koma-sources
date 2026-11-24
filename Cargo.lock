@@ -1424,7 +1424,7 @@ dependencies = [
 
 [[package]]
 name = "koma_digimonweb_zh_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1441,7 +1441,7 @@ dependencies = [
 
 [[package]]
 name = "koma_dogemanga_source"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1465,7 +1465,7 @@ dependencies = [
 
 [[package]]
 name = "koma_dumanwu_source"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "base64 0.22.1",
  "dlmalloc",
@@ -1831,7 +1831,7 @@ dependencies = [
 
 [[package]]
 name = "koma_manben_source"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1954,7 +1954,7 @@ dependencies = [
 
 [[package]]
 name = "koma_manwamanhua_source"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1985,7 +1985,7 @@ dependencies = [
 
 [[package]]
 name = "koma_mikagogo_source"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -2112,7 +2112,7 @@ dependencies = [
 
 [[package]]
 name = "koma_relamanhua_source"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -2143,7 +2143,7 @@ dependencies = [
 
 [[package]]
 name = "koma_rumanhua_source"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "base64 0.22.1",
  "dlmalloc",
@@ -2318,7 +2318,7 @@ dependencies = [
 
 [[package]]
 name = "koma_woaimanhua_source"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -2348,7 +2348,7 @@ dependencies = [
 
 [[package]]
 name = "koma_xipimanhua_source"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "base64 0.22.1",
  "dlmalloc",
@@ -2375,7 +2375,7 @@ dependencies = [
 
 [[package]]
 name = "koma_xsnvshen_source"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
