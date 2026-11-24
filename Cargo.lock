@@ -2201,7 +2201,7 @@ version = "0.2.0"
 
 [[package]]
 name = "koma_tapastic_source"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",

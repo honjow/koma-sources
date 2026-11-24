@@ -32,7 +32,7 @@ const UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:105.0) Gecko/2010
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.tapas.koma",
     name: "Tapas",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "en",
     author: "Koma",
