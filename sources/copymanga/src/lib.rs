@@ -19,7 +19,9 @@ use url::Url;
 mod dom;
 mod literal;
 mod operations;
+mod comments;
 mod simplify;
+koma_source_sdk::koma_source_comments_export!(comments::run);
 use dom::Node;
 #[global_allocator]
 static ALLOCATOR: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;

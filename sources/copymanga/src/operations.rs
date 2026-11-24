@@ -570,6 +570,9 @@ fn filters(cx: &Context, r: &[u8], v: &Value) -> R<Value> {
     Ok(json!({"supportsFilterFetching":true,"filters":rows}))
 }
 pub fn dispatch(op: &str, r: &[u8], v: &Value) -> R<Value> {
+    if op == "get_comments" {
+        return comments::get(r, v);
+    }
     let cx = Context::new(
         v,
         op == "get_settings" && protocol::feature(r, b"source_settings_context_v1"),

@@ -434,6 +434,7 @@ fn diagnostic_error(op: &str, code: &str) {
         "get_manga" => b"get_manga",
         "get_chapters" => b"get_chapters",
         "get_pages" => b"get_pages",
+        "get_comments" => b"get_comments",
         "get_image_request" => b"get_image_request",
         _ => b"unknown",
     };
@@ -445,6 +446,13 @@ fn diagnostic_error(op: &str, code: &str) {
         "rate_limited" => b"rate_limited",
         "permission_denied" => b"permission_denied",
         "authentication_required" => b"authentication_required",
+        "host_feature_required" => b"host_feature_required",
+        "invalid_request" => b"invalid_request",
+        "unsupported_operation" => b"unsupported_operation",
+        "parse_error" => b"parse_error",
+        "result_too_large" => b"result_too_large",
+        "client_error" => b"client_error",
+        "server_error" => b"server_error",
         "not_implemented" => b"not_implemented",
         _ => b"source_error",
     };
@@ -1071,6 +1079,9 @@ fn chapters(r: &[u8]) -> koma_source_sdk::chapters::ChapterResult<'static, &'sta
 mod lz;
 mod packed;
 mod transport;
+mod comments;
+
+koma_source_sdk::koma_source_comments_export!(comments::run);
 fn unique<'a>(obj: &'a [u8], key: &[u8]) -> Result<&'a [u8], &'static str> {
     let mut p = ws(obj, 0);
     if obj.get(p) != Some(&b'{') {

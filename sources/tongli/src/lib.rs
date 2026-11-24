@@ -897,3 +897,6 @@ fn run_get_image_request(req: &[u8]) -> u32 {
 }
 
 koma_source_sdk::koma_source_exports!("tongli", typed_chapters, write_chapter_error);
+
+mod comments;
+koma_source_sdk::koma_source_comments_export!(comments::run);

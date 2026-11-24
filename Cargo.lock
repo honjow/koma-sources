@@ -1286,7 +1286,7 @@ dependencies = [
 
 [[package]]
 name = "koma_comicabc_source"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1300,7 +1300,7 @@ dependencies = [
 
 [[package]]
 name = "koma_copymanga_source"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1717,7 +1717,7 @@ dependencies = [
 
 [[package]]
 name = "koma_manhuagui_source"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -2000,7 +2000,7 @@ dependencies = [
 
 [[package]]
 name = "koma_tencentcomics_source"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -2031,7 +2031,7 @@ dependencies = [
 
 [[package]]
 name = "koma_tongli_source"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -2072,7 +2072,7 @@ dependencies = [
 
 [[package]]
 name = "koma_wnacg_source"
-version = "0.1.11"
+version = "0.1.12"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",

@@ -18,6 +18,10 @@
   },
   "homepage": "https://www.8comic.com",
   "chapterOrder": "oldest_first",
+  "comments": {
+    "version": 1,
+    "scopes": ["manga"]
+  },
   "localization": {
     "version": 1,
     "defaultLocale": "zh-Hans",

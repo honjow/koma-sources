@@ -67,5 +67,12 @@
         "en": "CopyManga’s Traditional Chinese comic library, with original chapter groups and optional Simplified Chinese catalogue text."
       }
     }
+  },
+  "comments": {
+    "version": 1,
+    "scopes": [
+      "manga",
+      "chapter"
+    ]
   }
 }

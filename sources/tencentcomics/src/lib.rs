@@ -829,3 +829,14 @@ fn run_get_settings(_: &[u8]) -> u32 {
     source_error("get_settings", "not_implemented", "")
 }
 koma_source_sdk::koma_source_exports!("tencentcomics", typed_chapters, write_chapter_error);
+
+mod comments;
+
+fn run_get_comments(request: &[u8]) -> u32 {
+    let op = koma_source_sdk::comments::OPERATION;
+    match comments::load(request) {
+        Ok(len) => write_success_payload(op, len),
+        Err((code, message)) => source_error(op, code, message),
+    }
+}
+koma_source_sdk::koma_source_comments_export!(run_get_comments);

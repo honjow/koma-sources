@@ -15,6 +15,12 @@
     }
   },
   "homepage": "https://ebook.tongli.com.tw",
+  "comments": {
+    "version": 1,
+    "scopes": [
+      "manga"
+    ]
+  },
   "localization": {
     "version": 1,
     "defaultLocale": "zh-Hans",

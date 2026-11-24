@@ -1,5 +1,6 @@
 //! ComicABC public source; support limits and Apache attribution in README/NOTICE.
 #![no_std]
+mod comments;
 mod records;
 mod s2t;
 use koma_source_sdk::host::{
@@ -15,7 +16,7 @@ const BASE: &[u8] = b"https://www.8comic.com";
 const READER: &[u8] = b"https://articles.onemoreplace.tw";
 const UA:&[u8]=b"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36";
 const MOBILE_UA: &[u8] = UA;
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.comicabc.koma",name:"無限動漫",version:"0.1.15",api_version:"0.2",language:"zh",author:"Koma",description:"無限動漫（8comic）的连载漫画栏目。本源只收录漫画，动画内容不在范围内。",content_rating:"safe"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.comicabc.koma",name:"無限動漫",version:"0.1.16",api_version:"0.2",language:"zh",author:"Koma",description:"無限動漫（8comic）的连载漫画栏目。本源只收录漫画，动画内容不在范围内。",content_rating:"safe"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -268,10 +269,13 @@ fn fetch_html(url: &[u8], mobile: bool) -> Result<Doc, FetchError> {
         .map_err(|_| FetchError::ClientError)
 }
 fn fetch_body(url: &[u8], mobile: bool) -> Result<usize, FetchError> {
+    fetch_body_with_referer(url, BASE, mobile)
+}
+fn fetch_body_with_referer(url: &[u8], referer: &[u8], mobile: bool) -> Result<usize, FetchError> {
     let n = build_get_request(
         http_req_buf(),
         url,
-        Some(BASE),
+        Some(referer),
         &[(b"User-Agent", if mobile { MOBILE_UA } else { UA })],
     )
     .ok_or(FetchError::Network)?;
@@ -939,3 +943,4 @@ fn run_get_settings(_: &[u8]) -> u32 {
     source_error("get_settings", "not_implemented", "")
 }
 koma_source_sdk::koma_source_exports!("comicabc");
+koma_source_sdk::koma_source_comments_export!(comments::run);

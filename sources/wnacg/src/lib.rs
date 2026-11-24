@@ -21,6 +21,8 @@ mod dom;
 use dom::Node;
 mod session;
 use session::Context;
+mod comments;
+koma_source_sdk::koma_source_comments_export!(comments::run);
 #[global_allocator]
 static ALLOCATOR: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
 const DEFAULTS: [&str; 8] = [
@@ -79,10 +81,11 @@ impl From<&'static str> for E {
         Self {
             code,
             message: match code {
-                "unsupported" => "当前应用缺少此书源所需能力，请更新应用。",
+                "unsupported" | "host_feature_required" => "当前应用缺少此书源所需能力，请更新应用。",
                 "not_found" => LOGIN_HINT,
                 "auth_required" => "网站要求登录，请先打开原网页登录。",
                 "forbidden" => "网站拒绝了本次请求，请打开原网页确认访问状态。",
+                "challenge_required" => "需要完成网页验证，请先打开原网页确认访问状态。",
                 "network_error" => "网络传输未完成，请稍后重试。",
                 "rate_limit" => "请求过于频繁，请稍后重试。",
                 "chapter_unavailable" => "相册网页未提供图片，请打开原网页确认。",
@@ -107,14 +110,21 @@ fn setting<'a>(v: &'a Value, k: &str, default: &'a str) -> R<&'a str> {
 fn rx(p: &str) -> R<Regex> {
     Regex::new(p).map_err(|_| "internal_error".into())
 }
-fn http(url: &str, base: &str) -> R<Vec<u8>> {
+fn http_with_referer(url: &str, referer: &str) -> R<Vec<u8>> {
     if host::check_cancel() {
         return Err("cancelled".into());
     }
-    let b=serde_json::to_vec(&json!({"url":url,"method":"GET","headers":{"User-Agent":user_agent(),"Referer":format!("{}/",base)}})).map_err(|_|E::from("request_too_large"))?;
+    let b=serde_json::to_vec(&json!({"url":url,"method":"GET","headers":{"User-Agent":user_agent(),"Referer":referer}})).map_err(|_|E::from("request_too_large"))?;
     let n = host::http_request(&b, http_out()).map_err(|_| E::from("network_error"))?;
     let n = protocol::body(&http_out()[..n], body_buf()).map_err(E::from)?;
     Ok(body_buf()[..n].to_vec())
+}
+fn http(url: &str, base: &str) -> R<Vec<u8>> {
+    http_with_referer(url, &format!("{}/", base))
+}
+fn parse_html_with_br(text: &str) -> R<Node> {
+    let text = rx(r"(?i)<br(?:\s[^>]*)?\s*/?>")?.replace_all(text, "\n");
+    Node::parse(text.as_bytes())
 }
 fn document(url: &str, base: &str) -> R<Node> {
     let b = http(url, base)?;
@@ -122,8 +132,7 @@ fn document(url: &str, base: &str) -> R<Node> {
     // newline before parsing, preserving Jsoup wholeText description line breaks;
     // Node::text separately performs Jsoup-style whitespace normalization.
     let text = core::str::from_utf8(&b).map_err(|_| E::from("parse_error"))?;
-    let text = rx(r"(?i)<br(?:\s[^>]*)?\s*/?>")?.replace_all(text, "\n");
-    Node::parse(text.as_bytes())
+    parse_html_with_br(text)
 }
 fn digits(s: &str) -> bool {
     !s.is_empty() && s.len() <= 20 && s.bytes().all(|b| b.is_ascii_digit())
@@ -858,6 +867,7 @@ fn dispatch(op: &str, r: &[u8]) -> R<Value> {
         }
         "get_chapters" => chapters(r, &v),
         "get_pages" => pages(r, &v),
+        "get_comments" => comments::get(r, &v),
         "get_image_request" => image_request(r, &v),
         "get_filters" => filters(r, &v),
         "get_settings" => settings(r, &v),
