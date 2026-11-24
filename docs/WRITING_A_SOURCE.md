@@ -4,34 +4,47 @@ A complete guide to creating manga sources for [Koma](https://github.com/honjow/
 
 Sources are compiled to WebAssembly (`wasm32-unknown-unknown`, `#![no_std]`) and run inside the Koma app. The host provides HTTP, HTML parsing, and logging — your source handles site-specific logic.
 
-## 站点规则归书源包
+## 书源声明
 
 `SOURCE_INFO.description` 与本地化的 `source.description` 面向选源用户，简洁说明站点的内容特点、实际收录范围，以及确实影响使用的登录、付费、地区或图片额度限制。优先写一两句有依据的信息，不能只重复源名或“支持目录、搜索、阅读”，也不能用 HTML/JSON/API、上游 SAFE、使用情况未知等开发或审计用语充当简介。没有核实的题材、规模、免费范围和可用性不作承诺；调查状态留在开发记录。
 
 同一版本的零参 `source_info` 保持固定基准文案，多语言资料从同一文案目录投影。保留旧宿主能读取的固定简介。改动后实际执行最终 WASM 的 `source_info`，核对描述、源 ID 与版本，不能只改未被真实导出使用的常量；源目录 README 的用户备注同步更新。纯文案修订不改变访问权限、账号身份、解析、功能和图标。
 
-域名、镜像、请求额度、站点Cookie形状、历史章节ID和站点兼容参数写在源实现或本源的 `metadata.json`。宿主对已安装包通用执行，禁止在App按源名、包名、域名或包版本加白名单、黑名单及特例。需要宿主执行的站点参数使用 [Koma源运行时ABI](https://github.com/honjow/Koma/blob/master/docs/source-runtime-abi.md#站点规则声明) 的 `requestLimits` 和 `websitePolicy`。声明不授予登录、账号或跨域会话权限。
+| 内容 | 作者维护的位置 |
+| --- | --- |
+| 包身份、显示和安装版本 | 源的 `SOURCE_INFO`、`metadata.json` 中的显示资料和 `build.sh` 登记项 |
+| 网站访问和会话 | 源实现或 `metadata.json` 中的 `requestLimits`、`websitePolicy` 和认证声明 |
+| 作品与章节身份 | `metadata.json` 中的 `identity`。已有源的章节旧 ID 规则写成 `identity.chapter` |
+| 目录、页表和交互能力 | 源的 WASM 操作及 SDK 类型，按 [Koma 源运行时 ABI](https://github.com/honjow/Koma/blob/master/docs/source-runtime-abi.md) 声明 |
+
+`identity.chapter` 沿用原有规则对象，例如
+`{"workPrefix":"manga:","chapterPrefix":"chapter:","chapterSeparator":":","titleSeparator":"#"}`。
+打包器把它写入已发布客户端认识的 `websitePolicy.chapterIdentity`。
+原有写法仍可打包，每个源只声明一份。书源更新后保持作品和章节标识稳定，
+确有历史标识变化时使用该规则衔接已有进度和下载。
+
+若源可读取 Mihon 扩展所记录的同一目录，在 `identity.mihon` 声明对应的十进制来源编号字符串（`sourceIds`）及 `work` 路径规则。规则去掉站内地址的 `pathPrefix` 与可选 `pathSuffix`，将剩余标识加上 `idPrefix` 与可选 `idSuffix`，交给现有详情接口。若 Mihon 同时记录 `/works/123/` 与 `/works/123/标题`，作品规则可保留 `pathSuffix: "/"` 并声明 `pathTitleAfterId: true`。宿主只取标题前的稳定标识。裸 ID 可用空前缀。固定查询键写进路径前缀，源记录完整地址时可声明固定 HTTPS 前缀。变量部分是普通标识或路径，一些源使用逗号分隔标识。宿主只把转换后的标识传给书源自己的接口。可选 `chapter` 使用同样规则，生成的标识须存在于该作品当前目录。可用 `pathIdSegment` 指定变量路径按斜杠拆分后的稳定标识位置，`0` 指第一段，`-1` 指最后一段。固定前缀为空时，两种带或不带首个斜杠的写法均支持。章节 ID 包含可变页数时，`targetIdSegment` 可声明按冒号拆分后从 0 开始的稳定标识位置。只有确认两端图片顺序一致才设置 `samePageOrder: true`。打包器输出可选字段 `mihonImport`，旧客户端仍通过原操作浏览和阅读。 章地址包含作品 ID 和章节 ID 时，可用固定 `pathWorkIdSeparator` 分隔两者，适用语义见 [Koma 源运行时 ABI](https://github.com/honjow/Koma/blob/master/docs/source-runtime-abi.md#作品与章节身份)。
+
+站点行为由对应书源实现或声明，宿主按通用合同执行。包内规则与认证授权各有自己的校验，
+一条站点声明不会授予访问凭据或跨域会话的权限。
+
+新增能力按 [ABI 扩展与兼容](https://github.com/honjow/Koma/blob/master/docs/source-runtime-abi.md#扩展与兼容) 接入。
+
+读取需要最终跳转地址的官方页面时，在 `websitePolicy.responseUrlOrigins` 登记精确 HTTPS origin，协商 `source_http_response_url_v1` 后用无正文 GET 的 `includeResponseUrl` 读取 `responseUrl`。跨域请求仅发送公开请求头。
+
+官网网页登录令牌用 `authentication.webToken` 声明单个存储键、本站 API 和只读身份验证路径。协商 `source_web_token_v1` 后获取私有会话代标识，用 `webTokenGeneration` 发起授权 GET。书源保持站方章节授权规则，不能把账号材料放入页表或设置。
+
+读取原站评论的源在 `metadata.json` 的 `comments` 声明 `version: 1` 及真实支持的 `manga`、`chapter`，用 `koma_source_comments_export!` 导出读取操作。请求、响应、分页及旧版兼容按 [原站评论 ABI](https://github.com/honjow/Koma/blob/master/docs/source-runtime-abi.md#原站评论)。章末吐槽原有设置继续生效。
+其中作品和章节的外部标识归身份约定，网站访问的声明归访问策略。宿主运行时能力沿用
+`hostFeatures` 协商。索引展示和安装所需字段由同一份源资料生成。
 
 镜像设置是站点选择，不只是API基址。提供镜像选择的源必须在 `websitePolicy.homepageChoices` 中为同一设置声明每个取值对应的可浏览主页，并让当前镜像同时决定API、公开封面、图片CDN、阅读页和普通WebView入口。任何仍回落到默认域的公开资源都视为镜像未完成；宿主会按该声明打开右上角WebView，未声明时只能回退包默认主页。验证必须在直连网络下分别选择默认站与镜像：WebView应落到所选站点，列表和详情封面应来自所选镜像自己的资源域并完整解码。
 
-发布前按最低支持版本的正式宿主核对该包所需能力。仅新版宿主能完成的行为必须提高
-源登记的最低 Koma 版本，打包脚本将同一值写入包清单和订阅索引。最低版本必须对应
-确实具备该能力的宿主。正式版本尚未确定时，候选包不进入公开索引。
-
-### 原站只读评论
-
-读取原站评论的源在 `metadata.json` 的 `comments` 声明 `version: 1` 及真实支持的 `manga`、`chapter`，用 `koma_source_comments_export!` 导出读取操作。请求、响应、分页及旧版兼容按 [原站评论 ABI](https://github.com/honjow/Koma/blob/master/docs/source-runtime-abi.md#原站评论)。章末吐槽原有设置继续生效。
-
-### 历史作品与章节标识
-
-新增声明用 `identity.chapter` 描述书源更新前后的章节标识关系。打包器将声明写入已发布客户端读取的 `websitePolicy.chapterIdentity`，字段和值保持一致。旧写法仍可用，每个书源只声明一份。此规则用于衔接已有阅读进度和下载。
-
-### Mihon 备份标识转换
-
-若源可读取 Mihon 扩展所记录的同一目录，在 `identity.mihon` 声明对应的十进制来源编号字符串（`sourceIds`）及 `work` 路径规则。规则去掉站内地址的 `pathPrefix` 与可选 `pathSuffix`，将剩余标识加上 `idPrefix` 与可选 `idSuffix`，交给现有详情接口。裸 ID 可用空前缀。固定查询键写进路径前缀，源记录完整地址时可声明固定 HTTPS 前缀。变量部分是普通标识或路径，一些源使用逗号分隔标识。宿主只把转换后的标识传给书源自己的接口。可选 `chapter` 使用同样规则，生成的标识须存在于该作品当前目录。章节 ID 包含可变页数时，`targetIdSegment` 可声明按冒号拆分后从 0 开始的稳定标识位置。只有确认两端图片顺序一致才设置 `samePageOrder: true`。打包器输出可选字段 `mihonImport`，旧客户端仍通过原操作浏览和阅读。 章节地址同时包含作品 ID 和章节 ID 时，可用固定 `pathWorkIdSeparator` 分隔两者。支持该字段的宿主会验证该章属于当前作品，详见 [Koma 源运行时 ABI](https://github.com/honjow/Koma/blob/master/docs/source-runtime-abi.md#作品与章节身份)。
+发布前按包的最低支持版本验证基本使用路径。当浏览或阅读确实依赖新版能力时，提高源登记的
+最低 Koma 版本，包清单和订阅索引由打包器写入同一值。可选扩展按宿主能力启用。
+依赖能力的正式宿主尚未发布时，候选包不进入公开索引。
 
 ## Quick Start
-
 ### 验证页 UA
 
 验证页默认使用系统 WebView UA，即由宿主从当前 ArkWeb UA 派生，在 OpenHarmony 平台标记内追加 `; Android 10`，保留实际引擎版本和移动标记。验证页的 UA 由宿主决定。书源的普通 HTTP 请求头只描述普通请求，制作源包时禁止用桌面浏览器 UA 或其他固定字符串配置验证页。
@@ -81,23 +94,17 @@ pixels. Install Python 3 and Pillow for actual decoding. New manifests require
 `icon` to equal the root filename; generated indexes must publish its actual
 bytes using the same extension.
 
-素材制作规范：优先合适的真实官网身份原图，不得留下额外底板、外部遮罩或
-阴影；允许为移除这些缺陷而二次处理不合适的移植素材，但必须保留真实身份及
-出处、处理前后证据。不能用占位、仓库星标或别站标识补缺。App 原有圆角显示
-裁剪属于独立层，必须保留；源资源要求不能被误用来取消它。新生产包要求不
-自动卸载旧设备来源，也不删除旧备份。
+素材制作规范：以站点官网或站点正式发布的标识原件为素材。上游扩展的图标只用于
+核对站点身份。成品必须是边角完整的正方形，去除任何阴影、额外底板与圆角
+蒙版，由 App 负责界面所需的圆角显示。保留官方图案、字形与画面自带的
+填色，缺少已核实的原件时保留待验状态。
 
-素材制作与验收流程：选取素材前，主代理和执行子代理各自实际读取本段；
-出可安装候选前逐个打开原素材和最终素材，在浅、深背景核对真实身份、
-额外底板、外部遮罩、阴影及留白。来自指定上游或官网也不豁免这项检查，
-原字节未改、尺寸、解码及哈希通过都不能代替视觉验收。先按画面真实
-边界裁除外影和多余留白；旧外圆角遮罩裁缺的边角应恢复，由 App 统一
-做显示圆角。保留图案、文字与画面本有的填色，不按颜色把画面抠成
-透明。低清才做必要的锐化或恢复，无法可靠恢复时才使用受严格约束的
-重绘，并如实记为重绘。单张返工不影响已经可用的稿件。处理依据和
-前后证据记在该源 ASSET_SOURCES.md。主代理还须从
-最终候选包中打开实际图标亲审，核对列表中的真实显示；未完成或有缺陷
-就保留未验收状态，不能把执行代理的结论直接当成交付。
+素材制作与验收流程：选取素材前，主代理和执行子代理各自实际读取本段。
+每张图标依次打开官方原件、处理稿和最终可安装包内的实物，在浅色和深色
+背景核对真实身份、正方形边界、阴影、蒙版和留白，并在 App 书源列表检查
+真实呈现。来源、尺寸、解码及哈希只能辅助检查。保留图案与文字原形，低清
+素材只做保持原形的必要恢复。处理依据和前后证据记录在 ASSET_SOURCES.md。
+单张返工保留其他已验收稿件。新生产包保留既有来源身份和用户数据。
 
 ## 移植前的源码对照
 

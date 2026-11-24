@@ -200,25 +200,29 @@ class HomepageMetadataTest(unittest.TestCase):
                        if line.strip().startswith("'{id: $id")]
         self.assertEqual(len(expressions), 2)
         for names in [False, True]:
-            raw = {'homepage': 'https://example.org/'}
+            chapter = {'workPrefix': 'manga:', 'chapterPrefix': 'c:',
+                       'chapterSeparator': ':', 'titleSeparator': '#'}
+            raw = {'homepage': 'https://example.org/', 'identity': {'chapter': chapter}}
             if names:
                 raw['localizedNames'] = {'zh-Hans': '示例'}
             projected = metadata.extract(raw)
             for expression in expressions:
                 command = ['jq', '-n']
                 for name in ['id', 'name', 'version', 'lang', 'author', 'description',
-                             'contentRating', 'minAppVersion', 'icon', 'pkg']:
+                             'contentRating', 'minAppVersion', 'icon', 'pkg', 'sha256']:
                     command += ['--arg', name, 'fixture']
                 command += ['--argjson', 'nsfw', 'false', '--argjson', 'sourceMetadata', json.dumps(projected),
-                            '--argjson', 'webSessionOrigins', '["https://session.example.org"]', expression]
+                            '--argjson', 'webSessionOrigins', '["https://session.example.org"]',
+                            '--argjson', 'distribution', '{"available":true}', expression]
                 actual = json.loads(subprocess.check_output(command, text=True))
                 self.assertEqual(actual['homepage'], raw['homepage'])
                 self.assertEqual(actual.get('localizedNames'), raw.get('localizedNames'))
                 if 'webSessionOrigins' in expression:
                     self.assertEqual(actual['webSessionOrigins'], ['https://session.example.org'])
+                    self.assertEqual(actual['websitePolicy']['chapterIdentity'], chapter)
                 else:
                     self.assertNotIn('webSessionOrigins', actual)
-
+                    self.assertNotIn('websitePolicy', actual)
 
     def test_chapter_identity_projects_to_the_same_legacy_rule(self):
         for name in ['baozimh', 'mh1234']:
@@ -233,6 +237,7 @@ class HomepageMetadataTest(unittest.TestCase):
                     metadata.extract({**old, 'identity': raw['identity']})
                 with self.assertRaises(ValueError):
                     metadata.extract({**raw, 'identity': {'chapter': {'workPrefix': 'manga:'}}})
+
 
 if __name__ == '__main__':
     unittest.main()

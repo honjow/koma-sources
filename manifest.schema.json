@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Koma Source Manifest",
+  "description": "Generated archive manifest. Source author metadata is projected by build.sh.",
   "type": "object",
   "required": ["id", "name", "version", "lang", "icon"],
   "properties": {
@@ -29,6 +30,27 @@
     "author": { "type": "string" },
     "contentRating": { "type": "string", "description": "Source-wide content rating" },
     "homepage": { "type": "string" },
+    "authentication": {
+      "type": "object",
+      "properties": {
+        "webToken": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["version", "storageKey", "apiOrigin", "verifyPath", "verifyIdentityPath"],
+          "properties": {
+            "version": { "const": 1 },
+            "storageKey": { "type": "string", "pattern": "^[A-Za-z0-9_.-]{1,64}$" },
+            "apiOrigin": { "$ref": "#/properties/webSessionOrigins/items" },
+            "verifyPath": { "type": "string", "maxLength": 256, "pattern": "^/[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*$" },
+            "verifyIdentityPath": {
+              "type": "array", "minItems": 1, "maxItems": 4,
+              "items": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_-]{0,63}$" }
+            },
+            "imageKeyDerivation": { "const": "sha512_cbc" }
+          }
+        }
+      }
+    },
     "comments": {
       "type": "object",
       "description": "Optional read-only comment capability supplied by the installed source.",
@@ -81,7 +103,11 @@
       "properties": {
         "homepageChoices": { "type": "object" },
         "httpProfiles": { "type": "array" },
+        "renderedDocumentFallback": { "type": ["boolean", "object"] },
         "webSessionReadySelector": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "webSessionUserAgent": { "type": "string" },
+        "webSessionAndroidAgent": { "type": "boolean" },
+        "webFetchBridge": { "type": "boolean" },
         "systemWebAgentOrigins": { "type": "array" },
         "mobileWebAndroidAgentOrigins": { "type": "array" },
         "publicCookieOverrides": { "type": "array" },
@@ -97,7 +123,8 @@
           "type": "object",
           "description": "Chapter ID compatibility wire field. Authors declare identity.chapter in metadata.json."
         },
-        "publicWorkUrlDomains": { "type": "array" }
+        "publicWorkUrlDomains": { "type": "array" },
+        "imageUrlFallbacks": { "type": "array" }
       }
     },
     "presentation": {

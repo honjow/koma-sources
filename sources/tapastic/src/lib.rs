@@ -629,7 +629,7 @@ fn run(op: &str, request: &[u8]) -> u32 {
             "get_image_request" => image(&args),
             "get_settings" => Ok(settings(request)),
             "get_authentication" => Ok(
-                json!({"authentication":{"kind":"web","loginUrl":LOGIN,"userAgent":UA},"authenticated":false}),
+                json!({"authentication":{"kind":"web","loginUrl":LOGIN},"authenticated":false}),
             ),
             _ => Err("not_implemented"),
         }

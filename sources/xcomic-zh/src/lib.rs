@@ -472,6 +472,8 @@ const TITLE_BROWSE_QUERY: &[u8] = br###"
                 cover_url
                 comic_ids
                 chap_last_public_at
+                vote_avg
+                total_reviews
             }
         }
     }
@@ -1110,6 +1112,7 @@ fn emit_manga(
     cleaner: Option<&Regex>,
     custom: Option<&str>,
     browse: bool,
+    req: &[u8],
 ) -> Result<(), E> {
     id(work)?;
     bytes(b, n, b"{\"id\":")?;
@@ -1154,7 +1157,35 @@ fn emit_manga(
         b",\"links\":[{\"kind\":\"source\",\"url\":\"https://xcomic.me/title/",
     )?;
     bytes(b, n, work)?;
-    bytes(b, n, b"\"}]}")
+    bytes(b, n, b"\"}]")?;
+    // Optional list card summary: the browse response carries the average
+    // score and review count, shown only when the host negotiates the
+    // list-info feature. Detail cards use different field names and are left
+    // unchanged, so legacy output stays byte-identical.
+    if browse && koma_source_sdk::source_protocol::feature(req, koma_source_sdk::list_info::HOST_FEATURE) {
+        let mut entries = [koma_source_sdk::list_info::ListInfo::Text { text: b"", label: None }; 2];
+        let mut count = 0;
+        if let Some((_, value)) = numeric(member(title, b"vote_avg")?).ok().flatten() {
+            // Round to one decimal place (9.6947 -> "9.7"); no_std lacks f64::round.
+            let scaled = (value * 10.0 + 0.5) as i32;
+            let int_str = (scaled / 10).to_string();
+            let sb = scratch_b();
+            let mut n = 0;
+            for &c in int_str.as_bytes() { sb[n] = c; n += 1; }
+            sb[n] = b'.'; n += 1;
+            sb[n] = b'0' + (scaled % 10) as u8; n += 1;
+            entries[count] = koma_source_sdk::list_info::ListInfo::Text { text: &sb[..n], label: Some(b"\xe8\xaf\x84\xe5\x88\x86") };
+            count += 1;
+        }
+        if let Some((raw, _)) = numeric(member(title, b"total_reviews")?).ok().flatten() {
+            entries[count] = koma_source_sdk::list_info::ListInfo::Text { text: raw, label: Some(b"\xe8\xaf\x84\xe4\xbb\xb7") };
+            count += 1;
+        }
+        if count > 0 {
+            let _ = koma_source_sdk::list_info::append(b, n, req, &entries[..count]);
+        }
+    }
+    bytes(b, n, b"}")
 }
 fn detail(r: &[u8]) -> Result<usize, E> {
     let cleaner = title_cleaner(r)?;
@@ -1190,9 +1221,9 @@ fn detail(r: &[u8]) -> Result<usize, E> {
     bytes(b, &mut n, b"{\"manga\":")?;
     if best.is_some() {
         let c = unsafe { &COMIC[..comic_len] };
-        emit_manga(b, &mut n, title, Some(c), work, cleaner.as_ref(), custom.as_deref(), false)?
+        emit_manga(b, &mut n, title, Some(c), work, cleaner.as_ref(), custom.as_deref(), false, r)?
     } else {
-        emit_manga(b, &mut n, title, None, work, cleaner.as_ref(), custom.as_deref(), false)?
+        emit_manga(b, &mut n, title, None, work, cleaner.as_ref(), custom.as_deref(), false, r)?
     };
     detail_context::emit(b,&mut n,r,title,work,good)?;
     bytes(b, &mut n, b"}")?;
@@ -1405,7 +1436,7 @@ fn list(r: &[u8], search: bool) -> Result<usize, E> {
         if count > 0 {
             bytes(b, &mut n, b",")?
         };
-        emit_manga(b, &mut n, t, None, ident.as_bytes(), cleaner.as_ref(), customs.as_ref().and_then(|v| v.get(count)).map(|v| v.as_str()), true)?;
+        emit_manga(b, &mut n, t, None, ident.as_bytes(), cleaner.as_ref(), customs.as_ref().and_then(|v| v.get(count)).map(|v| v.as_str()), true, r)?;
         count += 1
     }
     if (next != 0 && count != 12) || ((p - 1) * 12 + count > total) {

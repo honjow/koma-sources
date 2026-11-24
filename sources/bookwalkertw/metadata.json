@@ -1,0 +1,49 @@
+{
+  "homepage": "https://www.bookwalker.com.tw",
+  "chapterOrder": "newest_first",
+  "requiredImageDecodes": ["wasm_image_v1"],
+  "wasmBuild": {
+    "imageProcessorCrate": "koma_bookwalker_publus_processor"
+  },
+  "websitePolicy": {
+    "webSessionReadySelector": ".bw_searchbox, .bwbookitem",
+    "responseUrlOrigins": [
+      "https://www.bookwalker.com.tw",
+      "https://preview.bookwalker.com.tw"
+    ]
+  },
+  "authentication": {
+    "kind": "web",
+    "loginUrl": "https://www.bookwalker.com.tw/login"
+  },
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "4168719360034135465"
+      ],
+      "work": {
+        "pathPrefix": "/search?series=",
+        "idPrefix": "/search?series="
+      },
+      "chapter": {
+        "pathPrefix": "/product/",
+        "idPrefix": "/product/"
+      }
+    }
+  },
+  "requestLimits": [
+    {
+      "group": "catalog-search",
+      "permits": 15,
+      "periodMs": 60000,
+      "hosts": [
+        "www.bookwalker.com.tw",
+        "bookwalker.com.tw"
+      ],
+      "requestHeaders": [
+        "sec-fetch-user"
+      ],
+      "oncePerRequest": true
+    }
+  ]
+}

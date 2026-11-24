@@ -4,3 +4,4 @@ target/
 hermes-artifacts/
 
 .hermes-artifacts/
+__pycache__/

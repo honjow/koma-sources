@@ -35,7 +35,7 @@ mod filter_candidate;
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.noyacg.koma",
     name: "NoyAcg",
-    version: "0.1.13",
+    version: "0.1.14",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -296,6 +296,33 @@ fn write_tags_from_array(payload: &mut [u8], c: &mut usize, arr: &[u8], written:
     true
 }
 
+// The legacy DTO joins several names in one space-delimited string; v4
+// arrays already contain individual names. Preserve spaces inside array items.
+fn write_tags_from_string(payload: &mut [u8], c: &mut usize, value: &[u8], written: &mut usize) -> bool {
+    let mut start = 0usize;
+    let mut pos = 0usize;
+    while pos <= value.len() {
+        let escaped_space = value.get(pos..pos.saturating_add(6)) == Some(b"\\u0020");
+        let separator = pos == value.len() || value.get(pos) == Some(&b' ') || escaped_space;
+        if separator {
+            if start < pos {
+                if *written > 0 && !write_bytes(payload, c, b",") { return false; }
+                if !write_json_string_value(payload, c, &value[start..pos]) { return false; }
+                *written += 1;
+            }
+            if pos == value.len() { break; }
+            pos += if escaped_space { 6 } else { 1 };
+            start = pos;
+        } else if value[pos] == b'\\' && pos + 1 < value.len() {
+            // A literal backslash must not turn the following u0020 into a separator.
+            pos += 2;
+        } else {
+            pos += 1;
+        }
+    }
+    true
+}
+
 fn write_tags(payload: &mut [u8], c: &mut usize, obj: &[u8]) -> bool {
     let mut written = 0usize;
     for key in [b"tags" as &[u8], b"pname", b"otag", b"Otag", b"ptag", b"Ptag"] {
@@ -304,14 +331,8 @@ fn write_tags(payload: &mut [u8], c: &mut usize, obj: &[u8]) -> bool {
                 return false;
             }
         } else if let Some(s) = extract_json_string(obj, key) {
-            if !s.is_empty() {
-                if written > 0 && !write_bytes(payload, c, b",") {
-                    return false;
-                }
-                if !write_json_string_value(payload, c, s) {
-                    return false;
-                }
-                written += 1;
+            if !write_tags_from_string(payload, c, s, &mut written) {
+                return false;
             }
         }
     }

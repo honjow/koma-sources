@@ -1,0 +1,19 @@
+{
+  "homepage": "https://www.toptoon.net",
+  "chapterOrder": "newest_first",
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "1680248666203661128"
+      ],
+      "work": {
+        "pathPrefix": "/comic/epList/",
+        "idPrefix": "/comic/epList/"
+      },
+      "chapter": {
+        "pathPrefix": "/comic/epView/",
+        "idPrefix": "/comic/epView/"
+      }
+    }
+  }
+}

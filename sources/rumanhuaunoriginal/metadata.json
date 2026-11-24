@@ -1,0 +1,9 @@
+{
+  "homepage": "https://m.rumanhua.org",
+  "localizedNames": { "zh-Hans": "如漫画（同名站）", "zh-Hant": "如漫畫（同名站）", "en": "Rumanhua (Namesake)" },
+  "chapterOrder": "newest_first",
+  "identity": { "mihon": { "sourceIds": ["6075779468319464999"],
+    "work": { "pathPrefix": "/news/", "idPrefix": "/news/" },
+    "chapter": { "pathPrefix": "/show/", "idPrefix": "/show/" }
+  } }
+}

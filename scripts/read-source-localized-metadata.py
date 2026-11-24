@@ -148,7 +148,7 @@ def navigation_homepage(value):
 
 
 def authentication_descriptor(value, web_origins):
-    if not isinstance(value, dict) or set(value) - {"kind", "loginUrl", "usernameLabel", "passwordLabel", "credentialStorage", "userAgent", "loginUrls", "sessionCookieNames"}:
+    if not isinstance(value, dict) or set(value) - {"kind", "loginUrl", "usernameLabel", "passwordLabel", "credentialStorage", "userAgent", "loginUrls", "sessionCookieNames", "webToken"}:
         raise ValueError("invalid authentication descriptor")
     kind = value.get("kind")
     login_url = value.get("loginUrl")
@@ -172,6 +172,26 @@ def authentication_descriptor(value, web_origins):
         ua = value["userAgent"]
         if kind != "web" or not isinstance(ua, str) or not ua.strip(TRIM) or utf16_length(ua) > 1024 or any(ord(c) < 32 or ord(c) == 127 for c in ua):
             raise ValueError("invalid authentication user agent")
+    if "webToken" in value:
+        token = value["webToken"]
+        if (kind != "web" or "#" in login_url or not isinstance(token, dict)
+                or set(token) - {"version", "storageKey", "apiOrigin", "verifyPath", "verifyIdentityPath", "imageKeyDerivation"}
+                or type(token.get("version")) is not int or token["version"] != 1
+                or not isinstance(token.get("storageKey"), str)
+                or not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", token["storageKey"])
+                or not isinstance(token.get("verifyPath"), str) or len(token["verifyPath"]) > 256
+                or not re.fullmatch(r"/[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*", token["verifyPath"])
+                or not isinstance(token.get("verifyIdentityPath"), list)
+                or not 1 <= len(token["verifyIdentityPath"]) <= 4
+                or any(not isinstance(key, str) or key in {"__proto__", "prototype", "constructor"}
+                       or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_-]{0,63}", key)
+                       for key in token["verifyIdentityPath"])
+                or ("imageKeyDerivation" in token and token["imageKeyDerivation"] != "sha512_cbc")):
+            raise ValueError("invalid web token descriptor")
+        website = re.fullmatch(r"https://www\.([a-z0-9-]+\.[a-z]{2,})", origin)
+        destination = token.get("apiOrigin")
+        if destination != origin and (website is None or destination != "https://api." + website[1]):
+            raise ValueError("web token API must use the same origin or the corresponding api hostname")
     if "loginUrls" in value or "sessionCookieNames" in value:
         urls = value.get("loginUrls")
         names = value.get("sessionCookieNames")

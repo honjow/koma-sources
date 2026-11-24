@@ -1,0 +1,12 @@
+[package]
+name = "koma_ccc_page_processor"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+aes = { version = "0.8.4", default-features = false }
+base64 = { version = "0.22.1", default-features = false }
+dlmalloc = { version = "=0.2.14", features = ["global"] }

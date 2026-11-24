@@ -1,0 +1,20 @@
+{
+  "homepage": "https://web.hanabimanga.com/zh-CN",
+  "chapterOrder": "newest_first",
+  "requiredImageDecodes": [
+    "wasm_image_v1"
+  ],
+  "wasmBuild": {
+    "imageProcessorCrate": "koma_hanabi_tile_processor"
+  },
+  "authentication": {
+    "kind": "web",
+    "loginUrl": "https://web.hanabimanga.com/zh-CN/auth/login"
+  },
+  "comments": {
+    "version": 1,
+    "scopes": [
+      "manga"
+    ]
+  }
+}

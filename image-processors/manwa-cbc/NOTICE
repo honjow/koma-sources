@@ -1,0 +1,6 @@
+Behavior ported from Keiyoushi extensions-source, src/zh/manwa, at
+8947c372cd87f546a0b80cb0e4b0a5a8add5ef88 under Apache License 2.0.
+https://github.com/keiyoushi/extensions-source/tree/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/src/zh/manwa
+
+Changes: Rust and Koma WASM API port, typed chapters, independent image restoration,
+and host-specific projection of filters and source settings. The site icon is the publisher's own artwork.

@@ -1,0 +1,25 @@
+{
+  "homepage": "https://vomicmh.com",
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "5428862423208834108"
+      ],
+      "work": {
+        "pathPrefix": "",
+        "idPrefix": ""
+      },
+      "chapter": {
+        "pathPrefix": "",
+        "idPrefix": ""
+      }
+    }
+  },
+  "authentication": {
+    "kind": "credentials",
+    "loginUrl": "https://api.vomicmh.com/pics_new/pics/login",
+    "usernameLabel": "邮箱",
+    "passwordLabel": "密码",
+    "credentialStorage": "private"
+  }
+}

@@ -1,0 +1,13 @@
+[package]
+name = "koma_hikarinagi_page_processor"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+aes = { version = "=0.8.4", default-features = false }
+ghash = { version = "=0.5.1", default-features = false }
+subtle = { version = "=2.6.1", default-features = false }

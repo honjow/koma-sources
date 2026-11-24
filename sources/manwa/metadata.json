@@ -1,0 +1,25 @@
+{
+  "homepage": "https://manwa.me",
+  "chapterOrder": "newest_first",
+  "requiredImageDecodes": ["wasm_image_v1"],
+  "wasmBuild": { "imageProcessorCrate": "koma_manwa_cbc_processor" },
+  "identity": {
+    "mihon": {
+      "sourceIds": ["1795888684783606321"],
+      "work": { "pathPrefix": "/book/", "idPrefix": "/book/" },
+      "chapter": { "pathPrefix": "/chapter/", "idPrefix": "/chapter/" }
+    }
+  },
+  "websitePolicy": {
+    "homepageChoices": {
+      "setting": "mirror",
+      "options": [
+        { "value": "https://manwa.me", "url": "https://manwa.me/" },
+        { "value": "https://manwass.cc", "url": "https://manwass.cc/" },
+        { "value": "https://manwatg.cc", "url": "https://manwatg.cc/" },
+        { "value": "https://manwast.cc", "url": "https://manwast.cc/" },
+        { "value": "https://manwasy.cc", "url": "https://manwasy.cc/" }
+      ]
+    }
+  }
+}

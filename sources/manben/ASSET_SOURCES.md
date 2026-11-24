@@ -1,4 +1,5 @@
 # 图标来源
 
-使用[固定版本的上游图标](https://github.com/keiyoushi/extensions-source/blob/f1d882a93ef34a33dc4f4467753ad5f99eab43f4/src/zh/manben/res/mipmap-xxxhdpi/ic_launcher.png)。
-原图为 192 × 192。保留图案和原有底色，裁掉 Android 图标边框和阴影，以原底色补齐四角。应用继续负责列表中的圆角。
+[官网原件](https://css99tel.cdndm5.com/v202609180933/cartoonupload/images/new/m_header_logo.png)
+
+从官网页眉正方形品牌标记截取 MANBEN 原字形。成品为 192×192 的完整正方形，已在浅色、深色背景核对。

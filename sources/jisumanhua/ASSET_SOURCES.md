@@ -1,4 +1,5 @@
 # 图标来源
 
-使用[固定版本的上游图标](https://github.com/keiyoushi/extensions-source/blob/f1d882a93ef34a33dc4f4467753ad5f99eab43f4/src/zh/jisumanhua/res/mipmap-xxxhdpi/ic_launcher.png)。
-原图为 192 × 192。裁掉 Android 外层背景和阴影，将与外框连通的白底替换为原图中使用的黄色，使黄色铺满正方形。字形、描边和内部白色区域均取自原图。图标在列表中的圆角由 App 负责。
+[官网原件](https://css122us.cdndm5.com/v202508200911/blue/images/dlnew/AppIcon1.png) · [官网存档](https://web.archive.org/web/20260119200929id_/https://m.1kkk.com/)
+
+保留官网原版黄色图案及笔画，移除外缘白线和圆角遮罩，黄底铺满四角。成品为 192×192 的完整正方形，已在浅色、深色背景核对。

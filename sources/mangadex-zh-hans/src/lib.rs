@@ -671,7 +671,7 @@ fn data_saver(r: &[u8]) -> Result<bool, E> {
     let settings = member(r, b"settings")?.unwrap_or(b"{}");
     Ok(matches!(member(settings, b"dataSaverV5_zh")?, Some(b"true" | b"\"true\"")))
 }
-fn card(b: &mut [u8], n: &mut usize, v: &[u8], expected: Option<&[u8]>, quality: &[u8], alt_description: bool, final_description: bool, prefer_alternatives: bool, first_covers: &first_volume_cover::Covers) -> Result<(), E> {
+fn card(b: &mut [u8], n: &mut usize, v: &[u8], expected: Option<&[u8]>, quality: &[u8], alt_description: bool, final_description: bool, prefer_alternatives: bool, first_covers: &first_volume_cover::Covers, req: &[u8]) -> Result<(), E> {
     if text(v, b"type")? != b"manga" {
         return Err("manga type");
     };
@@ -762,7 +762,40 @@ fn card(b: &mut [u8], n: &mut usize, v: &[u8], expected: Option<&[u8]>, quality:
             }
         }
     }
-    bytes(b, n, b"]}")
+    bytes(b, n, b"]")?;
+    // Optional list card summary: the author name is embedded in the
+    // relationship and shown only when the host negotiates the list-info
+    // feature. The API carries JSON escapes; decode them before the
+    // list-info encoder re-escapes. Legacy output stays byte-identical.
+    if let Some(name_raw) = first_author_name(v)? {
+        if let Ok(name) = koma_source_sdk::plain_text::decode_json_content(name_raw, scratch_b()) {
+            let _ = koma_source_sdk::list_info::append(
+                b, n, req,
+                &[koma_source_sdk::list_info::ListInfo::Text { text: name, label: Some(b"\xe4\xbd\x9c\xe8\x80\x85") }],
+            );
+        }
+    }
+    bytes(b, n, b"}")
+}
+// First author relationship name (JSON-escaped bytes, quotes stripped), if any.
+fn first_author_name(v: &[u8]) -> Result<Option<&[u8]>, E> {
+    let mut rels = Array::new(required(v, b"relationships")?)?;
+    while let Some(rel) = rels.next()? {
+        if text(rel, b"type")? == b"author" {
+            if let Some(attrs) = member(rel, b"attributes")? {
+                if let Some(name) = member(attrs, b"name")? {
+                    return Ok(Some(quoted(name)?));
+                }
+            }
+        }
+    }
+    Ok(None)
+}
+// The author is only requested from the API when the host negotiates the
+// list-info feature, so un-negotiated listings keep their original empty
+// authors field and byte-identical output.
+fn list_info_supported(r: &[u8]) -> bool {
+    koma_source_sdk::source_protocol::feature(r, koma_source_sdk::list_info::HOST_FEATURE)
 }
 fn request_offset(r: &[u8], limit: usize) -> Result<usize, E> {
     let a = args(r)?;
@@ -844,7 +877,9 @@ fn latest(r: &[u8]) -> Result<usize, E> {
     let quality = cover_quality(r)?;
     let out = payload_buf(); let mut on = 0; bytes(out, &mut on, b"{\"items\":[")?;
     if count > 0 {
-        let mut n = 0; bytes(url, &mut n, API)?; bytes(url, &mut n, b"/manga?includes%5B%5D=cover_art&limit=")?; wn(url, &mut n, count)?;
+        let mut n = 0; bytes(url, &mut n, API)?; bytes(url, &mut n, b"/manga?includes%5B%5D=cover_art")?;
+        if list_info_supported(r) { bytes(url, &mut n, b"&includes%5B%5D=author")?; }
+        bytes(url, &mut n, b"&limit=")?; wn(url, &mut n, count)?;
         if !content_rating::append_query(url, &mut n, r, b"contentRating_zh") { return Err("payload overflow"); }
         for id in &ids[..count] { bytes(url, &mut n, b"&ids%5B%5D=")?; bytes(url, &mut n, id)?; }
         let manga_response = fetch(unsafe { core::slice::from_raw_parts(url.as_ptr(), n) })?;
@@ -858,7 +893,7 @@ fn latest(r: &[u8]) -> Result<usize, E> {
             if let Some(manga) = found {
                 listing_rating(required(manga, b"attributes")?, r)?;
                 if emitted > 0 { bytes(out, &mut on, b",")?; }
-                card(out, &mut on, manga, None, quality, false, false, title_preference::prefer(r, b"preferExtensionLangTitle_zh"), &covers)?;
+                card(out, &mut on, manga, None, quality, false, false, title_preference::prefer(r, b"preferExtensionLangTitle_zh"), &covers, r)?;
                 emitted += 1;
             }
         }
@@ -887,7 +922,9 @@ fn listing(r: &[u8], search: bool) -> Result<usize, E> {
     bytes(b, &mut n, API)?;
     bytes(b, &mut n, b"/manga?limit=20&offset=")?;
     wn(b, &mut n, offset)?;
-    bytes(b,&mut n,b"&includes%5B%5D=cover_art&hasAvailableChapters=true&availableTranslatedLanguage%5B%5D=zh")?;
+    bytes(b,&mut n,b"&includes%5B%5D=cover_art")?;
+    if list_info_supported(r) { bytes(b,&mut n,b"&includes%5B%5D=author")?; }
+    bytes(b,&mut n,b"&hasAvailableChapters=true&availableTranslatedLanguage%5B%5D=zh")?;
     if !content_rating::append_query(b, &mut n, r, b"contentRating_zh") { return Err("payload overflow"); }
     bytes(b, &mut n, original_language::query(r, b"originalLanguage_zh", search))?;
     append_status(b,&mut n,r)?;
@@ -927,7 +964,7 @@ fn listing(r: &[u8], search: bool) -> Result<usize, E> {
         if count > 0 {
             bytes(output, &mut n, b",")?
         };
-        card(output, &mut n, x, None, quality, false, false, title_preference::prefer(r, b"preferExtensionLangTitle_zh"), &first_covers)?;
+        card(output, &mut n, x, None, quality, false, false, title_preference::prefer(r, b"preferExtensionLangTitle_zh"), &first_covers, r)?;
         count += 1
     }
     let end = offset.checked_add(count).ok_or("listing count overflow")?;
@@ -968,7 +1005,7 @@ fn detail(r: &[u8]) -> Result<usize, E> {
     let out = payload_buf();
     let mut n = 0;
     bytes(out, &mut n, b"{\"manga\":")?;
-    card(out, &mut n, required(v, b"data")?, Some(id), quality, alt_description_enabled(r), final_chapter_description::enabled(r, b"finalChapterInDesc_zh"), title_preference::prefer(r, b"preferExtensionLangTitle_zh"), &first_covers)?;
+    card(out, &mut n, required(v, b"data")?, Some(id), quality, alt_description_enabled(r), final_chapter_description::enabled(r, b"finalChapterInDesc_zh"), title_preference::prefer(r, b"preferExtensionLangTitle_zh"), &first_covers, r)?;
     bytes(out, &mut n, b"}")?;
     Ok(n)
 }

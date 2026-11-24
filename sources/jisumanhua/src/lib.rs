@@ -113,7 +113,7 @@ fn cover(url: &str, path: &str) -> Result<Value> {
     let image = port::absolute(BASE, url)?;
     Ok(json!({"kind":"url","url":image.as_str(),"headers":{"Referer":format!("{BASE}{path}")}}))
 }
-fn card(node: &Node) -> Result<Value> {
+fn card(node: &Node, req: &[u8]) -> Result<Value> {
     let link = node.require("h2.title > a, .title > a")?;
     let id = manga_path(&link.attr("href")?)?;
     let mut row = json!({"id":id,"title":link.text()?,"links":[{"kind":"source","url":format!("{BASE}{id}")}]});
@@ -126,6 +126,19 @@ fn card(node: &Node) -> Result<Value> {
         }
     } else if let Some(img) = node.one("img[src]") {
         row["cover"] = cover(&img.attr("src")?, &id)?;
+    }
+    // Optional list summary: the listing card carries the latest chapter
+    // (p.chapter > a). The p.zl rating is only a star CSS class with no text
+    // value, so it is not surfaced. Only add the field when the host negotiates
+    // the feature; otherwise the item bytes stay unchanged.
+    if koma_source_sdk::source_protocol::feature(req, koma_source_sdk::list_info::HOST_FEATURE) {
+        if let Some(ch) = node.one("p.chapter > a") {
+            if let Ok(t) = ch.text() {
+                if !t.is_empty() {
+                    row["listInfo"] = json!([{"type":"text","label":"最新","text":t}]);
+                }
+            }
+        }
     }
     Ok(row)
 }
@@ -222,7 +235,7 @@ fn listing(req: &[u8], args: &Value, search: bool) -> Result<Value> {
     let mut items = Vec::new();
     let mut seen = BTreeSet::new();
     for node in d.all("ul.mh-list > li > div.mh-item, div.banner_detail_form")? {
-        let Ok(row) = card(&node) else { continue };
+        let Ok(row) = card(&node, req) else { continue };
         if seen.insert(row["id"].as_str().unwrap_or("").to_string()) {
             items.push(row);
         }

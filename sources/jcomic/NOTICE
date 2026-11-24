@@ -1,0 +1,6 @@
+Behavior ported from Keiyoushi extensions-source, src/zh/jcomic, at
+8947c372cd87f546a0b80cb0e4b0a5a8add5ef88 under Apache License 2.0.
+https://github.com/keiyoushi/extensions-source/tree/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/src/zh/jcomic
+
+Changes: Rust and Koma WASM ABI port, typed chapter catalog and stable URL IDs,
+and compatibility with the image URL encoding seen in the public website.

@@ -1,0 +1,9 @@
+{
+  "homepage": "https://18mh.org",
+  "chapterOrder": "newest_first",
+  "localizedNames": { "zh-Hans": "18漫画", "zh-Hant": "18漫畫", "en": "18Manhua" },
+  "identity": { "mihon": { "sourceIds": ["5706270060628375954"],
+    "work": { "pathPrefix": "", "idPrefix": "" },
+    "chapter": { "pathPrefix": "", "idPrefix": "", "targetIdSegment": 0 }
+  } }
+}

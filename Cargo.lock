@@ -18,6 +18,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
+name = "aead"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d122413f284cf2d62fb1b7db97e02edb8cda96d769b16e443a4f6195e35662b0"
+dependencies = [
+ "crypto-common",
+ "generic-array",
+]
+
+[[package]]
 name = "aes"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -26,6 +36,20 @@ dependencies = [
  "cfg-if",
  "cipher",
  "cpufeatures",
+]
+
+[[package]]
+name = "aes-gcm"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "831010a0f742e1209b3bcea8fab6a8e149051ba6099432c8cb2cc117dec3ead1"
+dependencies = [
+ "aead",
+ "aes",
+ "cipher",
+ "ctr",
+ "ghash",
+ "subtle",
 ]
 
 [[package]]
@@ -529,6 +553,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ctr"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0369ee1ad671834580515889b80f2ea915f23b8be8d0daa4bbaf2ac5c7590835"
+dependencies = [
+ "cipher",
+]
+
+[[package]]
 name = "debugid"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -807,6 +840,16 @@ dependencies = [
  "libc",
  "r-efi",
  "wasip2",
+]
+
+[[package]]
+name = "ghash"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f0d8a4362ccb29cb0b265253fb0a2728f592895ee6854fd9bc13f2ffda266ff1"
+dependencies = [
+ "opaque-debug",
+ "polyval",
 ]
 
 [[package]]
@@ -1254,6 +1297,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_bookwalker_publus_processor"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "koma_bookwalkertw_source"
+version = "0.1.2"
+dependencies = [
+ "base64 0.22.1",
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
+name = "koma_boylove_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "percent-encoding",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "koma_budingmanhua_source"
 version = "0.1.1"
 dependencies = [
@@ -1275,6 +1349,15 @@ name = "koma_cartoon18_zh_source"
 version = "0.1.5"
 dependencies = [
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_ccc_page_processor"
+version = "0.1.0"
+dependencies = [
+ "aes",
+ "base64 0.22.1",
+ "dlmalloc",
 ]
 
 [[package]]
@@ -1316,6 +1399,20 @@ name = "koma_cosplaytele_source"
 version = "0.1.1"
 dependencies = [
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_creativecomic_source"
+version = "0.1.0"
+dependencies = [
+ "aes",
+ "base64 0.22.1",
+ "cbc",
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "sha2",
+ "url",
 ]
 
 [[package]]
@@ -1378,10 +1475,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_eighteenmanhua_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "koma_example_demo_source"
 version = "0.1.0"
 dependencies = [
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_favcomic_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
 ]
 
 [[package]]
@@ -1424,6 +1541,38 @@ name = "koma_guazimanhua_source"
 version = "0.1.10"
 dependencies = [
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_hanabi_tile_processor"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "base64 0.22.1",
+ "dlmalloc",
+ "rand_chacha",
+ "rand_core",
+ "sha2",
+]
+
+[[package]]
+name = "koma_hanabimanga_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
+name = "koma_hanime1_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
 ]
 
 [[package]]
@@ -1477,6 +1626,27 @@ name = "koma_hentaihand_zh_source"
 version = "0.1.5"
 dependencies = [
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_hikarinagi_page_processor"
+version = "0.1.0"
+dependencies = [
+ "aes",
+ "ghash",
+ "subtle",
+]
+
+[[package]]
+name = "koma_hikarinagi_source"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "dlmalloc",
+ "koma_source_sdk",
+ "percent-encoding",
+ "serde_json",
+ "url",
 ]
 
 [[package]]
@@ -1539,6 +1709,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_jcomic_source"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "koma_jinmantiantang_source"
 version = "0.1.11"
 dependencies = [
@@ -1552,7 +1733,7 @@ dependencies = [
 
 [[package]]
 name = "koma_jisumanhua_source"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1675,21 +1856,21 @@ dependencies = [
 
 [[package]]
 name = "koma_mangadex_source"
-version = "0.1.30"
+version = "0.1.31"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_mangadex_zh_hans_source"
-version = "0.1.17"
+version = "0.1.18"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_mangadex_zh_hant_source"
-version = "0.1.17"
+version = "0.1.18"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1751,6 +1932,24 @@ name = "koma_manhuawu_source"
 version = "0.1.17"
 dependencies = [
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_manwa_cbc_processor"
+version = "0.1.0"
+dependencies = [
+ "aes",
+]
+
+[[package]]
+name = "koma_manwa_source"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
 ]
 
 [[package]]
@@ -1852,7 +2051,7 @@ dependencies = [
 
 [[package]]
 name = "koma_noyacg_source"
-version = "0.1.13"
+version = "0.1.14"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1954,6 +2153,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_rumanhuaunoriginal_source"
+version = "0.1.0"
+dependencies = [
+ "aes",
+ "base64 0.22.1",
+ "cbc",
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "koma_scitechvista_zh_hant_source"
 version = "0.1.2"
 dependencies = [
@@ -2037,6 +2249,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_toptoon_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_core",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "koma_utifa_source"
 version = "0.1.2"
 dependencies = [
@@ -2046,6 +2269,17 @@ dependencies = [
  "miniz_oxide",
  "serde_json",
  "sha2",
+ "url",
+]
+
+[[package]]
+name = "koma_vomic_source"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
  "url",
 ]
 
@@ -2094,7 +2328,7 @@ dependencies = [
 
 [[package]]
 name = "koma_xcomic_zh_hant_source"
-version = "0.1.18"
+version = "0.1.19"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -2104,7 +2338,7 @@ dependencies = [
 
 [[package]]
 name = "koma_xcomic_zh_source"
-version = "0.1.17"
+version = "0.1.18"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -2392,6 +2626,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 
 [[package]]
+name = "opaque-debug"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
+
+[[package]]
 name = "parking_lot"
 version = "0.12.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2527,6 +2767,18 @@ name = "pkg-config"
 version = "0.3.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "19f132c84eca552bf34cab8ec81f1c1dcc229b811638f9d283dceabe58c5569e"
+
+[[package]]
+name = "polyval"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9d1fe60d06143b2430aa532c94cfe9e29783047f06c0d7fd359a9a51b729fa25"
+dependencies = [
+ "cfg-if",
+ "cpufeatures",
+ "opaque-debug",
+ "universal-hash",
+]
 
 [[package]]
 name = "postcard"
@@ -3322,6 +3574,16 @@ name = "unicode_titlecase"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "de023a2c2eb3e07fdf1be663df7010e23968a3b9a5e94d1a860f620bdfd233e2"
+
+[[package]]
+name = "universal-hash"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fc1de2c688dc15305988b563c3854064043356019f97a4b46276fe734c4f07ea"
+dependencies = [
+ "crypto-common",
+ "subtle",
+]
 
 [[package]]
 name = "untrusted"

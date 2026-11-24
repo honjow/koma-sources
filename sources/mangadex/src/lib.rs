@@ -374,7 +374,7 @@ fn run_search(req: &[u8]) -> u32 {
         && write_url_encoded(url_buf, &mut url_cursor, query)
         && write_bytes(url_buf, &mut url_cursor, b"&limit=20&offset=")
         && write_usize(url_buf, &mut url_cursor, offset)
-        && write_bytes(url_buf, &mut url_cursor, b"&includes%5B%5D=cover_art")
+        && write_bytes(url_buf, &mut url_cursor, b"&includes%5B%5D=cover_art&includes%5B%5D=author")
         && append_content_rating_query(url_buf, &mut url_cursor, req, true)
         && write_bytes(url_buf, &mut url_cursor, original_language::query(req, b"originalLanguage_en", true));
     if !ok { return write_error("search", "internal_error", "url overflow"); }
@@ -443,8 +443,24 @@ fn run_search(req: &[u8]) -> u32 {
         }
         let ok2 = write_bytes(payload, &mut c, br#""},"authors":[],"status":""#)
             && append_api_string(payload, &mut c, status)
-            && write_bytes(payload, &mut c, br#"","contentRating":"unknown","sourceTags":["mangadex"]}"#);
+            && write_bytes(payload, &mut c, br#"","contentRating":"unknown","sourceTags":["mangadex"]"#);
         if !ok2 { return write_error("search", "internal_error", "overflow"); }
+        // Optional list card summary: the author name is embedded in the
+        // relationship, so it is shown only when the host negotiates the
+        // list-info feature. Legacy (un-negotiated) output stays byte-identical.
+        // The API carries JSON escapes (e.g. \uXXXX for non-ASCII); decode them
+        // before handing plain text to the list-info encoder, which re-escapes.
+        if let Some(author_raw) = relationship_string(obj, b"author", b"name") {
+            if let Ok(author) = decode_json_content(author_raw, scratch_b()) {
+                let _ = koma_source_sdk::list_info::append(
+                    payload,
+                    &mut c,
+                    req,
+                    &[koma_source_sdk::list_info::ListInfo::Text { text: author, label: Some(b"\xe4\xbd\x9c\xe8\x80\x85") }],
+                );
+            }
+        }
+        if !write_bytes(payload, &mut c, b"}") { return write_error("search", "internal_error", "overflow"); }
         written += 1;
     }
 
@@ -1341,7 +1357,7 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     let url_buf = scratch_a();
     let mut url_cursor = 0usize;
     let ok = write_bytes(url_buf, &mut url_cursor, API_BASE)
-        && write_bytes(url_buf, &mut url_cursor, b"/manga?limit=20&includes%5B%5D=cover_art&offset=")
+        && write_bytes(url_buf, &mut url_cursor, b"/manga?limit=20&includes%5B%5D=cover_art&includes%5B%5D=author&offset=")
         && write_usize(url_buf, &mut url_cursor, offset_val);
     if !ok { return write_error("get_manga_list", "internal_error", "url overflow"); }
 
@@ -1424,8 +1440,22 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
         }
         let ok2 = write_bytes(payload, &mut c, br#""},"authors":[],"status":""#)
             && append_api_string(payload, &mut c, st)
-            && write_bytes(payload, &mut c, br#"","contentRating":"unknown","sourceTags":["mangadex"]}"#);
+            && write_bytes(payload, &mut c, br#"","contentRating":"unknown","sourceTags":["mangadex"]"#);
         if !ok2 { return write_error("get_manga_list", "internal_error", "overflow"); }
+        // Optional list card summary: author name from the relationship, shown
+        // only when the host negotiates the list-info feature. The API carries
+        // JSON escapes; decode them before the list-info encoder re-escapes.
+        if let Some(author_raw) = relationship_string(obj, b"author", b"name") {
+            if let Ok(author) = decode_json_content(author_raw, scratch_b()) {
+                let _ = koma_source_sdk::list_info::append(
+                    payload,
+                    &mut c,
+                    req,
+                    &[koma_source_sdk::list_info::ListInfo::Text { text: author, label: Some(b"\xe4\xbd\x9c\xe8\x80\x85") }],
+                );
+            }
+        }
+        if !write_bytes(payload, &mut c, b"}") { return write_error("get_manga_list", "internal_error", "overflow"); }
         written += 1;
     }
 

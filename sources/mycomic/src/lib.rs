@@ -2,6 +2,7 @@
 use koma_source_sdk::{
     chapters::{Chapter, ChapterNumber, ChapterPage, ChapterPlacement, ChapterResult, GroupedChapters},
     host,
+    http::{CallError, Chain, Client, Interceptor, Request, Response},
     json_utils::*,
     source::{SourceCapabilities, SourceInfo},
 };
@@ -598,24 +599,31 @@ fn build_request(url: &[u8]) -> Option<usize> {
     Some(n)
 }
 
-fn fetch(path: &[u8]) -> Result<Node, &'static str> {
-    unsafe { LAST_HTTP_STATUS = 0 };
-    host::log_info(b"mycomic fetch stage=enter");
-    if host::check_cancel() {
-        return Err("cancelled");
-    };
-    let mut url = [0; 8192];
-    let u = absolute(path, &mut url)?;
-    let b = http_req_buf();
-    let mut n = build_request(u).ok_or("request overflow")?;
-    if unsafe { CHALLENGE_CAUSE } {
-        n = n.checked_sub(1).ok_or("request overflow")?;
-        bytes(b, &mut n, br#", "wantChallengeRequestId":true}"#)?;
-    };
-    host::log_info(b"mycomic fetch stage=request_ready");
-    let size = host::http_request(&b[..n], http_out()).map_err(|_| "network request failed")?;
-    host::log_info(b"mycomic fetch stage=http_return");
-    let response = &http_out()[..size];
+struct FetchFailure(&'static str);
+
+impl From<CallError> for FetchFailure {
+    fn from(_: CallError) -> Self {
+        Self("network request failed")
+    }
+}
+
+struct MyComicResponse;
+
+impl Interceptor<FetchFailure> for MyComicResponse {
+    fn intercept<'out>(
+        &self,
+        request: Request<'_>,
+        next: Chain<'_, FetchFailure>,
+        out: &'out mut [u8],
+    ) -> Result<Response<'out>, FetchFailure> {
+        let response = next.proceed(request, out)?;
+        host::log_info(b"mycomic fetch stage=http_return");
+        check_http_response(response.as_json()).map_err(FetchFailure)?;
+        Ok(response)
+    }
+}
+
+fn check_http_response(response: &[u8]) -> Result<(), &'static str> {
     let status = json_object_member(response, b"status")
         .or_else(|| json_object_member(response, b"statusCode"))
         .map(koma_source_sdk::parse_status_code)
@@ -651,6 +659,30 @@ fn fetch(path: &[u8]) -> Result<Node, &'static str> {
         500..=599 => return Err("server error"),
         _ => return Err("invalid HTTP status"),
     };
+    Ok(())
+}
+
+fn fetch(path: &[u8]) -> Result<Node, &'static str> {
+    unsafe { LAST_HTTP_STATUS = 0 };
+    host::log_info(b"mycomic fetch stage=enter");
+    if host::check_cancel() {
+        return Err("cancelled");
+    };
+    let mut url = [0; 8192];
+    let u = absolute(path, &mut url)?;
+    let b = http_req_buf();
+    let mut n = build_request(u).ok_or("request overflow")?;
+    if unsafe { CHALLENGE_CAUSE } {
+        n = n.checked_sub(1).ok_or("request overflow")?;
+        bytes(b, &mut n, br#", "wantChallengeRequestId":true}"#)?;
+    };
+    host::log_info(b"mycomic fetch stage=request_ready");
+    let interceptors: [&dyn Interceptor<FetchFailure>; 1] = [&MyComicResponse];
+    let client = Client::new(&interceptors);
+    let response = client
+        .send(Request::from_json(&b[..n]), http_out())
+        .map_err(|error| error.0)?;
+    let response = response.as_json();
     let n = koma_source_sdk::decode_json_body_into(response, body_buf())
         .map_err(|_| "invalid HTTP body")?;
     host::log_info(b"mycomic fetch stage=body_ready");
