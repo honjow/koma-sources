@@ -2,6 +2,7 @@
 extern crate alloc;
 
 use alloc::{
+    collections::BTreeMap,
     format,
     string::{String, ToString},
     vec::Vec,
@@ -9,7 +10,8 @@ use alloc::{
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use koma_source_sdk::{
     chapters::{
-        Chapter, ChapterNumber, ChapterOrder, ChapterResponse, ChapterResult, DecimalChapterNumber,
+        Chapter, ChapterNumber, ChapterPage, ChapterPlacement, ChapterResult, DecimalChapterNumber,
+        GroupedChapters,
     },
     json_utils::request_page_number,
     source::{SourceCapabilities, SourceInfo},
@@ -21,6 +23,7 @@ use url::Url;
 
 #[path = "../../port_support.rs"]
 mod port;
+mod body_decode;
 use port::Result;
 
 const BASE: &str = "https://www.hikarinagi.org";
@@ -169,7 +172,8 @@ fn card(item: &Value, req: &[u8]) -> Result<Value> {
     };
     let mut manga = json!({"id":id,"title":title,"language":"zh-Hans","status":status,
         "links":[{"kind":"source","url":format!("{BASE}/mangas/{id}")}]});
-    if let Some(description) = item["summary"].as_str() {
+    if let Some(description) = item["summary_cn"].as_str().filter(|text| !text.trim().is_empty())
+        .or_else(|| item["summary"].as_str().filter(|text| !text.trim().is_empty())) {
         manga["description"] = json!(description);
     }
     if let Some(src) = item["covers"][0]["media"]["src"]
@@ -253,7 +257,13 @@ fn browse(input: &Value, request: &[u8], search: bool) -> Result<Value> {
             params.append_pair("search", query);
         }
         for (name, _, choices) in FILTERS {
-            let supplied = port::filter(args, name, choices)?;
+            // The declared default for a select is empty, even when its
+            // choices (such as sort) only contain explicit values.
+            let supplied = if args["filters"].get(*name).and_then(Value::as_str) == Some("") {
+                ""
+            } else {
+                port::filter(args, name, choices)?
+            };
             let value = if supplied.is_empty() && *name == "sort" {
                 if !search && args["listingId"] == "popular" {
                     "heat:desc"
@@ -323,6 +333,21 @@ fn details(args: &Value) -> Result<Value> {
     Ok(json!({"manga":manga}))
 }
 
+fn normalize_chapter_number(value: &str) -> Option<String> {
+    let value = value.trim();
+    let (sign, unsigned) = value.strip_prefix('-').map(|rest| ("-", rest)).unwrap_or(("", value));
+    let end = unsigned.find(|c| matches!(c, '.' | 'e' | 'E')).unwrap_or(unsigned.len());
+    let integer = &unsigned[..end];
+    if integer.is_empty() || !integer.bytes().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    let integer = integer.trim_start_matches('0');
+    let integer = if integer.is_empty() { "0" } else { integer };
+    let result = format!("{sign}{integer}{}", &unsigned[end..]);
+    DecimalChapterNumber::new(result.as_bytes())?;
+    Some(result)
+}
+
 fn run_get_chapters(request: &[u8]) -> ChapterResult<'static, &'static str> {
     let input = port::input(request)?;
     let id = id_arg(&input["args"], "mangaId")?;
@@ -332,43 +357,62 @@ fn run_get_chapters(request: &[u8]) -> ChapterResult<'static, &'static str> {
     }
     let updated = data["manga"]["latest_chapter_at"].as_str();
     let manga_id = id.to_string();
+    let mut group_positions = BTreeMap::<String, u64>::new();
     let rows = data["chapters"]
         .as_array()
         .ok_or("parse_error")?
         .iter()
-        .rev()
         .map(|row| {
             let id = row["id"].as_u64().ok_or("parse_error")?.to_string();
             let number = row["chapter_number"].as_str();
+            let normalized_number = number.and_then(normalize_chapter_number);
+            let volume = row["volume_number"].as_u64().and_then(|n| usize::try_from(n).ok());
             let title = row["title"]
                 .as_str()
                 .filter(|text| !text.trim().is_empty())
                 .map(str::to_string)
                 .or_else(|| number.map(|n| format!("第{n}话")))
+                .or_else(|| match row["chapter_type"].as_str() {
+                    Some("VOLUME") => row["volume_number"].as_u64()
+                        .map(|n| format!("第{n}卷"))
+                        .or_else(|| row["volume_number"].as_str().map(|n| format!("第{n}卷"))),
+                    Some("EXTRA") => row["ordinal"].as_u64().map(|n| format!("番外 {n}")),
+                    _ => None,
+                })
                 .unwrap_or_default();
             let pages = row["page_count"]
                 .as_u64()
                 .and_then(|n| usize::try_from(n).ok());
-            Ok((id, title, number, pages, pages.map(|n| format!("{n}P"))))
+            let group = match row["chapter_type"].as_str() {
+                Some("SERIALIZATION") => "连载".to_string(),
+                Some("VOLUME") => "单行本".to_string(),
+                Some("EXTRA") => "番外".to_string(),
+                Some(other) if !other.is_empty() => other.to_string(),
+                _ => "其他".to_string(),
+            };
+            let position = *group_positions.get(&group).unwrap_or(&0);
+            group_positions.insert(group.clone(), position + 1);
+            Ok((id, title, normalized_number, volume, pages, group, position))
         })
         .collect::<Result<Vec<_>>>()?;
-    let chapters = rows
-        .iter()
-        .enumerate()
-        .map(|(index, (chapter, title, number, pages, label))| {
-            let mut out = Chapter::new(chapter.as_bytes(), manga_id.as_bytes(), title.as_bytes());
-            out.index = Some(index);
-            out.chapter_number = number
-                .and_then(|n| DecimalChapterNumber::new(n.as_bytes()))
-                .map(ChapterNumber::Decimal);
-            out.page_count = *pages;
-            out.scanlator = label.as_deref().map(str::as_bytes);
-            out.published_at = updated.map(str::as_bytes);
-            out
-        })
-        .collect::<Vec<_>>();
-    ChapterResponse::ordered(payload_buf(), request, ChapterOrder::NewestFirst, &chapters)
-        .map_err(port::chapter_error)
+    // The API orders each chapter type oldest first, but groups serialization,
+    // volumes and extras separately. Never join those groups into one reader
+    // sequence merely because their entries share an array.
+    let mut catalog = GroupedChapters::new(payload_buf(), request).map_err(port::chapter_error)?;
+    for (index, (chapter, title, number, volume, pages, group, position)) in rows.iter().rev().enumerate() {
+        let mut out = Chapter::new(chapter.as_bytes(), manga_id.as_bytes(), title.as_bytes());
+        out.index = Some(index);
+        out.chapter_number = number.as_deref()
+            .and_then(|n| DecimalChapterNumber::new(n.as_bytes()))
+            .map(ChapterNumber::Decimal);
+        out.volume_number = volume.map(ChapterNumber::Integer);
+        out.page_count = *pages;
+        out.scanlator = Some(group.as_bytes());
+        out.published_at = updated.map(str::as_bytes);
+        catalog.push(out, ChapterPlacement::InGroup { group: group.as_bytes(), position: *position })
+            .map_err(port::chapter_error)?;
+    }
+    catalog.finish(ChapterPage::Complete).map_err(port::chapter_error)
 }
 
 fn pages(args: &Value) -> Result<Value> {
@@ -412,34 +456,45 @@ fn image(args: &Value, request: &[u8]) -> Result<Value> {
         return Err("invalid_request");
     }
 
-    // The current host only accepts GET image descriptors. Do not emit an
-    // executable-looking URL or fetch the entire encrypted page in metadata WASM.
-    if !source_protocol::feature(request, b"source_image_post_v1")
-        || !source_protocol::feature(request, b"source_required_image_decode_wasm_v1")
-    {
+    // Reuse the host's scoped HTTP and body references: POST and decryption
+    // remain source-owned, and no credentials or bytes enter page metadata.
+    if ![b"source_http_body_v1".as_slice(), b"source_body_v1", b"source_image_body_v1"]
+        .iter().all(|feature| source_protocol::feature(request, feature)) {
         return Err("host_feature_required");
     }
-    let pid = percent_decode_str(pid)
-        .decode_utf8()
-        .map_err(|_| "invalid_request")?;
+    let pid = percent_decode_str(pid).decode_utf8().map_err(|_| "invalid_request")?;
     let aad = format!("manga:page:{work}:{chapter}:{pid}");
     url.set_fragment(None);
     let mut token = [0u8; 64];
     if unsafe { random_bytes(token.as_mut_ptr(), token.len() as u32) } != token.len() as i32 {
         return Err("internal_error");
     }
-    let mut config = String::with_capacity(65 + aad.len());
-    for index in 0..32 {
-        use core::fmt::Write;
-        write!(config, "{:02x}", token[index] ^ token[index + 32]).map_err(|_| "internal_error")?;
+    let mut key = [0u8; 32];
+    for i in 0..key.len() { key[i] = token[i] ^ token[i + 32]; }
+    let envelope = json!({"version":1,"method":"POST","url":url.as_str(),
+        "headers":{"Origin":BASE,"Referer":format!("{BASE}/"),"Content-Type":"application/json; charset=utf-8"},
+        "body":json!({"p":URL_SAFE_NO_PAD.encode(token)}).to_string(),
+        "responseKind":"bodyRef","timeoutMs":60000});
+    let encoded = serde_json::to_vec(&envelope).map_err(|_| "internal_error")?;
+    let response = koma_source_sdk::http::Client::<koma_source_sdk::http::CallError>::new(&[])
+        .send(koma_source_sdk::http::Request::from_json(&encoded), http_out())
+        .map_err(|_| "network_error")?;
+    match response.status() {
+        Some(200..=299) => (),
+        Some(401) => return Err("auth_required"),
+        Some(403) => return Err("forbidden"),
+        Some(429) => return Err("rate_limit"),
+        Some(500..=599) => return Err("server_error"),
+        _ => return Err("network_error"),
     }
-    config.push('|');
-    config.push_str(&aad);
-    Ok(json!({"request":{"method":"POST","url":url.as_str(),
-            "headers":{"Origin":BASE,"Referer":format!("{BASE}/"),"Content-Type":"application/json; charset=utf-8"},
-            "body":json!({"p":URL_SAFE_NO_PAD.encode(token)}).to_string()},
-        "responseErrors":{"401":"auth_required","403":"permission_denied"},
-        "requiredImageDecode":{"kind":"wasm_image_v1","bytes":config}}))
+    let input = response.body_ref()?;
+    drop(response);
+    let decoded = body_decode::decrypt(&input, &key, aad.as_bytes());
+    let closed = input.close();
+    let output = decoded?;
+    if let Err(error) = closed { let _ = output.close(); return Err(error); }
+    let n = output.image_result(scratch_a())?;
+    serde_json::from_slice(&scratch_a()[..n]).map_err(|_| "internal_error")
 }
 
 fn dispatch(op: &str, request: &[u8]) -> Result<Value> {
@@ -474,7 +529,7 @@ fn run(op: &str, request: &[u8]) -> u32 {
         Err("host_feature_required") if op == "get_image_request" => write_error(
             op,
             "host_feature_required",
-            "当前客户端不支持 Hikarinagi 正文所需的 POST 图片请求。",
+            "当前客户端不支持此书源所需的图片数据处理。",
         ),
         result => port::write_result(op, result),
     }

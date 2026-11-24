@@ -70,7 +70,7 @@ bookwalkertw|bookwalkertw|false|1.5.6
 toptoon|toptoon|false|1.4.1
 vomic|vomic|false|1.4.1
 boylove|boylove|true|1.5.5
-hikarinagi|hikarinagi|false|1.5.5
+hikarinagi|hikarinagi|false|1.6.0
 roumanwu|roumanwu|true|1.5.5
 jcomic|jcomic|true|1.4.1
 manwa|manwa|true|1.5.5
