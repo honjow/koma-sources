@@ -1,5 +1,9 @@
 # English WEBTOON / CANVAS 0.1.6
 
+## List summaries
+
+Show the genre already present in ranking cards, and keep the author where available. Older Koma versions keep the existing list output.
+
 公开英文搜索、详情、集目录和阅读器页。既有 ID、API 目录顺序、图像页顺序和默认输出保留。请求保持既有 `locale=en` cookie；这个源不接受年龄/同意或不引入账号设置。
 
 ## 设置

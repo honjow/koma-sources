@@ -1880,7 +1880,7 @@ dependencies = [
 
 [[package]]
 name = "koma_mangapluscreators_en_source"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -2170,7 +2170,7 @@ dependencies = [
 
 [[package]]
 name = "koma_scitechvista_zh_hant_source"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -2204,7 +2204,7 @@ version = "0.2.0"
 
 [[package]]
 name = "koma_tapastic_source"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -2288,7 +2288,7 @@ dependencies = [
 
 [[package]]
 name = "koma_webtoons_source"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "koma_source_sdk",
 ]

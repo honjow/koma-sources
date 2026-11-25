@@ -32,7 +32,7 @@ const UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:105.0) Gecko/2010
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.tapas.koma",
     name: "Tapas",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "en",
     author: "Koma",
@@ -209,6 +209,21 @@ fn manga_list(request: &[u8], args: &Value) -> Result<Value> {
                 cover,
             );
             row["description"] = json!(text(entry, "description")?);
+            if protocol::feature(request, koma_source_sdk::list_info::HOST_FEATURE) {
+                let authors = entry["authorList"].as_array().map(|v| v.iter()
+                    .filter_map(Value::as_str).map(str::trim).filter(|v| !v.is_empty())
+                    .collect::<Vec<_>>().join(", ")).unwrap_or_default();
+                let genres = entry["genreList"].as_array().map(|v| v.iter()
+                    .filter_map(|g| g["value"].as_str()).map(str::trim)
+                    .filter(|g| !g.is_empty() && g.len() <= 96).take(8)
+                    .collect::<Vec<_>>()).unwrap_or_default();
+                let mut info = Vec::new();
+                if !authors.is_empty() && authors.len() <= 512 && authors != row["title"].as_str().unwrap_or("") {
+                    info.push(json!({"type":"text","text":authors}));
+                }
+                if !genres.is_empty() { info.push(json!({"type":"tags","items":genres})); }
+                if !info.is_empty() { row["listInfo"] = json!(info); }
+            }
             Ok(row)
         })
         .collect::<Result<Vec<_>>>()?;
@@ -294,6 +309,20 @@ fn search(request: &[u8], args: &Value) -> Result<Value> {
             let mut row = manga(id, &title, image);
             if let Some(description) = item.one(".desc.force.mbm") {
                 row["description"] = json!(description.text()?)
+            }
+            if protocol::feature(request, koma_source_sdk::list_info::HOST_FEATURE) {
+                let authors = item.all(".sub-title a").unwrap_or_default().iter()
+                    .filter_map(|node| node.text().ok()).filter(|v| !v.is_empty())
+                    .collect::<Vec<_>>().join(", ");
+                let genres = item.all(".tag a").unwrap_or_default().iter()
+                    .filter_map(|node| node.text().ok()).filter(|v| !v.is_empty() && v.len() <= 96)
+                    .take(8).collect::<Vec<_>>();
+                let mut info = Vec::new();
+                if !authors.is_empty() && authors.len() <= 512 && authors != title {
+                    info.push(json!({"type":"text","text":authors}));
+                }
+                if !genres.is_empty() { info.push(json!({"type":"tags","items":genres})); }
+                if !info.is_empty() { row["listInfo"] = json!(info); }
             }
             Ok(row)
         })

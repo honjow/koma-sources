@@ -9,7 +9,7 @@ const ASSET: &[u8] = b"https://assets.mangaplus-creators.jp";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mangapluscreators.en.koma",
     name: "MANGA Plus Creators by SHUEISHA",
-    version: "0.1.8",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "en",
     author: "Koma",
@@ -695,7 +695,18 @@ fn list(r: &[u8], search: bool) -> R<usize> {
         if i > 0 {
             bytes(out, &mut n, b",")?
         };
-        emit_work(out, &mut n, id, title, cover)?;
+        emit_work_fields(out, &mut n, id, title, cover)?;
+        if koma_source_sdk::source_protocol::feature(r, koma_source_sdk::list_info::HOST_FEATURE) {
+            let mut author_buf = [0; 4096];
+            if let Ok(author) = st(c, b".author-name", &mut author_buf) {
+                if !author.is_empty() && author != title {
+                    let _ = koma_source_sdk::list_info::append(out, &mut n, r, &[
+                        koma_source_sdk::list_info::ListInfo::Text { text: author, label: None }
+                    ]);
+                }
+            }
+        }
+        bytes(out, &mut n, b"}")?;
     }
     bytes(
         out,
@@ -704,7 +715,7 @@ fn list(r: &[u8], search: bool) -> R<usize> {
     )?;
     Ok(n)
 }
-fn emit_work(out: &mut [u8], n: &mut usize, id: &[u8], title: &[u8], cover: &[u8]) -> R<()> {
+fn emit_work_fields(out: &mut [u8], n: &mut usize, id: &[u8], title: &[u8], cover: &[u8]) -> R<()> {
     let mut mid = [0; 128];
     let mid = make(&[b"mpc:en:", id], &mut mid)?;
     let mut u = [0; 256];
@@ -720,7 +731,7 @@ fn emit_work(out: &mut [u8], n: &mut usize, id: &[u8], title: &[u8], cover: &[u8
         b",\"contentRating\":\"unknown\",\"cover\":{\"kind\":\"url\",\"url\":",
     )?;
     q(out, n, cover)?;
-    bytes(out, n, b"}}")
+    bytes(out, n, b"}")
 }
 fn detail(r: &[u8]) -> R<usize> {
     let id = key(r, b"mangaId", b"mpc:en:")?;
@@ -732,8 +743,7 @@ fn detail(r: &[u8]) -> R<usize> {
     let out = payload_buf();
     let mut n = 0;
     bytes(out, &mut n, b"{\"manga\":")?;
-    emit_work(out, &mut n, id, title, cover)?;
-    n -= 1;
+    emit_work_fields(out, &mut n, id, title, cover)?;
     let mut a = [0; 4096];
     let author = st(d.0, b".book-box div.mod-btn-profile div.name", &mut a)?;
     bytes(out, &mut n, b",\"authors\":[")?;
@@ -1232,7 +1242,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
-    response_buffer().write_success_parts("source_info", &[b"{\"sourceInfo\":{\"id\":\"com.mangapluscreators.en.koma\",\"name\":\"MANGA Plus Creators by SHUEISHA\",\"version\":\"0.1.8\",\"apiVersion\":\"0.2\",\"language\":\"en\",\"author\":\"Koma\",\"description\":\"Official English creator catalogue. Per-work rating and source usage unknown.\",\"contentRating\":\"safe\",\"localizedNames\":", "{\"zh-Hans\":\"MANGA Plus Creators\",\"zh-Hant\":\"MANGA Plus Creators\",\"en\":\"MANGA Plus Creators by SHUEISHA\"}".as_bytes(), b"},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":true,\"settings\":false,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}"])
+    response_buffer().write_success_parts("source_info", &[concat!("{\"sourceInfo\":{\"id\":\"com.mangapluscreators.en.koma\",\"name\":\"MANGA Plus Creators by SHUEISHA\",\"version\":\"", env!("CARGO_PKG_VERSION"), "\",\"apiVersion\":\"0.2\",\"language\":\"en\",\"author\":\"Koma\",\"description\":\"Official English creator catalogue. Per-work rating and source usage unknown.\",\"contentRating\":\"safe\",\"localizedNames\":").as_bytes(), "{\"zh-Hans\":\"MANGA Plus Creators\",\"zh-Hant\":\"MANGA Plus Creators\",\"en\":\"MANGA Plus Creators by SHUEISHA\"}".as_bytes(), b"},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":true,\"settings\":false,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}"])
 }
 macro_rules! export_op {
     ($f:ident,$op:literal,$run:ident) => {

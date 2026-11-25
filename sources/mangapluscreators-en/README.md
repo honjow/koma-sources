@@ -1,5 +1,9 @@
 # MANGA Plus Creators 英文 0.1.1
 
+## List summaries
+
+Show the author when the existing list card provides one. Verified with the search result template. Older Koma versions keep the existing list output.
+
 独立 `com.mangapluscreators.en.koma`；语言 en。正式订阅 SAFE1；单作品分级未知，实际源用量未知。只有提供方有限热门列表、关键词搜索、详情、完整分页目录、有序页描述符和 imageRequest。无最新/筛选/首页/登录/重试/JS/转换。搜索返回实际提供方结果而不是精确标题过滤。
 
 保留的匿名真实元数据：30 张热门卡片；30 张 Sense Life 查询卡片包括具名作品第六话；17 个唯一章节；自有 Public/EN 第一话 72 个唯一连续 pc 描述符。未抓取美术/封面二进制，无中文内容声称，无 native/正文/解码器/下载/持久化验收。其他标题和真实多页目录保持 OPEN。未知/畸形/含糊/非自有/分页/重复/容量失败整个操作，无部分目录成功。

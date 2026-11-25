@@ -1,5 +1,9 @@
 # Tapas
 
+## List summaries
+
+Show the authors and genres already provided by the list and search cards. Older Koma versions keep the existing list output.
+
 ## 0.1.2 簡介與多語言顯示
 
 Tapas 的英文漫畫連載，包含平台與創作者社群作品。此入口不含小說，付費章節與排期限制依原站狀態。

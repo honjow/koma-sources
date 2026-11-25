@@ -35,7 +35,7 @@ static mut SELECT_BUFFER: [u8; 4096] = [0; 4096];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.webtoons.koma",
     name: "WEBTOON (English)",
-    version: "0.1.10",
+    version: "0.1.11",
     api_version: "0.2",
     language: "en",
     author: "Koma source contributors",
@@ -480,7 +480,7 @@ fn search_url(query: &[u8], page: usize, output: &mut [u8]) -> Option<usize> {
     Some(c)
 }
 
-fn write_search_item(out: &mut [u8], cursor: &mut usize, item: host::HtmlDescriptor) -> bool {
+fn write_search_item(out: &mut [u8], cursor: &mut usize, item: host::HtmlDescriptor, req: &[u8]) -> bool {
     let mut href = [0u8; 2048];
     let Some(href_len) = attr(item, b"href", &mut href) else {
         return false;
@@ -527,7 +527,7 @@ fn write_search_item(out: &mut [u8], cursor: &mut usize, item: host::HtmlDescrip
         0
     };
 
-    append_slice(out, cursor, br#"{"id":"manga:webtoons:"#)
+    let ok = append_slice(out, cursor, br#"{"id":"manga:webtoons:"#)
         && append_json_escaped(out, cursor, title_no)
         && append_slice(out, cursor, b":")
         && append_json_escaped(out, cursor, route)
@@ -540,8 +540,29 @@ fn write_search_item(out: &mut [u8], cursor: &mut usize, item: host::HtmlDescrip
         && append_slice(
             out,
             cursor,
-            b"\"],\"status\":\"unknown\",\"contentRating\":\"unknown\",\"sourceTags\":[]}",
-        )
+            b"\"],\"status\":\"unknown\",\"contentRating\":\"unknown\",\"sourceTags\":[]",
+        );
+    if !ok { return false; }
+    if !koma_source_sdk::source_protocol::feature(req, koma_source_sdk::list_info::HOST_FEATURE) {
+        return append_slice(out, cursor, b"}");
+    }
+    let mut genre = [0u8; 97];
+    let genre_len = element_text(item, b".genre", &mut genre).unwrap_or(0);
+    if genre_len > 0 && genre_len <= 96 {
+        let tags = [&genre[..genre_len]];
+        let author_text = &author[..author_len];
+        if author_len > 0 && author_text != &title[..title_len] {
+            let _ = koma_source_sdk::list_info::append(out, cursor, req, &[
+                koma_source_sdk::list_info::ListInfo::Text { text: author_text, label: None },
+                koma_source_sdk::list_info::ListInfo::Tags { items: &tags },
+            ]);
+        } else {
+            let _ = koma_source_sdk::list_info::append(out, cursor, req, &[
+                koma_source_sdk::list_info::ListInfo::Tags { items: &tags },
+            ]);
+        }
+    }
+    append_slice(out, cursor, b"}")
 }
 
 // Decode into a distinct bounded buffer, not the WAMR stack or URL scratch.
@@ -643,7 +664,7 @@ fn run_search(req: &[u8]) -> u32 {
             out_of_room = true;
             break;
         }
-        if write_search_item(out, &mut c, item) {
+        if write_search_item(out, &mut c, item, req) {
             count += 1;
         } else {
             c = item_start;
@@ -1499,7 +1520,7 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
     if !write_bytes(out,&mut c,br#"{"items":["#) { close_html_descriptors(descriptors,0,selected as usize);let _=host::html_close(doc);return write_error("get_manga_list","internal_error","output overflow"); }
     for i in 0..selected as usize {
         let x=i*4;let raw=i32::from_le_bytes([descriptors[x],descriptors[x+1],descriptors[x+2],descriptors[x+3]]);
-        let ok=raw>0 && (i==0 || write_bytes(out,&mut c,b",")) && write_search_item(out,&mut c,host::HtmlDescriptor::from_raw(raw));
+        let ok=raw>0 && (i==0 || write_bytes(out,&mut c,b",")) && write_search_item(out,&mut c,host::HtmlDescriptor::from_raw(raw),req);
         if raw>0 { let _=host::html_close(host::HtmlDescriptor::from_raw(raw)); }
         if !ok { close_html_descriptors(descriptors,i+1,selected as usize);let _=host::html_close(doc);return write_error("get_manga_list","parse_error","invalid listing card"); }
     }

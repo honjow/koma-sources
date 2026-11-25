@@ -5,7 +5,7 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.scitechvista.zh-hant.koma",
     name: "科技大觀園・科普漫畫大賽",
-    version: "0.1.2",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -967,7 +967,7 @@ fn current_images(i: usize) -> R<()> {
     host::html_close(doc).map_err(|_| "html_error")?;
     r
 }
-fn book(p: &mut [u8], c: &mut usize, i: usize, detail: bool) -> R<()> {
+fn book(p: &mut [u8], c: &mut usize, i: usize, detail: bool, list_request: Option<&[u8]>) -> R<()> {
     w(p, c, b"{\"id\":\"")?;
     mid(p, c, unsafe { &IDS[i] })?;
     w(p, c, b"\",\"title\":")?;
@@ -1003,9 +1003,31 @@ fn book(p: &mut [u8], c: &mut usize, i: usize, detail: bool) -> R<()> {
         route(p, c, unsafe { &IDS[i] })?;
         w(p, c, b"\"}]")?;
     }
+    // List summaries reuse the already parsed catalogue row; preserve the
+    // author's existing fallback when adding the publication date and division.
+    if let Some(request) = list_request {
+        use koma_source_sdk::list_info::{self, ListInfo};
+        let fields: [(&[u8], Option<&[u8]>); 3] = [
+            (unsafe { &AUTHORS[i][..AL[i]] }, None),
+            (unsafe { &DATES[i][..DATE_LEN[i]] }, Some("刊登日期".as_bytes())),
+            (unsafe { &DIVISIONS[i][..DL[i]] }, Some("學校／組別".as_bytes())),
+        ];
+        let mut entries = [ListInfo::Text { text: b"", label: None }; 3];
+        let mut count = 0;
+        for (text, label) in fields {
+            let text = text.trim_ascii();
+            if !text.is_empty() && text.len() <= 512 {
+                entries[count] = ListInfo::Text { text, label };
+                count += 1;
+            }
+        }
+        if count > 0 {
+            let _ = list_info::append(p, c, request, &entries[..count]);
+        }
+    }
     w(p, c, b"}")
 }
-fn listing(which: usize) -> R<usize> {
+fn listing(which: usize, list_request: Option<&[u8]>) -> R<usize> {
     let first = catalogue_page(1, 0, if which > 1 { Some(which) } else { None })?;
     let row = if which == 1 {
         first
@@ -1024,7 +1046,7 @@ fn listing(which: usize) -> R<usize> {
         if i > start {
             w(p, &mut c, b",")?;
         }
-        book(p, &mut c, i, false)?;
+        book(p, &mut c, i, false, list_request)?;
     }
     w(p, &mut c, b"],\"page\":{\"nextCursor\":")?;
     if which < row.pages {
@@ -1039,12 +1061,14 @@ fn listing(which: usize) -> R<usize> {
 fn run_search(_req: &[u8]) -> u32 {
     write_error("search", "not_implemented", "此來源不提供搜尋")
 }
-fn run_get_manga_list(req: &[u8]) -> u32 {
+fn run_get_manga_list(req: &[u8], envelope: &[u8]) -> u32 {
     if arg_string(req, b"listingId").ok().flatten() != Some(b"listing:comics") {
         return write_error("get_manga_list", "invalid_request", "");
     }
+    use koma_source_sdk::{list_info, source_protocol};
+    let list_request = source_protocol::feature(envelope, list_info::HOST_FEATURE).then_some(envelope);
     match page(req) {
-        Ok(n) if n <= 6 => result("get_manga_list", listing(n)),
+        Ok(n) if n <= 6 => result("get_manga_list", listing(n, list_request)),
         _ => write_error("get_manga_list", "invalid_request", ""),
     }
 }
@@ -1060,7 +1084,7 @@ fn run_get_manga(req: &[u8]) -> u32 {
         let p = payload_buf();
         let mut c = 0;
         w(p, &mut c, b"{\"manga\":")?;
-        book(p, &mut c, i, true)?;
+        book(p, &mut c, i, true, None)?;
         w(p, &mut c, b"}")?;
         Ok(c)
     }
@@ -1244,7 +1268,13 @@ pub extern "C" fn koma_source_free(ptr: u32) {
     response_buffer().free(ptr)
 }
 macro_rules! export_op {
-    ($f:ident,$op:literal,$run:ident) => {
+    (@run $run:ident, $args:ident, $envelope:ident, full) => {
+        $run($args, $envelope)
+    };
+    (@run $run:ident, $args:ident, $envelope:ident) => {
+        $run($args)
+    };
+    ($f:ident,$op:literal,$run:ident $(,$request:tt)?) => {
         #[no_mangle]
         pub extern "C" fn $f(ptr: u32, len: u32) -> u32 {
             let req = match checked_request(ptr, len) {
@@ -1261,7 +1291,7 @@ macro_rules! export_op {
             if string(req, b"operation").ok() != Some($op.as_bytes()) {
                 return write_error($op, "invalid_request", "operation mismatch");
             }
-            $run(args)
+            export_op!(@run $run, args, req $(, $request)?)
         }
     };
 }
@@ -1273,7 +1303,8 @@ export_op!(koma_source_get_listings, "get_listings", run_get_listings);
 export_op!(
     koma_source_get_manga_list,
     "get_manga_list",
-    run_get_manga_list
+    run_get_manga_list,
+    full
 );
 export_op!(koma_source_get_home, "get_home", run_get_home);
 export_op!(koma_source_get_filters, "get_filters", run_get_filters);
