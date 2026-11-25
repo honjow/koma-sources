@@ -1,3 +1,14 @@
 {
-  "homepage": "https://www.tipo.gov.tw/tw/tipo1/295.html"
+  "homepage": "https://www.tipo.gov.tw/tw/tipo1/295.html",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "台湾智慧财产局的《IP手札mini!》，以短漫画解释日常会遇到的商标、专利和营业秘密问题。",
+        "zh-Hant": "台灣智慧財產局的《IP手札mini!》，以短漫畫解釋日常會遇到的商標、專利和營業秘密問題。",
+        "en": "The Taiwan Intellectual Property Office's IP Notes mini uses short comics to explain everyday trademark, patent and trade-secret questions."
+      }
+    }
+  }
 }

@@ -1,4 +1,15 @@
 {
   "homepage": "https://hanimeone.me/comics",
-  "localizedNames": {"zh-Hans":"Hanime1.me","zh-Hant":"Hanime1.me","en":"Hanime1.me"}
+  "localizedNames": {"zh-Hans":"Hanime1.me","zh-Hant":"Hanime1.me","en":"Hanime1.me"},
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "Hanime1 成人站的漫画专区。作品页会标注作者或社团，系列可在同一作品下找到关联集数。",
+        "zh-Hant": "Hanime1 成人網站的漫畫專區。作品頁會標註作者或社團，系列作品會列出相關集數。",
+        "en": "The comics section of Hanime1's adult site lists creators or circles, and groups related instalments for series."
+      }
+    }
+  }
 }

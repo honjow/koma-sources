@@ -57,7 +57,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "中文漫畫站，提供分話、分卷目錄及讀者、AI 推薦榜。圖片存取有站點額度限制，可在源設定中登入帳號。",
+    description: "Komiic 的繁中書庫有《堀桑與宮村君》等日漫，作品同時有單話與單行本時會分開列出。本站設有每日圖片瀏覽額度。",
     content_rating: "nsfw",
 };
 

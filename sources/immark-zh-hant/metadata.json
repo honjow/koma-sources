@@ -1,4 +1,15 @@
 {
   "comments": {"version": 1, "scopes": ["manga"]},
-  "homepage": "https://markleeblog.pixnet.net/blog"
+  "homepage": "https://markleeblog.pixnet.net/blog",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "《我是马克》为《今周刊》创作的「图文并靠」专栏。马克用短漫画画办公室的人情世故和上班族的日常。",
+        "zh-Hant": "《我是馬克》為《今周刊》創作的「圖文並靠」專欄。馬克用短漫畫畫辦公室的人情世故和上班族的日常。",
+        "en": "Mark Lee's Business Today comic column turns office politics and everyday working life into short cartoons."
+      }
+    }
+  }
 }

@@ -1,5 +1,9 @@
 # 如漫画（同名站）
 
+## 站点简介
+
+rumanhua.org 的同名书站。它的榜单既有《神印王座》《绍宋》等国漫，也能找到《海贼王》和《神之塔》。
+
 源 `org.rumanhua.koma` 对接 [m.rumanhua.org](https://m.rumanhua.org)，沿用 Mihon 来源编号 `6075779468319464999`。站点身份见 [Keiyoushi #20916](https://github.com/keiyoushi/extensions-source/pull/20916)。显示名按用户确认使用「同名站」。
 
 | 上游能力 | Koma 实现 |

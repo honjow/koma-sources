@@ -45,5 +45,16 @@
       ],
       "oncePerRequest": true
     }
-  ]
+  ],
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "台湾漫读的繁体中文电子书店。漫画区有出版社发行的日漫台版和台湾原创漫画，按电子书卷册上架，许多书有试读。",
+        "zh-Hant": "台灣漫讀的繁體中文電子書店。漫畫區有出版社發行的日漫台版和台灣原創漫畫，以電子書卷冊上架，許多書可試閱。",
+        "en": "Taiwan's Traditional Chinese ebook store carries publisher editions of Japanese manga and original Taiwanese comics. The manga catalogue is organised by ebook volume, often with sample pages."
+      }
+    }
+  }
 }

@@ -35,7 +35,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "Hanime1.me 的漫画专区。",
+    description: "Hanime1 成人站的漫画专区。作品页会标注作者或社团，系列可在同一作品下找到关联集数。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

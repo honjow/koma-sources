@@ -21,5 +21,16 @@
     "en": "MANGA Plus Creators by SHUEISHA"
   },
   "homepage": "https://mangaplus-creators.jp",
-  "chapterOrder": "newest_first"
+  "chapterOrder": "newest_first",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "en",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "集英社的漫画投稿平台，这里收录英文投稿，有独立短篇也有连载。平台每月评选作品，获奖者有机会在 MANGA Plus 刊载。",
+        "zh-Hant": "集英社的漫畫投稿平台，這裡收錄英文投稿，有獨立短篇也有連載。平台每月評選作品，得獎者有機會在 MANGA Plus 刊載。",
+        "en": "Shueisha's open submission platform features English-language one-shots and series from independent creators. Its Monthly Awards can lead to publication on MANGA Plus."
+      }
+    }
+  }
 }

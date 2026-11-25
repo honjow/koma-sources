@@ -5,9 +5,9 @@
     "defaultLocale": "zh-Hant",
     "messages": {
       "source.description": {
-        "zh-Hans": "菇菇（Namepara）官方繁中四格漫画合集，官网归档约 34 篇文章，公开浏览无需登录。",
-        "zh-Hant": "菇菇（Namepara）官方繁中四格漫畫合集，官網歸檔約 34 篇文章，公開瀏覽無需登入。",
-        "en": "Official Traditional Chinese Nameko four-panel comics from namepara.com; about 34 archived articles."
+        "zh-Hans": "《菇菇栽培研究室》官网的繁中四格漫画。每篇用一则小故事画菇菇们的日常。",
+        "zh-Hant": "《菇菇栽培研究室》官網的繁中四格漫畫。每篇用一則小故事畫菇菇們的日常。",
+        "en": "The official Traditional Chinese Mushroom Garden four-panel comics follow Nameko and friends through short everyday stories."
       }
     }
   }

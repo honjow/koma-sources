@@ -14,9 +14,9 @@
     "defaultLocale": "zh-Hant",
     "messages": {
       "source.description": {
-        "zh-Hant": "看漫畫收錄熱血、冒險、玄幻、戀愛及古風等題材的連載作品。可讀免費章節，付費鎖定章節保留原站標記。",
-        "zh-Hans": "看漫画收录热血、冒险、玄幻、恋爱及古风等题材的连载作品。可读免费章节，付费锁定章节保留原站标记。",
-        "en": "Kanman comics in action, adventure, fantasy and romance. Free chapters are readable; paid chapters remain locked."
+        "zh-Hans": "看漫画的国漫书库有《斗罗大陆》《斗破苍穹》《穿越西元3000后》等长篇。部分章节需要付费。",
+        "zh-Hant": "看漫畫的中國漫畫書庫有《斗羅大陸》《鬥破蒼穹》《穿越西元3000後》等長篇。部分章節須付費。",
+        "en": "Kanman's catalogue includes long-running Chinese series such as Soul Land, Battle Through the Heavens and Chuan Yue Xi Yuan 3000 Hou. Some chapters are paid."
       }
     }
   }

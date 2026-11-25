@@ -10,5 +10,16 @@
       "work": {"pathPrefix": "", "idPrefix": ""},
       "chapter": {"pathPrefix": "", "idPrefix": ""}
     }
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "Hikarinagi 的漫画区以日本漫画为主，能找到《胆大党》《终将成为你》等作品。书目带原文书名和连载杂志，读漫画需要站点账号。",
+        "zh-Hant": "Hikarinagi 的漫畫區以日本漫畫為主，能找到《膽大黨》《終將成為妳》等作品。書目會列出原文書名與連載雜誌，閱讀漫畫須登入本站。",
+        "en": "Hikarinagi's manga section features Japanese series such as Dandadan and Bloom Into You, with original titles and magazine credits. A site account is required to read the comics."
+      }
+    }
   }
 }

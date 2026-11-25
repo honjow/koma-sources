@@ -5,11 +5,11 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.perfectworld.dota2.zh.koma",
     name: "DOTA2官方漫画",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "DOTA2 中国官网发布的《我们是英雄了吗？秘密店铺之传说》单篇中文漫画，48 页完整阅读，公开浏览无需登录。",
+    description: "DOTA2 中国官网的单篇漫画《我们是英雄了吗？秘密店铺之传说》，以游戏里的神秘商店为题。",
     content_rating: "unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

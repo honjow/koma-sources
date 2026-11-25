@@ -15,9 +15,9 @@
     "defaultLocale": "zh-Hant",
     "messages": {
       "source.description": {
-        "zh-Hant": "我愛漫畫收錄國漫、日漫、韓漫及歐美漫畫，包含戀愛、校園、古風、奇幻等題材。付費章節保留鎖定狀態。",
-        "zh-Hans": "我爱漫画收录国漫、日漫、韩漫及欧美漫画，包含恋爱、校园、古风、奇幻等题材。付费章节保留锁定状态。",
-        "en": "Asian and Western comics on Woai Manhua, including romance, school, fantasy and historical stories. Paid chapters remain locked."
+        "zh-Hans": "我爱漫画的首页常见女主视角的韩漫，尤其是宫廷恋爱和奇幻，比如《守护女主的哥哥》《妈妈的契约婚姻》。部分章节需会员。",
+        "zh-Hant": "我愛漫畫的首頁常見女主角視角的韓漫，尤其是宮廷愛情與奇幻，例如《守護女主的哥哥》《媽媽的契約婚姻》。部分章節須有會員資格。",
+        "en": "Woai Manhua's front page highlights female-led Korean palace romance and fantasy, including Roxana and Mother's Contract Marriage. Some chapters require membership."
       }
     }
   }

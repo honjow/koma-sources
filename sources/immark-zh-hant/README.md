@@ -1,5 +1,9 @@
 # 我是馬克・圖文並靠《今周刊》
 
+## 站点简介
+
+《我是馬克》為《今周刊》創作的「圖文並靠」專欄。馬克用短漫畫畫辦公室的人情世故和上班族的日常。
+
 來源為作者原部落格的個人漫畫分類 https://markleeblog.pixnet.net/blog/categories/2001687837 。不包含混合首頁的桌布或其他個人分類；按原可見下一頁逐頁瀏覽，不掃描49頁，也不將頁數乘每頁數當作品總量。每篇獨立作品、一個完整閱讀單元，正式章號/卷號null，readingGroup為該作品MID，continuationEligible=false；不從日期/頁位置造章序。作者標識「我是馬克 i'm mark」，正式評級、連載狀態、使用率unknown。
 
 - source ID：`com.immark.pixnet.zh-hant.koma`；版本0.1.1；ABI0.2；語言zh-Hant。

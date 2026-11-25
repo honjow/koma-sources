@@ -1219,7 +1219,7 @@ dependencies = [
 
 [[package]]
 name = "koma_acgn_source"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1237,7 +1237,7 @@ dependencies = [
 
 [[package]]
 name = "koma_bakamh_source"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "aes",
  "base64 0.22.1",
@@ -1251,7 +1251,7 @@ dependencies = [
 
 [[package]]
 name = "koma_baozimh_source"
-version = "0.1.36"
+version = "0.1.37"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1275,7 +1275,7 @@ dependencies = [
 
 [[package]]
 name = "koma_bilimanga_source"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1307,7 +1307,7 @@ dependencies = [
 
 [[package]]
 name = "koma_bookwalkertw_source"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "base64 0.22.1",
  "dlmalloc",
@@ -1318,7 +1318,7 @@ dependencies = [
 
 [[package]]
 name = "koma_boylove_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1403,7 +1403,7 @@ dependencies = [
 
 [[package]]
 name = "koma_creativecomic_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "aes",
  "base64 0.22.1",
@@ -1424,7 +1424,7 @@ dependencies = [
 
 [[package]]
 name = "koma_digimonweb_zh_source"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1434,7 +1434,7 @@ dependencies = [
 
 [[package]]
 name = "koma_dm5_source"
-version = "0.1.33"
+version = "0.1.34"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1458,7 +1458,7 @@ dependencies = [
 
 [[package]]
 name = "koma_dota2_zh_source"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1503,14 +1503,14 @@ dependencies = [
 
 [[package]]
 name = "koma_fgo_zh_source"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_fjumonkey_zh_hant_source"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1538,7 +1538,7 @@ dependencies = [
 
 [[package]]
 name = "koma_guazimanhua_source"
-version = "0.1.11"
+version = "0.1.12"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1557,7 +1557,7 @@ dependencies = [
 
 [[package]]
 name = "koma_hanabimanga_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1567,7 +1567,7 @@ dependencies = [
 
 [[package]]
 name = "koma_hanime1_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1639,7 +1639,7 @@ dependencies = [
 
 [[package]]
 name = "koma_hikarinagi_source"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "aes",
  "base64 0.22.1",
@@ -1654,7 +1654,7 @@ dependencies = [
 
 [[package]]
 name = "koma_hko_weather_family_zh_hant_source"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1692,7 +1692,7 @@ dependencies = [
 
 [[package]]
 name = "koma_immark_zh_hant_source"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1713,7 +1713,7 @@ dependencies = [
 
 [[package]]
 name = "koma_jcomic_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "base64 0.22.1",
  "dlmalloc",
@@ -1763,7 +1763,7 @@ dependencies = [
 
 [[package]]
 name = "koma_kanman_source"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1782,7 +1782,7 @@ dependencies = [
 
 [[package]]
 name = "koma_komiic_source"
-version = "0.1.25"
+version = "0.1.26"
 dependencies = [
  "base64 0.22.1",
  "dlmalloc",
@@ -1792,14 +1792,14 @@ dependencies = [
 
 [[package]]
 name = "koma_kuaikan_source"
-version = "0.1.12"
+version = "0.1.13"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_laya_zh_hant_source"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1834,7 +1834,7 @@ dependencies = [
 
 [[package]]
 name = "koma_manben_source"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1852,7 +1852,7 @@ dependencies = [
 
 [[package]]
 name = "koma_mangabz_source"
-version = "0.1.18"
+version = "0.1.19"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1880,7 +1880,7 @@ dependencies = [
 
 [[package]]
 name = "koma_mangapluscreators_en_source"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1925,7 +1925,7 @@ dependencies = [
 
 [[package]]
 name = "koma_manhuashe_source"
-version = "0.1.16"
+version = "0.1.17"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1957,7 +1957,7 @@ dependencies = [
 
 [[package]]
 name = "koma_manwamanhua_source"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1998,21 +1998,21 @@ dependencies = [
 
 [[package]]
 name = "koma_mixflavor_life_zh_hant_source"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_mycomic_source"
-version = "0.1.35"
+version = "0.1.36"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_namepara_zh_hant_source"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -2061,7 +2061,7 @@ dependencies = [
 
 [[package]]
 name = "koma_oldmasterq_zh_hant_source"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -2075,7 +2075,7 @@ dependencies = [
 
 [[package]]
 name = "koma_people2_marked_zh_hant_source"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -2157,7 +2157,7 @@ dependencies = [
 
 [[package]]
 name = "koma_rumanhuaunoriginal_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "aes",
  "base64 0.22.1",
@@ -2170,7 +2170,7 @@ dependencies = [
 
 [[package]]
 name = "koma_scitechvista_zh_hant_source"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -2204,7 +2204,7 @@ version = "0.2.0"
 
 [[package]]
 name = "koma_tapastic_source"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -2222,14 +2222,14 @@ dependencies = [
 
 [[package]]
 name = "koma_terrahistoricus_source"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_tibiucomics_source"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -2239,7 +2239,7 @@ dependencies = [
 
 [[package]]
 name = "koma_tipo_ipmini_zh_hant_source"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -2253,7 +2253,7 @@ dependencies = [
 
 [[package]]
 name = "koma_toptoon_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -2277,7 +2277,7 @@ dependencies = [
 
 [[package]]
 name = "koma_vomic_source"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "base64 0.22.1",
  "dlmalloc",
@@ -2288,14 +2288,14 @@ dependencies = [
 
 [[package]]
 name = "koma_webtoons_source"
-version = "0.1.11"
+version = "0.1.12"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_webtoons_zh_hant_source"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -2321,7 +2321,7 @@ dependencies = [
 
 [[package]]
 name = "koma_woaimanhua_source"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -2351,7 +2351,7 @@ dependencies = [
 
 [[package]]
 name = "koma_xipimanhua_source"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "base64 0.22.1",
  "dlmalloc",

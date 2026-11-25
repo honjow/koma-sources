@@ -32,11 +32,11 @@ const UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:105.0) Gecko/2010
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.tapas.koma",
     name: "Tapas",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "en",
     author: "Koma",
-    description: "Tapas 的英文漫畫連載，包含平台與創作者社群作品。此入口不含小說，付費章節與排期限制依原站狀態。",
+    description: "Tapas 有平台出品與獨立作者發表的英文條漫，能讀到《The Beginning After the End》等小說改編漫畫。部分集數須購買或等候解鎖。",
     content_rating: "unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

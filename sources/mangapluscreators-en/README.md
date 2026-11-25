@@ -1,5 +1,9 @@
 # MANGA Plus Creators 英文 0.1.1
 
+## 站点简介
+
+Shueisha's open submission platform features English-language one-shots and series from independent creators. Its Monthly Awards can lead to publication on MANGA Plus.
+
 ## List summaries
 
 Show the author when the existing list card provides one. Verified with the search result template. Older Koma versions keep the existing list output.

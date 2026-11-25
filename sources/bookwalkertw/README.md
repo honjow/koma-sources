@@ -1,5 +1,9 @@
 # BookWalker Taiwan
 
+## 站点简介
+
+台灣漫讀的繁體中文電子書店。漫畫區有出版社發行的日漫台版和台灣原創漫畫，以電子書卷冊上架，許多書可試閱。
+
 固定上游为 [BookWalker Taiwan](https://github.com/keiyoushi/extensions-source/tree/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/src/zh/bookwalkertw) 与同提交的 [PUBLUS](https://github.com/keiyoushi/extensions-source/tree/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/lib/publus)，按 Apache-2.0 移植。Mihon ID 为 4168719360034135465。试读与正式版的页列不同，当前包不声明跨客户端页序等价。Mihon 声明直接识别系列路径，单本直查可走同源搜索，包内通用身份只支持一条作品路径规则。
 
 | 上游 | Koma 调用与处理 |

@@ -41,7 +41,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
-    description: "CCC追漫台公开漫画目录及免费章节。",
+    description: "從《CCC創作集》發展而來的台灣原創漫畫平台。能讀到取材台灣歷史、民俗與社會的作品，也有和台灣出版社合作引進的紙本漫畫。",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

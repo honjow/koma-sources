@@ -1,5 +1,9 @@
 # Hikarinagi
 
+## 站点简介
+
+Hikarinagi 的漫画区以日本漫画为主，能找到《胆大党》《终将成为你》等作品。书目带原文书名和连载杂志，读漫画需要站点账号。
+
 Koma `com.hikarinagi.koma`，Mihon 来源 `3266193817034354049`。行为移植自 [Keiyoushi 固定版本](https://github.com/keiyoushi/extensions-source/tree/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/src/zh/hikarinagi) 与其 [Apache-2.0 许可](https://github.com/keiyoushi/extensions-source/blob/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/LICENSE)。
 
 | 原有行为 | Koma 调用与消费 |

@@ -9,7 +9,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
-    description: "科技大觀園刊載的科普漫畫大賽作品。保留各篇創作者與完整原圖，作品評級尚未確認。",
+    description: "科技大觀園的科普漫畫比賽選集。參賽者用漫畫解釋生活裡的科學，例如蚊子為什麼讓人發癢、農業廢料怎麼變成燃料。",
     content_rating: "unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

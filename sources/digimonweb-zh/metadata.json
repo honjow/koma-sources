@@ -4,5 +4,16 @@
     "zh-Hans": "数码宝贝官网",
     "zh-Hant": "數碼寶貝官網",
     "en": "Digimon Web (Chinese)"
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "数码宝贝官网的《DIGIMON DREAMERS》中文连载。薮野展也画少年鼓堂律被召进数码世界，帮助搭档脉冲兽打破无法进化的诅咒。",
+        "zh-Hant": "數碼寶貝官網的《DIGIMON DREAMERS》中文連載。薮野展也畫少年鼓堂律被召進數碼世界，幫搭檔脈衝獸打破無法進化的詛咒。",
+        "en": "The official Chinese edition of Digimon Dreamers follows Ritsu Kodo as he helps his partner Pulsemon break a curse that prevents evolution."
+      }
+    }
   }
 }

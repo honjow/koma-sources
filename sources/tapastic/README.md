@@ -6,7 +6,7 @@ Show the authors and genres already provided by the list and search cards. Older
 
 ## 0.1.2 簡介與多語言顯示
 
-Tapas 的英文漫畫連載，包含平台與創作者社群作品。此入口不含小說，付費章節與排期限制依原站狀態。
+Tapas 有平台出品與獨立作者發表的英文條漫，能讀到《The Beginning After the End》等小說改編漫畫。部分集數須購買或等候解鎖。
 
 零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
 

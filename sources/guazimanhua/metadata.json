@@ -26,9 +26,9 @@
     "defaultLocale": "zh-Hans",
     "messages": {
       "source.description": {
-        "zh-Hans": "提供国漫连载，设有玄幻、都市、恋爱和古风等分类。",
-        "zh-Hant": "提供國漫連載，設有玄幻、都市、戀愛和古風等分類。",
-        "en": "Chinese serial comics, with categories including fantasy, urban stories, romance and historical settings."
+        "zh-Hans": "瓜子的热门书目以中文长篇条漫为主。能找到《从姑获鸟开始》《原来，她们才是主角》等网文改编漫画。",
+        "zh-Hant": "瓜子的熱門書目以中文長篇條漫為主。能找到《從姑獲鳥開始》《原來，她們才是主角》等網文改編漫畫。",
+        "en": "Guazi's popular shelf features long-running Chinese webcomics, including novel adaptations such as Cong Guhuo Niao Kaishi and It Turns Out, They Were the Protagonists."
       }
     }
   }

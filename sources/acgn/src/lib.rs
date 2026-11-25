@@ -27,7 +27,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "動漫戲說收錄連載漫畫、單行本與畫集，題材包含冒險、科幻、戀愛及推理。",
+    description: "繁中漫畫站，日漫、歐美漫畫與畫集都能找到。站上另有高清單行本區，題材細分至機戰、競技與美食。",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

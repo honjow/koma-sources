@@ -1,4 +1,15 @@
 {
   "comments": {"version": 1, "scopes": ["manga"]},
-  "homepage": "https://blog.mixflavor.com"
+  "homepage": "https://blog.mixflavor.com",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "台湾图文创作组合「综合口味」发布的生活小漫画，画的是伴侣相处、养宠物和生活里的小事。",
+        "zh-Hant": "台灣圖文創作組合「綜合口味」發表的生活小漫畫，畫的是伴侶相處、養寵物和生活裡的小事。",
+        "en": "Everyday comics by Taiwanese illustration duo Mix Flavor, about relationships, pets and the small things that happen at home."
+      }
+    }
+  }
 }

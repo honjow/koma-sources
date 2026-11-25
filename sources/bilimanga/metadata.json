@@ -55,9 +55,9 @@
     "defaultLocale": "zh-Hant",
     "messages": {
       "source.description": {
-        "zh-Hant": "嗶哩漫畫（bilimanga.net）收錄日本、韓國、港台、歐美與大陸漫畫，涵蓋奇幻冒險、校園戀愛及懸疑驚悚等題材。",
-        "zh-Hans": "哔哩漫画（bilimanga.net）收录日本、韩国、港台、欧美与大陆漫画，涵盖奇幻冒险、校园恋爱及悬疑惊悚等题材。",
-        "en": "BiliManga (bilimanga.net) carries Asian and Western comics in fantasy, adventure, romance and suspense."
+        "zh-Hans": "bilimanga.net 的中文译漫站，能找到《王者天下》《学生会也有洞！》等日漫，还有单独的周荐榜、周鲜花榜和新书榜。",
+        "zh-Hant": "bilimanga.net 的中文譯漫站，能找到《王者天下》《學生會也有洞！》等日漫，另有每週推薦榜、鮮花榜和新書榜。",
+        "en": "A Chinese-language manga site with series such as Kingdom and There's a Hole in the Student Council Too!, plus separate weekly recommendation, flower-vote and new-title charts."
       }
     }
   }

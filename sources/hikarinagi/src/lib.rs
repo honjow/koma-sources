@@ -115,7 +115,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh-Hans",
     author: "Koma",
-    description: "Hikarinagi 的公开漫画目录。阅读依原站网页登录。",
+    description: "Hikarinagi 的漫画区以日本漫画为主，能找到《胆大党》《终将成为你》等作品。书目带原文书名和连载杂志，读漫画需要站点账号。",
     content_rating: "unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

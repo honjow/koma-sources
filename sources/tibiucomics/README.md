@@ -2,7 +2,7 @@
 
 ## 0.1.2 簡介與多語言顯示
 
-TIBIU 的 BL 向漫畫書庫，收錄連載及完結作品，閱讀範圍限原站公開章節。
+TIBIU 專注 BL 漫畫，站上既有韓國條漫《PASSION／受難曲》，也能找到中國作者的《19天》。
 
 零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
 

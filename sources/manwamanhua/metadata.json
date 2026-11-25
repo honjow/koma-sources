@@ -28,9 +28,9 @@
     "defaultLocale": "zh-Hant",
     "messages": {
       "source.description": {
-        "zh-Hant": "漫蛙收錄韓漫、日漫、國漫與台漫，設有一般向、BL、GL 及 TL 等作品分類。",
-        "zh-Hans": "漫蛙收录韩漫、日漫、国漫与台漫，设有一般向、BL、GL 及 TL 等作品分类。",
-        "en": "Manwa carries Korean, Japanese, mainland Chinese and Taiwanese comics, with general-audience, BL, GL and TL categories."
+        "zh-Hans": "漫蛙漫画（manwacn.cc）的榜单以韩漫为主，可以找到 BL、GL 和 TL 连载。同一部作品有时会分别列出台版和其他译本。",
+        "zh-Hant": "漫蛙漫畫（manwacn.cc）的榜單以韓漫為主，可以找到 BL、GL 和 TL 連載。同一部作品有時會分開列出台版和其他譯本。",
+        "en": "Manwacn.cc specialises in Korean webcomics, including boys' love, girls' love and TL romance. Some works have separate Taiwan and other Chinese-language editions."
       }
     }
   }

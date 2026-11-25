@@ -5,12 +5,12 @@ use koma_source_sdk::{build_get_request, build_post_request, decode_json_body_in
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.tipo.ipmini.zh-hant.koma",
     name: "IP手札mini! 官方直達專欄",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
     description:
-        "僅收錄智慧財產局漫畫目錄中可直達專欄的IP手札mini!作品。舊泛目錄不支援，作品評級尚未確認。",
+        "台灣智慧財產局的《IP手札mini!》，以短漫畫解釋日常會遇到的商標、專利和營業秘密問題。",
     content_rating: "unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

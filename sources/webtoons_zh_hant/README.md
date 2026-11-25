@@ -2,7 +2,7 @@
 
 ## 0.1.14 簡介與多語言顯示
 
-LINE WEBTOON 的繁體中文漫畫，包含 Originals 連載與 CANVAS 創作者作品，閱讀範圍以此語言入口公開的章節為準。
+繁體中文條漫平台，能讀到《看臉時代》《全知讀者視角》等韓漫譯作，也有台灣原創和 CANVAS 創作者投稿。
 
 零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
 

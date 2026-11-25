@@ -1,5 +1,9 @@
 # 巴卡漫画
 
+## 站点简介
+
+巴卡以中文翻译的韩国条漫为主，有独立的 BL 区，也收录英文版和全年龄作品。部分新章与外传需站点账号。
+
 ## 0.1.3 上游搜索同步候选（2026-11-24）
 
 行为基线为 Keiyoushi [8f5540b56ffa38160e3daa63568cfb7b888d612e](https://github.com/keiyoushi/extensions-source/commit/8f5540b56ffa38160e3daa63568cfb7b888d612e)

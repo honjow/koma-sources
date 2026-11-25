@@ -20,5 +20,16 @@
       ]
     }
   },
-  "requestLimits": [{"group": "boylove", "hosts": ["boylove.cc", "boylove4.xyz", "img.boylove.cc", "img.boylove4.xyz", "blcnimghost2.cc"], "permits": 2, "periodMs": 1000}]
+  "requestLimits": [{"group": "boylove", "hosts": ["boylove.cc", "boylove4.xyz", "img.boylove.cc", "img.boylove4.xyz", "blcnimghost2.cc"], "permits": 2, "periodMs": 1000}],
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "香香腐宅的成人向漫画书库，设有独立的 BL 区。站上有分话连载与完结作品，VIP 章节需要站点账号和相应权限。",
+        "zh-Hant": "香香腐宅的成人向漫畫書庫，設有獨立的 BL 區。站上有分話連載和完結作品，VIP 章節須有本站帳號及相應權限。",
+        "en": "Boylove.cc's mature comics catalogue has a dedicated boys' love section, with both ongoing and completed series. VIP chapters require site access."
+      }
+    }
+  }
 }

@@ -1,4 +1,15 @@
 {
   "comments": {"version": 1, "scopes": ["manga"]},
-  "homepage": "https://fjumonkey.pixnet.net/blog"
+  "homepage": "https://fjumonkey.pixnet.net/blog",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "台湾图文作家辅大猴的部落格四格漫画专栏，以作者的日常观察和生活笑点为主。",
+        "zh-Hant": "台灣圖文作家輔大猴的部落格四格漫畫專欄，以作者的日常觀察和生活笑點為主。",
+        "en": "Four-panel comics by Taiwanese illustrator FJU Monkey, drawn from everyday observations and small absurdities."
+      }
+    }
+  }
 }

@@ -14,9 +14,9 @@
     "defaultLocale": "zh-Hant",
     "messages": {
       "source.description": {
-        "zh-Hant": "TIBIU 的 BL 向漫畫書庫，收錄連載及完結作品，閱讀範圍限原站公開章節。",
-        "zh-Hans": "TIBIU 的 BL 向漫画书库，收录连载及完结作品，阅读范围限原站公开章节。",
-        "en": "TIBIU’s BL comic library includes ongoing and completed series. Reading is limited to chapters publicly available on the site."
+        "zh-Hans": "TIBIU 专注 BL 漫画，站上既有韩国条漫《PASSION／受难曲》，也能找到中国作者的《19天》。",
+        "zh-Hant": "TIBIU 專注 BL 漫畫，站上既有韓國條漫《PASSION／受難曲》，也能找到中國作者的《19天》。",
+        "en": "TIBIU specialises in boys' love comics, from Korean series such as PASSION to Chinese comics such as 19 Days."
       }
     }
   }

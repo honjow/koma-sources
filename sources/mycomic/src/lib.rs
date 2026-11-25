@@ -14,7 +14,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "MYCOMIC 收录日漫、韩漫、国漫与欧美漫画的中文版本，兼有分话、卷本与番外；书目界面可选简体或繁体中文。",
+    description: "MYCOMIC 的简繁中文书库有《航海王》《葬送的芙莉莲》《鬼灭之刃》等日漫，也收录《美丽新世界》等成人韩漫。部分作品另有卷本或番外。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

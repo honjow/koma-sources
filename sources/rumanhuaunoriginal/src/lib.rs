@@ -43,7 +43,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "rumanhua.org 漫画目录",
+    description: "rumanhua.org 的同名书站。它的榜单既有《神印王座》《绍宋》等国漫，也能找到《海贼王》和《神之塔》。",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

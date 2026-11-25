@@ -83,7 +83,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "花火漫画公开目录及官网阅读。",
+    description: "花火首页主推中文日漫，能找到《孤独摇滚！》《败犬女主太多了！》《赛马娘：芦毛灰姑娘》，还有按日、周、月更新的人气榜。",
     content_rating: "mixed",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

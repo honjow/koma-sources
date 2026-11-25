@@ -1,5 +1,9 @@
 # 老夫子繁中・授權關聯站 0.1.2
 
+## 站点简介
+
+老夫子網站 Oldmasterq.com 的短篇漫畫。常見老夫子、大番薯和秦先生的日常笑話，這裡是網站目前展示的近期選集。
+
 提供 Oldmasterq.com 网页当次实际最新25条独立漫画，每条一个作品、一个章节、一张完整原图。不利用TOTAL_STRIPS=2518/Random整数公式造全目录，不抓随机/旧档案、不裁六格为六页，不把漫画图打包分发。
 
 站点原About声明其为OMQ ZMedia批准、独立运营并拥有展示许可的关联站，由作者孙女Ginger Wong维护；古典条漫Alfonso Wong创作、少量新作Ronny Cuxun。源名称标获授权关联站，不冒充总部。逐条详情没有独立作者字段，authors/artists为空（未知），不把全部作品归Alfonso；status/contentRating/usage unknown。实现作者Koma与漫画作者分开。

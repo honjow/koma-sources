@@ -28,7 +28,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "数码宝贝官网公开的中文漫画。",
+    description: "数码宝贝官网的《DIGIMON DREAMERS》中文连载。薮野展也画少年鼓堂律被召进数码世界，帮助搭档脉冲兽打破无法进化的诅咒。",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

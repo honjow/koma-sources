@@ -1,4 +1,15 @@
 {
   "homepage": "https://jcomic.net",
-  "chapterOrder": "newest_first"
+  "chapterOrder": "newest_first",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "JComic 的成人图集按全彩、单行本、短篇和同人志分栏，也设有《碧蓝幻想》《Fate》等作品的同人专区。",
+        "zh-Hant": "JComic 的成人圖集按全彩、單行本、短篇和同人誌分欄，也有《碧藍幻想》《Fate》等作品的同人專區。",
+        "en": "JComic organises adult galleries into full-colour, collected volumes, shorts and doujinshi, with fandom sections for series such as Granblue Fantasy and Fate."
+      }
+    }
+  }
 }

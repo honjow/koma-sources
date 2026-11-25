@@ -1,3 +1,14 @@
 {
-  "homepage": "https://scitechvista.nat.gov.tw"
+  "homepage": "https://scitechvista.nat.gov.tw",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "科技大观园的科普漫画比赛选集。参赛者用漫画解释生活里的科学，例如蚊子为什么让人发痒、农业废料怎么变成燃料。",
+        "zh-Hant": "科技大觀園的科普漫畫比賽選集。參賽者用漫畫解釋生活裡的科學，例如蚊子為什麼讓人發癢、農業廢料怎麼變成燃料。",
+        "en": "Science comics from SciTechVista's competition. Entrants explain everyday science, from why mosquito bites itch to how agricultural waste can become fuel."
+      }
+    }
+  }
 }

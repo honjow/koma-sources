@@ -5,11 +5,11 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.bilibili.fgo.zh.koma",
     name: "从漫画了解！Fate/Grand Order",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "仅收录第一系列。",
+    description: "《Fate/Grand Order》官网发布的第一系列中文四格。画家リヨ用夸张的搞笑短篇画御主、从者和召唤等游戏趣事。",
     content_rating: "unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

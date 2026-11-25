@@ -15,7 +15,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma source contributors",
-    description: "LINE WEBTOON 的繁體中文漫畫，包含 Originals 連載與 CANVAS 創作者作品，閱讀範圍以此語言入口公開的章節為準。",
+    description: "繁體中文條漫平台，能讀到《看臉時代》《全知讀者視角》等韓漫譯作，也有台灣原創和 CANVAS 創作者投稿。",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

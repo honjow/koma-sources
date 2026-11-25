@@ -1,5 +1,9 @@
 # English WEBTOON / CANVAS 0.1.6
 
+## 站点简介
+
+WEBTOON's English catalogue spans vertical-scroll series like the Original Lore Olympus and independent comics published by creators on CANVAS.
+
 ## List summaries
 
 Show the genre already present in ranking cards, and keep the author where available. Older Koma versions keep the existing list output.

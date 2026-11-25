@@ -37,7 +37,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "TIBIU 的 BL 向漫畫書庫，收錄連載及完結作品，閱讀範圍限原站公開章節。",
+    description: "TIBIU 專注 BL 漫畫，站上既有韓國條漫《PASSION／受難曲》，也能找到中國作者的《19天》。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

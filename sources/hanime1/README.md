@@ -1,5 +1,9 @@
 # Hanime1.me
 
+## 站点简介
+
+Hanime1 成人站的漫画专区。作品页会标注作者或社团，系列可在同一作品下找到关联集数。
+
 参考 [Keiyoushi Hanime1](https://github.com/keiyoushi/extensions-source/tree/f1d882a93ef34a33dc4f4467753ad5f99eab43f4/src/zh/hanime1)。上游漫画域名为 `hanimeone.me`，范围为 `/comics`。
 
 - 浏览按漫画专区的「發燒漫畫」「最新上傳」两个区域提取。热门只有一页。最新和搜索按站点下一页链接继续。

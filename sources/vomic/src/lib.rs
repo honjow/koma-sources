@@ -37,7 +37,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh-Hans",
     author: "Koma",
-    description: "vomic漫目录、筛选和原站阅读。",
+    description: "vomic 漫的推荐区常见中文短篇、日常漫画和同人创作，也能找到以 FGO 等游戏为题材的安科与 AA 连载。",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

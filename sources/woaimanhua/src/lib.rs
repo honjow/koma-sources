@@ -20,7 +20,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "我愛漫畫收錄國漫、日漫、韓漫及歐美漫畫，包含戀愛、校園、古風、奇幻等題材。付費章節保留鎖定狀態。",
+    description: "我愛漫畫的首頁常見女主角視角的韓漫，尤其是宮廷愛情與奇幻，例如《守護女主的哥哥》《媽媽的契約婚姻》。部分章節須有會員資格。",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = book_site::CAPABILITIES;

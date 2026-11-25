@@ -23,9 +23,9 @@
     "defaultLocale": "zh-Hant",
     "messages": {
       "source.description": {
-        "zh-Hant": "動漫戲說收錄連載漫畫、單行本與畫集，題材包含冒險、科幻、戀愛及推理。",
-        "zh-Hans": "动漫戏说收录连载漫画、单行本与画集，题材包含冒险、科幻、恋爱及推理。",
-        "en": "ACGN carries serialized comics, collected volumes and art books, including adventure, science fiction, romance and mystery."
+        "zh-Hans": "繁中漫画站，日漫、欧美漫画和画集都能找到。网站设有单独的高清单行本区，也有机战、竞技、美食等细分题材。",
+        "zh-Hant": "繁中漫畫站，日漫、歐美漫畫與畫集都能找到。站上另有高清單行本區，題材細分至機戰、競技與美食。",
+        "en": "A Traditional Chinese library of Japanese manga, Western comics and art books. The site has a dedicated collected-volumes section and categories for mecha, sports and food."
       }
     }
   }

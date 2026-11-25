@@ -6,5 +6,16 @@
   },
   "comments": {"version": 1, "scopes": ["chapter"]},
   "homepage": "https://www.webtoons.com",
-  "chapterOrder": "oldest_first"
+  "chapterOrder": "oldest_first",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "en",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "WEBTOON 的英文条漫站。ORIGINALS 有《Lore Olympus》等签约连载，CANVAS 则是独立作者发表作品的地方。",
+        "zh-Hant": "WEBTOON 的英文條漫站。ORIGINALS 有《Lore Olympus》等簽約連載，CANVAS 則是獨立創作者發表作品的地方。",
+        "en": "WEBTOON's English catalogue spans vertical-scroll series like the Original Lore Olympus and independent comics published by creators on CANVAS."
+      }
+    }
+  }
 }

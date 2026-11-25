@@ -1,5 +1,9 @@
 # JComic
 
+## 站点简介
+
+JComic 的成人图集按全彩、单行本、短篇和同人志分栏，也设有《碧蓝幻想》《Fate》等作品的同人专区。
+
 独立包 `com.jcomic.koma`。对照 [Keiyoushi 固定模块](https://github.com/keiyoushi/extensions-source/tree/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/src/zh/jcomic) v4 及网站真实响应。Mihon 来源 ID 为 `7044663852863780949`。上游作品以 `/page/<标题>` 或 `/eps/<标题>` 存档，章节用 `/page/<标题>[/序号]`。现行宿主的 Mihon 路径变量只接收 ASCII 普通标识，无法覆盖这些 Unicode 与转义路径，包暂不声明自动导入。Koma 目录和阅读直接保留各自的站内路径身份。
 
 | 上游行为 | Koma 入口与实现 |

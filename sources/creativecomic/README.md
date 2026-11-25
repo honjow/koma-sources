@@ -1,5 +1,9 @@
 # CCC追漫台
 
+## 站点简介
+
+從《CCC創作集》發展而來的台灣原創漫畫平台。能讀到取材台灣歷史、民俗與社會的作品，也有和台灣出版社合作引進的紙本漫畫。
+
 参考：[Keiyoushi `Creativecomic.kt`、DTO 及构建配置](https://github.com/keiyoushi/extensions-source/tree/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/src/zh/creativecomic)。上游 `zh-Hant` v4 来源 ID `8346821279138091413`；作品和章节沿用同一个数字 ID，章节图片采用相同页序。分发原件见 `ASSET_SOURCES.md`，上游许可见 `LICENSE` 和 `NOTICE`。
 
 | 上游行为 | Koma 入口与实现 |

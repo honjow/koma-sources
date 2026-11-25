@@ -1,5 +1,9 @@
 # 輔大猴・四格漫畫
 
+## 站点简介
+
+台灣圖文作家輔大猴的部落格四格漫畫專欄，以作者的日常觀察和生活笑點為主。
+
 作者原部落格「[專欄]四格漫畫」：https://fjumonkey.pixnet.net/blog/categories/1708975 。僅這個個人漫畫分類，按實際next逐頁瀏覽，不掃6頁、不把頁數乘每頁數當總量。每post獨立作品、一個完整閱讀單元，原標題不改；chapterNumber/volumeNumber=null，readingGroup=該作品MID，continuationEligible=false。Holly Plus標題中的59等數字不作全源章序。作者自署「輔大猴部落格」，正式作品評級/連載狀態/usage unknown。
 
 source ID `com.fjumonkey.pixnet.zh-hant.koma`，0.1.4，ABI0.2，zh-Hant。能力為search/listings/mangaList/detail/chapters/pages/imageRequest；不提供home/filter/settings/credentials。short postID保原字符串，最多24位正數字，不經f64/usize；MID=`fjumonkey:zh-hant:post:<post>`、CID=`fjumonkeyread:zh-hant:post:<post>`、PID=`fjumonkeypage:zh-hant:post:<post>:<0-based ordinal>`，只有本地ordinal/頁計數轉整數。

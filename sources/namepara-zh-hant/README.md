@@ -1,5 +1,9 @@
 # 菇菇官方四格漫畫 · 繁中 0.1.3
 
+## 站点简介
+
+《菇菇栽培研究室》官網的繁中四格漫畫。每篇用一則小故事畫菇菇們的日常。
+
 源 ID `com.beeworks.namepara.zh-hant.koma`，API0.2，minAppVersion0.1.1。一个官方繁中合集，MID `namepara:zh-hant:four-panel`，https://namepara.com/zh/info/comic/ 。源用量和单作品内容分级未知；manifest nsfw=false。这个官方中文源不声称是 Keiyoushi 的实体。当前 index.pb SHA `e26c3c6bf077e4bbdaa389fdb7f14020ec8297a45aec412b6934ac10e537dce3` 与保留的正式103处置集不变。
 
 MangaToon (Limited) 中文实体 `5676233752760414531` 是既有保留的规范404/首页壳分支；两个失败 URL 和旧首页都没有再次请求。少女前线官方中文站暴露了插画画廊；检查了一个精确首个链接原件，没有从那个画廊实现漫画源。

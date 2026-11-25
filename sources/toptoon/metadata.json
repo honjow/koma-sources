@@ -15,5 +15,16 @@
         "idPrefix": "/comic/epView/"
       }
     }
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "TOPTOON 的官方繁中条漫平台，主要发行韩国漫画，有爱情、职场和成人连载。可试看部分章节，后续按站点规则解锁。",
+        "zh-Hant": "TOPTOON 的官方繁中條漫平台，主要發行韓國漫畫，有愛情、職場與成人連載。部分章節可試閱，後續依站方規則解鎖。",
+        "en": "TOPTOON's official Traditional Chinese service publishes Korean webcomics, including romance, workplace dramas and mature series. Some episodes are previews, while others require unlocking."
+      }
+    }
   }
 }

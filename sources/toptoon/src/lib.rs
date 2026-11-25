@@ -29,7 +29,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
-    description: "TOPTOON頂通目錄與原站開放閱讀的章節。",
+    description: "TOPTOON 的官方繁中條漫平台，主要發行韓國漫畫，有愛情、職場與成人連載。部分章節可試閱，後續依站方規則解鎖。",
     content_rating: "unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

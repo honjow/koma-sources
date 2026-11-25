@@ -135,9 +135,9 @@
     "defaultLocale": "zh-Hant",
     "messages": {
       "source.description": {
-        "zh-Hans": "收录国漫及日本、韩国、欧美漫画，按地区、题材和连载状态分类。",
-        "zh-Hant": "收錄國漫及日本、韓國、歐美漫畫，按地區、題材和連載狀態分類。",
-        "en": "Chinese, Japanese, Korean and Western comics, organised by region, genre and publication status."
+        "zh-Hans": "包子漫画的繁中书库里能找到《大奉打更人》《一人之下》《开局一座山》等国漫长篇，也收录日韩漫画。",
+        "zh-Hant": "包子漫畫的繁中書庫裡能找到《大奉打更人》《一人之下》《開局一座山》等中國長篇漫畫，也收錄日韓漫畫。",
+        "en": "Baozi's Traditional Chinese library includes long-running Chinese series such as Dafeng Nightwatcher and The Outcast, alongside Japanese manga and Korean webcomics."
       }
     }
   }

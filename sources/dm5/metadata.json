@@ -30,9 +30,9 @@
     "defaultLocale": "zh-Hant",
     "messages": {
       "source.description": {
-        "zh-Hant": "動漫屋（DM5）的原創漫畫與日本漫畫，涵蓋熱血、冒險、奇幻及戀愛等題材。付費章節依原站權限開放。",
-        "zh-Hans": "动漫屋（DM5）的原创漫画与日本漫画，涵盖热血、冒险、奇幻及恋爱等题材。付费章节依原站权限开放。",
-        "en": "Original comics and Japanese manga from DM5: action, adventure, fantasy and romance. Paid chapters follow site access rules."
+        "zh-Hans": "动漫屋既有《山海逆战》《百炼成神》等国创，也能找到《新著龙虎门》《风云》等港漫和《海贼王》等日漫。部分作品只开放试读或需付费。",
+        "zh-Hant": "動漫屋既有《山海逆戰》《百煉成神》等中國原創，也能找到《新著龍虎門》《風雲》等港漫和《航海王》等日漫。部分作品只開放試閱或須付費。",
+        "en": "DM5 brings together Chinese originals like Shan Hai Ni Zhan, Hong Kong martial-arts comics such as Dragon Tiger Gate, and Japanese manga including One Piece. Some titles are paid or offer a preview only."
       }
     }
   }

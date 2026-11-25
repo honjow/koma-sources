@@ -1,5 +1,9 @@
 # TOPTOON頂通
 
+## 站点简介
+
+TOPTOON 的官方繁中條漫平台，主要發行韓國漫畫，有愛情、職場與成人連載。部分章節可試閱，後續依站方規則解鎖。
+
 上游固定为 [Keiyoushi TOPTOON](https://github.com/keiyoushi/extensions-source/tree/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/src/zh/toptoon)。按 Apache-2.0 移植，许可原文见 LICENSE-APACHE-2.0。源身份独立，Mihon ID 为 1680248666203661128。
 
 | 上游 | Koma 操作与实现 |

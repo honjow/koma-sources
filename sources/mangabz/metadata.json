@@ -74,9 +74,9 @@
     "defaultLocale": "zh-Hant",
     "messages": {
       "source.description": {
-        "zh-Hant": "Mangabz 的漫畫書庫涵蓋熱血、校園、冒險、戀愛及科幻，兼有分話與卷本；書目文字可切換簡繁顯示。",
-        "zh-Hans": "Mangabz 的漫画书库涵盖热血、校园、冒险、恋爱及科幻，兼有分话与卷本；书目文字可切换简繁显示。",
-        "en": "Mangabz comics in action, school, adventure, romance and sci-fi, with chapters and volumes. Simplified/Traditional catalogue text."
+        "zh-Hans": "Mangabz 主要收中文日漫，从《篮球少年王》《极主夫道》到《名侦探柯南》，既有新话也有已完结的日漫。",
+        "zh-Hant": "Mangabz 主要收錄中文日漫，從《籃球少年王》《極道主夫》到《名偵探柯南》，連載新話與已完結的作品都能找到。",
+        "en": "Mangabz focuses on Japanese manga in Chinese, from Ahiru no Sora and The Way of the Househusband to Detective Conan. It carries both ongoing and completed works."
       }
     }
   }

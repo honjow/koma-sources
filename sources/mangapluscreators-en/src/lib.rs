@@ -13,7 +13,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "en",
     author: "Koma",
-    description: "Official English creator catalogue. Per-work rating and source usage unknown.",
+    description: "Shueisha's open submission platform features English-language one-shots and series from independent creators. Its Monthly Awards can lead to publication on MANGA Plus.",
     content_rating: "safe",
 };
 koma_source_sdk::koma_source_buffers! {payload:1048000,http_out:MAX,body:MAX,http_req:32768,scratch:8192,}
@@ -1242,7 +1242,7 @@ pub extern "C" fn koma_source_init(ptr: u32, len: u32) -> i32 {
 }
 #[no_mangle]
 pub extern "C" fn koma_source_info() -> u32 {
-    response_buffer().write_success_parts("source_info", &[concat!("{\"sourceInfo\":{\"id\":\"com.mangapluscreators.en.koma\",\"name\":\"MANGA Plus Creators by SHUEISHA\",\"version\":\"", env!("CARGO_PKG_VERSION"), "\",\"apiVersion\":\"0.2\",\"language\":\"en\",\"author\":\"Koma\",\"description\":\"Official English creator catalogue. Per-work rating and source usage unknown.\",\"contentRating\":\"safe\",\"localizedNames\":").as_bytes(), "{\"zh-Hans\":\"MANGA Plus Creators\",\"zh-Hant\":\"MANGA Plus Creators\",\"en\":\"MANGA Plus Creators by SHUEISHA\"}".as_bytes(), b"},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":true,\"settings\":false,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}"])
+    response_buffer().write_success_parts("source_info", &[concat!("{\"sourceInfo\":{\"id\":\"com.mangapluscreators.en.koma\",\"name\":\"MANGA Plus Creators by SHUEISHA\",\"version\":\"", env!("CARGO_PKG_VERSION"), "\",\"apiVersion\":\"0.2\",\"language\":\"en\",\"author\":\"Koma\",\"description\":\"Shueisha's open submission platform features English-language one-shots and series from independent creators. Its Monthly Awards can lead to publication on MANGA Plus.\",\"contentRating\":\"safe\",\"localizedNames\":").as_bytes(), "{\"zh-Hans\":\"MANGA Plus Creators\",\"zh-Hant\":\"MANGA Plus Creators\",\"en\":\"MANGA Plus Creators by SHUEISHA\"}".as_bytes(), b"},\"capabilities\":{\"search\":true,\"mangaDetail\":true,\"chapters\":true,\"pages\":true,\"listings\":true,\"mangaList\":true,\"imageRequest\":true,\"home\":false,\"filters\":true,\"settings\":false,\"future\":{\"login\":false,\"auth\":false,\"process_page_image\":false,\"page_description\":false,\"base_url\":false,\"deeplink\":false,\"migration\":false}}}"])
 }
 macro_rules! export_op {
     ($f:ident,$op:literal,$run:ident) => {

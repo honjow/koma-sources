@@ -3,8 +3,8 @@ use koma_source_sdk::json_utils::*;
 use koma_source_sdk::source::{SourceCapabilities, SourceInfo};
 use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
- id:"com.immark.pixnet.zh-hant.koma", name:"我是馬克・圖文並靠《今周刊》", version:"0.1.4", api_version:"0.2", language:"zh-Hant", author:"Koma",
- description:"收錄我是馬克作者部落格「圖文並靠《今周刊》」的漫畫，依原欄目分頁瀏覽。每篇獨立閱讀，作品評級尚未確認。", content_rating:"unknown",
+ id:"com.immark.pixnet.zh-hant.koma", name:"我是馬克・圖文並靠《今周刊》", version:"0.1.5", api_version:"0.2", language:"zh-Hant", author:"Koma",
+ description:"《我是馬克》為《今周刊》創作的「圖文並靠」專欄。馬克用短漫畫畫辦公室的人情世故和上班族的日常。", content_rating:"unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,

@@ -37,5 +37,16 @@
         "id"
       ]
     }
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "从《CCC创作集》发展而来的台湾原创漫画平台。能读到取材台湾历史、民俗和社会的作品，也有台湾出版社引进的纸本漫画。",
+        "zh-Hant": "從《CCC創作集》發展而來的台灣原創漫畫平台。能讀到取材台灣歷史、民俗與社會的作品，也有和台灣出版社合作引進的紙本漫畫。",
+        "en": "A Taiwanese comics platform that grew out of the CCC anthology. It brings together original stories about Taiwan's history, folklore and society and digital editions from local publishers."
+      }
+    }
   }
 }

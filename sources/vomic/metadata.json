@@ -21,5 +21,16 @@
     "usernameLabel": "邮箱",
     "passwordLabel": "密码",
     "credentialStorage": "private"
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "vomic 漫的推荐区常见中文短篇、日常漫画和同人创作，也能找到以 FGO 等游戏为题材的安科与 AA 连载。",
+        "zh-Hant": "vomic 漫的推薦區常見中文短篇、日常漫畫和同人創作，也能找到以 FGO 等遊戲為題材的安科與 AA 連載。",
+        "en": "Vomic features Chinese shorts, slice-of-life comics and fan works, including AA and dice-driven serials inspired by games such as Fate/Grand Order."
+      }
+    }
   }
 }

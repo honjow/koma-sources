@@ -5,11 +5,11 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.oldmasterq.zh-hant.koma",
     name: "老夫子繁中・授權關聯站",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
-    description: "老夫子授權關聯站 Oldmasterq.com，展示當次最新 25 則漫畫，每則為一張完整原圖，公開瀏覽。",
+    description: "老夫子網站 Oldmasterq.com 的短篇漫畫。常見老夫子、大番薯和秦先生的日常笑話，這裡是網站目前展示的近期選集。",
     content_rating: "unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

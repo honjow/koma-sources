@@ -16,5 +16,16 @@
     "scopes": [
       "manga"
     ]
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "花火首页主推中文日漫，能找到《孤独摇滚！》《败犬女主太多了！》《赛马娘：芦毛灰姑娘》，还有按日、周、月更新的人气榜。",
+        "zh-Hant": "花火首頁主打中文日漫，能找到《孤獨搖滾！》《敗北女角太多了！》《賽馬娘 灰髮灰姑娘》，另有日、週、月人氣榜。",
+        "en": "Hanabi's Chinese catalogue highlights manga such as Bocchi the Rock!, Makeine: Too Many Losing Heroines! and Uma Musume: Cinderella Gray. It has daily, weekly and monthly popularity charts."
+      }
+    }
   }
 }

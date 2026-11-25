@@ -51,7 +51,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "嬉皮漫画的韩漫、国漫与日漫书库，涵盖穿越、玄幻、复仇、冒险与武侠等题材。",
+    description: "嬉皮的书库混合国漫和韩漫，热门里既有《一人之下》，也有《剑尊归来》《某天成为魔神》这类韩国武侠条漫。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

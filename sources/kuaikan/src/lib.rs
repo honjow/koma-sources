@@ -13,7 +13,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "快看的國漫、韓漫與日漫，涵蓋戀愛、古風、奇幻、懸疑及熱血等題材。正文限免費章節，付費與會員內容請在原站使用。",
+    description: "快看是《怦然心動》《甜美的咬痕》《谷圍南亭》等中國原創條漫的連載平台。作品既有校園愛情，也有懸疑與奇幻，部分章節須購買。",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

@@ -20,9 +20,9 @@
     "defaultLocale": "zh-Hant",
     "messages": {
       "source.description": {
-        "zh-Hant": "MYCOMIC 收錄日漫、韓漫、國漫與歐美漫畫的中文版本，兼有分話、卷本與番外；書目介面可選簡體或繁體中文。",
-        "zh-Hans": "MYCOMIC 收录日漫、韩漫、国漫与欧美漫画的中文版本，兼有分话、卷本与番外；书目界面可选简体或繁体中文。",
-        "en": "MYCOMIC carries Chinese-language Asian and Western comics in chapters and volumes. Simplified and Traditional catalogue options."
+        "zh-Hans": "MYCOMIC 的简繁中文书库有《航海王》《葬送的芙莉莲》《鬼灭之刃》等日漫，也收录《美丽新世界》等成人韩漫。部分作品另有卷本或番外。",
+        "zh-Hant": "MYCOMIC 的簡繁中文書庫有《航海王》《葬送的芙莉蓮》《鬼滅之刃》等日漫，也收錄《美麗新世界》等成人韓漫。部分作品另有卷本或番外。",
+        "en": "MYCOMIC carries Chinese editions of titles like One Piece, Frieren and Demon Slayer, alongside mature Korean webcomics. Some series also have collected volumes or side stories."
       }
     }
   }

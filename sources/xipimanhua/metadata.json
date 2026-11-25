@@ -7,9 +7,9 @@
     "defaultLocale": "zh-Hant",
     "messages": {
       "source.description": {
-        "zh-Hant": "嬉皮漫畫的韓漫、國漫與日漫書庫，涵蓋穿越、玄幻、復仇、冒險與武俠等題材。",
-        "zh-Hans": "嬉皮漫画的韩漫、国漫与日漫书库，涵盖穿越、玄幻、复仇、冒险与武侠等题材。",
-        "en": "Xipi Manhua’s Chinese, Korean and Japanese comics include fantasy, adventure, martial arts, revenge and time-travel stories."
+        "zh-Hans": "嬉皮的书库混合国漫和韩漫，热门里既有《一人之下》，也有《剑尊归来》《某天成为魔神》这类韩国武侠条漫。",
+        "zh-Hant": "嬉皮的書庫混合中國漫畫和韓漫，熱門裡既有《一人之下》，也有《劍尊歸來》《某天成為魔神》這類韓國武俠條漫。",
+        "en": "Xipi mixes Chinese and Korean webcomics. Its popular shelf includes The Outcast and Korean martial-arts series such as Return of the Mount Hua Sect and Nano Machine."
       }
     }
   }

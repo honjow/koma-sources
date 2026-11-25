@@ -15,5 +15,16 @@
     "zh-Hant": "泰拉記事社",
     "en": "TerraHistoricus"
   },
-  "homepage": "https://comic.hypergryph.com"
+  "homepage": "https://comic.hypergryph.com",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "鹰角网络的《明日方舟》官方漫画站。既有《罗德岛源石记事》补充世界观，也有《罗德岛相簿》和《123罗德岛！？》这样的干员日常。",
+        "zh-Hant": "鷹角網路的《明日方舟》官方漫畫站。既有《羅德島源石記事》補充世界觀，也有《羅德島相簿》和《123羅德島！？》這類幹員日常。",
+        "en": "Hypergryph's official Arknights comics site. Records of Originium expands the game's world, while Rhodes Island's photo album and short comics follow the operators off duty."
+      }
+    }
+  }
 }

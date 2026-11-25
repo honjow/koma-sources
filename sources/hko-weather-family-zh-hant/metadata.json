@@ -1,3 +1,14 @@
 {
-  "homepage": "https://www.hko.gov.hk"
+  "homepage": "https://www.hko.gov.hk",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "香港天文台的「天气家族」漫画选集，收录《谈天说地》第 77 至 82 期，以拟人化的天气角色讲气象与防灾。",
+        "zh-Hant": "香港天文台的「天氣家族」漫畫選集，收錄《談天說地》第 77 至 82 期，以擬人化的天氣角色講氣象與防災。",
+        "en": "The Hong Kong Observatory's Weather Family comics from issues 77–82 of its newsletter, with weather characters explaining meteorology and preparedness."
+      }
+    }
+  }
 }

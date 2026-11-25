@@ -1,5 +1,9 @@
 # 綜合口味・生活小漫畫
 
+## 站点简介
+
+台灣圖文創作組合「綜合口味」發表的生活小漫畫，畫的是伴侶相處、養寵物和生活裡的小事。
+
 來源為作者原站生活小漫畫分類；**整篇排除同時有原「開箱心得」或「食」category URI的文章**。這是收錄範圍，不是說8481沒有漫畫，亦不剪其前兩圖。依原next逐頁瀏覽，不掃全站、不從97標籤數推已證作品總量/終態。兩原頁raw20篇，範圍保留9+10=19篇；其餘頁未知。每post獨立作品與完整閱讀單元，正式chapter/volume null、readingGroup=MID、continuationEligible=false。原author資料為mixflavor，原/about明確筆名綜合口味為小莓與大軒共用；作品authors保綜合口味，不猜逐篇分工。評級/連載狀態/usage unknown。
 
 sourceID=`com.mixflavor.life.zh-hant.koma`，0.1.3，ABI0.2，zh-Hant；能力為search/listings/mangaList/detail/chapters/pages/imageRequest。無home/filter/settings/credential能力。

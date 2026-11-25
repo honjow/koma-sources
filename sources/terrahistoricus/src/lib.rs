@@ -30,7 +30,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "泰拉记事社 — 明日方舟官方漫画平台",
+    description: "鹰角网络的《明日方舟》官方漫画站。既有《罗德岛源石记事》补充世界观，也有《罗德岛相簿》和《123罗德岛！？》这样的干员日常。",
     content_rating: "safe",
 };
 

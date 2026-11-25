@@ -1,3 +1,14 @@
 {
-  "homepage": "https://game.bilibili.com/fgo/manga01"
+  "homepage": "https://game.bilibili.com/fgo/manga01",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "《Fate/Grand Order》官网发布的第一系列中文四格。画家リヨ用夸张的搞笑短篇画御主、从者和召唤等游戏趣事。",
+        "zh-Hant": "《Fate/Grand Order》官網發布的第一系列中文四格。畫家リヨ以誇張的搞笑短篇畫御主、從者與召喚等遊戲趣事。",
+        "en": "The first Chinese-language series of Riyo's official Fate/Grand Order four-panel comics, poking fun at Masters, Servants and summoning."
+      }
+    }
+  }
 }

@@ -34,7 +34,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
-    description: "BOOK☆WALKER 台灣漫畫目錄與原站試讀。",
+    description: "台灣漫讀的繁體中文電子書店。漫畫區有出版社發行的日漫台版和台灣原創漫畫，以電子書卷冊上架，許多書可試閱。",
     content_rating: "unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

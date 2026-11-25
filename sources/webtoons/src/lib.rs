@@ -35,11 +35,11 @@ static mut SELECT_BUFFER: [u8; 4096] = [0; 4096];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.webtoons.koma",
     name: "WEBTOON (English)",
-    version: "0.1.11",
+    version: "0.1.12",
     api_version: "0.2",
     language: "en",
     author: "Koma source contributors",
-    description: "Public English WEBTOON and CANVAS browsing, search and reader source.",
+    description: "WEBTOON's English catalogue spans vertical-scroll series like the Original Lore Olympus and independent comics published by creators on CANVAS.",
     content_rating: "unknown",
 };
 

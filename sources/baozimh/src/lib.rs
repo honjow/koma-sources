@@ -116,7 +116,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
-    description: "收錄國漫及日本、韓國、歐美漫畫，按地區、題材和連載狀態分類。",
+    description: "包子漫畫的繁中書庫裡能找到《大奉打更人》《一人之下》《開局一座山》等中國長篇漫畫，也收錄日韓漫畫。",
     content_rating: "unknown",
 };
 

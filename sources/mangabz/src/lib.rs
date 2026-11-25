@@ -49,7 +49,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "Mangabz 的漫畫書庫涵蓋熱血、校園、冒險、戀愛及科幻，兼有分話與卷本；書目文字可切換簡繁顯示。",
+    description: "Mangabz 主要收錄中文日漫，從《籃球少年王》《極道主夫》到《名偵探柯南》，連載新話與已完結的作品都能找到。",
     content_rating: "safe",
 };
 

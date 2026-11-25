@@ -70,7 +70,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "JComic 的公开分类、搜索和章节。",
+    description: "JComic 的成人图集按全彩、单行本、短篇和同人志分栏，也设有《碧蓝幻想》《Fate》等作品的同人专区。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

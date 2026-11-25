@@ -4,9 +4,9 @@
     "defaultLocale": "zh-Hant",
     "messages": {
       "source.description": {
-        "zh-Hant": "Tapas 的英文漫畫連載，包含平台與創作者社群作品。此入口不含小說，付費章節與排期限制依原站狀態。",
-        "zh-Hans": "Tapas 的英文漫画连载，包含平台与创作者社区作品。此入口不含小说，付费章节与排期限制依原站状态。",
-        "en": "English comics from Tapas creators and its community, excluding novels. Paid and scheduled episodes follow site access rules."
+        "zh-Hans": "Tapas 有平台出品和独立作者发布的英文条漫，能读到《The Beginning After the End》等小说改编漫画。部分集数需购买或等待解锁。",
+        "zh-Hant": "Tapas 有平台出品與獨立作者發表的英文條漫，能讀到《The Beginning After the End》等小說改編漫畫。部分集數須購買或等候解鎖。",
+        "en": "Tapas publishes English-language comics from its studio and independent creators, including novel adaptations such as The Beginning After the End. Some episodes are paid or unlock after a wait."
       }
     }
   }

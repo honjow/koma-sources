@@ -1,3 +1,14 @@
 {
-  "homepage": "https://www.laya.url.tw/comic/"
+  "homepage": "https://www.laya.url.tw/comic/",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "雷亚医师与两元老师创作的《医院也疯狂》。用短篇漫画画医护工作的日常，也讲医院里常见的小知识。",
+        "zh-Hant": "雷亞醫師與兩元老師創作的《醫院也瘋狂》。用短篇漫畫畫醫護工作的日常，也講醫院裡常見的小知識。",
+        "en": "Hospital Life, by physician Laya and illustrator Two Yuan, tells short stories about hospital staff and everyday medical topics."
+      }
+    }
+  }
 }

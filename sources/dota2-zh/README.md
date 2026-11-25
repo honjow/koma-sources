@@ -1,5 +1,9 @@
 # DOTA2 官方中文漫画 0.1.1
 
+## 站点简介
+
+DOTA2 中国官网的单篇漫画《我们是英雄了吗？秘密店铺之传说》，以游戏里的神秘商店为题。
+
 仅官网 https://www.dota2.com.cn/comics/ 明确发布的《我们是英雄了吗  Are We Heroes Yet? - 秘密店铺之传说》。使用率 unknown；源和逐作品正式分级 unknown，样本为普通中文奇幻漫画。
 
 实际目录列出官方第1..6章，href comics.htm?=0,8,16,24,32,38。该 query 被公开 /js/cartoon.js 解释为全书初始页偏移；前后翻页使用同一个 cartoonJson.cartoonJson1 数组及其完整长度，并无六个独立页数组或章末边界。源提供一个完整阅读单元，原作品标题作为阅读单元标题，章号/卷号 null，readingGroup dota2:zh:are-we-heroes-yet，continuationEligible false；不从偏移猜六章页切片，不重复六份全文、不伪造连续章。48 原 URI 逐条从公开脚本实际数组解析，保留原顺序，其他五个未使用数组排除。get_pages（及取目录页数的 get_chapters）仍通过三次真实 HTTP 核对目录、viewer 身份、实际控制器及数组，并与包内已核官方48 URI 原字节有序许可表逐项比对；替换或重排返回 official_contract_changed，绝不从许可表补造正文响应。get_image_request 不再重复发起元数据 HTTP，仅对该许可表的原 URI 和实际位置执行独立 owner/规范 PageID 校验；URL/Referer 不依赖实时凭据。不运行网页 JS，不猜 API。

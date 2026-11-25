@@ -2,7 +2,7 @@
 
 ## 0.1.1 簡介與多語言顯示
 
-漫蛙收錄韓漫、日漫、國漫與台漫，設有一般向、BL、GL 及 TL 等作品分類。
+漫蛙漫畫（manwacn.cc）的榜單以韓漫為主，可以找到 BL、GL 和 TL 連載。同一部作品有時會分開列出台版和其他譯本。
 
 零參 `source_info` 固定使用以上基準簡介；`metadata.localization` 僅新增 `source.description` 的繁中、簡中與英文文案，供支援的宿主顯示。
 

@@ -1,5 +1,9 @@
 # TerraHistoricus
 
+## 站点简介
+
+鹰角网络的《明日方舟》官方漫画站。既有《罗德岛源石记事》补充世界观，也有《罗德岛相簿》和《123罗德岛！？》这样的干员日常。
+
 当前源是 0.1.8，带稳定 ID `com.terrahistoricus.koma` 和既有作品、集和页身份。规范 Cargo 和标准源构建注册存在。源保持匿名公开 API 访问；首页、筛选、设置和凭据仍不受支援。本地化显示名和内容语言是单独合同。真实用量仍未知。
 
 当宿主声明 `source_public_cover_user_agent_v1`，0.1.8 把既有 Referer 和 User-Agent 与公开 `web.hycdn.cn/comic/pic/` 封面一起传递。App 可在浏览、最近更新、搜索和详情直接抓取同一 URL。其他封面 URL 和遗留消费者仍遵循既有图像请求解析器，包括单独的签名阅读页解析。当前官方目录有 22 部 Terra 和 6 部 Talos-II 作品。

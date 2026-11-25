@@ -64,7 +64,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "看漫畫收錄熱血、冒險、玄幻、戀愛及古風等題材的連載作品。可讀免費章節，付費鎖定章節保留原站標記。",
+    description: "看漫畫的中國漫畫書庫有《斗羅大陸》《鬥破蒼穹》《穿越西元3000後》等長篇。部分章節須付費。",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

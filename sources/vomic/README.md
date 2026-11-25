@@ -1,5 +1,9 @@
 # vomic
 
+## 站点简介
+
+vomic 漫的推荐区常见中文短篇、日常漫画和同人创作，也能找到以 FGO 等游戏为题材的安科与 AA 连载。
+
 以 [Keiyoushi vomic](https://github.com/keiyoushi/extensions-source/tree/8947c372cd87f546a0b80cb0e4b0a5a8add5ef88/src/zh/vomic) 为固定上游，按 Apache-2.0 移植。Mihon ID 为 5428862423208834108。此源的域是 vomicmh.com，旧 Koma vomic 源指向被移除的 www.vomic.com，其作品和章标识不继承。
 
 | 上游行为 | Koma 路径 |

@@ -1,4 +1,15 @@
 {
   "comments": {"version": 1, "scopes": ["manga"]},
-  "homepage": "https://people2.pixnet.net/blog"
+  "homepage": "https://people2.pixnet.net/blog",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "台湾图文创作者人2的生活部落格漫画，这里能看到作者明确列作漫画的短篇与随附文字。",
+        "zh-Hant": "台灣圖文創作者人2的生活部落格漫畫，這裡能看到作者明確列為漫畫的短篇與隨附文字。",
+        "en": "Short comics and accompanying notes from Taiwanese illustrator People2's personal blog."
+      }
+    }
+  }
 }

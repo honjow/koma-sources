@@ -1,5 +1,9 @@
 # 从漫画了解！Fate/Grand Order · 0.1.3
 
+## 站点简介
+
+《Fate/Grand Order》官网发布的第一系列中文四格。画家リヨ用夸张的搞笑短篇画御主、从者和召唤等游戏趣事。
+
 源 ID `com.bilibili.fgo.zh.koma`，主页为 [FGO 国服第一系列官网](https://game.bilibili.com/fgo/manga01)。官网名称为“从漫画了解！Fate/Grand Order”；本源仅收录 manga01 第一系列，不包含 manga02 或其他官方账号作品。
 
 书目 ID `fgo:zh:manga01`；章节及页 ID 由官网目录中的真实集数构成。目录按官网顺序提供当前 15 章，每章对应官网发布模板中的原始单页。章节属于同一 `readingGroup` 并允许按真实集数续读。页面从官网发布的 NUXT 数据提取，不执行网页脚本；归属、章节映射、资源 URI、数组元素或容量无效时返回错误，不制造部分成功或猜测链接。

@@ -46,7 +46,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "巴卡漫画的站点目录。",
+    description: "巴卡以中文翻译的韩国条漫为主，有独立的 BL 区，也收录英文版和全年龄作品。部分新章与外传需站点账号。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

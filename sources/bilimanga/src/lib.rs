@@ -29,7 +29,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "哔哩漫画（bilimanga.net）收录日本、韩国、港台、欧美与大陆漫画，涵盖奇幻冒险、校园恋爱及悬疑惊悚等题材。",
+    description: "bilimanga.net 的中文译漫站，能找到《王者天下》《学生会也有洞！》等日漫，还有单独的周荐榜、周鲜花榜和新书榜。",
     content_rating: "suggestive",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

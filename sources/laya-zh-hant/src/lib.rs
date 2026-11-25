@@ -5,11 +5,11 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.laya.zh-hant.koma",
     name: "醫院也瘋狂",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
-    description: "雷亞醫師與兩元老師創作的《醫院也瘋狂》精選漫畫藝廊。作品評級尚未確認。",
+    description: "雷亞醫師與兩元老師創作的《醫院也瘋狂》。用短篇漫畫畫醫護工作的日常，也講醫院裡常見的小知識。",
     content_rating: "unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

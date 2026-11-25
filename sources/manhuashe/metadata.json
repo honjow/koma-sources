@@ -25,9 +25,9 @@
     "defaultLocale": "zh-Hant",
     "messages": {
       "source.description": {
-        "zh-Hant": "漫畫社收錄熱血、玄幻、都市與冒險等題材漫畫，兼有連載及完結作品。",
-        "zh-Hans": "漫画社收录热血、玄幻、都市与冒险等题材漫画，兼有连载及完结作品。",
-        "en": "Manhuashe carries action, fantasy, urban and adventure comics, including ongoing and completed series."
+        "zh-Hans": "漫画社的热门书目以国漫长篇为主，能找到《风起苍岚》《绝世武神》《精卫》。",
+        "zh-Hant": "漫畫社的熱門書目以中國長篇漫畫為主，能找到《風起蒼嵐》《絕世武神》《精衛》。",
+        "en": "Manhuashe's popular shelf features long-running Chinese comics such as Feng Qi Cang Lan, Peerless Martial God and Jingwei."
       }
     }
   }

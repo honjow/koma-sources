@@ -30,7 +30,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "动漫屋（DM5）的原创漫画与日本漫画，涵盖热血、冒险、奇幻及恋爱等题材。付费章节依原站权限开放。",
+    description: "动漫屋既有《山海逆战》《百炼成神》等国创，也能找到《新著龙虎门》《风云》等港漫和《海贼王》等日漫。部分作品只开放试读或需付费。",
     content_rating: "nsfw",
 };
 

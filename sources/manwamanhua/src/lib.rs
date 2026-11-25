@@ -76,7 +76,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "漫蛙收錄韓漫、日漫、國漫與台漫，設有一般向、BL、GL 及 TL 等作品分類。",
+    description: "漫蛙漫畫（manwacn.cc）的榜單以韓漫為主，可以找到 BL、GL 和 TL 連載。同一部作品有時會分開列出台版和其他譯本。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

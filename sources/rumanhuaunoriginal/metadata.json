@@ -5,5 +5,16 @@
   "identity": { "mihon": { "sourceIds": ["6075779468319464999"],
     "work": { "pathPrefix": "/news/", "idPrefix": "/news/" },
     "chapter": { "pathPrefix": "/show/", "idPrefix": "/show/" }
-  } }
+  } },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "rumanhua.org 的同名书站。它的榜单既有《神印王座》《绍宋》等国漫，也能找到《海贼王》和《神之塔》。",
+        "zh-Hant": "rumanhua.org 的同名漫畫站。榜單既有《神印王座》《紹宋》等中國漫畫，也能找到《航海王》和《神之塔》。",
+        "en": "The catalogue at rumanhua.org ranges from Chinese series such as Throne of Seal and Shao Song to One Piece and Tower of God."
+      }
+    }
+  }
 }
