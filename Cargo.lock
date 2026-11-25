@@ -1538,7 +1538,7 @@ dependencies = [
 
 [[package]]
 name = "koma_guazimanhua_source"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "koma_source_sdk",
 ]

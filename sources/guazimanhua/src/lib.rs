@@ -17,7 +17,7 @@ const UA: &[u8] = b"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.guazimanhua.koma",
     name: "瓜子漫画",
-    version: "0.1.10",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -433,9 +433,30 @@ fn run_list(req: &[u8], op: &str) -> u32 {
             && write_bytes(
                 out,
                 &mut n,
-                br#"},"authors":[],"status":"unknown","contentRating":"safe"}"#,
+                br#"},"authors":[],"status":"unknown","contentRating":"safe""#,
             );
         if !ok {
+            return write_error(op, "internal_error", "overflow");
+        }
+        // Keep the provider's card text together: its segments are not reliably
+        // typed as author or genre. No extra request or legacy field changes.
+        if koma_source_sdk::source_protocol::feature(req, koma_source_sdk::list_info::HOST_FEATURE) {
+            let mut meta = [0u8; 513];
+            if let Ok(node) = html_select(cards.at(i), b"div.meta") {
+                let node = Doc(node);
+                if let Ok(len) = html_text(node.0, &mut meta) {
+                    if len < meta.len() {
+                        let text = trim_ascii(&meta[..len]);
+                        if !text.is_empty() {
+                            let _ = koma_source_sdk::list_info::append(out, &mut n, req, &[
+                                koma_source_sdk::list_info::ListInfo::Text { text, label: None },
+                            ]);
+                        }
+                    }
+                }
+            }
+        }
+        if !write_bytes(out, &mut n, b"}") {
             return write_error(op, "internal_error", "overflow");
         }
         count += 1;
