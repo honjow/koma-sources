@@ -408,9 +408,56 @@ fn append_card(payload: &mut [u8], cursor: &mut usize, node: HtmlDescriptor,
         && append_json_escaped(payload, cursor, &cover[..cover_len])
         && write_bytes(payload, cursor, br#""}"#)
         && (!complete || write_bytes(payload, cursor,
-            br#", "authors":[],"status":"unknown","contentRating":"unknown","description":"","sourceTags":["baozimh"]"#))
-        && write_bytes(payload, cursor, b"}");
-    if ok { Ok(true) } else { Err(()) }
+            br#", "authors":[],"status":"unknown","contentRating":"unknown","description":"","sourceTags":["baozimh"]"#));
+    if !ok { return Err(()); }
+    // Only use this card's author and genre labels. Keep the legacy fields,
+    // identity and network requests untouched; optional failures keep the card.
+    if koma_source_sdk::source_protocol::feature(request, koma_source_sdk::list_info::HOST_FEATURE) {
+        use koma_source_sdk::list_info::{self, ListInfo};
+        let mut author_buf = [0u8; 513];
+        let author_node = html_select(node, b".comics-card__info > small.tags").ok().map(OwnedDescriptor);
+        let author = author_node.as_ref().and_then(|n| text_into(n.0, &mut author_buf))
+            .filter(|v| v.len() < 513).map(trim_ascii)
+            .filter(|v| !v.is_empty() && *v != title && !contains_bytes(v, b"{{"));
+        let mut handles = [0u8; 32];
+        let total = html_select_all(node.raw(), b".tabs > span.tab", &mut []);
+        let selected = if (1..=8).contains(&total) {
+            html_select_all(node.raw(), b".tabs > span.tab", &mut handles[..total as usize * 4])
+        } else { 0 };
+        let count = if selected >= 0 && selected <= total { selected as usize } else { 0 };
+        let tags = PageDescriptors { bytes: &handles[..count * 4], count };
+        let mut tag_bufs = [[0u8; 97]; 8];
+        let mut lengths = [0usize; 8];
+        for i in 0..count {
+            if let Some(tag) = tags.get(i) {
+                let buffer_start = tag_bufs[i].as_ptr() as usize;
+                if let Some(value) = text_into(tag, &mut tag_bufs[i]).filter(|v| v.len() < 97) {
+                    let value = trim_ascii(value);
+                    if !value.is_empty() && !contains_bytes(value, b"{{") {
+                        let start = value.as_ptr() as usize - buffer_start;
+                        lengths[i] = value.len();
+                        tag_bufs[i].copy_within(start..start + lengths[i], 0);
+                    }
+                }
+            }
+        }
+        let mut tag_values: [&[u8]; 8] = [&[]; 8];
+        let mut tag_count = 0;
+        for i in 0..count {
+            let value = &tag_bufs[i][..lengths[i]];
+            if !value.is_empty() && !tag_values[..tag_count].contains(&value) {
+                tag_values[tag_count] = value;
+                tag_count += 1;
+            }
+        }
+        match (author, tag_count) {
+            (Some(a), 0) => { let _ = list_info::append(payload, cursor, request, &[ListInfo::Text { text: a, label: None }]); }
+            (Some(a), _) => { let _ = list_info::append(payload, cursor, request, &[ListInfo::Text { text: a, label: None }, ListInfo::Tags { items: &tag_values[..tag_count] }]); }
+            (None, n) if n > 0 => { let _ = list_info::append(payload, cursor, request, &[ListInfo::Tags { items: &tag_values[..n] }]); }
+            _ => {}
+        }
+    }
+    if write_bytes(payload, cursor, b"}") { Ok(true) } else { Err(()) }
 }
 
 fn append_card_list(document: HtmlDescriptor, payload: &mut [u8], cursor: &mut usize,
@@ -1317,11 +1364,24 @@ fn banner_feature(req: &[u8]) -> bool {
 }
 
 fn run_modify_image_request(req: &[u8]) -> u32 {
-    // Keep the provider URL, established HTTP error path and optional banner hint.
     let url = match extract_json_string(req, b"url") {
         Some(u) => u,
         None => return write_error("get_image_request", "invalid_request", "missing url"),
     };
+
+    // The upstream reader takes this shard directly to avoid the CDN redirect.
+    // Keep the page-table URL as the cache identity. The manifest permits one
+    // fallback to the original lower-level CDN on a real 404.
+    let args = json_object_member(req, b"args").unwrap_or(req);
+    let direct_image = extract_json_string(args, b"pageId")
+        .filter(|id| id.starts_with(b"page:"))
+        .and_then(|_| {
+            url.strip_prefix(b"https://s1.baozicdn.com/scomic/")
+                .map(|path| (b"https://s1.baozimh.com/scomic/".as_slice(), path))
+                .or_else(|| url.strip_prefix(b"https://s2.baozicdn.com/scomic/")
+                    .map(|path| (b"https://s2.baozimh.com/scomic/".as_slice(), path)))
+        })
+        .filter(|(_, path)| !path.is_empty());
 
     let payload = payload_buf();
     let mut c = 0usize;
@@ -1330,7 +1390,11 @@ fn run_modify_image_request(req: &[u8]) -> u32 {
         .unwrap_or(b"1");
     let mode = if mode == b"1" || mode == b"2" { Some(mode) } else { None };
     let ok = write_bytes(payload, &mut c, br#"{"url":""#)
-        && append_json_escaped(payload, &mut c, url)
+        && match direct_image {
+            Some((origin_and_prefix, path)) => write_bytes(payload, &mut c, origin_and_prefix)
+                && append_json_escaped(payload, &mut c, path),
+            None => append_json_escaped(payload, &mut c, url),
+        }
         && write_bytes(payload, &mut c, br#"","headers":{}"#)
         && if banner_feature(req) {
             if let Some(mode) = mode {

@@ -1251,7 +1251,7 @@ dependencies = [
 
 [[package]]
 name = "koma_baozimh_source"
-version = "0.1.33"
+version = "0.1.36"
 dependencies = [
  "koma_source_sdk",
 ]

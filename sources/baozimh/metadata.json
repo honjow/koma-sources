@@ -94,6 +94,16 @@
         "origin": "https://appgb.baozimh.com",
         "profile": "chrome145"
       }
+    ],
+    "imageUrlFallbacks": [
+      {
+        "from": "s1.baozimh.com",
+        "to": "s1.baozicdn.com"
+      },
+      {
+        "from": "s2.baozimh.com",
+        "to": "s2.baozicdn.com"
+      }
     ]
   },
   "identity": {
