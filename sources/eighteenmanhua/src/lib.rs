@@ -23,7 +23,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "18mh.org 漫画目录",
+    description: "18漫画是繁体中文成人韩漫站，能找到《秘密教学》《美丽新世界》等分季连载。正篇之外，也会列出外传和作者后记。",
     content_rating: "unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
