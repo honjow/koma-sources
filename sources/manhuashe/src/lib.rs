@@ -15,7 +15,7 @@ fn selected_base(r: &[u8]) -> &'static [u8] {
         _ => BASE,
     }
 }
-const SOURCE_INFO: SourceInfo = SourceInfo { id:"com.manhuashe.koma", name:"漫画社 (Manhuashe)", version:"0.1.15", api_version:"0.2",language:"zh",author:"Koma",description: "漫畫社收錄熱血、玄幻、都市與冒險等題材漫畫，兼有連載及完結作品。",content_rating:"nsfw" };
+const SOURCE_INFO: SourceInfo = SourceInfo { id:"com.manhuashe.koma", name:"漫画社 (Manhuashe)", version:env!("CARGO_PKG_VERSION"), api_version:"0.2",language:"zh",author:"Koma",description: "漫畫社收錄熱血、玄幻、都市與冒險等題材漫畫，兼有連載及完結作品。",content_rating:"nsfw" };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -802,7 +802,26 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
             b",\"contentRating\":\"unknown\",\"cover\":{\"kind\":\"url\",\"url\":",
         )?;
         q(b, &mut n, cover)?;
-        bytes(b, &mut n, b"}}")?;
+        bytes(b, &mut n, b"}")?;
+        // The author comes from this same list card; missing or invalid optional
+        // text leaves the original item and fallback intact.
+        if koma_source_sdk::source_protocol::feature(r, koma_source_sdk::list_info::HOST_FEATURE) {
+            if let Ok(author_node) = card.select(b"p.comic-author") {
+                let mut author = [0u8; 513];
+                if let Ok(text) = author_node.text(&mut author) {
+                    let text = text.trim_ascii();
+                    if !text.is_empty() && text.len() <= 512 {
+                        let _ = koma_source_sdk::list_info::append(
+                            b,
+                            &mut n,
+                            r,
+                            &[koma_source_sdk::list_info::ListInfo::Text { text, label: None }],
+                        );
+                    }
+                }
+            }
+        }
+        bytes(b, &mut n, b"}")?;
     }
     bytes(b, &mut n, b"],\"page\":{\"nextCursor\":")?;
     if has_more {
