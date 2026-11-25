@@ -26,7 +26,7 @@ use koma_source_sdk::{
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.xcomic.zh-hant.koma",
     name: "XCOMIC",
-    version: "0.1.19",
+    version: "0.1.20",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
@@ -1982,12 +1982,12 @@ fn run_get_filters(r: &[u8]) -> u32 {
     write_success_payload("get_filters", schema.len())
 }
 fn run_get_settings(req: &[u8]) -> u32 {
-    let schema = r#"{"settings":[{"id":"REMOVE_TITLE_VERSION","name":"Remove Version Information From Entry Titles","kind":"toggle","default":"false","description":"This removes version tags like '(Official)' or '(Yaoi)' from entry titles."},{"id":"IGNORE_GENRE_BLOCKLIST","name":"Ignore WebView Genre Blocklist","kind":"toggle","default":"false"},{"id":"GROUP_BY_SOURCE","name":"Group Chapters By Edition","kind":"toggle","default":"false","description":"Sort chapters by edition label, then chapter number."}]}"#.as_bytes();
+    let schema = r#"{"settings":[{"id":"REMOVE_TITLE_VERSION","name":"移除作品標題中的版本資訊","kind":"toggle","default":"false","description":"移除作品標題中的版本標籤，例如「官方」或「耽美」。"},{"id":"IGNORE_GENRE_BLOCKLIST","name":"忽略網頁中的類型封鎖清單","kind":"toggle","default":"false"},{"id":"GROUP_BY_SOURCE","name":"按版本分組章節","kind":"toggle","default":"false","description":"按版本名稱與章節編號排序。"}]}"#.as_bytes();
     let out=payload_buf();let mut n=0;
     if !chapter_editions::supported(req) && !xcomic_java_regex::supported(req){out[..schema.len()].copy_from_slice(schema);return write_success_payload("get_settings",schema.len());}
     if bytes(out,&mut n,&schema[..schema.len()-2]).is_err() {return write_error("get_settings","internal_error","payload overflow");}
-    if chapter_editions::supported(req) && bytes(out,&mut n,br#",{"id":"DEDUPLICATE_CHAPTERS","name":"Deduplicate Chapter List","kind":"toggle","default":"false","description":"Use the provider deduplicated list; duplicate uploads from the same edition may be hidden."},{"id":"SOURCE_INCLUDE","name":"Chapter Editions To Include","kind":"text","default":"","description":"Comma-separated edition labels; a base label includes matching editions, while a suffixed label selects one. Empty includes all editions."}"#).is_err() {return write_error("get_settings","internal_error","payload overflow");}
-    if xcomic_java_regex::supported(req) && bytes(out,&mut n,br#",{"id":"REMOVE_TITLE_CUSTOM","name":"Custom Regex To Be Removed From Title","kind":"text","default":"","validation":{"kind":"java_regex","message":"Invalid regular expression"}}"#).is_err() {return write_error("get_settings","internal_error","payload overflow");}
+    if chapter_editions::supported(req) && bytes(out,&mut n,r#",{"id":"DEDUPLICATE_CHAPTERS","name":"去除重複章節","kind":"toggle","default":"false","description":"使用站點去重後的目錄，同一版本的重複上傳可能被隱藏。"},{"id":"SOURCE_INCLUDE","name":"收錄的章節版本","kind":"text","default":"","description":"以逗號分隔版本標籤；基礎標籤包含相符版本，帶後綴的標籤選取單一版本。留空表示全部。"}"#.as_bytes()).is_err() {return write_error("get_settings","internal_error","payload overflow");}
+    if xcomic_java_regex::supported(req) && bytes(out,&mut n,r#",{"id":"REMOVE_TITLE_CUSTOM","name":"自訂標題移除正則","kind":"text","default":"","validation":{"kind":"java_regex","message":"正則表達式無效"}}"#.as_bytes()).is_err() {return write_error("get_settings","internal_error","payload overflow");}
     if bytes(out,&mut n,b"]}").is_err() {return write_error("get_settings","internal_error","payload overflow");}
     write_success_payload("get_settings",n)
 }

@@ -5,11 +5,11 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.oldmasterq.zh-hant.koma",
     name: "老夫子繁中・授權關聯站",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
-    description: "Public Traditional Chinese comic strips from the independently operated licensed Oldmasterq.com affiliate. Individual creators are unspecified.",
+    description: "老夫子授權關聯站 Oldmasterq.com，展示當次最新 25 則漫畫，每則為一張完整原圖，公開瀏覽。",
     content_rating: "unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

@@ -1,3 +1,14 @@
 {
-  "homepage": "https://game.bilibili.com/magireco/comic1/"
+  "homepage": "https://game.bilibili.com/magireco/comic1/",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "魔法纪录 bilibili 服官网发布的中文漫画第一季，共 46 话，公开浏览无需登录。",
+        "zh-Hant": "魔法紀錄 bilibili 服官網發布的中文漫畫第一季，共 46 話，公開瀏覽無需登入。",
+        "en": "Season 1 Chinese comics of Magia Record from the official bilibili game site; 46 strips, public browsing."
+      }
+    }
+  }
 }

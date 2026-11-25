@@ -69,7 +69,7 @@ WWW SEO canonical作为既有独立坐标规则保留，不再借用默认入口
 
 | 行为 | 上游 | 本源消费 |
 | --- | --- | --- |
-| 首选镜像 | `preferred_mirror`，17项、索引字符串0–16 | `mirror::selected` 同17项；列表、搜索、详情、目录及公开作品地址共用所选站点 |
+| 首選鏡像 | `preferred_mirror`，17项、索引字符串0–16 | `mirror::selected` 同17项；列表、搜索、详情、目录及公开作品地址共用所选站点 |
 | 默认站点 | CN、索引0 | 0.1.31起按用户选择TW Webmota、索引4；无设置或无效值回4，显式保存值保持 |
 | App镜像 | AppCN / AppGB页面加`/baozimhapp`，卡片和章节可能由onclick提供身份 | `append_card` / `chapter_link` 将onclick作为数据解析，保持原作品ID与section0章节ID；非0section保留在章slot中 |
 | 主页与网页会话 | 当前所选镜像 | 包默认主页为TW Webmota，`homepageChoices`明确列出16项含WWW、默认4由homepage隐式覆盖；会话按17个精确origin声明，仍需宿主原授权，不跨站复制Cookie |

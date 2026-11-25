@@ -1235,7 +1235,7 @@ fn run_get_settings(r: &[u8]) -> u32 {
     let schema = schema::SETTINGS.as_bytes();
     let mut n = 0;
     if w(out, &mut n, &schema[..schema.len() - 2]).is_err() ||
-        w(out, &mut n, r#",{"id":"SOLVE_CAPTCHA","name":"自動輸入搜尋驗證碼","kind":"toggle","default":"false","description":"搜尋需要驗證碼時自動識別並提交；關閉時在網頁手動驗證"}]}"#.as_bytes()).is_err() {
+        w(out, &mut n, r#",{"id":"SOLVE_CAPTCHA","name":"自动输入搜索验证码","kind":"toggle","default":"false","description":"搜索需要验证码时自动识别并提交；关闭时在网页手动验证"}]}"#.as_bytes()).is_err() {
         return write_error("get_settings", "capacity_exceeded", "settings exceed buffer");
     }
     write_success_payload("get_settings", n)

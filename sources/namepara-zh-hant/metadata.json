@@ -1,3 +1,14 @@
 {
-  "homepage": "https://namepara.com/zh/info/comic/"
+  "homepage": "https://namepara.com/zh/info/comic/",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "菇菇（Namepara）官方繁中四格漫画合集，官网归档约 34 篇文章，公开浏览无需登录。",
+        "zh-Hant": "菇菇（Namepara）官方繁中四格漫畫合集，官網歸檔約 34 篇文章，公開瀏覽無需登入。",
+        "en": "Official Traditional Chinese Nameko four-panel comics from namepara.com; about 34 archived articles."
+      }
+    }
+  }
 }

@@ -1297,14 +1297,14 @@ fn run_get_filters(r: &[u8]) -> u32 {
 }
 fn settings_schema(r: &[u8]) -> Result<usize, &'static str> {
     json_complete(r)?;let out=payload_buf();let mut n=0;
-    bytes(out,&mut n,br#"{"settings":[{"id":"nsfw_pref","name":"Hide NSFW content","kind":"toggle","description":"Hide titles marked as 18+","default":"true"}"#)?;
+    bytes(out,&mut n,r#"{"settings":[{"id":"nsfw_pref","name":"隐藏成人内容","kind":"toggle","description":"隐藏标记为 18+ 的作品","default":"true"}"#.as_bytes())?;
     if blacklist_supported(r) {
         let raw=json_object_member(args(r),b"settingObservations").and_then(|v|json_object_member(v,KNOWN_KEY)).unwrap_or(b"[]");
         let mut known=names_array(raw)?;
         // Kotlin String ordering is UTF-16; retain raw displayed names and only
         // lowercase for its stable ordering, never casefold/deduplicate aliases.
         known.sort_by(|a,b|a.to_lowercase().encode_utf16().cmp(b.to_lowercase().encode_utf16()));
-        bytes(out,&mut n,br#",{"id":"scanlator_blacklist_pref","name":"Scanlator blacklist","kind":"multiselect","description":"Hide chapters from the selected scanlators. The list fills up automatically as you browse titles.","default":[],"options":["#)?;
+        bytes(out,&mut n,r#",{"id":"scanlator_blacklist_pref","name":"汉化组黑名单","kind":"multiselect","description":"隐藏所选汉化组的章节；浏览作品时列表自动填充。","default":[],"options":["#.as_bytes())?;
         for (i,name) in known.iter().enumerate() {
             if i>0 {bytes(out,&mut n,b",")?;}
             bytes(out,&mut n,b"{\"value\":")?;q(out,&mut n,name.as_bytes())?;

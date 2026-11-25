@@ -518,7 +518,7 @@ fn dispatch(op: &str, req: &[u8]) -> Result<Value> {
     match op {
         "get_listings" => Ok(port::listing_list(true, true, false)),
         "get_settings" => Ok(
-            json!({"settings":[{"id":"sortChapter","name":"依照上傳時間排序章節","kind":"toggle","default":"false"}]}),
+            json!({"settings":[{"id":"sortChapter","name":"依照上传时间排序章节","kind":"toggle","default":"false"}]}),
         ),
         "get_manga_list" => listing(req, args, false),
         "search" => listing(req, args, true),

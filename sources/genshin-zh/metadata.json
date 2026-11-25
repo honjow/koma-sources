@@ -1,3 +1,14 @@
 {
-  "homepage": "https://ys.mihoyo.com/main/manga"
+  "homepage": "https://ys.mihoyo.com/main/manga",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "原神官网发布的官方中文漫画，当前收录 15 话，以官网列表为准，公开浏览无需登录。",
+        "zh-Hant": "原神官網發布的官方中文漫畫，當前收錄 15 話，以官網列表為準，公開瀏覽無需登入。",
+        "en": "Official Chinese Genshin Impact manga from the miHoYo website; 15 chapters as listed, public browsing."
+      }
+    }
+  }
 }

@@ -8,7 +8,7 @@ use koma_source_sdk::{
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.xkcd.zh.koma",
     name: "xkcd",
-    version: "0.1.9",
+    version: "0.1.10",
     api_version: "0.2",
     language: "zh",
     author: "Koma source contributors",
@@ -1111,7 +1111,7 @@ fn run_get_filters(_: &[u8]) -> u32 {
     write_error("get_filters", "unsupported", "filters unsupported")
 }
 fn run_get_settings(_: &[u8]) -> u32 {
-    let data = r#"{"settings":[{"id":"organization_method","name":"組織方式","kind":"select","options":[{"value":"SINGLE","label":"單本（全部漫畫）"},{"value":"BY_YEAR","label":"按年"},{"value":"BY_YEAR_MONTH","label":"按年月"}],"default":"SINGLE","description":"變更組織方式會使用獨立作品與閱讀進度；原單本資料保留。"}]}"#.as_bytes();
+    let data = r#"{"settings":[{"id":"organization_method","name":"组织方式","kind":"select","options":[{"value":"SINGLE","label":"单本（全部漫画）"},{"value":"BY_YEAR","label":"按年"},{"value":"BY_YEAR_MONTH","label":"按年月"}],"default":"SINGLE","description":"变更组织方式会使用独立作品与阅读进度；原单本资料保留。"}]}"#.as_bytes();
     payload_buf()[..data.len()].copy_from_slice(data);
     write_success_payload("get_settings", data.len())
 }

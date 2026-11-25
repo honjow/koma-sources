@@ -394,8 +394,8 @@ fn dispatch(op: &str, request: &[u8]) -> Result<Value> {
             port::select("status","狀態","browse",STATES)]}),
         ),
         "get_settings" => Ok(
-            json!({"settings":[{"id":"line","name":"線路","kind":"select","default":"line1",
-            "options":[{"value":"line1","label":"線路 1"},{"value":"line2","label":"線路 2"}]}]}),
+            json!({"settings":[{"id":"line","name":"线路","kind":"select","default":"line1",
+            "options":[{"value":"line1","label":"线路 1"},{"value":"line2","label":"线路 2"}]}]}),
         ),
         "search" => list(&input, request, true),
         "get_manga_list" => list(&input, request, false),

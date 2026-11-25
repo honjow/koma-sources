@@ -6,7 +6,7 @@ use koma_source_sdk::{
     json_utils::*,
     source::{SourceCapabilities, SourceInfo},
 };
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.pixiv.zh.koma",name:"pixiv",version:"0.1.18",api_version:"0.2",language:"zh",author:"Koma",description: "pixiv 創作者公開發表的全年齡漫畫，包含獨立作品與系列。此入口不收錄成人、私人或僅限登入可見的作品，正文語言不限中文。",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.pixiv.zh.koma",name:"pixiv",version:"0.1.19",api_version:"0.2",language:"zh",author:"Koma",description: "pixiv 創作者公開發表的全年齡漫畫，包含獨立作品與系列。此入口不收錄成人、私人或僅限登入可見的作品，正文語言不限中文。",content_rating:"nsfw"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,
@@ -1454,7 +1454,7 @@ fn run_get_filters(r: &[u8]) -> u32 {
     payload_buf()[..schema.len()].copy_from_slice(schema); write_success_payload("get_filters",schema.len())
 }
 fn run_get_settings(_: &[u8]) -> u32 {
-    let p = "{\"settings\":[{\"id\":\"pref_image_quality\",\"name\":\"圖片品質\",\"kind\":\"select\",\"options\":[{\"value\":\"thumb_mini\",\"label\":\"最小縮圖\"},{\"value\":\"small\",\"label\":\"小圖\"},{\"value\":\"regular\",\"label\":\"標準\"},{\"value\":\"original\",\"label\":\"原圖\"}],\"default\":\"original\"}]}".as_bytes();
+    let p = "{\"settings\":[{\"id\":\"pref_image_quality\",\"name\":\"图片品质\",\"kind\":\"select\",\"options\":[{\"value\":\"thumb_mini\",\"label\":\"最小缩图\"},{\"value\":\"small\",\"label\":\"小图\"},{\"value\":\"regular\",\"label\":\"标准\"},{\"value\":\"original\",\"label\":\"原图\"}],\"default\":\"original\"}]}".as_bytes();
     payload_buf()[..p.len()].copy_from_slice(p);
     write_success_payload("get_settings", p.len())
 }

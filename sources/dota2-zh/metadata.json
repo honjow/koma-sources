@@ -1,3 +1,14 @@
 {
-  "homepage": "https://www.dota2.com.cn/comics/"
+  "homepage": "https://www.dota2.com.cn/comics/",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "DOTA2 中国官网发布的《我们是英雄了吗？秘密店铺之传说》单篇中文漫画，48 页完整阅读，公开浏览无需登录。",
+        "zh-Hant": "DOTA2 中國官網發布的《我們是英雄了嗎？秘密店鋪之傳說》單篇中文漫畫，48 頁完整閱讀，公開瀏覽無需登入。",
+        "en": "The single official Chinese DOTA2 comic \"Are We Heroes Yet?\" on dota2.com.cn; 48 pages, public browsing."
+      }
+    }
+  }
 }

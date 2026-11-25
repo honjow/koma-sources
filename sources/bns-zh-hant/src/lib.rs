@@ -5,11 +5,11 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.ncsoft.bns.zh-hant.koma",
     name: "劍靈官方繁中漫畫",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
-    description: "The publicly available Chinese-Taiwan comic reading units in the official NCSOFT Taiwan Musung library.",
+    description: "NCsoft 台服劍靈官網「無塵篇」官方漫畫，收錄《悲運的徒弟，無塵》與《慟哭的星》上下兩集，共三個閱讀單元，公開瀏覽無需登入。",
     content_rating: "unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

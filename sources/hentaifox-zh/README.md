@@ -16,7 +16,7 @@
 
 ## 短标题设置
 
-`pref_short_title`（Display Short Titles）默认关闭，保原长标题及请求合同。显式开启时，列表和详情按固定GalleryAdults表达式 `(\[[^]]*]|[({][^)}]*[)}])` 删除标签并沿Kotlin.trim修剪；详情附 `**Full title**:` 保留完整标题。状态说明沿参考为Showing Long Titles / Showing short Titles。章节名、ID、顺序、页表和图像URL不随此显示设置改变，不主动改写库内旧标题。
+`pref_short_title`（显示短标题）默认关闭，保原长标题及请求合同。显式开启时，列表和详情按固定GalleryAdults表达式 `(\[[^]]*]|[({][^)}]*[)}])` 删除标签并沿Kotlin.trim修剪；详情附 `**Full title**:` 保留完整标题。状态说明沿参考为当前显示长标题 / 当前显示短标题。章节名、ID、顺序、页表和图像URL不随此显示设置改变，不主动改写库内旧标题。
 
 四源复用SDK唯一有界 `gallery_titles::display`，仅匹配上述固定分隔规则，不支持任意正则，不引入正则引擎或动态分配。非标签Unicode原字节保留；允许混合闭符是参考实际语义，不改成嵌套配对解析。未配置、false和错误作用域不清理。
 

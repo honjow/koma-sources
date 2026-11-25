@@ -10,7 +10,7 @@ MYCOMIC 收錄日漫、韓漫、國漫與歐美漫畫的中文版本，兼有分
 
 ## 首选语言
 
-`pref_key_lang`（設置首選語言）提供繁體中文与简体中文，默认 `cn` 保留Koma原简体路径；固定Keiyoushi `949dea252eb8e867b7b40834a26e13088764ff55` 默认是空前缀繁体，这里按保当前默认适配。ABI选项不允许空值，`original`表示参考空前缀，也兼容已有空值及zh-hant；cn/未配置保持 `/cn/comics`，显式original使用 `/comics`。
+`pref_key_lang`（设置首选语言）提供繁體中文与简体中文，默认 `cn` 保留Koma原简体路径；固定Keiyoushi `949dea252eb8e867b7b40834a26e13088764ff55` 默认是空前缀繁体，这里按保当前默认适配。ABI选项不允许空值，`original`表示参考空前缀，也兼容已有空值及zh-hant；cn/未配置保持 `/cn/comics`，显式original使用 `/comics`。
 
 列表、搜索、分页与详情/目录的共同manga_doc均消费所选前缀。Koma作品ID一直为无语言前缀的slug，因此详情与目录从当前设置派生路径，保持原作品身份；不主动重写已入库标题。参考Dto章地址始终 `/chapters/<id>`，正文请求保此无前缀路线，不按语言设置擅加cn；图像URL和请求头保持原输出。原正整数字符串章ID、页ID `page:<chapterID>:<index>`、目录顺序及读态不变；App沿已采用设置摘要合同按需重新取页，不清图片缓存。
 

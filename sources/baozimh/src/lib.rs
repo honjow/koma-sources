@@ -1439,11 +1439,11 @@ fn run_get_settings(req: &[u8]) -> u32 {
     const SETTINGS_JSON: &str = "{\"settings\":[{\"id\":\"defaultRegion\",\"name\":\"預設地區\",\"kind\":\"select\",\"options\":[{\"value\":\"all\",\"label\":\"全部\"},{\"value\":\"cn\",\"label\":\"國漫\"},{\"value\":\"jp\",\"label\":\"日本\"},{\"value\":\"kr\",\"label\":\"韓國\"},{\"value\":\"en\",\"label\":\"歐美\"}],\"default\":\"all\"},{\"id\":\"defaultState\",\"name\":\"預設狀態\",\"kind\":\"select\",\"options\":[{\"value\":\"all\",\"label\":\"全部\"},{\"value\":\"serial\",\"label\":\"連載中\"},{\"value\":\"pub\",\"label\":\"已完結\"}],\"default\":\"all\"}]}";
 
     const BANNER: &str = r#",{"id":"BAOZI_BANNER","name":"移除包子漫畫橫幅 (v2.1)","description":"普通模式只能移除上端或下端的一處橫幅，強力模式可以移除多個層疊的橫幅。","kind":"select","options":[{"value":"0","label":"禁用"},{"value":"1","label":"普通模式"},{"value":"2","label":"強力模式"}],"default":"1"}]}"#;
-    const ORDER: &str = r#",{"id":"CHAPTER_ORDER","name":"修复章节顺序错误导致的错标已读","description":"部分作品的章节顺序错误，最新章节总是显示为一个旧章节，导致检查更新时新章节被错标为已读。开启后，将会正确判断新章节和已读情况，但是错误的章节顺序不会改变。警告：修改此设置后第一次刷新可能会导致已读状态出现错乱，请谨慎使用。","kind":"select","options":[{"value":"0","label":"关闭"},{"value":"1","label":"开启 (对有标号的章节有效)"},{"value":"2","label":"强力模式 (对所有章节有效)"}],"default":"0"}]}"#;
+    const ORDER: &str = r#",{"id":"CHAPTER_ORDER","name":"修復章節順序錯誤導致的錯標已讀","description":"部分作品的章節順序錯誤，最新章節總是顯示為一個舊章節，導致檢查更新時新章節被錯標為已讀。開啟後，將會正確判斷新章節和已讀情況，但是錯誤的章節順序不會改變。警告：修改此設置後第一次刷新可能會導致已讀狀態出現錯亂，請謹慎使用。","kind":"select","options":[{"value":"0","label":"關閉"},{"value":"1","label":"開啟 (對有標號的章節有效)"},{"value":"2","label":"強力模式 (對所有章节有效)"}],"default":"0"}]}"#;
     let payload = payload_buf();
     let mut n = 0;
     let original = SETTINGS_JSON.as_bytes();
-    if !(write_bytes(payload, &mut n, r#"{"settings":[{"id":"preferred_mirror","name":"首选镜像","kind":"select","default":""#.as_bytes())
+    if !(write_bytes(payload, &mut n, r#"{"settings":[{"id":"preferred_mirror","name":"首選鏡像","kind":"select","default":""#.as_bytes())
         && write_usize(payload, &mut n, mirror::DEFAULT_INDEX)
         && write_bytes(payload, &mut n, br#"","options":["#)) {
         return write_error("get_settings", "internal_error", "payload overflow");

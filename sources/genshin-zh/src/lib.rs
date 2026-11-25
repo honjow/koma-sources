@@ -5,11 +5,11 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.mihoyo.genshin.zh.koma",
     name: "原神官方漫画",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "Public Chinese Genshin Impact manga from the official miHoYo website.",
+    description: "原神官网发布的官方中文漫画，当前收录 15 话，以官网列表为准，公开浏览无需登录。",
     content_rating: "unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

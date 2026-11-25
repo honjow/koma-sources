@@ -15,5 +15,16 @@
     "zh-Hant": "喵趣漫畫",
     "en": "Miaoqu Manhua"
   },
-  "homepage": "https://www.miaoqumh.org"
+  "homepage": "https://www.miaoqumh.org",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "喵趣漫画公开站，支持热门、最新与搜索浏览，以中文连载漫画为主，无需登录。",
+        "zh-Hant": "喵趣漫畫公開站，支援熱門、最新與搜尋瀏覽，以中文連載漫畫為主，無需登入。",
+        "en": "Public Miaoqu comic site with popular, latest and search listings; Chinese serialised comics, no login."
+      }
+    }
+  }
 }

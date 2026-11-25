@@ -23,11 +23,11 @@ koma_source_sdk::koma_source_helpers!();
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.happymh.koma",
     name: "嗨皮漫画",
-    version: "0.1.8",
+    version: "0.1.9",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "",
+    description: "嗨皮漫画公开站，提供热门、最新列表与搜索，收录中文漫画，无需登录。",
     content_rating: "safe",
 };
 

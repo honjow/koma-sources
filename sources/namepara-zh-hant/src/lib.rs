@@ -6,11 +6,11 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.beeworks.namepara.zh-hant.koma",
     name: "菇菇官方四格漫畫",
-    version: "0.1.3",
+    version: "0.1.4",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
-    description: "Official Traditional Chinese Nameko four-panel comics from namepara.com.",
+    description: "菇菇（Namepara）官方繁中四格漫畫合集，官網歸檔約 34 篇文章，公開瀏覽無需登入。",
     content_rating: "unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

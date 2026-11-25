@@ -15,8 +15,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description:
-        "Miaoqu public HTML source; shares catalogue with SixMH. Upstream SAFE; usage unknown.",
+    description: "喵趣漫画公开站，支持热门、最新与搜索浏览，以中文连载漫画为主，无需登录。",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

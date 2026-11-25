@@ -22,7 +22,7 @@ Mihon 的 `zh-Hant` 变体固定译文语言为 `zh_hk`，只让 `all` 变体选
 
 `DEDUPLICATE_CHAPTERS` 仅在宿主支持章节排除时提供：简中默认开启，沿原 uniqList；繁中默认关闭，沿原 fullList。开启时复用已确认的版本，分别完整读取去重与完整目录，用真实章节 ID 差集隐藏重复条目；与版本筛选的排除项合并，已有章节和阅读进度不删除。每个版本需要额外完整目录请求，超过每页 100 条继续分页。宿主保留本地旧章，单凭去重列表缺项不能证明应隐藏；已有多根请求被拒，使用已支持的独立单根查询。任一分页失败或取消时不发布部分排除；明确旧章和页表恢复以完整目录验证其原身份。旧宿主不提供此设置并维持原查询。
 
-`REMOVE_TITLE_VERSION`（Remove Version Information From Entry Titles）默认关闭。显式开启时，列表、搜索和详情的共同标题输出按固定 Keiyoushi `949dea252eb8e867b7b40834a26e13088764ff55` 删除版本标签并 trim；该开关关闭且未配置自定义规则时保持原 JSON 标题逐字输出。清理后通过既有SDK的HTML5实体表解码一次，字面尖括号保持文字，不剥除标签。清理后为空的列表标题沿参考回退到实际作品 ID。设置不改变身份、目录或页面，也不主动改写库内旧标题。
+`REMOVE_TITLE_VERSION`（移除作品標題中的版本資訊）默认关闭。显式开启时，列表、搜索和详情的共同标题输出按固定 Keiyoushi `949dea252eb8e867b7b40834a26e13088764ff55` 删除版本标签并 trim；该开关关闭且未配置自定义规则时保持原 JSON 标题逐字输出。清理后通过既有SDK的HTML5实体表解码一次，字面尖括号保持文字，不剥除标签。清理后为空的列表标题沿参考回退到实际作品 ID。设置不改变身份、目录或页面，也不主动改写库内旧标题。
 
 使用成熟 `regex` 的无 std 引擎执行固定表达式；Java负向前瞻的方括号分支改写为等价排除字符类，保留 Java 行终止符边界；`Official` 的大小写匹配保留 Java UnicodeCase 的 I/i/İ/ı。每次列表/详情操作只编译一次，默认关闭不编译。自定义标题正则默认空，只有宿主声明 `source_java_regex_v1` 时才显示和消费；沿参考用 Java/ICU 语法移除匹配内容，再执行既有固定标题清理。规则非法或执行失败时自定义步骤保留原文，已启用的固定清理仍独立执行；旧宿主保留原行为。
 
@@ -36,9 +36,9 @@ Mihon 的 `zh-Hant` 变体固定译文语言为 `zh_hk`，只让 `all` 变体选
 
 原公开数据合同独立适配自 Apache-2.0 的 Keiyoushi `1319949ca9bc456908196e3ba2d104e94182c5d6`；新增标题偏好及表达式依据固定 `949dea252eb8e867b7b40834a26e13088764ff55`。原JSON有界解析来源及许可见 `NOTICE`/`LICENSE`。当前图标沿已采用的192×192双颜色X去底处理；参考扩展资源归属保留，不声称获得站点官方认可或新增高清资源。
 
-`SOURCE_INCLUDE`（Chapter Editions To Include）仅在Host声明 `source_chapter_exclusions_v1` 时展示/消费，默认空保留原完整目录、请求、标签、ID和相对顺序。显式非空按固定949dea逗号拆分、Kotlin trim与完整Unicode lowercase全等匹配；版本标签复用SDK实体解码和成熟Unicode titlecase，沿参考归一化并为同名不同版本加 `[版本ID]` 区分。基本标签包含同名版本，带后缀标签选择对应版本。源先完成全部原归属/权限/完整分页检查，再返回保留项及实际 `excludedChapterIds`，不把缺失/未加载章当排除。宿主只控制本次可见目录，原Library/下载/读态不删除；显式旧章恢复只返回其合法原身份，页面恢复保持原校验并忽略目录过滤。旧Host即使保存过此字段也保持旧目录。版本筛选格式见schema.description，当前Koma文本设置在输入框下显示完整说明。
+`SOURCE_INCLUDE`（收錄的章節版本）仅在Host声明 `source_chapter_exclusions_v1` 时展示/消费，默认空保留原完整目录、请求、标签、ID和相对顺序。显式非空按固定949dea逗号拆分、Kotlin trim与完整Unicode lowercase全等匹配；版本标签复用SDK实体解码和成熟Unicode titlecase，沿参考归一化并为同名不同版本加 `[版本ID]` 区分。基本标签包含同名版本，带后缀标签选择对应版本。源先完成全部原归属/权限/完整分页检查，再返回保留项及实际 `excludedChapterIds`，不把缺失/未加载章当排除。宿主只控制本次可见目录，原Library/下载/读态不删除；显式旧章恢复只返回其合法原身份，页面恢复保持原校验并忽略目录过滤。旧Host即使保存过此字段也保持旧目录。版本筛选格式见schema.description，当前Koma文本设置在输入框下显示完整说明。
 
-`IGNORE_GENRE_BLOCKLIST`（Ignore WebView Genre Blocklist）默认关闭。列表与搜索共用的browse items/pager请求仅在显式开启时向原select加入 `ignoreGlobalGenres:true`，沿固定参考跳过网页类别黑名单。缺失/关闭保留原请求字节；不更改其它类型/语言/权限筛选、详情/目录/页面或原Web会话。
+`IGNORE_GENRE_BLOCKLIST`（忽略網頁中的類型封鎖清單）默认关闭。列表与搜索共用的browse items/pager请求仅在显式开启时向原select加入 `ignoreGlobalGenres:true`，沿固定参考跳过网页类别黑名单。缺失/关闭保留原请求字节；不更改其它类型/语言/权限筛选、详情/目录/页面或原Web会话。
 
 ## 版本探测调度
 

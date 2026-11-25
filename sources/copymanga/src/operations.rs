@@ -494,16 +494,16 @@ fn settings(cx: &Context) -> R<Value> {
         choice("domain", "域名", &json!(domains), DOMAINS[0].0),
         choice(
             "display_language",
-            "繁簡設定",
-            &json!([{"value":"traditional","label":"繁體"},{"value":"simplified","label":"簡體"}]),
+            "繁简设置",
+            &json!([{"value":"traditional","label":"繁体"},{"value":"simplified","label":"简体"}]),
             "traditional"
         ),
         json!({"id":"user_agent","name":"User-Agent","kind":"text","default":DEFAULT_UA,
-            "validation":{"kind":"non_blank","message":"User-Agent 不能為空白。"}}),
+            "validation":{"kind":"non_blank","message":"User-Agent 不能为空。"}}),
         choice("latest_ranking", "最新模式", &o["LATEST_MODE_OPTIONS"], ""),
         choice(
             "latest_ranking_channel",
-            "榜單頻道",
+            "榜单频道",
             &o["RANKING_CHANNELS"],
             "male"
         ),
@@ -513,9 +513,9 @@ fn settings(cx: &Context) -> R<Value> {
             &o["LATEST_SORT_UI"],
             "datetime_updated_descending"
         ),
-        choice("latest_region", "地區", &o["REGION_OPTIONS"], ""),
-        choice("latest_status", "狀態", &o["STATUS_OPTIONS"], ""),
-        choice("latest_theme", "題材", &theme, "")
+        choice("latest_region", "地区", &o["REGION_OPTIONS"], ""),
+        choice("latest_status", "状态", &o["STATUS_OPTIONS"], ""),
+        choice("latest_theme", "题材", &theme, "")
     ];
     for row in &mut rows {
         match row["id"].as_str() {
@@ -551,7 +551,7 @@ fn filters(cx: &Context, r: &[u8], v: &Value) -> R<Value> {
         ("ranking", "排行榜", o["RANKING_PERIODS"].clone(), ""),
         (
             "ranking_channel",
-            "榜單頻道",
+            "榜单频道",
             o["RANKING_CHANNELS"].clone(),
             "male",
         ),
@@ -561,9 +561,9 @@ fn filters(cx: &Context, r: &[u8], v: &Value) -> R<Value> {
             o["FILTER_SORT"].clone(),
             "-datetime_updated",
         ),
-        ("region", "地區", o["REGION_OPTIONS"].clone(), ""),
-        ("status", "狀態", o["STATUS_OPTIONS"].clone(), ""),
-        ("theme", "題材", json!(theme), ""),
+        ("region", "地区", o["REGION_OPTIONS"].clone(), ""),
+        ("status", "状态", o["STATUS_OPTIONS"].clone(), ""),
+        ("theme", "题材", json!(theme), ""),
     ] {
         rows.push(json!({"id":id,"name":name,"type":"select","options":options,"default":default}))
     }

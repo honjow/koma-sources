@@ -14,7 +14,7 @@ const WEB: &[u8] = b"https://hentaifox.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.hentaifox.zh.koma",
     name: "HentaiFox",
-    version: "0.1.8",
+    version: "0.1.9",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -1117,8 +1117,8 @@ fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_supported", "not supported")
 }
 fn run_get_settings(req: &[u8]) -> u32 {
-    let prefix = br#"{"settings":[{"id":"pref_short_title","name":"Display Short Titles","kind":"toggle","default":"false","description":""#;
-    let state = if koma_source_sdk::gallery_titles::enabled(req) { b"Showing short Titles".as_slice() } else { b"Showing Long Titles".as_slice() };
+    let prefix = r#"{"settings":[{"id":"pref_short_title","name":"显示短标题","kind":"toggle","default":"false","description":""#.as_bytes();
+    let state = if koma_source_sdk::gallery_titles::enabled(req) { r"当前显示短标题".as_bytes() } else { r"当前显示长标题".as_bytes() };
     let out = payload_buf();
     let mut n = 0;
     if !(write_bytes(out, &mut n, prefix) && write_bytes(out, &mut n, state) && write_bytes(out, &mut n, br#""}]}"#)) {

@@ -1708,10 +1708,10 @@ fn run_get_filters(_req: &[u8]) -> u32 {
 
 fn run_get_settings(req: &[u8]) -> u32 {
     let payload = payload_buf(); let mut c = 0;
-    let sort = "{\"settings\":[{\"id\":\"sortChapter\",\"name\":\"依照上傳時間排序章節\",\"kind\":\"toggle\",\"description\":\"依網站章節編號由新到舊排列，預設保留網站原順序\",\"default\":\"false\"}";
+    let sort = "{\"settings\":[{\"id\":\"sortChapter\",\"name\":\"依照上传时间排序章节\",\"kind\":\"toggle\",\"description\":\"依网站章节编号由新到旧排列，默认保留网站原顺序\",\"default\":\"false\"}";
     if !write_bytes(payload, &mut c, sort.as_bytes()) { return write_error("get_settings", "internal_error", "payload overflow"); }
     if supports_text_pages(req) {
-        let comments = ",{\"id\":\"chapterComments\",\"name\":\"章末吐槽頁\",\"kind\":\"toggle\",\"description\":\"在章節原圖後顯示網站吐槽；對之後載入的章節生效\",\"default\":\"false\"}";
+        let comments = ",{\"id\":\"chapterComments\",\"name\":\"章末吐槽页\",\"kind\":\"toggle\",\"description\":\"在章节原图后显示网站吐槽；对之后载入的章节生效\",\"default\":\"false\"}";
         if !write_bytes(payload, &mut c, comments.as_bytes()) { return write_error("get_settings", "internal_error", "payload overflow"); }
     }
     if !write_bytes(payload, &mut c, b"]}") { return write_error("get_settings", "internal_error", "payload overflow"); }

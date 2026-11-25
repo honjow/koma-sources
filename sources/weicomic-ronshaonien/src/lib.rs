@@ -5,11 +5,11 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.weicomic.ronshaonien.zh-hant.koma",
     name: "創漫繁中・隆少年",
-    version: "0.1.4",
+    version: "0.1.5",
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma",
-    description: "Public original Traditional Chinese comic Ronshaonien by ULTIMATE from Weicomic.",
+    description: "創漫（Weicomic）公開的 ULTIMATE 原創繁中漫畫《隆少年》，單一作品 30 頁完整閱讀，公開瀏覽。",
     content_rating: "unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

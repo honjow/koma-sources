@@ -8,5 +8,16 @@
         "profile": "firefox133"
       }
     ]
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "创漫（Weicomic）公开的 ULTIMATE 原创繁中漫画《隆少年》，单一作品 30 页完整阅读，公开浏览。",
+        "zh-Hant": "創漫（Weicomic）公開的 ULTIMATE 原創繁中漫畫《隆少年》，單一作品 30 頁完整閱讀，公開瀏覽。",
+        "en": "ULTIMATE's original Traditional Chinese comic \"Ronshaonien\" on Weicomic; one title, 30 pages."
+      }
+    }
   }
 }

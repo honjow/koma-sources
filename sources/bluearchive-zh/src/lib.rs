@@ -5,11 +5,11 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.yostar.bluearchive.zh.koma",
     name: "蔚蓝档案官方漫画",
-    version: "0.1.2",
+    version: "0.1.3",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "Public Chinese Blue Archive four-panel comics from the official Yostar website.",
+    description: "蔚蓝档案官网发布的中文四格漫画合集，共 15 话，公开浏览无需登录。",
     content_rating: "unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

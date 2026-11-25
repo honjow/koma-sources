@@ -59,7 +59,7 @@ static mut SELECT_BUF: [u8; SELECT_CAP] = [0; SELECT_CAP];
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.zerobyw.koma",
     name: "Zerobyw",
-    version: "0.1.13",
+    version: "0.1.14",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -1408,7 +1408,7 @@ fn run_get_manga_list(req: &[u8]) -> u32 {
 }
 
 fn run_get_settings(_req: &[u8]) -> u32 {
-    const SETTINGS: &[u8] = br#"{"settings":[{"id":"baseUrl","name":"Base URL","kind":"text","default":"http://www.zerobyw33.com","hint":"Override Zerobyw host without trailing slash"}]}"#;
+    const SETTINGS: &[u8] = r#"{"settings":[{"id":"baseUrl","name":"站点地址","kind":"text","default":"http://www.zerobyw33.com","hint":"覆盖 Zerobyw 站点地址，末尾不带斜杠"}]}"#.as_bytes();
     let payload = payload_buf();
     if SETTINGS.len() > payload.len() {
         return write_error("get_settings", "internal_error", "payload overflow");

@@ -1,3 +1,14 @@
 {
-  "homepage": "https://www.taptap.cn/app/209866/topic?group_label_id=946587&type=group_label"
+  "homepage": "https://www.taptap.cn/app/209866/topic?group_label_id=946587&type=group_label",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "铃兰之剑官方在 TapTap 发布的《伊利亚没问题！》中文漫画，约 57 部作品，公开浏览无需登录。",
+        "zh-Hant": "鈴蘭之劍官方在 TapTap 發布的《伊利亞沒問題！》中文漫畫，約 57 部作品，公開瀏覽無需登入。",
+        "en": "Official Sword of Convallaria Chinese comics on TapTap; around 57 titles, public browsing."
+      }
+    }
+  }
 }

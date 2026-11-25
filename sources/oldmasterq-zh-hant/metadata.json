@@ -1,3 +1,14 @@
 {
-  "homepage": "https://www.oldmasterq.com/"
+  "homepage": "https://www.oldmasterq.com/",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hant",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "老夫子授权关联站 Oldmasterq.com，展示当次最新 25 则漫画，每则为一张完整原图，公开浏览。",
+        "zh-Hant": "老夫子授權關聯站 Oldmasterq.com，展示當次最新 25 則漫畫，每則為一張完整原圖，公開瀏覽。",
+        "en": "Licensed Old Master Q affiliate site showing the latest 25 strips, each a full comic image."
+      }
+    }
+  }
 }

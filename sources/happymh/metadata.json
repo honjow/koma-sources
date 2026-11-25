@@ -5,5 +5,19 @@
     "zh-Hans": "嗨皮漫画",
     "zh-Hant": "嗨皮漫畫"
   },
-  "distribution": {"available": false, "reason": "upstream unavailable"}
+  "distribution": {
+    "available": false,
+    "reason": "upstream unavailable"
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "嗨皮漫画公开站，提供热门、最新列表与搜索，收录中文漫画，无需登录。",
+        "zh-Hant": "嗨皮漫畫公開站，提供熱門、最新列表與搜尋，收錄中文漫畫，無需登入。",
+        "en": "Public Happy Comic site with popular, latest and search listings; Chinese comics, no login."
+      }
+    }
+  }
 }

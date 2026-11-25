@@ -35,7 +35,7 @@ mod filter_candidate;
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.noyacg.koma",
     name: "NoyAcg",
-    version: "0.1.14",
+    version: "0.1.15",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -1060,7 +1060,7 @@ fn popular_type(req: &[u8]) -> &'static [u8] {
 }
 
 fn run_get_settings(_req: &[u8]) -> u32 {
-    const SETTINGS: &str = r#"{"settings":[{"id":"POPULAR_MANGAS","name":"熱門漫畫顯示內容","kind":"select","default":"day","options":[{"value":"day","label":"日閱讀榜"},{"value":"week","label":"周閱讀榜"},{"value":"month","label":"月閱讀榜"}]},{"id":"ADULT","name":"漫畫內容類型","kind":"select","default":"both","options":[{"value":"false","label":"僅顯示全年齡內容"},{"value":"true","label":"僅顯示成人内容"},{"value":"both","label":"顯示所有内容"}]}]}"#;
+    const SETTINGS: &str = r#"{"settings":[{"id":"POPULAR_MANGAS","name":"热门漫画显示内容","kind":"select","default":"day","options":[{"value":"day","label":"日阅读榜"},{"value":"week","label":"周阅读榜"},{"value":"month","label":"月阅读榜"}]},{"id":"ADULT","name":"漫画内容类型","kind":"select","default":"both","options":[{"value":"false","label":"仅显示全年龄内容"},{"value":"true","label":"仅显示成人内容"},{"value":"both","label":"显示所有内容"}]}]}"#;
     payload_buf()[..SETTINGS.len()].copy_from_slice(SETTINGS.as_bytes());
     write_success_payload("get_settings", SETTINGS.len())
 }

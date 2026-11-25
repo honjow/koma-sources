@@ -1185,7 +1185,7 @@ fn run_get_filters(r: &[u8]) -> u32 {
     write_success_payload("get_filters", data.len())
 }
 fn run_get_settings(_: &[u8]) -> u32 {
-    let data = r#"{"settings":[{"id":"pref_key_lang","name":"設置首選語言","kind":"select","default":"cn","options":[{"value":"original","label":"繁體中文"},{"value":"cn","label":"简体中文"}]}]}"#.as_bytes();
+    let data = r#"{"settings":[{"id":"pref_key_lang","name":"设置首选语言","kind":"select","default":"cn","options":[{"value":"original","label":"繁體中文"},{"value":"cn","label":"简体中文"}]}]}"#.as_bytes();
     payload_buf()[..data.len()].copy_from_slice(data);
     write_success_payload("get_settings", data.len())
 }

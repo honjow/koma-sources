@@ -5,11 +5,11 @@ use koma_source_sdk::{build_get_request, decode_json_body_into, host};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.soc.zh.koma",
     name: "铃兰之剑中文・官方漫画",
-    version: "0.1.1",
+    version: "0.1.2",
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "Official Sword of Convallaria Chinese comics published on TapTap. Individual comic creators are unspecified.",
+    description: "铃兰之剑官方在 TapTap 发布的《伊利亚没问题！》中文漫画，约 57 部作品，公开浏览无需登录。",
     content_rating: "unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
