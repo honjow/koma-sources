@@ -23,7 +23,7 @@ const BASE: &str = "https://comic.acgn.cc";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "cc.acgn.koma",
     name: "動漫戲說",
-    version: "0.1.3",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -132,7 +132,7 @@ fn card(id: &str, title: &str, cover: Option<String>) -> Value {
 fn result(items: Vec<Value>, next: Option<String>) -> Value {
     json!({"items":items,"page":{"hasMore":next.is_some(),"nextCursor":next}})
 }
-fn rows(d: &Node, selector: &str, a: &str, img: &str) -> Result<Vec<Value>> {
+fn rows(d: &Node, selector: &str, a: &str, img: &str, include_chapter: bool) -> Result<Vec<Value>> {
     let mut items = Vec::new();
     for n in d.all(selector)? {
         let l = n.require(a)?;
@@ -148,17 +148,31 @@ fn rows(d: &Node, selector: &str, a: &str, img: &str) -> Result<Vec<Value>> {
             .flatten()
             .map(|s| absolute(BASE, &s))
             .transpose()?;
-        items.push(card(&id, &title, cover))
+        let mut item = card(&id, &title, cover);
+        // Only the latest-home card has this chapter text. Other catalogue
+        // layouts retain their existing fallback and no new request is made.
+        if include_chapter {
+            if let Some(chapter) = n.one("a[href^='/view-'] > span") {
+                if let Ok(text) = chapter.text() {
+                    let text = text.trim();
+                    if !text.is_empty() && text.len() <= 512 {
+                        item["listInfo"] = json!([{"type":"text","text":text}]);
+                    }
+                }
+            }
+        }
+        items.push(item)
     }
     Ok(items)
 }
-fn latest() -> Result<Value> {
+fn latest(req: &[u8]) -> Result<Value> {
     let d = doc(BASE)?;
     // An unexpected HTML document must not masquerade as an empty catalogue.
     if d.one(".tabs-panel").is_none() {
         return Err("parse_error");
     }
-    Ok(result(rows(&d, ".tabs-panel li", "div > a", "img")?, None))
+    let include_chapter = protocol::feature(req, koma_source_sdk::list_info::HOST_FEATURE);
+    Ok(result(rows(&d, ".tabs-panel li", "div > a", "img", include_chapter)?, None))
 }
 fn category_path(path: &str) -> bool {
     path.strip_prefix("/cate-")
@@ -201,7 +215,7 @@ fn catalog_page(path: &str, page: usize) -> Result<Value> {
     d.require("#display")?;
     let more = d.one(".pager a[rel=next]").is_some();
     Ok(result(
-        rows(&d, "#display .content_block", ".list_r h2 a", "img.thumb")?,
+        rows(&d, "#display .content_block", ".list_r h2 a", "img.thumb", false)?,
         page.checked_add(1).filter(|_| more).map(|next| next.to_string()),
     ))
 }
@@ -308,7 +322,7 @@ fn search(req: &[u8], v: &Value) -> Result<Value> {
             .or_else(|| f["letter"].as_str().filter(|x| !x.is_empty()));
         return match p {
             Some(path) => catalog_page(path, page),
-            None => latest(),
+            None => latest(req),
         };
     }
     let mut pg = Url::parse(BASE).unwrap();

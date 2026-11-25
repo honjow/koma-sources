@@ -11,7 +11,7 @@ const MOBILE: &[u8] = b"https://m.webtoons.com";
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.webtoons.zh-hant.koma",
     name: "LINE WEBTOON (Traditional Chinese)",
-    version: "0.1.14",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh-Hant",
     author: "Koma source contributors",
@@ -983,7 +983,41 @@ fn list(r: &[u8], search: bool) -> Result<usize, &'static str> {
             b",\"contentRating\":\"unknown\",\"cover\":{\"kind\":\"url\",\"url\":",
         )?;
         q(b, &mut n, s)?;
-        bytes(b, &mut n, b"}}")?;
+        bytes(b, &mut n, b"}")?;
+        // Only the current card's own visible author and genre are eligible.
+        // Missing fields retain the host fallback and never create empty rows.
+        if koma_source_sdk::source_protocol::feature(r, koma_source_sdk::list_info::HOST_FEATURE) {
+            use koma_source_sdk::list_info::{self, ListInfo};
+            let mut author_buf = [0u8; 513];
+            let mut genre_buf = [0u8; 97];
+            let author = card
+                .select(b".author")
+                .ok()
+                .and_then(|node| node.text(&mut author_buf).ok())
+                .map(<[u8]>::trim_ascii)
+                .filter(|value| !value.is_empty() && value.len() <= 512);
+            let genre = card
+                .select(b".genre")
+                .ok()
+                .and_then(|node| node.text(&mut genre_buf).ok())
+                .map(<[u8]>::trim_ascii)
+                .filter(|value| !value.is_empty() && value.len() <= 96);
+            let tags = [genre.unwrap_or(b"")];
+            let mut entries = [ListInfo::Text { text: b"", label: None }; 2];
+            let mut count = 0;
+            if let Some(text) = author {
+                entries[count] = ListInfo::Text { text, label: None };
+                count += 1;
+            }
+            if genre.is_some() {
+                entries[count] = ListInfo::Tags { items: &tags };
+                count += 1;
+            }
+            if count > 0 {
+                let _ = list_info::append(b, &mut n, r, &entries[..count]);
+            }
+        }
+        bytes(b, &mut n, b"}")?;
     }
     bytes(b, &mut n, b"],\"page\":{\"nextCursor\":")?;
     if has_more {

@@ -226,6 +226,8 @@ fn list(input: &Value, request: &[u8], search: bool) -> Result<Value> {
         }
         api("v1/mangas", &query)?
     };
+    let include_summary =
+        koma_source_sdk::source_protocol::feature(request, koma_source_sdk::list_info::HOST_FEATURE);
     let mut seen = BTreeSet::new();
     let mut items = Vec::new();
     for row in data[if typed { "data" } else { "items" }]
@@ -237,7 +239,35 @@ fn list(input: &Value, request: &[u8], search: bool) -> Result<Value> {
             .ok_or("parse_error")?;
         let key = raw.split('-').next().ok_or("parse_error")?;
         if seen.insert(key) {
-            items.push(manga(key, row, false)?);
+            let mut item = manga(key, row, false)?;
+            // These names and genres are in the existing list response. Do not
+            // fetch detail or alter legacy fields and their fallback behavior.
+            if include_summary {
+                let authors: Vec<&str> = if typed {
+                    row["authors"].as_array().into_iter().flatten()
+                        .filter_map(|v| v["name"].as_str()).map(str::trim)
+                        .filter(|s| !s.is_empty()).collect()
+                } else {
+                    row["author_names"].as_array().into_iter().flatten()
+                        .filter_map(Value::as_str).map(str::trim)
+                        .filter(|s| !s.is_empty()).collect()
+                };
+                let author = authors.join(", ");
+                let tags: Vec<&str> = row["genres"].as_array().into_iter().flatten()
+                    .filter_map(|v| v.as_str().or_else(|| v["name"].as_str())).map(str::trim)
+                    .filter(|s| !s.is_empty() && s.len() <= 96).take(8).collect();
+                let mut info = Vec::new();
+                if !author.is_empty() && author.len() <= 512 {
+                    info.push(json!({"type":"text","text":author}));
+                }
+                if !tags.is_empty() {
+                    info.push(json!({"type":"tags","items":tags}));
+                }
+                if !info.is_empty() {
+                    item["listInfo"] = json!(info);
+                }
+            }
+            items.push(item);
         }
     }
     let next = if data["page"].as_u64().ok_or("parse_error")?
