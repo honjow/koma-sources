@@ -9,7 +9,7 @@ use koma_source_sdk::{fetch_error_code, FetchError};
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.kuaikan.koma",
     name: "快看漫画",
-    version: "0.1.11",
+    version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
     author: "Koma",
@@ -178,7 +178,7 @@ fn fail_web(op: &str, error: WebError) -> u32 {
 fn quoted(b: &mut [u8], n: &mut usize, v: &[u8]) -> bool {
     write_bytes(b, n, b"\"") && write_bytes(b, n, v) && write_bytes(b, n, b"\"")
 }
-fn card(b: &mut [u8], n: &mut usize, v: &[u8]) -> bool {
+fn card(b: &mut [u8], n: &mut usize, v: &[u8], req: &[u8]) -> bool {
     let mid = match field(v, b"id") {
         Some(x) if number(x).is_some() => x,
         _ => return false,
@@ -187,13 +187,37 @@ fn card(b: &mut [u8], n: &mut usize, v: &[u8]) -> bool {
         Some(x) => x,
         None => return false,
     };
-    write_bytes(b, n, br#"{"id":"kkt:"#)
+    let ok = write_bytes(b, n, br#"{"id":"kkt:"#)
         && write_bytes(b, n, mid)
         && write_bytes(b, n, br#"","title":"#)
         && quoted(b, n, title)
         && write_bytes(b, n, br#", "cover":{"kind":"url","url":"#)
         && quoted(b, n, text(v, b"vertical_image_url").unwrap_or(b""))
-        && write_bytes(b, n, br#"},"contentRating":"safe"}"#)
+        && write_bytes(b, n, br#"},"contentRating":"safe""#);
+    if !ok {
+        return false;
+    }
+    // Search and browse carry author names under different keys on the same
+    // list item. Decode JSON text before passing it to the optional writer.
+    if koma_source_sdk::source_protocol::feature(req, koma_source_sdk::list_info::HOST_FEATURE) {
+        let raw = text(v, b"author_name").filter(|v| !v.is_empty())
+            .or_else(|| field(v, b"user").and_then(|user| text(user, b"nickname")));
+        let mut author = [0u8; 513];
+        if let Some(raw) = raw {
+            if let Ok(decoded) = koma_source_sdk::plain_text::decode_json_content(raw, &mut author) {
+                let decoded = trim_ascii(decoded);
+                if !decoded.is_empty() && decoded.len() <= 512 {
+                    let _ = koma_source_sdk::list_info::append(
+                        b,
+                        n,
+                        req,
+                        &[koma_source_sdk::list_info::ListInfo::Text { text: decoded, label: None }],
+                    );
+                }
+            }
+        }
+    }
+    write_bytes(b, n, b"}")
 }
 fn page_end(op: &str, n: &mut usize, next: Option<usize>) -> u32 {
     let b = payload_buf();
@@ -281,7 +305,7 @@ fn run_search(req: &[u8]) -> u32 {
         if count > 0 && !write_bytes(b, &mut n, b",") {
             return write_error("search", "internal_error", "payload overflow");
         }
-        if !card(b, &mut n, item) {
+        if !card(b, &mut n, item, req) {
             return write_error("search", "parse_error", "invalid result or overflow");
         }
         count += 1;
@@ -337,7 +361,7 @@ fn browse(req: &[u8], op: &str) -> u32 {
         if count > 0 && !write_bytes(b, &mut n, b",") {
             return write_error(op, "internal_error", "payload overflow");
         }
-        if !card(b, &mut n, item) {
+        if !card(b, &mut n, item, req) {
             return write_error(op, "parse_error", "invalid listing or overflow");
         }
         count += 1;

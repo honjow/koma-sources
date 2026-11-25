@@ -425,7 +425,7 @@ fn write_public_image_headers(out: &mut [u8], n: &mut usize) -> R<()> {
     q(out, n, UA)
 }
 
-fn card(o: &mut [u8], n: &mut usize, id: &[u8], title: &[u8], cover: &[u8], direct_headers: bool) -> R<()> {
+fn write_list_card_fields(o: &mut [u8], n: &mut usize, id: &[u8], title: &[u8], cover: &[u8], direct_headers: bool) -> R<()> {
     if title.is_empty() {
         return Err("parse_error");
     };
@@ -437,7 +437,7 @@ fn card(o: &mut [u8], n: &mut usize, id: &[u8], title: &[u8], cover: &[u8], dire
     q(o, n, title)?;
     w(o, n, b",\"cover\":")?;
     write_cover(o, n, cover, id, direct_headers)?;
-    w(o, n, b",\"contentRating\":\"suggestive\"}")
+    w(o, n, b",\"contentRating\":\"suggestive\"")
 }
 struct SearchChallenge {
     request_id: [u8; 64],
@@ -533,7 +533,23 @@ fn write_manga_list(r: &[u8], doc: &Node, kind: ListKind) -> R<usize> {
         if i > 0 {
             w(out, &mut n, b",")?
         };
-        card(out, &mut n, id, title, cover, direct_headers)?;
+        write_list_card_fields(out, &mut n, id, title, cover, direct_headers)?;
+        // Author is on the same card; preserve legacy fields and avoid a
+        // per-work detail request. No author means retain host fallback.
+        if protocol::feature(r, koma_source_sdk::list_info::HOST_FEATURE) {
+            if let Ok(author_node) = c.select(b".book-author") {
+                let mut info = [0u8; 513];
+                if let Ok(author) = author_node.text(&mut info) {
+                    let author = trim_ascii(author);
+                    if !author.is_empty() && author != title {
+                        let _ = koma_source_sdk::list_info::append(out, &mut n, r, &[
+                            koma_source_sdk::list_info::ListInfo::Text { text: author, label: None },
+                        ]);
+                    }
+                }
+            }
+        }
+        w(out, &mut n, b"}")?;
     }
     let more = match kind {
         ListKind::Ranked => cards.n == 50,
