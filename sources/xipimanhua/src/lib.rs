@@ -23,35 +23,35 @@ const WEB: &str = "https://m.hipmh.com";
 const READER: &str = "https://reader.hipmh.top";
 const API: &str = "https://hipapi1.s3file.top/";
 const COVER: &str = "https://cover.s3imgs.top";
-const SORTS: &[(&str, &str)] = &[("", "熱門"), ("updated", "更新"), ("latest", "最新")];
-const AREAS: &[(&str, &str)] = &[("", "全部"), ("1", "韓漫"), ("2", "國漫"), ("3", "日漫")];
-const STATES: &[(&str, &str)] = &[("", "全部"), ("ongoing", "連載中"), ("completed", "已完結")];
+const SORTS: &[(&str, &str)] = &[("", "热门"), ("updated", "更新"), ("latest", "最新")];
+const AREAS: &[(&str, &str)] = &[("", "全部"), ("1", "韩漫"), ("2", "国漫"), ("3", "日漫")];
+const STATES: &[(&str, &str)] = &[("", "全部"), ("ongoing", "连载中"), ("completed", "已完结")];
 const GENRES: &[(&str, &str)] = &[
     ("", "全部"),
-    ("3", "劇情"),
+    ("3", "剧情"),
     ("20", "穿越"),
     ("27", "玄幻"),
     ("30", "大女主"),
-    ("31", "復仇"),
-    ("32", "逆襲"),
-    ("38", "冒險"),
-    ("39", "武俠"),
-    ("40", "動作"),
-    ("44", "宮鬥"),
+    ("31", "复仇"),
+    ("32", "逆袭"),
+    ("38", "冒险"),
+    ("39", "武侠"),
+    ("40", "动作"),
+    ("44", "宫斗"),
     ("46", "重生"),
-    ("51", "異能"),
-    ("67", "系統"),
+    ("51", "异能"),
+    ("67", "系统"),
     ("288", "大人系"),
 ];
 
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "com.xipimanhua.koma",
-    name: "嬉皮漫畫",
+    name: "嬉皮漫画",
     version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "嬉皮漫畫的韓漫、國漫與日漫書庫，涵蓋穿越、玄幻、復仇、冒險與武俠等題材。",
+    description: "嬉皮漫画的韩漫、国漫与日漫书库，涵盖穿越、玄幻、复仇、冒险与武侠等题材。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
@@ -390,8 +390,8 @@ fn dispatch(op: &str, request: &[u8]) -> Result<Value> {
         "get_listings" => Ok(port::listing_list(true, true, true)),
         "get_filters" => Ok(
             json!({"filters":[port::select("sort","排序","browse",SORTS),
-            port::select("category","地區","browse",AREAS),port::select("genre","類型","browse",GENRES),
-            port::select("status","狀態","browse",STATES)]}),
+            port::select("category","地区","browse",AREAS),port::select("genre","类型","browse",GENRES),
+            port::select("status","状态","browse",STATES)]}),
         ),
         "get_settings" => Ok(
             json!({"settings":[{"id":"line","name":"线路","kind":"select","default":"line1",

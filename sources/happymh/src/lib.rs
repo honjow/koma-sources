@@ -27,7 +27,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "嗨皮漫画公开站，提供热门、最新列表与搜索，收录中文漫画，无需登录。",
+    description: "嗨皮漫画网站源，收录国漫、日漫、韩漫等连载与完结中文漫画；上游访问状态待核实，受限时可能需在设置中填写浏览器 Cookies。",
     content_rating: "safe",
 };
 
@@ -1102,7 +1102,7 @@ fn run_get_filters(_req: &[u8]) -> u32 {
 }
 
 fn run_get_settings(_req: &[u8]) -> u32 {
-    const SETTINGS: &str = "{\"settings\":[{\"id\":\"customUserAgent\",\"name\":\"User Agent\",\"kind\":\"text\",\"default\":\"\"},{\"id\":\"cookies\",\"name\":\"Cookies (from WebView)\",\"kind\":\"text\",\"default\":\"\",\"hint\":\"Open happymh.com in browser, pass CF verification, then copy cookies here\"}]}";
+    const SETTINGS: &str = "{\"settings\":[{\"id\":\"customUserAgent\",\"name\":\"User-Agent\",\"kind\":\"text\",\"default\":\"\"},{\"id\":\"cookies\",\"name\":\"Cookies（来自浏览器）\",\"kind\":\"text\",\"default\":\"\",\"hint\":\"在浏览器打开 happymh.com 并通过验证后，将 Cookies 粘贴到此处\"}]}";
     let bytes = SETTINGS.as_bytes();
     if bytes.len() > payload_buf().len() {
         return write_error("get_settings", "internal_error", "payload overflow");

@@ -9,7 +9,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "蔚蓝档案官网发布的中文四格漫画合集，共 15 话，公开浏览无需登录。",
+    description: "蔚蓝档案官网发布的中文四格漫画合集，当前收录 15 话，公开浏览无需登录。",
     content_rating: "unknown",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

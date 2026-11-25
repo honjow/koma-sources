@@ -1228,7 +1228,7 @@ fn run_get_pages(req: &[u8]) -> u32 {
 
 fn run_get_listings(_req: &[u8]) -> u32 {
     const LISTINGS: &[u8] =
-        br#"{"listings":[{"id":"popular","name":"Popular","supportsPaging":true}]}"#;
+        r#"{"listings":[{"id":"popular","name":"热门","supportsPaging":true}]}"#.as_bytes();
     let payload = payload_buf();
     if LISTINGS.len() > payload.len() {
         return write_error("get_listings", "internal_error", "payload overflow");

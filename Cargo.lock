@@ -1251,7 +1251,7 @@ dependencies = [
 
 [[package]]
 name = "koma_baozimh_source"
-version = "0.1.32"
+version = "0.1.33"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1275,7 +1275,7 @@ dependencies = [
 
 [[package]]
 name = "koma_bilimanga_source"
-version = "0.1.13"
+version = "0.1.14"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1284,14 +1284,14 @@ dependencies = [
 
 [[package]]
 name = "koma_bluearchive_zh_source"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_bns_zh_hant_source"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1383,7 +1383,7 @@ dependencies = [
 
 [[package]]
 name = "koma_copymanga_source"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1434,7 +1434,7 @@ dependencies = [
 
 [[package]]
 name = "koma_dm5_source"
-version = "0.1.32"
+version = "0.1.33"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1458,7 +1458,7 @@ dependencies = [
 
 [[package]]
 name = "koma_dota2_zh_source"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1517,7 +1517,7 @@ dependencies = [
 
 [[package]]
 name = "koma_genshin_zh_source"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1584,7 +1584,7 @@ dependencies = [
 
 [[package]]
 name = "koma_happymh_source"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1616,7 +1616,7 @@ dependencies = [
 
 [[package]]
 name = "koma_hentaifox_zh_source"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1736,7 +1736,7 @@ dependencies = [
 
 [[package]]
 name = "koma_jisumanhua_source"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1820,7 +1820,7 @@ dependencies = [
 
 [[package]]
 name = "koma_magireco_zh_source"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1844,7 +1844,7 @@ dependencies = [
 
 [[package]]
 name = "koma_mangaball_zh_source"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1981,7 +1981,7 @@ dependencies = [
 
 [[package]]
 name = "koma_miaoqu_source"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -2005,14 +2005,14 @@ dependencies = [
 
 [[package]]
 name = "koma_mycomic_source"
-version = "0.1.34"
+version = "0.1.35"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_namepara_zh_hant_source"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -2054,14 +2054,14 @@ dependencies = [
 
 [[package]]
 name = "koma_noyacg_source"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "koma_source_sdk",
 ]
 
 [[package]]
 name = "koma_oldmasterq_zh_hant_source"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -2101,7 +2101,7 @@ dependencies = [
 
 [[package]]
 name = "koma_pixiv_zh_source"
-version = "0.1.18"
+version = "0.1.19"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -2193,7 +2193,7 @@ dependencies = [
 
 [[package]]
 name = "koma_soc_zh_source"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -2302,7 +2302,7 @@ dependencies = [
 
 [[package]]
 name = "koma_weicomic_ronshaonien_source"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -2331,7 +2331,7 @@ dependencies = [
 
 [[package]]
 name = "koma_xcomic_zh_hant_source"
-version = "0.1.19"
+version = "0.1.20"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -2351,7 +2351,7 @@ dependencies = [
 
 [[package]]
 name = "koma_xipimanhua_source"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "base64 0.22.1",
  "dlmalloc",
@@ -2371,7 +2371,7 @@ dependencies = [
 
 [[package]]
 name = "koma_xkcd_zh_source"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -2412,7 +2412,7 @@ dependencies = [
 
 [[package]]
 name = "koma_zerobyw_source"
-version = "0.1.13"
+version = "0.1.14"
 dependencies = [
  "koma_source_sdk",
 ]

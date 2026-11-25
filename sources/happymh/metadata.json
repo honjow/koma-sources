@@ -14,9 +14,9 @@
     "defaultLocale": "zh-Hans",
     "messages": {
       "source.description": {
-        "zh-Hans": "嗨皮漫画公开站，提供热门、最新列表与搜索，收录中文漫画，无需登录。",
-        "zh-Hant": "嗨皮漫畫公開站，提供熱門、最新列表與搜尋，收錄中文漫畫，無需登入。",
-        "en": "Public Happy Comic site with popular, latest and search listings; Chinese comics, no login."
+        "zh-Hans": "嗨皮漫画网站源，收录国漫、日漫、韩漫等连载与完结中文漫画；上游访问状态待核实，受限时可能需在设置中填写浏览器 Cookies。",
+        "zh-Hant": "嗨皮漫畫網站源，收錄國漫、日漫、韓漫等連載與完結中文漫畫；上游訪問狀態待核實，受限時可能需在設定中填寫瀏覽器 Cookies。",
+        "en": "Happy Comic source covering Chinese, Japanese and Korean serials; upstream access is unverified and may require browser cookies in settings."
       }
     }
   }

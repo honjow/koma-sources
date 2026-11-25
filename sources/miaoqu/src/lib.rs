@@ -15,7 +15,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "喵趣漫画公开站，支持热门、最新与搜索浏览，以中文连载漫画为主，无需登录。",
+    description: "喵趣漫画公开站，收录中文连载与完结漫画，按状态与题材分类浏览，无需登录。",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

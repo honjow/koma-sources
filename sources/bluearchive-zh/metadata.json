@@ -6,9 +6,9 @@
     "defaultLocale": "zh-Hans",
     "messages": {
       "source.description": {
-        "zh-Hans": "蔚蓝档案官网发布的中文四格漫画合集，共 15 话，公开浏览无需登录。",
-        "zh-Hant": "蔚藍檔案官網發布的中文四格漫畫合集，共 15 話，公開瀏覽無需登入。",
-        "en": "Official Chinese four-panel comics from the Blue Archive CN website; 15 strips, public browsing."
+        "zh-Hans": "蔚蓝档案官网发布的中文四格漫画合集，当前收录 15 话，公开浏览无需登录。",
+        "zh-Hant": "蔚藍檔案官網發布的中文四格漫畫合集，當前收錄 15 話，公開瀏覽無需登入。",
+        "en": "Official Chinese four-panel comics from the Blue Archive CN website; currently 15 strips, public browsing."
       }
     }
   }

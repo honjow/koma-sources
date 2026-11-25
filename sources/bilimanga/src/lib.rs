@@ -24,12 +24,12 @@ const IMAGE_ACCEPT: &[u8] = b"image/avif,image/webp,image/apng,image/svg+xml,ima
 const CHROME_BRANDS: &[u8] = br#""Google Chrome";v="149", "Chromium";v="149", "Not)A;Brand";v="24""#;
 const SOURCE_INFO: SourceInfo = SourceInfo {
     id: "net.bilimanga.koma",
-    name: "嗶哩漫畫",
+    name: "哔哩漫画",
     version: env!("CARGO_PKG_VERSION"),
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "嗶哩漫畫（bilimanga.net）收錄日本、韓國、港台、歐美與大陸漫畫，涵蓋奇幻冒險、校園戀愛及懸疑驚悚等題材。",
+    description: "哔哩漫画（bilimanga.net）收录日本、韩国、港台、欧美与大陆漫画，涵盖奇幻冒险、校园恋爱及悬疑惊悚等题材。",
     content_rating: "suggestive",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
@@ -280,12 +280,12 @@ fn result(op: &str, r: R<usize>) -> u32 {
         Err("unsupported_source_rate_limit") => write_error(
             op,
             "unsupported",
-            "目前的應用程式版本不支援嗶哩漫畫的請求限速，更新後即可使用",
+            "当前的应用版本不支持哔哩漫画的请求限速，更新后即可使用",
         ),
         Err("desktop_reader") => write_error(
             op,
             "chapter_unavailable",
-            "網站將這次請求識別為電腦端，未提供章節圖片。可在手機原生瀏覽器開啟原網頁",
+            "网站将本次请求识别为电脑端，未提供章节图片。可在手机原生浏览器打开原网页",
         ),
         Err(c) => write_error(
             op,
@@ -294,7 +294,7 @@ fn result(op: &str, r: R<usize>) -> u32 {
                 "not_found" => "网站未提供该作品或章节，请在网页确认是否已移除",
                 "forbidden" => "网站拒绝了这次请求，请在网页确认访问状态",
                 "auth_required" => "网站要求登录后访问",
-                "network_error" => "無法連線到原網站，請稍後重試",
+                "network_error" => "无法连接到原网站，请稍后重试",
                 "rate_limit" => "请求过于频繁，请稍后重试",
                 "challenge_required" => "网站要求完成验证，请先打开网页",
                 "chapter_unavailable" => "网页没有提供正文图片，可能受访问权限限制，请在网页确认",
@@ -1213,7 +1213,7 @@ fn fixed(op: &str, s: &[u8]) -> u32 {
     write_success_payload(op, s.len())
 }
 fn run_get_listings(_: &[u8]) -> u32 {
-    fixed("get_listings",r#"{"listings":[{"id":"popular","name":"熱門漫畫"},{"id":"latest","name":"最新更新"},{"id":"filter","name":"分類瀏覽"}]}"#.as_bytes())
+    fixed("get_listings",r#"{"listings":[{"id":"popular","name":"热门漫画"},{"id":"latest","name":"最新更新"},{"id":"filter","name":"分类浏览"}]}"#.as_bytes())
 }
 fn run_get_home(_: &[u8]) -> u32 {
     write_error("get_home", "not_implemented", "not supported")

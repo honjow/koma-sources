@@ -30,7 +30,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "動漫屋（DM5）的原創漫畫與日本漫畫，涵蓋熱血、冒險、奇幻及戀愛等題材。付費章節依原站權限開放。",
+    description: "动漫屋（DM5）的原创漫画与日本漫画，涵盖热血、冒险、奇幻及恋爱等题材。付费章节依原站权限开放。",
     content_rating: "nsfw",
 };
 

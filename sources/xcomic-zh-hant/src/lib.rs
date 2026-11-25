@@ -1863,7 +1863,7 @@ fn run_get_image_request(r: &[u8]) -> u32 {
     execute("get_image_request", image_request(r))
 }
 fn run_get_listings(_: &[u8]) -> u32 {
-    let s="{\"listings\":[{\"id\":\"popular\",\"name\":\"热门漫画\",\"supportsPaging\":true},{\"id\":\"latest\",\"name\":\"最新漫画\",\"supportsPaging\":true}]}".as_bytes();
+    let s="{\"listings\":[{\"id\":\"popular\",\"name\":\"熱門漫畫\",\"supportsPaging\":true},{\"id\":\"latest\",\"name\":\"最新漫畫\",\"supportsPaging\":true}]}".as_bytes();
     payload_buf()[..s.len()].copy_from_slice(s);
     write_success_payload("get_listings", s.len())
 }
@@ -1874,16 +1874,16 @@ fn run_get_filters(r: &[u8]) -> u32 {
     // Omitted scope exposes the same values in ordinary browse and search.
     let schema = if filter_host(r) {
         r###"{"filters":[
-            {"id":"sort","name":"Order by","type":"select","options":[
-                {"value":"field_score","label":"Rating Score"},
-                {"value":"field_update","label":"Latest Update"},
-                {"value":"field_create","label":"Recently Added"},
-                {"value":"field_name_asc","label":"Name A-Z"},
-                {"value":"field_name_desc","label":"Name Z-A"},
-                {"value":"field_follow","label":"Most Follows"},
-                {"value":"field_review","label":"Most Reviews"},
-                {"value":"field_comment","label":"Most Comments"},
-                {"value":"field_chapter","label":"Most Chapters"}
+            {"id":"sort","name":"排序","type":"select","options":[
+                {"value":"field_score","label":"評分"},
+                {"value":"field_update","label":"最近更新"},
+                {"value":"field_create","label":"最近添加"},
+                {"value":"field_name_asc","label":"名稱 A-Z"},
+                {"value":"field_name_desc","label":"名稱 Z-A"},
+                {"value":"field_follow","label":"關注最多"},
+                {"value":"field_review","label":"評價最多"},
+                {"value":"field_comment","label":"評論最多"},
+                {"value":"field_chapter","label":"章節最多"}
             ]},
             {"id":"year","name":"年份或年份範圍","type":"text"},
             {"id":"chapMin","name":"最少章節數","type":"text"},
@@ -1982,7 +1982,7 @@ fn run_get_filters(r: &[u8]) -> u32 {
     write_success_payload("get_filters", schema.len())
 }
 fn run_get_settings(req: &[u8]) -> u32 {
-    let schema = r#"{"settings":[{"id":"REMOVE_TITLE_VERSION","name":"移除作品標題中的版本資訊","kind":"toggle","default":"false","description":"移除作品標題中的版本標籤，例如「官方」或「耽美」。"},{"id":"IGNORE_GENRE_BLOCKLIST","name":"忽略網頁中的類型封鎖清單","kind":"toggle","default":"false"},{"id":"GROUP_BY_SOURCE","name":"按版本分組章節","kind":"toggle","default":"false","description":"按版本名稱與章節編號排序。"}]}"#.as_bytes();
+    let schema = r#"{"settings":[{"id":"REMOVE_TITLE_VERSION","name":"移除作品標題中的版本資訊","kind":"toggle","default":"false","description":"移除作品標題中的版本標籤，例如「(Official)」或「(Yaoi)」。"},{"id":"IGNORE_GENRE_BLOCKLIST","name":"忽略網頁中的類型封鎖清單","kind":"toggle","default":"false"},{"id":"GROUP_BY_SOURCE","name":"按版本分組章節","kind":"toggle","default":"false","description":"按版本名稱與章節編號排序。"}]}"#.as_bytes();
     let out=payload_buf();let mut n=0;
     if !chapter_editions::supported(req) && !xcomic_java_regex::supported(req){out[..schema.len()].copy_from_slice(schema);return write_success_payload("get_settings",schema.len());}
     if bytes(out,&mut n,&schema[..schema.len()-2]).is_err() {return write_error("get_settings","internal_error","payload overflow");}

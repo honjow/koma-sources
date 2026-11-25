@@ -29,7 +29,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "極速漫畫的原創與日本漫畫，包含熱血冒險、奇幻、戀愛及校園等題材；原站鎖定或下架章節依其狀態保留。",
+    description: "极速漫画的原创与日本漫画，包含热血冒险、奇幻、恋爱及校园等题材；原站锁定或下架章节依其状态保留。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

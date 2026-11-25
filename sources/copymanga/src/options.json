@@ -9,7 +9,7 @@
       "value": "0"
     },
     {
-      "label": "韓漫",
+      "label": "韩漫",
       "value": "1"
     },
     {
@@ -23,11 +23,11 @@
       "value": ""
     },
     {
-      "label": "連載中",
+      "label": "连载中",
       "value": "0"
     },
     {
-      "label": "已完結",
+      "label": "已完结",
       "value": "1"
     },
     {
@@ -53,17 +53,17 @@
       "value": "month"
     },
     {
-      "label": "總榜單",
+      "label": "总榜单",
       "value": "total"
     }
   ],
   "RANKING_CHANNELS": [
     {
-      "label": "漫畫排行榜（男頻）",
+      "label": "漫画排行榜（男频）",
       "value": "male"
     },
     {
-      "label": "漫畫排行榜（女頻）",
+      "label": "漫画排行榜（女频）",
       "value": "female"
     }
   ],
@@ -77,7 +77,7 @@
       "value": "day"
     },
     {
-      "label": "週榜（最近 7 天）",
+      "label": "周榜（最近 7 天）",
       "value": "week"
     },
     {
@@ -85,7 +85,7 @@
       "value": "month"
     },
     {
-      "label": "總榜",
+      "label": "总榜",
       "value": "total"
     }
   ],
@@ -95,15 +95,15 @@
       "value": ""
     },
     {
-      "label": "愛情",
+      "label": "爱情",
       "value": "aiqing"
     },
     {
-      "label": "歡樂向",
+      "label": "欢乐向",
       "value": "huanlexiang"
     },
     {
-      "label": "冒險",
+      "label": "冒险",
       "value": "maoxian"
     },
     {
@@ -123,7 +123,7 @@
       "value": "kehuan"
     },
     {
-      "label": "東方",
+      "label": "东方",
       "value": "dongfang"
     },
     {
@@ -135,7 +135,7 @@
       "value": "shenghuo"
     },
     {
-      "label": "格鬥",
+      "label": "格斗",
       "value": "gedou"
     },
     {
@@ -179,7 +179,7 @@
       "value": "sige"
     },
     {
-      "label": "長條",
+      "label": "长条",
       "value": "changtiao"
     },
     {
@@ -223,7 +223,7 @@
       "value": "COLOR"
     },
     {
-      "label": "後宮",
+      "label": "后宫",
       "value": "hougong"
     },
     {
@@ -339,7 +339,7 @@
       "value": "fate"
     },
     {
-      "label": "無修正",
+      "label": "无修正",
       "value": "Uncensored"
     },
     {
@@ -351,7 +351,7 @@
       "value": "loveLive"
     },
     {
-      "label": "雜誌附贈寫真集",
+      "label": "杂志附赠写真集",
       "value": "zazhifuzengxiezhenji"
     },
     {
@@ -359,11 +359,11 @@
       "value": "xuanhuan"
     },
     {
-      "label": "異能",
+      "label": "异能",
       "value": "yineng"
     },
     {
-      "label": "遊戲",
+      "label": "游戏",
       "value": "youxi"
     },
     {
@@ -373,37 +373,37 @@
   ],
   "LATEST_SORT_UI": [
     {
-      "label": "更新時間 ↓",
+      "label": "更新时间 ↓",
       "value": "datetime_updated_descending"
     },
     {
-      "label": "更新時間 ↑",
+      "label": "更新时间 ↑",
       "value": "datetime_updated_ascending"
     },
     {
-      "label": "熱門 ↓",
+      "label": "热门 ↓",
       "value": "popular_descending"
     },
     {
-      "label": "熱門 ↑",
+      "label": "热门 ↑",
       "value": "popular_ascending"
     }
   ],
   "FILTER_SORT": [
     {
-      "label": "更新時間 ↓",
+      "label": "更新时间 ↓",
       "value": "-datetime_updated"
     },
     {
-      "label": "更新時間 ↑",
+      "label": "更新时间 ↑",
       "value": "datetime_updated"
     },
     {
-      "label": "熱門 ↓",
+      "label": "热门 ↓",
       "value": "-popular"
     },
     {
-      "label": "熱門 ↑",
+      "label": "热门 ↑",
       "value": "popular"
     }
   ]

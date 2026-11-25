@@ -39,7 +39,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "NoyAcg 是漫畫與同人誌社群，書目分全年齡、成人及綜合範圍。受保護內容需要在原站登入，是否可讀依網站與帳號狀態而定。",
+    description: "NoyAcg 是漫画与同人志社区，书目分全年龄、成人及综合范围。受保护内容需要在原站登录，是否可读依网站与账号状态而定。",
     content_rating: "nsfw",
 };
 

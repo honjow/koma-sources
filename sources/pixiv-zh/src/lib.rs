@@ -6,7 +6,7 @@ use koma_source_sdk::{
     json_utils::*,
     source::{SourceCapabilities, SourceInfo},
 };
-const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.pixiv.zh.koma",name:"pixiv",version:"0.1.19",api_version:"0.2",language:"zh",author:"Koma",description: "pixiv 創作者公開發表的全年齡漫畫，包含獨立作品與系列。此入口不收錄成人、私人或僅限登入可見的作品，正文語言不限中文。",content_rating:"nsfw"};
+const SOURCE_INFO:SourceInfo=SourceInfo{id:"com.pixiv.zh.koma",name:"pixiv",version:"0.1.19",api_version:"0.2",language:"zh",author:"Koma",description: "pixiv 创作者公开发表的全年龄漫画，包含独立作品与系列。此入口不收录成人、私人或仅限登录可见的作品，正文语言不限中文。",content_rating:"nsfw"};
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {
     search: true,
     manga_detail: true,

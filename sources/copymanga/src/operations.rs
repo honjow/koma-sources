@@ -545,7 +545,7 @@ fn filters(cx: &Context, r: &[u8], v: &Value) -> R<Value> {
     }
     let mut rows = Vec::new();
     if protocol::feature(r, b"source_filter_scope_header_v1") {
-        rows.push(json!({"type":"header","name":"排行榜啟用時，榜單頻道生效，並忽略下方一般篩選"}))
+        rows.push(json!({"type":"header","name":"排行榜启用时，榜单频道生效，并忽略下方一般筛选"}))
     }
     for (id, name, options, default) in [
         ("ranking", "排行榜", o["RANKING_PERIODS"].clone(), ""),

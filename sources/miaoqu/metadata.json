@@ -21,9 +21,9 @@
     "defaultLocale": "zh-Hans",
     "messages": {
       "source.description": {
-        "zh-Hans": "喵趣漫画公开站，支持热门、最新与搜索浏览，以中文连载漫画为主，无需登录。",
-        "zh-Hant": "喵趣漫畫公開站，支援熱門、最新與搜尋瀏覽，以中文連載漫畫為主，無需登入。",
-        "en": "Public Miaoqu comic site with popular, latest and search listings; Chinese serialised comics, no login."
+        "zh-Hans": "喵趣漫画公开站，收录中文连载与完结漫画，按状态与题材分类浏览，无需登录。",
+        "zh-Hant": "喵趣漫畫公開站，收錄中文連載與完結漫畫，按狀態與題材分類瀏覽，無需登入。",
+        "en": "Public Miaoqu site carrying ongoing and completed Chinese comics by status and tag; no login required."
       }
     }
   }
