@@ -2,7 +2,7 @@
 
 ## 站点简介
 
-Komiic 的繁中書庫有《堀桑與宮村君》等日漫，作品同時有單話與單行本時會分開列出。本站設有每日圖片瀏覽額度。
+Komiic 的繁中書庫有《堀桑與宮村君》等日漫，作品同時有單話與單行本時會分開列出。站方對圖片瀏覽設有額度。
 
 源 ID `com.komiic.koma`，语言及 NSFW 标记保持；crate、runtime 与 package 版本对齐。普通网站为 `https://komiic.com/`，不把 API 地址冒作网页入口，也不由网页元数据授予验证或登录权限。源图标使用官网 PWA 标志及其原蓝色背景，素材依据见 [ASSET_SOURCES.md](ASSET_SOURCES.md)。
 

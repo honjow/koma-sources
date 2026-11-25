@@ -21,7 +21,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "瓜子的热门书目以中文长篇条漫为主。能找到《从姑获鸟开始》《原来，她们才是主角》等网文改编漫画。",
+    description: "瓜子漫画的热门榜以国漫长篇为主，能找到《从姑获鸟开始》《原来，她们才是主角》等作品。书库还按男频、女频分区。",
     content_rating: "safe",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

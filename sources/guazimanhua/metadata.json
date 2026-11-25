@@ -26,9 +26,9 @@
     "defaultLocale": "zh-Hans",
     "messages": {
       "source.description": {
-        "zh-Hans": "瓜子的热门书目以中文长篇条漫为主。能找到《从姑获鸟开始》《原来，她们才是主角》等网文改编漫画。",
-        "zh-Hant": "瓜子的熱門書目以中文長篇條漫為主。能找到《從姑獲鳥開始》《原來，她們才是主角》等網文改編漫畫。",
-        "en": "Guazi's popular shelf features long-running Chinese webcomics, including novel adaptations such as Cong Guhuo Niao Kaishi and It Turns Out, They Were the Protagonists."
+        "zh-Hans": "瓜子漫画的热门榜以国漫长篇为主，能找到《从姑获鸟开始》《原来，她们才是主角》等作品。书库还按男频、女频分区。",
+        "zh-Hant": "瓜子漫畫的熱門榜以中國長篇漫畫為主，能找到《從姑獲鳥開始》《原來，她們才是主角》等作品。書庫另按男頻、女頻分區。",
+        "en": "Guazi's popularity charts feature long-running Chinese comics, including Cong Guhuo Niao Kaishi and It Turns Out, They Were the Protagonists. Its catalogue also groups titles by intended audience."
       }
     }
   }

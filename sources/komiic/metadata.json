@@ -56,9 +56,9 @@
         "en": "Komiic"
       },
       "source.description": {
-        "zh-Hans": "Komiic 的繁中书库有《堀桑与宫村君》等日漫，作品同时有单话和单行本时会分别列出。原站有每日图片浏览额度。",
-        "zh-Hant": "Komiic 的繁中書庫有《堀桑與宮村君》等日漫，作品同時有單話與單行本時會分開列出。本站設有每日圖片瀏覽額度。",
-        "en": "Komiic is a Traditional Chinese catalogue with Japanese titles such as Hori-san to Miyamura-kun. Chapters and collected volumes have separate listings when both exist. The site has a daily image allowance."
+        "zh-Hans": "Komiic 的繁中书库有《堀桑与宫村君》等日漫，作品同时有单话和单行本时会分别列出。站方对图片浏览设有额度。",
+        "zh-Hant": "Komiic 的繁中書庫有《堀桑與宮村君》等日漫，作品同時有單話與單行本時會分開列出。站方對圖片瀏覽設有額度。",
+        "en": "Komiic is a Traditional Chinese catalogue with Japanese titles such as Hori-san to Miyamura-kun. Chapters and collected volumes are listed separately when both exist. The site limits the number of images readers can open."
       },
       "authentication.usernameLabel": {
         "zh-Hant": "電子郵件",

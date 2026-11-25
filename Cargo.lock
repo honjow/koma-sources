@@ -1318,7 +1318,7 @@ dependencies = [
 
 [[package]]
 name = "koma_boylove_source"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "dlmalloc",
  "koma_source_sdk",
@@ -1538,7 +1538,7 @@ dependencies = [
 
 [[package]]
 name = "koma_guazimanhua_source"
-version = "0.1.12"
+version = "0.1.13"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1782,7 +1782,7 @@ dependencies = [
 
 [[package]]
 name = "koma_komiic_source"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "base64 0.22.1",
  "dlmalloc",

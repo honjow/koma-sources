@@ -46,7 +46,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh-Hans",
     author: "Koma",
-    description: "香香腐宅的成人向漫画书库，设有独立的 BL 区。站上有分话连载与完结作品，VIP 章节需要站点账号和相应权限。",
+    description: "香香腐宅的中文漫画主要面向 BL 读者，书目分清水和成人向，也有日漫、韩漫和台湾作品。VIP 章节需有站点会员权限。",
     content_rating: "nsfw",
 };
 const SOURCE_CAPS: SourceCapabilities = SourceCapabilities {

@@ -57,7 +57,7 @@ const SOURCE_INFO: SourceInfo = SourceInfo {
     api_version: "0.2",
     language: "zh",
     author: "Koma",
-    description: "Komiic 的繁中書庫有《堀桑與宮村君》等日漫，作品同時有單話與單行本時會分開列出。本站設有每日圖片瀏覽額度。",
+    description: "Komiic 的繁中書庫有《堀桑與宮村君》等日漫，作品同時有單話與單行本時會分開列出。站方對圖片瀏覽設有額度。",
     content_rating: "nsfw",
 };
 

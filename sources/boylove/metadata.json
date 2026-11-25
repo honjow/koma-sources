@@ -26,9 +26,9 @@
     "defaultLocale": "zh-Hans",
     "messages": {
       "source.description": {
-        "zh-Hans": "香香腐宅的成人向漫画书库，设有独立的 BL 区。站上有分话连载与完结作品，VIP 章节需要站点账号和相应权限。",
-        "zh-Hant": "香香腐宅的成人向漫畫書庫，設有獨立的 BL 區。站上有分話連載和完結作品，VIP 章節須有本站帳號及相應權限。",
-        "en": "Boylove.cc's mature comics catalogue has a dedicated boys' love section, with both ongoing and completed series. VIP chapters require site access."
+        "zh-Hans": "香香腐宅的中文漫画主要面向 BL 读者，书目分清水和成人向，也有日漫、韩漫和台湾作品。VIP 章节需有站点会员权限。",
+        "zh-Hant": "香香腐宅的中文漫畫主要面向 BL 讀者，書目分清水和成人向，也有日漫、韓漫和台灣作品。VIP 章節須有本站會員資格。",
+        "en": "Boylove.cc focuses on Chinese-language boys' love comics, with separate categories for non-explicit and mature titles, including Korean, Japanese and Taiwanese works. VIP chapters require site membership."
       }
     }
   }
