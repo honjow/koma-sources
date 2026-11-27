@@ -32,6 +32,9 @@ RELEASE_PACKAGE_DIR="$OUTPUT_DIR/release-packages"
 # Source registry: source name | crate directory | nsfw | minimum Koma version.
 # Keep this Bash 3 compatible for macOS /bin/bash.
 SOURCE_ENTRIES='
+webtoons-fr|webtoons-fr|false|1.5.5
+webtoons-de|webtoons-de|false|1.5.5
+namicomi-pt-br|namicomi-pt-br|false|1.5.5
 comicgardo-ja|comicgardo-ja|false|1.5.5
 comiczenon-ja|comiczenon-ja|false|1.5.5
 ichicomi-ja|ichicomi-ja|false|1.5.5
