@@ -30,6 +30,9 @@
 
 | 图标 | 目录 | 名称 | 备注 |
 |---|---|---|---|
+| <img src="comicaction-ja/icon.png" width="24" alt=""> | comicaction-ja | webアクション | 双叶社官方连载、短篇与限时活动；公开话复用 GigaViewer 随包瓦片还原，付费话保留锁定。 |
+| <img src="kuragebunch-ja/icon.png" width="24" alt=""> | kuragebunch-ja | くらげバンチ | 新潮社官方连载、短篇与 KANATA；提供原站题材筛选，付费话保留锁定。 |
+| <img src="mangapill-en/icon.png" width="24" alt=""> | mangapill-en | Mangapill | 英语漫画、短篇、同人及英语原创作品；完整题材多选、类型和状态筛选，原站已停止收录韩漫。 |
 | <img src="nicovideoseiga-ja/icon.png" width="24" alt=""> | nicovideoseiga-ja | ニコニコ漫画 | 日本出版社官方连载与用户投稿；只读公开话，锁定/收费/下架话保留限制。 |
 | <img src="mangataro-en/icon.png" width="24" alt=""> | mangataro-en | MangaTaro | 英语日漫、韩漫和国漫；按题材、类型、连载状态分类，正文不含小说。 |
 | <img src="jiuermanhua/icon.png" width="24" alt=""> | jiuermanhua | 92漫画 | 92漫画收录连载分话、单行本及其他分组作品，书目按少年、少女、青年等读者分类整理。 |

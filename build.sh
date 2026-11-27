@@ -44,6 +44,9 @@ jjcos|jjcos|true|1.5.5
 nicovideoseiga-ja|nicovideoseiga-ja|false|1.5.5
 mangataro-en|mangataro-en|false|1.5.5
 junmeitu|junmeitu|true|1.5.5
+mangapill-en|mangapill-en|false|1.5.5
+kuragebunch-ja|kuragebunch-ja|false|1.5.5
+comicaction-ja|comicaction-ja|false|1.5.5
 magazinepocket-ja|magazinepocket-ja|false|1.5.5
 fourkhd|fourkhd|true|0.1.0
 idolgravureprincessdate|idolgravureprincessdate|true|0.1.0

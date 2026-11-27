@@ -1,0 +1,216 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://comic-action.com",
+  "minAppVersion": "1.5.5",
+  "requiredImageDecodes": [
+    "wasm_image_v1"
+  ],
+  "wasmBuild": {
+    "imageProcessorCrate": "koma_gigaviewer_tile_processor"
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "ja",
+    "messages": {
+      "error.locked": {
+        "zh-Hans": "该章节当前未公开。",
+        "zh-Hant": "此章節目前未公開。",
+        "en": "This chapter is currently locked.",
+        "ja": "この話は現在公開されていません。",
+        "ko": "이 회차는 현재 잠겨 있습니다."
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站没有提供此内容。",
+        "zh-Hant": "原站沒有提供此內容。",
+        "en": "This content is unavailable on the website.",
+        "ja": "配信元でこのコンテンツは公開されていません。",
+        "ko": "사이트에서 이 콘텐츠를 제공하지 않습니다."
+      },
+      "error.network": {
+        "zh-Hans": "原站请求未完成，请稍后重试。",
+        "zh-Hant": "原站請求未完成，請稍後再試。",
+        "en": "Could not complete the website request. Try again later.",
+        "ja": "配信元へのリクエストに失敗しました。時間をおいて再試行してください。",
+        "ko": "사이트에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."
+      },
+      "error.host": {
+        "zh-Hans": "请更新 Koma 以阅读此章节。",
+        "zh-Hant": "請更新 Koma 以閱讀此章節。",
+        "en": "Update Koma to read this chapter.",
+        "ja": "この話を読むには Koma を更新してください。",
+        "ko": "이 회차를 읽으려면 Koma를 업데이트하세요."
+      },
+      "error.scramble": {
+        "zh-Hans": "此章节使用暂不支持的图片格式。",
+        "zh-Hant": "此章節使用暫不支援的圖片格式。",
+        "en": "This chapter uses an unsupported image format.",
+        "ja": "この話は未対応の画像形式を使用しています。",
+        "ko": "이 회차는 지원하지 않는 이미지 형식입니다."
+      },
+      "error.catalog": {
+        "zh-Hans": "原站目录已变化，请刷新后重试。",
+        "zh-Hant": "原站目錄已變更，請重新整理後再試。",
+        "en": "The catalog changed. Refresh and try again.",
+        "ja": "配信元の一覧が更新されました。再読み込みしてください。",
+        "ko": "사이트 목록이 변경되었습니다. 새로고침한 후 다시 시도하세요."
+      },
+      "error.filter": {
+        "zh-Hans": "请检查搜索或筛选条件。",
+        "zh-Hant": "請檢查搜尋或篩選條件。",
+        "en": "Check the search or filter values.",
+        "ja": "検索語や絞り込み条件を確認してください。",
+        "ko": "검색어나 필터 조건을 확인해 주세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法读取此内容。",
+        "zh-Hant": "暫時無法讀取此內容。",
+        "en": "Unable to load this content.",
+        "ja": "このコンテンツを読み込めません。",
+        "ko": "이 콘텐츠를 불러올 수 없습니다."
+      },
+      "filter.collection": {
+        "zh-Hans": "作品分类",
+        "zh-Hant": "作品分類",
+        "en": "Collection",
+        "ja": "作品分類",
+        "ko": "작품 분류"
+      },
+      "setting.hide_locked": {
+        "zh-Hans": "隐藏付费章节",
+        "zh-Hant": "隱藏付費章節",
+        "en": "Hide paid chapters",
+        "ja": "有料話を非表示",
+        "ko": "유료 회차 숨기기"
+      },
+      "setting.hide_unavailable": {
+        "zh-Hans": "隐藏已下架章节",
+        "zh-Hant": "隱藏已下架章節",
+        "en": "Hide unavailable chapters",
+        "ja": "配信終了話を非表示",
+        "ko": "공개 종료 회차 숨기기"
+      },
+      "chapter.unavailable": {
+        "zh-Hans": "已下架",
+        "zh-Hant": "已下架",
+        "en": "Unavailable",
+        "ja": "配信終了",
+        "ko": "공개 종료"
+      },
+      "chapter.volume": {
+        "zh-Hans": "单行本",
+        "zh-Hant": "單行本",
+        "en": "Volume",
+        "ja": "単行本",
+        "ko": "단행본"
+      },
+      "collection.serial": {
+        "zh-Hans": "连载与完结作品",
+        "zh-Hant": "連載與完結作品",
+        "en": "Series catalogue",
+        "ja": "連載・完結作品",
+        "ko": "연재·완결 작품"
+      },
+      "collection.magazine": {
+        "zh-Hans": "漫画 Action",
+        "zh-Hant": "漫畫 Action",
+        "en": "Manga Action",
+        "ja": "漫画アクション",
+        "ko": "만화 액션"
+      },
+      "collection.campaign": {
+        "zh-Hans": "限时活动",
+        "zh-Hant": "限時活動",
+        "en": "Campaigns",
+        "ja": "キャンペーン",
+        "ko": "기간 한정 행사"
+      },
+      "collection.oneshot": {
+        "zh-Hans": "短篇",
+        "zh-Hant": "短篇",
+        "en": "One-shots",
+        "ja": "読切",
+        "ko": "단편"
+      },
+      "listing.oneshot": {
+        "zh-Hans": "短篇",
+        "zh-Hant": "短篇",
+        "en": "One-shots",
+        "ja": "読切",
+        "ko": "단편"
+      },
+      "listing.latest": {
+        "zh-Hans": "最近更新",
+        "zh-Hant": "最近更新",
+        "en": "Latest updates",
+        "ja": "最新更新",
+        "ko": "최근 업데이트"
+      },
+      "listing.popular": {
+        "zh-Hans": "热门作品",
+        "zh-Hant": "熱門作品",
+        "en": "Popular titles",
+        "ja": "人気作品",
+        "ko": "인기 작품"
+      },
+      "listing.magazine": {
+        "zh-Hans": "漫画 Action",
+        "zh-Hant": "漫畫 Action",
+        "en": "Manga Action",
+        "ja": "漫画アクション",
+        "ko": "만화 액션"
+      },
+      "listing.campaign": {
+        "zh-Hans": "限时活动",
+        "zh-Hant": "限時活動",
+        "en": "Campaigns",
+        "ja": "キャンペーン",
+        "ko": "기간 한정 행사"
+      },
+      "source.name": {
+        "zh-Hans": "webアクション",
+        "zh-Hant": "webアクション",
+        "en": "webアクション",
+        "ja": "webアクション",
+        "ko": "webアクション"
+      },
+      "source.description": {
+        "zh-Hans": "双叶社官方漫画站，刊载 webアクション 与《漫画アクション》的连载、短篇及限时免费活动。",
+        "zh-Hant": "雙葉社官方漫畫站，刊載 webアクション 與《漫畫アクション》的連載、短篇及限時免費活動。",
+        "en": "Futabasha’s official manga site features web Action and Manga Action series, one-shots and limited-time free campaigns.",
+        "ja": "双葉社の公式マンガサイト。webアクションと「漫画アクション」の連載、読切、期間限定の無料公開作品を掲載しています。",
+        "ko": "후타바샤 공식 만화 사이트로, web액션과 만화 액션의 연재작, 단편, 기간 한정 무료 공개작을 제공합니다."
+      },
+      "source.author": {
+        "zh-Hans": "Koma 书源贡献者",
+        "zh-Hant": "Koma 書源貢獻者",
+        "en": "Koma source contributors",
+        "ja": "Koma ソース開発メンバー",
+        "ko": "Koma 소스 기여자"
+      }
+    }
+  },
+  "localizedNames": {
+    "zh-Hans": "webアクション",
+    "zh-Hant": "webアクション",
+    "en": "webアクション",
+    "ja": "webアクション",
+    "ko": "webアクション"
+  },
+  "localizedDescriptions": {
+    "zh-Hans": "双叶社官方漫画站，刊载 webアクション 与《漫画アクション》的连载、短篇及限时免费活动。",
+    "zh-Hant": "雙葉社官方漫畫站，刊載 webアクション 與《漫畫アクション》的連載、短篇及限時免費活動。",
+    "en": "Futabasha’s official manga site features web Action and Manga Action series, one-shots and limited-time free campaigns.",
+    "ja": "双葉社の公式マンガサイト。webアクションと「漫画アクション」の連載、読切、期間限定の無料公開作品を掲載しています。",
+    "ko": "후타바샤 공식 만화 사이트로, web액션과 만화 액션의 연재작, 단편, 기간 한정 무료 공개작을 제공합니다."
+  },
+  "requestLimits": [
+    {
+      "group": "comicaction-ja-site",
+      "permits": 2,
+      "periodMs": 1000,
+      "hosts": [
+        "comic-action.com"
+      ]
+    }
+  ]
+}

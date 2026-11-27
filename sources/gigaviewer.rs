@@ -226,8 +226,11 @@ pub(crate) fn viewer<'a>(
         Some("none" | "") => Tiles::Plain,
         _ => return Err("unsupported_scramble"),
     };
+    // Kurage Bunch's ordinary desktop viewer also uses ttb, including the
+    // first Hatarakanai Futari episode. Preserve that provider direction and
+    // page order; do not coerce vertical works into a horizontal direction.
     let direction = match structure["readingDirection"].as_str() {
-        Some(value @ ("rtl" | "ltr")) => value,
+        Some(value @ ("rtl" | "ltr" | "ttb")) => value,
         _ => return Err("parse_error"),
     };
     let main = structure["pages"].as_array().ok_or("chapter_unavailable")?;

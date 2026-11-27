@@ -1,0 +1,561 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://mangapill.com/",
+  "minAppVersion": "1.5.5",
+  "chapterOrder": "newest_first",
+  "localizedNames": {
+    "zh-Hans": "Mangapill",
+    "zh-Hant": "Mangapill",
+    "en": "Mangapill",
+    "ja": "Mangapill",
+    "ko": "Mangapill"
+  },
+  "localizedDescriptions": {
+    "zh-Hans": "英语漫画书库，收录《ONE PIECE》《Berserk》《Gachiakuta》等作品，也有短篇、同人志及英语原创漫画。原站已停止收录韩漫。",
+    "zh-Hant": "英語漫畫書庫，收錄《ONE PIECE》《Berserk》《Gachiakuta》等作品，也有短篇、同人誌及英語原創漫畫。原站已停止收錄韓漫。",
+    "en": "An English manga library featuring One Piece, Berserk and Gachiakuta, with one-shots, doujinshi and original English comics. The site no longer carries manhwa.",
+    "ja": "『ONE PIECE』『ベルセルク』『ガチアクタ』などを英語で掲載。読切、同人誌、英語のオリジナル漫画も扱っています。韓国漫画の掲載は終了しています。",
+    "ko": "One Piece, Berserk, Gachiakuta 등을 영어로 제공하며, 단편과 동인지, 영어 오리지널 만화도 수록합니다. 한국 만화 제공은 종료되었습니다."
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "en",
+    "messages": {
+      "listing.popular": {
+        "zh-Hans": "热门作品",
+        "zh-Hant": "熱門作品",
+        "en": "Popular titles",
+        "ja": "人気作品",
+        "ko": "인기 작품"
+      },
+      "listing.latest": {
+        "zh-Hans": "最近更新",
+        "zh-Hant": "最近更新",
+        "en": "Latest updates",
+        "ja": "最近の更新",
+        "ko": "최근 업데이트"
+      },
+      "error.filter": {
+        "zh-Hans": "请求参数无效，请检查搜索或筛选条件。",
+        "zh-Hant": "請求參數無效，請檢查搜尋或篩選條件。",
+        "en": "Check the search or filter values and try again.",
+        "ja": "検索条件または絞り込み条件を確認してください。",
+        "ko": "검색어나 필터 값을 확인하고 다시 시도해 주세요."
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站未提供此内容。",
+        "zh-Hant": "原站未提供此內容。",
+        "en": "This content is unavailable on the website.",
+        "ja": "このコンテンツは公式サイトで公開されていません。",
+        "ko": "사이트에서 이 콘텐츠를 제공하지 않습니다."
+      },
+      "error.network": {
+        "zh-Hans": "暂时无法访问原站，请稍后重试。",
+        "zh-Hant": "暫時無法存取原站，請稍後再試。",
+        "en": "The website could not be reached. Try again shortly.",
+        "ja": "サイトに接続できませんでした。しばらくしてからお試しください。",
+        "ko": "사이트에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요."
+      },
+      "error.locked": {
+        "zh-Hans": "原站未开放本章阅读。",
+        "zh-Hant": "原站未開放本話閱讀。",
+        "en": "The website has locked this chapter.",
+        "ja": "この話は公式サイトで公開されていません。",
+        "ko": "사이트에서 이 회차의 열람을 제한했습니다."
+      },
+      "error.host": {
+        "zh-Hans": "请更新 Koma 以读取本章图片。",
+        "zh-Hant": "請更新 Koma 以讀取本話圖片。",
+        "en": "Update Koma to read this chapter’s images.",
+        "ja": "画像を読むには Koma を更新してください。",
+        "ko": "이미지를 읽으려면 Koma를 업데이트해 주세요."
+      },
+      "error.scramble": {
+        "zh-Hans": "原站使用了当前不支持的图片格式。",
+        "zh-Hant": "原站使用了目前不支援的圖片格式。",
+        "en": "The website returned an unsupported image format.",
+        "ja": "サイトが未対応の画像形式を返しました。",
+        "ko": "사이트에서 지원되지 않는 이미지 형식을 반환했습니다."
+      },
+      "error.catalog": {
+        "zh-Hans": "原站目录已变化，请重新加载。",
+        "zh-Hant": "原站目錄已變更，請重新載入。",
+        "en": "The website’s catalogue changed. Reload it to continue.",
+        "ja": "サイトの一覧が更新されました。再読み込みしてください。",
+        "ko": "사이트의 목록이 변경되었습니다. 다시 불러와 주세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法载入此内容。",
+        "zh-Hant": "暫時無法載入此內容。",
+        "en": "This content could not be loaded.",
+        "ja": "コンテンツを読み込めませんでした。",
+        "ko": "콘텐츠를 불러오지 못했습니다."
+      },
+      "source.author": {
+        "zh-Hans": "Koma 书源贡献者",
+        "zh-Hant": "Koma 書源貢獻者",
+        "en": "Koma source contributors",
+        "ja": "Koma ソース開発メンバー",
+        "ko": "Koma 소스 기여자"
+      },
+      "filter.genre": {
+        "zh-Hans": "类型题材",
+        "zh-Hant": "類型題材",
+        "en": "Genre",
+        "ja": "ジャンル",
+        "ko": "장르"
+      },
+      "filter.type": {
+        "zh-Hans": "漫画类型",
+        "zh-Hant": "漫畫類型",
+        "en": "Comic type",
+        "ja": "作品の種類",
+        "ko": "만화 유형"
+      },
+      "filter.status": {
+        "zh-Hans": "连载状态",
+        "zh-Hant": "連載狀態",
+        "en": "Publication status",
+        "ja": "連載状況",
+        "ko": "연재 상태"
+      },
+      "option.genre.Action": {
+        "zh-Hans": "动作",
+        "zh-Hant": "動作",
+        "en": "Action",
+        "ja": "アクション",
+        "ko": "액션"
+      },
+      "option.genre.Adventure": {
+        "zh-Hans": "冒险",
+        "zh-Hant": "冒險",
+        "en": "Adventure",
+        "ja": "冒険",
+        "ko": "모험"
+      },
+      "option.genre.Cars": {
+        "zh-Hans": "赛车",
+        "zh-Hant": "賽車",
+        "en": "Cars",
+        "ja": "自動車",
+        "ko": "자동차"
+      },
+      "option.genre.Comedy": {
+        "zh-Hans": "喜剧",
+        "zh-Hant": "喜劇",
+        "en": "Comedy",
+        "ja": "コメディ",
+        "ko": "코미디"
+      },
+      "option.genre.Dementia": {
+        "zh-Hans": "意识流",
+        "zh-Hant": "意識流",
+        "en": "Dementia",
+        "ja": "不条理・実験的",
+        "ko": "의식의 흐름"
+      },
+      "option.genre.Demons": {
+        "zh-Hans": "恶魔",
+        "zh-Hant": "惡魔",
+        "en": "Demons",
+        "ja": "悪魔",
+        "ko": "악마"
+      },
+      "option.genre.Doujinshi": {
+        "zh-Hans": "同人",
+        "zh-Hant": "同人",
+        "en": "Doujinshi",
+        "ja": "同人誌",
+        "ko": "동인지"
+      },
+      "option.genre.Drama": {
+        "zh-Hans": "剧情",
+        "zh-Hant": "劇情",
+        "en": "Drama",
+        "ja": "ドラマ",
+        "ko": "드라마"
+      },
+      "option.genre.Ecchi": {
+        "zh-Hans": "性感题材",
+        "zh-Hant": "性感題材",
+        "en": "Ecchi",
+        "ja": "お色気",
+        "ko": "에로틱"
+      },
+      "option.genre.Fantasy": {
+        "zh-Hans": "奇幻",
+        "zh-Hant": "奇幻",
+        "en": "Fantasy",
+        "ja": "ファンタジー",
+        "ko": "판타지"
+      },
+      "option.genre.Game": {
+        "zh-Hans": "游戏",
+        "zh-Hant": "遊戲",
+        "en": "Game",
+        "ja": "ゲーム",
+        "ko": "게임"
+      },
+      "option.genre.Gender Bender": {
+        "zh-Hans": "性别转换",
+        "zh-Hant": "性別轉換",
+        "en": "Gender Bender",
+        "ja": "性別転換",
+        "ko": "성별 전환"
+      },
+      "option.genre.Harem": {
+        "zh-Hans": "后宫",
+        "zh-Hant": "後宮",
+        "en": "Harem",
+        "ja": "ハーレム",
+        "ko": "하렘"
+      },
+      "option.genre.Historical": {
+        "zh-Hans": "历史",
+        "zh-Hant": "歷史",
+        "en": "Historical",
+        "ja": "歴史",
+        "ko": "역사"
+      },
+      "option.genre.Horror": {
+        "zh-Hans": "恐怖",
+        "zh-Hant": "恐怖",
+        "en": "Horror",
+        "ja": "ホラー",
+        "ko": "공포"
+      },
+      "option.genre.Isekai": {
+        "zh-Hans": "异世界",
+        "zh-Hant": "異世界",
+        "en": "Isekai",
+        "ja": "異世界",
+        "ko": "이세계"
+      },
+      "option.genre.Josei": {
+        "zh-Hans": "女性向",
+        "zh-Hant": "女性向",
+        "en": "Josei",
+        "ja": "女性向け",
+        "ko": "여성향"
+      },
+      "option.genre.Kids": {
+        "zh-Hans": "儿童",
+        "zh-Hant": "兒童",
+        "en": "Kids",
+        "ja": "子ども向け",
+        "ko": "어린이"
+      },
+      "option.genre.Magic": {
+        "zh-Hans": "魔法",
+        "zh-Hant": "魔法",
+        "en": "Magic",
+        "ja": "魔法",
+        "ko": "마법"
+      },
+      "option.genre.Martial Arts": {
+        "zh-Hans": "武术",
+        "zh-Hant": "武術",
+        "en": "Martial Arts",
+        "ja": "格闘技",
+        "ko": "무술"
+      },
+      "option.genre.Mecha": {
+        "zh-Hans": "机甲",
+        "zh-Hant": "機甲",
+        "en": "Mecha",
+        "ja": "ロボット",
+        "ko": "메카"
+      },
+      "option.genre.Military": {
+        "zh-Hans": "军事",
+        "zh-Hant": "軍事",
+        "en": "Military",
+        "ja": "ミリタリー",
+        "ko": "군사"
+      },
+      "option.genre.Music": {
+        "zh-Hans": "音乐",
+        "zh-Hant": "音樂",
+        "en": "Music",
+        "ja": "音楽",
+        "ko": "음악"
+      },
+      "option.genre.Mystery": {
+        "zh-Hans": "推理",
+        "zh-Hant": "推理",
+        "en": "Mystery",
+        "ja": "ミステリー",
+        "ko": "미스터리"
+      },
+      "option.genre.Parody": {
+        "zh-Hans": "恶搞",
+        "zh-Hant": "惡搞",
+        "en": "Parody",
+        "ja": "パロディ",
+        "ko": "패러디"
+      },
+      "option.genre.Police": {
+        "zh-Hans": "警察",
+        "zh-Hant": "警察",
+        "en": "Police",
+        "ja": "警察",
+        "ko": "경찰"
+      },
+      "option.genre.Psychological": {
+        "zh-Hans": "心理",
+        "zh-Hant": "心理",
+        "en": "Psychological",
+        "ja": "心理",
+        "ko": "심리"
+      },
+      "option.genre.Romance": {
+        "zh-Hans": "恋爱",
+        "zh-Hant": "戀愛",
+        "en": "Romance",
+        "ja": "恋愛",
+        "ko": "로맨스"
+      },
+      "option.genre.Samurai": {
+        "zh-Hans": "武士",
+        "zh-Hant": "武士",
+        "en": "Samurai",
+        "ja": "侍",
+        "ko": "사무라이"
+      },
+      "option.genre.School": {
+        "zh-Hans": "校园",
+        "zh-Hant": "校園",
+        "en": "School",
+        "ja": "学園",
+        "ko": "학원"
+      },
+      "option.genre.Sci-Fi": {
+        "zh-Hans": "科幻",
+        "zh-Hant": "科幻",
+        "en": "Sci-Fi",
+        "ja": "SF",
+        "ko": "SF"
+      },
+      "option.genre.Seinen": {
+        "zh-Hans": "青年向",
+        "zh-Hant": "青年向",
+        "en": "Seinen",
+        "ja": "青年向け",
+        "ko": "청년 만화"
+      },
+      "option.genre.Shoujo": {
+        "zh-Hans": "少女向",
+        "zh-Hant": "少女向",
+        "en": "Shoujo",
+        "ja": "少女向け",
+        "ko": "소녀 만화"
+      },
+      "option.genre.Shoujo Ai": {
+        "zh-Hans": "少女恋爱",
+        "zh-Hant": "少女戀愛",
+        "en": "Shoujo Ai",
+        "ja": "ガールズラブ",
+        "ko": "걸스 러브"
+      },
+      "option.genre.Shounen": {
+        "zh-Hans": "少年向",
+        "zh-Hant": "少年向",
+        "en": "Shounen",
+        "ja": "少年向け",
+        "ko": "소년 만화"
+      },
+      "option.genre.Shounen Ai": {
+        "zh-Hans": "少年恋爱",
+        "zh-Hant": "少年戀愛",
+        "en": "Shounen Ai",
+        "ja": "ボーイズラブ",
+        "ko": "보이즈 러브"
+      },
+      "option.genre.Slice of Life": {
+        "zh-Hans": "日常",
+        "zh-Hant": "日常",
+        "en": "Slice of Life",
+        "ja": "日常",
+        "ko": "일상"
+      },
+      "option.genre.Space": {
+        "zh-Hans": "太空",
+        "zh-Hant": "太空",
+        "en": "Space",
+        "ja": "宇宙",
+        "ko": "우주"
+      },
+      "option.genre.Sports": {
+        "zh-Hans": "体育",
+        "zh-Hant": "體育",
+        "en": "Sports",
+        "ja": "スポーツ",
+        "ko": "스포츠"
+      },
+      "option.genre.Super Power": {
+        "zh-Hans": "超能力",
+        "zh-Hant": "超能力",
+        "en": "Super Power",
+        "ja": "超能力",
+        "ko": "초능력"
+      },
+      "option.genre.Supernatural": {
+        "zh-Hans": "超自然",
+        "zh-Hant": "超自然",
+        "en": "Supernatural",
+        "ja": "超自然",
+        "ko": "초자연"
+      },
+      "option.genre.Thriller": {
+        "zh-Hans": "惊悚",
+        "zh-Hant": "驚悚",
+        "en": "Thriller",
+        "ja": "スリラー",
+        "ko": "스릴러"
+      },
+      "option.genre.Tragedy": {
+        "zh-Hans": "悲剧",
+        "zh-Hant": "悲劇",
+        "en": "Tragedy",
+        "ja": "悲劇",
+        "ko": "비극"
+      },
+      "option.genre.Vampire": {
+        "zh-Hans": "吸血鬼",
+        "zh-Hant": "吸血鬼",
+        "en": "Vampire",
+        "ja": "吸血鬼",
+        "ko": "흡혈귀"
+      },
+      "option.genre.Yaoi": {
+        "zh-Hans": "耽美（成人）",
+        "zh-Hant": "耽美（成人）",
+        "en": "Yaoi",
+        "ja": "やおい",
+        "ko": "야오이"
+      },
+      "option.genre.Yuri": {
+        "zh-Hans": "百合",
+        "zh-Hant": "百合",
+        "en": "Yuri",
+        "ja": "百合",
+        "ko": "백합"
+      },
+      "option.type.": {
+        "zh-Hans": "全部类型",
+        "zh-Hant": "全部類型",
+        "en": "All types",
+        "ja": "すべての種類",
+        "ko": "모든 유형"
+      },
+      "option.status.": {
+        "zh-Hans": "全部状态",
+        "zh-Hant": "全部狀態",
+        "en": "All statuses",
+        "ja": "すべての連載状況",
+        "ko": "모든 연재 상태"
+      },
+      "option.type.manga": {
+        "zh-Hans": "日漫",
+        "zh-Hant": "日漫",
+        "en": "Manga",
+        "ja": "日本の漫画",
+        "ko": "일본 만화"
+      },
+      "option.type.novel": {
+        "zh-Hans": "小说",
+        "zh-Hant": "小說",
+        "en": "Novel",
+        "ja": "小説",
+        "ko": "소설"
+      },
+      "option.type.one-shot": {
+        "zh-Hans": "短篇",
+        "zh-Hant": "短篇",
+        "en": "One-shot",
+        "ja": "読切",
+        "ko": "단편"
+      },
+      "option.type.doujinshi": {
+        "zh-Hans": "同人志",
+        "zh-Hant": "同人誌",
+        "en": "Doujinshi",
+        "ja": "同人誌",
+        "ko": "동인지"
+      },
+      "option.type.manhua": {
+        "zh-Hans": "国漫",
+        "zh-Hant": "國漫",
+        "en": "Manhua",
+        "ja": "中国の漫画",
+        "ko": "중국 만화"
+      },
+      "option.type.oel": {
+        "zh-Hans": "英语原创漫画",
+        "zh-Hant": "英語原創漫畫",
+        "en": "Original English-language comic",
+        "ja": "英語のオリジナル漫画",
+        "ko": "영어 오리지널 만화"
+      },
+      "option.status.publishing": {
+        "zh-Hans": "连载中",
+        "zh-Hant": "連載中",
+        "en": "Publishing",
+        "ja": "連載中",
+        "ko": "연재 중"
+      },
+      "option.status.finished": {
+        "zh-Hans": "已完结",
+        "zh-Hant": "已完結",
+        "en": "Finished",
+        "ja": "完結",
+        "ko": "완결"
+      },
+      "option.status.on hiatus": {
+        "zh-Hans": "休刊中",
+        "zh-Hant": "休刊中",
+        "en": "On hiatus",
+        "ja": "休載中",
+        "ko": "휴재 중"
+      },
+      "option.status.discontinued": {
+        "zh-Hans": "已停刊",
+        "zh-Hant": "已停刊",
+        "en": "Discontinued",
+        "ja": "連載中止",
+        "ko": "연재 중단"
+      },
+      "option.status.not yet published": {
+        "zh-Hans": "尚未刊载",
+        "zh-Hant": "尚未刊載",
+        "en": "Not yet published",
+        "ja": "未発表",
+        "ko": "공개 예정"
+      },
+      "source.name": {
+        "zh-Hans": "Mangapill",
+        "zh-Hant": "Mangapill",
+        "en": "Mangapill",
+        "ja": "Mangapill",
+        "ko": "Mangapill"
+      },
+      "source.description": {
+        "zh-Hans": "英语漫画书库，收录《ONE PIECE》《Berserk》《Gachiakuta》等作品，也有短篇、同人志及英语原创漫画。原站已停止收录韩漫。",
+        "zh-Hant": "英語漫畫書庫，收錄《ONE PIECE》《Berserk》《Gachiakuta》等作品，也有短篇、同人誌及英語原創漫畫。原站已停止收錄韓漫。",
+        "en": "An English manga library featuring One Piece, Berserk and Gachiakuta, with one-shots, doujinshi and original English comics. The site no longer carries manhwa.",
+        "ja": "『ONE PIECE』『ベルセルク』『ガチアクタ』などを英語で掲載。読切、同人誌、英語のオリジナル漫画も扱っています。韓国漫画の掲載は終了しています。",
+        "ko": "One Piece, Berserk, Gachiakuta 등을 영어로 제공하며, 단편과 동인지, 영어 오리지널 만화도 수록합니다. 한국 만화 제공은 종료되었습니다."
+      }
+    }
+  },
+  "requestLimits": [
+    {
+      "group": "mangapill-en-site",
+      "permits": 2,
+      "periodMs": 1000,
+      "hosts": [
+        "mangapill.com"
+      ]
+    }
+  ]
+}
