@@ -91,6 +91,7 @@
 | <img src="everiaclub/icon.webp" width="24" alt=""> | everiaclub | Everia.club | 日本写真杂志、韩国和泰国写真、华人写真和角色扮演，支持整册多页合并。 |
 | <img src="misskon/icon.png" width="24" alt=""> | misskon | MissKon | 亚洲写真图集，提供浏览量榜单、分类与标签，合并原站公开相册子页。 |
 | <img src="foamgirl/icon.png" width="24" alt=""> | foamgirl | FoamGirl | 亚洲写真与角色扮演图集，支持官网分类、标签和搜索，按整册合并公开相册子页。 |
+| <img src="jjcos/icon.png" width="24" alt=""> | jjcos | JJCOS | 角色扮演图集与日韩写真，按分类和标签浏览公开相册。 |
 | <img src="fourkhd/icon.png" width="24" alt=""> | fourkhd | 4KHD | 韩国杂志与摄影机构写真、华人写真和角色扮演，读取原站相册大图。 |
 | <img src="idolgravureprincessdate/icon.ico" width="24" alt=""> | idolgravureprincessdate | Idol.gravureprincess.date | 日本偶像和声优的旧刊写真档案，可按团体及杂志标签查找。 |
 | <img src="3hentai-zh/icon.png" width="24" alt=""> | 3hentai-zh | 3Hentai | 3Hentai 的中文漫画图集，标示作者、社团、角色与题材标签，每册图集可连续阅读。 |
@@ -185,6 +186,13 @@
 | <img src="smbc-en/icon.png" width="24" alt=""> | smbc-en | Saturday Morning Breakfast Comics | 扎克·韦纳史密斯的英文科普与生活短篇漫画，部分有红按钮彩蛋。 |
 | <img src="questionablecontent-en/icon.png" width="24" alt=""> | questionablecontent-en | Questionable Content | Jeph Jacques 自 2003 年连载的英文网漫，收录官方漫画归档，可显示作者附注。 |
 | <img src="commitstrip-en/icon.png" width="24" alt=""> | commitstrip-en | CommitStrip | 程序员日常英文短漫，支持官网英文搜索及年度归档。 |
+
+## 法语及西班牙语原站
+
+| 图标 | ID | 名称 | 说明 |
+|------|----|------|------|
+| <img src="aralosbd-fr/icon.png" width="24" alt=""> | aralosbd-fr | AralosBD | 法语原创与翻译漫画，按原站标签筛选，可阅读公开章节。 |
+| <img src="leercapitulo-es/icon.png" width="24" alt=""> | leercapitulo-es | LeerCapitulo | 西班牙语漫画站，提供类型、题材、主题与连载状态筛选。 |
 
 ## 俄语原站
 

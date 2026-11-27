@@ -1,0 +1,148 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://aralosbd.fr/",
+  "minAppVersion": "1.5.5",
+  "localizedNames": {
+    "zh-Hans": "AralosBD",
+    "zh-Hant": "AralosBD",
+    "en": "AralosBD",
+    "ja": "AralosBD",
+    "ko": "AralosBD"
+  },
+  "localizedDescriptions": {
+    "zh-Hans": "法语漫画站，收录原创及翻译作品，包括《GhostBlade》和《Ramia-Yana》。",
+    "zh-Hant": "法語漫畫站，收錄原創及翻譯作品，包括《GhostBlade》和《Ramia-Yana》。",
+    "en": "French-language comics with original works and translations, including GhostBlade and Ramia-Yana.",
+    "ja": "『GhostBlade』『Ramia-Yana』など、フランス語のオリジナル漫画と翻訳作品を掲載。",
+    "ko": "GhostBlade와 Ramia-Yana 등 프랑스어 창작 및 번역 만화를 모았습니다."
+  },
+  "requestLimits": [
+    {
+      "group": "aralosbd-fr-site",
+      "permits": 3,
+      "periodMs": 1000,
+      "hosts": [
+        "aralosbd.fr"
+      ]
+    }
+  ],
+  "localization": {
+    "version": 1,
+    "defaultLocale": "en",
+    "messages": {
+      "source.author": {
+        "zh-Hans": "Koma 书源贡献者",
+        "zh-Hant": "Koma 書源貢獻者",
+        "en": "Koma source contributors",
+        "ja": "Koma ソース開発メンバー",
+        "ko": "Koma 소스 기여자"
+      },
+      "error.network": {
+        "zh-Hans": "网站请求未完成，请稍后再试。",
+        "zh-Hant": "網站請求未完成，請稍後再試。",
+        "en": "The website request failed. Try again shortly.",
+        "ja": "サイトに接続できませんでした。時間をおいてお試しください。",
+        "ko": "사이트 요청에 실패했습니다. 잠시 후 다시 시도하세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法读取原站内容。",
+        "zh-Hant": "暫時無法讀取原站內容。",
+        "en": "The website content could not be read.",
+        "ja": "サイトの内容を読み取れませんでした。",
+        "ko": "사이트 콘텐츠를 읽을 수 없습니다."
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站未提供这项内容。",
+        "zh-Hant": "原站未提供這項內容。",
+        "en": "This content is unavailable on the original site.",
+        "ja": "元のサイトでこの内容は公開されていません。",
+        "ko": "원본 사이트에서 이 콘텐츠를 이용할 수 없습니다."
+      },
+      "error.filter": {
+        "zh-Hans": "筛选或请求参数无效。",
+        "zh-Hant": "篩選或請求參數無效。",
+        "en": "The filter or request parameters are invalid.",
+        "ja": "絞り込みまたはリクエストの指定が無効です。",
+        "ko": "필터 또는 요청 값이 올바르지 않습니다."
+      },
+      "filter.any": {
+        "zh-Hans": "不限",
+        "zh-Hant": "不限",
+        "en": "Any",
+        "ja": "すべて",
+        "ko": "전체"
+      },
+      "source.name": {
+        "zh-Hans": "AralosBD",
+        "zh-Hant": "AralosBD",
+        "en": "AralosBD",
+        "ja": "AralosBD",
+        "ko": "AralosBD"
+      },
+      "source.description": {
+        "zh-Hans": "法语漫画站，收录原创及翻译作品，包括《GhostBlade》和《Ramia-Yana》。",
+        "zh-Hant": "法語漫畫站，收錄原創及翻譯作品，包括《GhostBlade》和《Ramia-Yana》。",
+        "en": "French-language comics with original works and translations, including GhostBlade and Ramia-Yana.",
+        "ja": "『GhostBlade』『Ramia-Yana』など、フランス語のオリジナル漫画と翻訳作品を掲載。",
+        "ko": "GhostBlade와 Ramia-Yana 등 프랑스어 창작 및 번역 만화를 모았습니다."
+      },
+      "listing.popular": {
+        "zh-Hans": "热门",
+        "zh-Hant": "熱門",
+        "en": "Popular",
+        "ja": "人気",
+        "ko": "인기"
+      },
+      "listing.latest": {
+        "zh-Hans": "最新上架",
+        "zh-Hant": "最新上架",
+        "en": "New series",
+        "ja": "新着作品",
+        "ko": "신규 작품"
+      },
+      "filter.tag": {
+        "zh-Hans": "题材或标签",
+        "zh-Hant": "題材或標籤",
+        "en": "Genre or tag",
+        "ja": "ジャンル・タグ",
+        "ko": "장르 또는 태그"
+      },
+      "tag.Action": {
+        "zh-Hans": "动作",
+        "zh-Hant": "動作",
+        "en": "Action",
+        "ja": "アクション",
+        "ko": "액션"
+      },
+      "tag.Fantastique": {
+        "zh-Hans": "幻想",
+        "zh-Hant": "奇幻",
+        "en": "Fantasy",
+        "ja": "ファンタジー",
+        "ko": "판타지"
+      },
+      "tag.Webtoon": {
+        "zh-Hans": "条漫",
+        "zh-Hant": "條漫",
+        "en": "Webtoon",
+        "ja": "ウェブトゥーン",
+        "ko": "웹툰"
+      },
+      "tag.Couleurs": {
+        "zh-Hans": "彩色",
+        "zh-Hant": "彩色",
+        "en": "Color",
+        "ja": "カラー",
+        "ko": "컬러"
+      },
+      "tag.Seinen": {
+        "zh-Hans": "青年漫画",
+        "zh-Hant": "青年漫畫",
+        "en": "Seinen",
+        "ja": "青年漫画",
+        "ko": "청년 만화"
+      }
+    }
+  },
+  "chapterOrder": "newest_first"
+}

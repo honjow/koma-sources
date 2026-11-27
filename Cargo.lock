@@ -1239,6 +1239,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_aralosbd_fr_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "koma_asmhentai_zh_source"
 version = "0.1.9"
 dependencies = [
@@ -1885,6 +1895,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_jjcos_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "koma_kadocomi_ja_source"
 version = "0.1.0"
 dependencies = [
@@ -1939,6 +1959,16 @@ name = "koma_laya_zh_hant_source"
 version = "0.1.4"
 dependencies = [
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_leercapitulo_es_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
 ]
 
 [[package]]

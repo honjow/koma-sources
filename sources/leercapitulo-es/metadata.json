@@ -1,0 +1,1051 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://www.leercapitulo.co/",
+  "minAppVersion": "1.5.5",
+  "localizedNames": {
+    "zh-Hans": "LeerCapitulo",
+    "zh-Hant": "LeerCapitulo",
+    "en": "LeerCapitulo",
+    "ja": "LeerCapitulo",
+    "ko": "LeerCapitulo"
+  },
+  "localizedDescriptions": {
+    "zh-Hans": "西班牙语漫画站，收录《ONE PIECE》《Nano máquina》等日漫、韩漫和国漫，并按题材与主题分类。",
+    "zh-Hant": "西班牙語漫畫站，收錄《ONE PIECE》《Nano máquina》等日漫、韓漫和國漫，並依題材與主題分類。",
+    "en": "Spanish manga, manhwa and manhua, including One Piece and Nano máquina, with genre and theme catalogues.",
+    "ja": "『ONE PIECE』『Nano máquina』などの日本・韓国・中国の漫画を、ジャンルやテーマごとに探せるスペイン語サイト。",
+    "ko": "One Piece와 Nano máquina 등 일본·한국·중국 만화를 장르와 테마로 분류한 스페인어 사이트입니다."
+  },
+  "requestLimits": [
+    {
+      "group": "leercapitulo-es-site",
+      "permits": 1,
+      "periodMs": 3000,
+      "hosts": [
+        "www.leercapitulo.co"
+      ]
+    }
+  ],
+  "localization": {
+    "version": 1,
+    "defaultLocale": "en",
+    "messages": {
+      "source.author": {
+        "zh-Hans": "Koma 书源贡献者",
+        "zh-Hant": "Koma 書源貢獻者",
+        "en": "Koma source contributors",
+        "ja": "Koma ソース開発メンバー",
+        "ko": "Koma 소스 기여자"
+      },
+      "error.network": {
+        "zh-Hans": "网站请求未完成，请稍后再试。",
+        "zh-Hant": "網站請求未完成，請稍後再試。",
+        "en": "The website request failed. Try again shortly.",
+        "ja": "サイトに接続できませんでした。時間をおいてお試しください。",
+        "ko": "사이트 요청에 실패했습니다. 잠시 후 다시 시도하세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法读取原站内容。",
+        "zh-Hant": "暫時無法讀取原站內容。",
+        "en": "The website content could not be read.",
+        "ja": "サイトの内容を読み取れませんでした。",
+        "ko": "사이트 콘텐츠를 읽을 수 없습니다."
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站未提供这项内容。",
+        "zh-Hant": "原站未提供這項內容。",
+        "en": "This content is unavailable on the original site.",
+        "ja": "元のサイトでこの内容は公開されていません。",
+        "ko": "원본 사이트에서 이 콘텐츠를 이용할 수 없습니다."
+      },
+      "error.filter": {
+        "zh-Hans": "筛选或请求参数无效。",
+        "zh-Hant": "篩選或請求參數無效。",
+        "en": "The filter or request parameters are invalid.",
+        "ja": "絞り込みまたはリクエストの指定が無効です。",
+        "ko": "필터 또는 요청 값이 올바르지 않습니다."
+      },
+      "filter.any": {
+        "zh-Hans": "不限",
+        "zh-Hant": "不限",
+        "en": "Any",
+        "ja": "すべて",
+        "ko": "전체"
+      },
+      "source.name": {
+        "zh-Hans": "LeerCapitulo",
+        "zh-Hant": "LeerCapitulo",
+        "en": "LeerCapitulo",
+        "ja": "LeerCapitulo",
+        "ko": "LeerCapitulo"
+      },
+      "source.description": {
+        "zh-Hans": "西班牙语漫画站，收录《ONE PIECE》《Nano máquina》等日漫、韩漫和国漫，并按题材与主题分类。",
+        "zh-Hant": "西班牙語漫畫站，收錄《ONE PIECE》《Nano máquina》等日漫、韓漫和國漫，並依題材與主題分類。",
+        "en": "Spanish manga, manhwa and manhua, including One Piece and Nano máquina, with genre and theme catalogues.",
+        "ja": "『ONE PIECE』『Nano máquina』などの日本・韓国・中国の漫画を、ジャンルやテーマごとに探せるスペイン語サイト。",
+        "ko": "One Piece와 Nano máquina 등 일본·한국·중국 만화를 장르와 테마로 분류한 스페인어 사이트입니다."
+      },
+      "listing.popular": {
+        "zh-Hans": "热门",
+        "zh-Hant": "熱門",
+        "en": "Popular",
+        "ja": "人気",
+        "ko": "인기"
+      },
+      "listing.latest": {
+        "zh-Hans": "最近更新",
+        "zh-Hant": "最近更新",
+        "en": "Latest updates",
+        "ja": "最新更新",
+        "ko": "최근 업데이트"
+      },
+      "listing.catalog": {
+        "zh-Hans": "目录",
+        "zh-Hant": "目錄",
+        "en": "Catalogue",
+        "ja": "カタログ",
+        "ko": "카탈로그"
+      },
+      "filter.genre": {
+        "zh-Hans": "类型题材",
+        "zh-Hant": "類型題材",
+        "en": "Genre",
+        "ja": "ジャンル",
+        "ko": "장르"
+      },
+      "filter.theme": {
+        "zh-Hans": "主题",
+        "zh-Hant": "主題",
+        "en": "Theme",
+        "ja": "テーマ",
+        "ko": "테마"
+      },
+      "filter.type": {
+        "zh-Hans": "漫画类型",
+        "zh-Hant": "漫畫類型",
+        "en": "Comic type",
+        "ja": "作品の種類",
+        "ko": "만화 유형"
+      },
+      "filter.status": {
+        "zh-Hans": "连载状态",
+        "zh-Hant": "連載狀態",
+        "en": "Publication status",
+        "ja": "連載状況",
+        "ko": "연재 상태"
+      },
+      "filter.sort": {
+        "zh-Hans": "排序",
+        "zh-Hant": "排序",
+        "en": "Sort order",
+        "ja": "並び順",
+        "ko": "정렬"
+      },
+      "option.type.manga": {
+        "zh-Hans": "日漫",
+        "zh-Hant": "日漫",
+        "en": "Manga",
+        "ja": "日本の漫画",
+        "ko": "일본 만화"
+      },
+      "option.type.manhwa": {
+        "zh-Hans": "韩漫",
+        "zh-Hant": "韓漫",
+        "en": "Manhwa",
+        "ja": "韓国の漫画",
+        "ko": "한국 만화"
+      },
+      "option.type.manhua": {
+        "zh-Hans": "国漫",
+        "zh-Hant": "國漫",
+        "en": "Manhua",
+        "ja": "中国の漫画",
+        "ko": "중국 만화"
+      },
+      "option.type.comic": {
+        "zh-Hans": "欧美漫画",
+        "zh-Hant": "歐美漫畫",
+        "en": "Comic",
+        "ja": "欧米のコミック",
+        "ko": "서구 만화"
+      },
+      "option.status.completed": {
+        "zh-Hans": "已完结",
+        "zh-Hant": "已完結",
+        "en": "Completed",
+        "ja": "完結",
+        "ko": "완결"
+      },
+      "option.status.ongoing": {
+        "zh-Hans": "连载中",
+        "zh-Hant": "連載中",
+        "en": "Ongoing",
+        "ja": "連載中",
+        "ko": "연재 중"
+      },
+      "option.status.paused": {
+        "zh-Hans": "暂停",
+        "zh-Hant": "暫停",
+        "en": "On hiatus",
+        "ja": "休載中",
+        "ko": "휴재"
+      },
+      "option.status.cancelled": {
+        "zh-Hans": "已取消",
+        "zh-Hant": "已取消",
+        "en": "Cancelled",
+        "ja": "打ち切り",
+        "ko": "연재 중단"
+      },
+      "option.sort.az": {
+        "zh-Hans": "标题 A–Z",
+        "zh-Hant": "標題 A–Z",
+        "en": "Title A–Z",
+        "ja": "タイトル A–Z",
+        "ko": "제목 A–Z"
+      },
+      "option.sort.za": {
+        "zh-Hans": "标题 Z–A",
+        "zh-Hant": "標題 Z–A",
+        "en": "Title Z–A",
+        "ja": "タイトル Z–A",
+        "ko": "제목 Z–A"
+      },
+      "detail.alternate_titles": {
+        "zh-Hans": "别名",
+        "zh-Hant": "別名",
+        "en": "Alternative titles",
+        "ja": "別名",
+        "ko": "다른 제목"
+      },
+      "option.genre.action": {
+        "zh-Hans": "动作",
+        "zh-Hant": "動作",
+        "en": "Action",
+        "ja": "アクション",
+        "ko": "액션"
+      },
+      "option.genre.adventure": {
+        "zh-Hans": "冒险",
+        "zh-Hant": "冒險",
+        "en": "Adventure",
+        "ja": "冒険",
+        "ko": "모험"
+      },
+      "option.genre.boys-love": {
+        "zh-Hans": "男男恋爱",
+        "zh-Hant": "男男戀愛",
+        "en": "Boys’ Love",
+        "ja": "ボーイズラブ",
+        "ko": "보이즈 러브"
+      },
+      "option.genre.comedy": {
+        "zh-Hans": "喜剧",
+        "zh-Hant": "喜劇",
+        "en": "Comedy",
+        "ja": "コメディ",
+        "ko": "코미디"
+      },
+      "option.genre.crime": {
+        "zh-Hans": "犯罪",
+        "zh-Hant": "犯罪",
+        "en": "Crime",
+        "ja": "犯罪",
+        "ko": "범죄"
+      },
+      "option.genre.drama": {
+        "zh-Hans": "剧情",
+        "zh-Hant": "劇情",
+        "en": "Drama",
+        "ja": "ドラマ",
+        "ko": "드라마"
+      },
+      "option.genre.fantasy": {
+        "zh-Hans": "奇幻",
+        "zh-Hant": "奇幻",
+        "en": "Fantasy",
+        "ja": "ファンタジー",
+        "ko": "판타지"
+      },
+      "option.genre.girls-love": {
+        "zh-Hans": "女女恋爱",
+        "zh-Hant": "女女戀愛",
+        "en": "Girls’ Love",
+        "ja": "ガールズラブ",
+        "ko": "걸즈 러브"
+      },
+      "option.genre.historical": {
+        "zh-Hans": "历史",
+        "zh-Hant": "歷史",
+        "en": "Historical",
+        "ja": "歴史",
+        "ko": "역사"
+      },
+      "option.genre.horror": {
+        "zh-Hans": "恐怖",
+        "zh-Hant": "恐怖",
+        "en": "Horror",
+        "ja": "ホラー",
+        "ko": "공포"
+      },
+      "option.genre.isekai": {
+        "zh-Hans": "异世界",
+        "zh-Hant": "異世界",
+        "en": "Isekai",
+        "ja": "異世界",
+        "ko": "이세계"
+      },
+      "option.genre.magical-girls": {
+        "zh-Hans": "魔法少女",
+        "zh-Hant": "魔法少女",
+        "en": "Magical Girls",
+        "ja": "魔法少女",
+        "ko": "마법소녀"
+      },
+      "option.genre.mecha": {
+        "zh-Hans": "机甲",
+        "zh-Hant": "機甲",
+        "en": "Mecha",
+        "ja": "メカ",
+        "ko": "메카"
+      },
+      "option.genre.medical": {
+        "zh-Hans": "医疗",
+        "zh-Hant": "醫療",
+        "en": "Medical",
+        "ja": "医療",
+        "ko": "의료"
+      },
+      "option.genre.mystery": {
+        "zh-Hans": "悬疑",
+        "zh-Hant": "懸疑",
+        "en": "Mystery",
+        "ja": "ミステリー",
+        "ko": "미스터리"
+      },
+      "option.genre.philosophical": {
+        "zh-Hans": "哲学",
+        "zh-Hant": "哲學",
+        "en": "Philosophical",
+        "ja": "哲学",
+        "ko": "철학"
+      },
+      "option.genre.psychological": {
+        "zh-Hans": "心理",
+        "zh-Hant": "心理",
+        "en": "Psychological",
+        "ja": "心理",
+        "ko": "심리"
+      },
+      "option.genre.romance": {
+        "zh-Hans": "恋爱",
+        "zh-Hant": "戀愛",
+        "en": "Romance",
+        "ja": "恋愛",
+        "ko": "로맨스"
+      },
+      "option.genre.sci-fi": {
+        "zh-Hans": "科幻",
+        "zh-Hant": "科幻",
+        "en": "Sci-Fi",
+        "ja": "SF",
+        "ko": "SF"
+      },
+      "option.genre.slice-of-life": {
+        "zh-Hans": "日常",
+        "zh-Hant": "日常",
+        "en": "Slice of Life",
+        "ja": "日常",
+        "ko": "일상"
+      },
+      "option.genre.sports": {
+        "zh-Hans": "体育",
+        "zh-Hant": "體育",
+        "en": "Sports",
+        "ja": "スポーツ",
+        "ko": "스포츠"
+      },
+      "option.genre.superhero": {
+        "zh-Hans": "超级英雄",
+        "zh-Hant": "超級英雄",
+        "en": "Superhero",
+        "ja": "スーパーヒーロー",
+        "ko": "슈퍼히어로"
+      },
+      "option.genre.thriller": {
+        "zh-Hans": "惊悚",
+        "zh-Hant": "驚悚",
+        "en": "Thriller",
+        "ja": "スリラー",
+        "ko": "스릴러"
+      },
+      "option.genre.tragedy": {
+        "zh-Hans": "悲剧",
+        "zh-Hant": "悲劇",
+        "en": "Tragedy",
+        "ja": "悲劇",
+        "ko": "비극"
+      },
+      "option.genre.wuxia": {
+        "zh-Hans": "武侠",
+        "zh-Hant": "武俠",
+        "en": "Wuxia",
+        "ja": "武侠",
+        "ko": "무협"
+      },
+      "option.genre.seinen": {
+        "zh-Hans": "青年",
+        "zh-Hant": "青年",
+        "en": "Seinen",
+        "ja": "青年向け",
+        "ko": "청년"
+      },
+      "option.genre.shounen": {
+        "zh-Hans": "少年",
+        "zh-Hant": "少年",
+        "en": "Shounen",
+        "ja": "少年向け",
+        "ko": "소년"
+      },
+      "option.genre.ecchi": {
+        "zh-Hans": "轻度情色",
+        "zh-Hant": "輕度情色",
+        "en": "Ecchi",
+        "ja": "お色気",
+        "ko": "에치"
+      },
+      "option.genre.shoujo": {
+        "zh-Hans": "少女",
+        "zh-Hant": "少女",
+        "en": "Shoujo",
+        "ja": "少女向け",
+        "ko": "소녀"
+      },
+      "option.genre.mature": {
+        "zh-Hans": "成熟向",
+        "zh-Hant": "成熟向",
+        "en": "Mature",
+        "ja": "成熟した読者向け",
+        "ko": "성숙한 독자용"
+      },
+      "option.genre.adult": {
+        "zh-Hans": "成人",
+        "zh-Hant": "成人",
+        "en": "Adult",
+        "ja": "成人向け",
+        "ko": "성인"
+      },
+      "option.genre.shounen-ai": {
+        "zh-Hans": "少年爱",
+        "zh-Hant": "少年愛",
+        "en": "Shounen Ai",
+        "ja": "少年愛",
+        "ko": "소년애"
+      },
+      "option.genre.gender-bender": {
+        "zh-Hans": "性别转换",
+        "zh-Hant": "性別轉換",
+        "en": "Gender Bender",
+        "ja": "性別変化",
+        "ko": "성별 전환"
+      },
+      "option.genre.shotacon": {
+        "zh-Hans": "正太情结",
+        "zh-Hant": "正太情結",
+        "en": "Shotacon",
+        "ja": "ショタコン",
+        "ko": "쇼타콘"
+      },
+      "option.genre.josei": {
+        "zh-Hans": "女性向",
+        "zh-Hant": "女性向",
+        "en": "Josei",
+        "ja": "女性向け",
+        "ko": "여성"
+      },
+      "option.genre.yaoi": {
+        "zh-Hans": "耽美",
+        "zh-Hant": "耽美",
+        "en": "Yaoi",
+        "ja": "やおい",
+        "ko": "야오이"
+      },
+      "option.genre.smut": {
+        "zh-Hans": "情色",
+        "zh-Hant": "情色",
+        "en": "Smut",
+        "ja": "官能",
+        "ko": "에로"
+      },
+      "option.genre.ciberpunk": {
+        "zh-Hans": "赛博朋克",
+        "zh-Hant": "賽博龐克",
+        "en": "Cyberpunk",
+        "ja": "サイバーパンク",
+        "ko": "사이버펑크"
+      },
+      "option.genre.vida-escolar": {
+        "zh-Hans": "校园生活",
+        "zh-Hant": "校園生活",
+        "en": "School Life",
+        "ja": "学園生活",
+        "ko": "학교생활"
+      },
+      "option.genre.realidad-virtual": {
+        "zh-Hans": "虚拟现实",
+        "zh-Hant": "虛擬實境",
+        "en": "Virtual Reality",
+        "ja": "仮想現実",
+        "ko": "가상 현실"
+      },
+      "option.genre.fantasia": {
+        "zh-Hans": "奇幻 (Fantasia)",
+        "zh-Hant": "奇幻 (Fantasia)",
+        "en": "Fantasy (Fantasia)",
+        "ja": "ファンタジー (Fantasia)",
+        "ko": "판타지 (Fantasia)"
+      },
+      "option.genre.comedia": {
+        "zh-Hans": "喜剧 (Comedia)",
+        "zh-Hant": "喜劇 (Comedia)",
+        "en": "Comedy (Comedia)",
+        "ja": "コメディ (Comedia)",
+        "ko": "코미디 (Comedia)"
+      },
+      "option.genre.recuentos-de-la-vida": {
+        "zh-Hans": "日常 (Recuentos de la vida)",
+        "zh-Hant": "日常 (Recuentos de la vida)",
+        "en": "Slice of Life (Recuentos de la vida)",
+        "ja": "日常 (Recuentos de la vida)",
+        "ko": "일상 (Recuentos de la vida)"
+      },
+      "option.genre.yuri": {
+        "zh-Hans": "百合",
+        "zh-Hant": "百合",
+        "en": "Yuri",
+        "ja": "百合",
+        "ko": "백합"
+      },
+      "option.genre.sobrenatural": {
+        "zh-Hans": "超自然",
+        "zh-Hant": "超自然",
+        "en": "Supernatural",
+        "ja": "超自然",
+        "ko": "초자연"
+      },
+      "option.genre.magia": {
+        "zh-Hans": "魔法",
+        "zh-Hant": "魔法",
+        "en": "Magic",
+        "ja": "魔法",
+        "ko": "마법"
+      },
+      "option.genre.tragedia": {
+        "zh-Hans": "悲剧 (Tragedia)",
+        "zh-Hant": "悲劇 (Tragedia)",
+        "en": "Tragedy (Tragedia)",
+        "ja": "悲劇 (Tragedia)",
+        "ko": "비극 (Tragedia)"
+      },
+      "option.genre.historia": {
+        "zh-Hans": "历史 (Historia)",
+        "zh-Hant": "歷史 (Historia)",
+        "en": "Historical (Historia)",
+        "ja": "歴史 (Historia)",
+        "ko": "역사 (Historia)"
+      },
+      "option.genre.guerra": {
+        "zh-Hans": "战争",
+        "zh-Hant": "戰爭",
+        "en": "War",
+        "ja": "戦争",
+        "ko": "전쟁"
+      },
+      "option.genre.misterio": {
+        "zh-Hans": "悬疑 (Misterio)",
+        "zh-Hant": "懸疑 (Misterio)",
+        "en": "Mystery (Misterio)",
+        "ja": "ミステリー (Misterio)",
+        "ko": "미스터리 (Misterio)"
+      },
+      "option.genre.policiaco": {
+        "zh-Hans": "警匪",
+        "zh-Hant": "警匪",
+        "en": "Police Procedural",
+        "ja": "警察もの",
+        "ko": "경찰 수사물"
+      },
+      "option.genre.artes-marciales": {
+        "zh-Hans": "武术",
+        "zh-Hant": "武術",
+        "en": "Martial Arts",
+        "ja": "格闘技",
+        "ko": "무술"
+      },
+      "option.genre.gore": {
+        "zh-Hans": "血腥",
+        "zh-Hant": "血腥",
+        "en": "Gore",
+        "ja": "ゴア",
+        "ko": "고어"
+      },
+      "option.genre.superpoderes": {
+        "zh-Hans": "超能力",
+        "zh-Hant": "超能力",
+        "en": "Superpowers",
+        "ja": "超能力",
+        "ko": "초능력"
+      },
+      "option.genre.familia": {
+        "zh-Hans": "家庭",
+        "zh-Hant": "家庭",
+        "en": "Family",
+        "ja": "家族",
+        "ko": "가족"
+      },
+      "option.genre.aventura": {
+        "zh-Hans": "冒险 (Aventura)",
+        "zh-Hant": "冒險 (Aventura)",
+        "en": "Adventure (Aventura)",
+        "ja": "冒険 (Aventura)",
+        "ko": "모험 (Aventura)"
+      },
+      "option.genre.supervivencia": {
+        "zh-Hans": "生存",
+        "zh-Hant": "生存",
+        "en": "Survival",
+        "ja": "サバイバル",
+        "ko": "생존"
+      },
+      "option.genre.demonios": {
+        "zh-Hans": "恶魔",
+        "zh-Hant": "惡魔",
+        "en": "Demons",
+        "ja": "悪魔",
+        "ko": "악마"
+      },
+      "option.genre.realidad": {
+        "zh-Hans": "现实",
+        "zh-Hant": "現實",
+        "en": "Real Life",
+        "ja": "現実",
+        "ko": "현실"
+      },
+      "option.genre.telenovela": {
+        "zh-Hans": "肥皂剧",
+        "zh-Hant": "肥皂劇",
+        "en": "Telenovela",
+        "ja": "テレノベラ",
+        "ko": "텔레노벨라"
+      },
+      "option.genre.crimen": {
+        "zh-Hans": "犯罪 (Crimen)",
+        "zh-Hant": "犯罪 (Crimen)",
+        "en": "Crime (Crimen)",
+        "ja": "犯罪 (Crimen)",
+        "ko": "범죄 (Crimen)"
+      },
+      "option.genre.parodia": {
+        "zh-Hans": "戏仿",
+        "zh-Hant": "戲仿",
+        "en": "Parody",
+        "ja": "パロディ",
+        "ko": "패러디"
+      },
+      "option.genre.deporte": {
+        "zh-Hans": "体育 (Deporte)",
+        "zh-Hant": "體育 (Deporte)",
+        "en": "Sports (Deporte)",
+        "ja": "スポーツ (Deporte)",
+        "ko": "스포츠 (Deporte)"
+      },
+      "option.genre.traps": {
+        "zh-Hans": "女装角色",
+        "zh-Hant": "女裝角色",
+        "en": "Feminine Male Characters",
+        "ja": "男の娘",
+        "ko": "여장 남자 캐릭터"
+      },
+      "option.genre.militar": {
+        "zh-Hans": "军事",
+        "zh-Hant": "軍事",
+        "en": "Military",
+        "ja": "ミリタリー",
+        "ko": "밀리터리"
+      },
+      "option.genre.musica": {
+        "zh-Hans": "音乐",
+        "zh-Hant": "音樂",
+        "en": "Music",
+        "ja": "音楽",
+        "ko": "음악"
+      },
+      "option.genre.vampiros": {
+        "zh-Hans": "吸血鬼",
+        "zh-Hant": "吸血鬼",
+        "en": "Vampires",
+        "ja": "吸血鬼",
+        "ko": "흡혈귀"
+      },
+      "option.genre.extranjero": {
+        "zh-Hans": "异国",
+        "zh-Hant": "異國",
+        "en": "Foreign",
+        "ja": "異国",
+        "ko": "이국"
+      },
+      "option.genre.oeste": {
+        "zh-Hans": "西部",
+        "zh-Hant": "西部",
+        "en": "Western",
+        "ja": "西部劇",
+        "ko": "서부극"
+      },
+      "option.genre.shoujo-ai": {
+        "zh-Hans": "少女爱",
+        "zh-Hant": "少女愛",
+        "en": "Shoujo Ai",
+        "ja": "少女愛",
+        "ko": "소녀애"
+      },
+      "option.genre.doujinshi": {
+        "zh-Hans": "同人志",
+        "zh-Hant": "同人誌",
+        "en": "Doujinshi",
+        "ja": "同人誌",
+        "ko": "동인지"
+      },
+      "option.genre.psicologico": {
+        "zh-Hans": "心理 (Psicológico)",
+        "zh-Hant": "心理 (Psicológico)",
+        "en": "Psychological (Psicológico)",
+        "ja": "心理 (Psicológico)",
+        "ko": "심리 (Psicológico)"
+      },
+      "option.genre.accion": {
+        "zh-Hans": "动作 (Acción)",
+        "zh-Hant": "動作 (Acción)",
+        "en": "Action (Acción)",
+        "ja": "アクション (Acción)",
+        "ko": "액션 (Acción)"
+      },
+      "option.genre.ciencia-ficcion": {
+        "zh-Hans": "科幻 (Ciencia Ficción)",
+        "zh-Hant": "科幻 (Ciencia Ficción)",
+        "en": "Sci-Fi (Ciencia Ficción)",
+        "ja": "SF (Ciencia Ficción)",
+        "ko": "SF (Ciencia Ficción)"
+      },
+      "option.genre.genero-bender": {
+        "zh-Hans": "性别转换 (Género Bender)",
+        "zh-Hant": "性別轉換 (Género Bender)",
+        "en": "Gender Bender (Género Bender)",
+        "ja": "性別変化 (Género Bender)",
+        "ko": "성별 전환 (Género Bender)"
+      },
+      "option.genre.apocaliptico": {
+        "zh-Hans": "末世",
+        "zh-Hant": "末世",
+        "en": "Post-Apocalyptic",
+        "ja": "終末世界",
+        "ko": "포스트 아포칼립스"
+      },
+      "option.genre.reencarnacion": {
+        "zh-Hans": "转生",
+        "zh-Hant": "轉生",
+        "en": "Reincarnation",
+        "ja": "転生",
+        "ko": "환생"
+      },
+      "option.genre.ninos": {
+        "zh-Hans": "儿童",
+        "zh-Hant": "兒童",
+        "en": "Children",
+        "ja": "児童向け",
+        "ko": "아동"
+      },
+      "option.genre.lolicon": {
+        "zh-Hans": "萝莉情结",
+        "zh-Hant": "蘿莉情結",
+        "en": "Lolicon",
+        "ja": "ロリコン",
+        "ko": "로리콘"
+      },
+      "option.genre.hentai": {
+        "zh-Hans": "成人漫画",
+        "zh-Hant": "成人漫畫",
+        "en": "Hentai",
+        "ja": "成人漫画",
+        "ko": "성인 만화"
+      },
+      "option.genre.animacion": {
+        "zh-Hans": "动画",
+        "zh-Hant": "動畫",
+        "en": "Animation",
+        "ja": "アニメーション",
+        "ko": "애니메이션"
+      },
+      "option.theme.aliens": {
+        "zh-Hans": "外星人",
+        "zh-Hant": "外星人",
+        "en": "Aliens",
+        "ja": "宇宙人",
+        "ko": "외계인"
+      },
+      "option.theme.animals": {
+        "zh-Hans": "动物",
+        "zh-Hant": "動物",
+        "en": "Animals",
+        "ja": "動物",
+        "ko": "동물"
+      },
+      "option.theme.cooking": {
+        "zh-Hans": "烹饪",
+        "zh-Hant": "烹飪",
+        "en": "Cooking",
+        "ja": "料理",
+        "ko": "요리"
+      },
+      "option.theme.cross-dressing": {
+        "zh-Hans": "异装",
+        "zh-Hant": "異裝",
+        "en": "Cross-dressing",
+        "ja": "異性装",
+        "ko": "이성복장"
+      },
+      "option.theme.delinquents": {
+        "zh-Hans": "不良少年",
+        "zh-Hant": "不良少年",
+        "en": "Delinquents",
+        "ja": "不良・ヤンキー",
+        "ko": "불량 청소년"
+      },
+      "option.theme.demons": {
+        "zh-Hans": "恶魔",
+        "zh-Hant": "惡魔",
+        "en": "Demons",
+        "ja": "悪魔",
+        "ko": "악마"
+      },
+      "option.theme.genderswap": {
+        "zh-Hans": "性别互换",
+        "zh-Hant": "性別互換",
+        "en": "Gender Swap",
+        "ja": "性転換",
+        "ko": "성별 전환"
+      },
+      "option.theme.ghosts": {
+        "zh-Hans": "幽灵",
+        "zh-Hant": "幽靈",
+        "en": "Ghosts",
+        "ja": "幽霊",
+        "ko": "유령"
+      },
+      "option.theme.gyaru": {
+        "zh-Hans": "辣妹",
+        "zh-Hant": "辣妹",
+        "en": "Gyaru",
+        "ja": "ギャル",
+        "ko": "갸루"
+      },
+      "option.theme.harem": {
+        "zh-Hans": "后宫",
+        "zh-Hant": "後宮",
+        "en": "Harem",
+        "ja": "ハーレム",
+        "ko": "하렘"
+      },
+      "option.theme.incest": {
+        "zh-Hans": "乱伦",
+        "zh-Hant": "亂倫",
+        "en": "Incest",
+        "ja": "近親もの",
+        "ko": "근친"
+      },
+      "option.theme.loli": {
+        "zh-Hans": "萝莉",
+        "zh-Hant": "蘿莉",
+        "en": "Loli",
+        "ja": "ロリ",
+        "ko": "로리"
+      },
+      "option.theme.mafia": {
+        "zh-Hans": "黑手党",
+        "zh-Hant": "黑手黨",
+        "en": "Mafia",
+        "ja": "マフィア",
+        "ko": "마피아"
+      },
+      "option.theme.magic": {
+        "zh-Hans": "魔法",
+        "zh-Hant": "魔法",
+        "en": "Magic",
+        "ja": "魔法",
+        "ko": "마법"
+      },
+      "option.theme.martial-arts": {
+        "zh-Hans": "武术",
+        "zh-Hant": "武術",
+        "en": "Martial Arts",
+        "ja": "格闘技",
+        "ko": "무술"
+      },
+      "option.theme.military": {
+        "zh-Hans": "军事",
+        "zh-Hant": "軍事",
+        "en": "Military",
+        "ja": "ミリタリー",
+        "ko": "밀리터리"
+      },
+      "option.theme.monster-girls": {
+        "zh-Hans": "魔物娘",
+        "zh-Hant": "魔物娘",
+        "en": "Monster Girls",
+        "ja": "モンスター娘",
+        "ko": "몬스터 소녀"
+      },
+      "option.theme.monsters": {
+        "zh-Hans": "怪物",
+        "zh-Hant": "怪物",
+        "en": "Monsters",
+        "ja": "モンスター",
+        "ko": "괴물"
+      },
+      "option.theme.music": {
+        "zh-Hans": "音乐",
+        "zh-Hant": "音樂",
+        "en": "Music",
+        "ja": "音楽",
+        "ko": "음악"
+      },
+      "option.theme.ninja": {
+        "zh-Hans": "忍者",
+        "zh-Hant": "忍者",
+        "en": "Ninja",
+        "ja": "忍者",
+        "ko": "닌자"
+      },
+      "option.theme.office-workers": {
+        "zh-Hans": "职场人士",
+        "zh-Hant": "職場人士",
+        "en": "Office Workers",
+        "ja": "会社員",
+        "ko": "직장인"
+      },
+      "option.theme.police": {
+        "zh-Hans": "警察",
+        "zh-Hant": "警察",
+        "en": "Police",
+        "ja": "警察",
+        "ko": "경찰"
+      },
+      "option.theme.post-apocalyptic": {
+        "zh-Hans": "末世",
+        "zh-Hant": "末世",
+        "en": "Post-Apocalyptic",
+        "ja": "終末世界",
+        "ko": "포스트 아포칼립스"
+      },
+      "option.theme.reincarnation": {
+        "zh-Hans": "转生",
+        "zh-Hant": "轉生",
+        "en": "Reincarnation",
+        "ja": "転生",
+        "ko": "환생"
+      },
+      "option.theme.reverse-harem": {
+        "zh-Hans": "逆后宫",
+        "zh-Hant": "逆後宮",
+        "en": "Reverse Harem",
+        "ja": "逆ハーレム",
+        "ko": "역하렘"
+      },
+      "option.theme.samurai": {
+        "zh-Hans": "武士",
+        "zh-Hant": "武士",
+        "en": "Samurai",
+        "ja": "侍",
+        "ko": "사무라이"
+      },
+      "option.theme.school-life": {
+        "zh-Hans": "校园生活",
+        "zh-Hant": "校園生活",
+        "en": "School Life",
+        "ja": "学園生活",
+        "ko": "학교생활"
+      },
+      "option.theme.shota": {
+        "zh-Hans": "正太",
+        "zh-Hant": "正太",
+        "en": "Shota",
+        "ja": "ショタ",
+        "ko": "쇼타"
+      },
+      "option.theme.supernatural": {
+        "zh-Hans": "超自然",
+        "zh-Hant": "超自然",
+        "en": "Supernatural",
+        "ja": "超自然",
+        "ko": "초자연"
+      },
+      "option.theme.survival": {
+        "zh-Hans": "生存",
+        "zh-Hant": "生存",
+        "en": "Survival",
+        "ja": "サバイバル",
+        "ko": "생존"
+      },
+      "option.theme.time-travel": {
+        "zh-Hans": "时间旅行",
+        "zh-Hant": "時間旅行",
+        "en": "Time Travel",
+        "ja": "タイムトラベル",
+        "ko": "시간 여행"
+      },
+      "option.theme.traditional-games": {
+        "zh-Hans": "传统游戏",
+        "zh-Hant": "傳統遊戲",
+        "en": "Traditional Games",
+        "ja": "伝統的な遊び",
+        "ko": "전통 놀이"
+      },
+      "option.theme.vampires": {
+        "zh-Hans": "吸血鬼",
+        "zh-Hant": "吸血鬼",
+        "en": "Vampires",
+        "ja": "吸血鬼",
+        "ko": "흡혈귀"
+      },
+      "option.theme.video-games": {
+        "zh-Hans": "电子游戏",
+        "zh-Hant": "電子遊戲",
+        "en": "Video Games",
+        "ja": "ビデオゲーム",
+        "ko": "비디오 게임"
+      },
+      "option.theme.villainess": {
+        "zh-Hans": "恶役千金",
+        "zh-Hant": "惡役千金",
+        "en": "Villainess",
+        "ja": "悪役令嬢",
+        "ko": "악역 영애"
+      },
+      "option.theme.virtual-reality": {
+        "zh-Hans": "虚拟现实",
+        "zh-Hant": "虛擬實境",
+        "en": "Virtual Reality",
+        "ja": "仮想現実",
+        "ko": "가상 현실"
+      },
+      "option.theme.zombies": {
+        "zh-Hans": "僵尸",
+        "zh-Hant": "殭屍",
+        "en": "Zombies",
+        "ja": "ゾンビ",
+        "ko": "좀비"
+      }
+    }
+  },
+  "chapterOrder": "newest_first"
+}
