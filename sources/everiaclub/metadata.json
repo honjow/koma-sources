@@ -1,0 +1,189 @@
+{
+  "icon": "icon.webp",
+  "homepage": "https://everia.club",
+  "minAppVersion": "0.1.0",
+  "localizedNames": {
+    "zh-Hans": "Everia.club",
+    "zh-Hant": "Everia.club",
+    "en": "Everia.club",
+    "ja": "Everia.club",
+    "ko": "Everia.club"
+  },
+  "localizedDescriptions": {
+    "zh-Hans": "亚洲写真图集，收录日本写真杂志、韩国和泰国写真、华人写真与角色扮演。",
+    "zh-Hant": "亞洲寫真圖集，收錄日本寫真雜誌、韓國和泰國寫真、華人寫真與角色扮演。",
+    "en": "An Asian photobook archive with Japanese gravure magazines, Korean and Thai photo sets, Chinese photography and cosplay.",
+    "ja": "日本のグラビア誌、韓国・タイ・中華圏の写真集やコスプレを収録したアジアの写真集アーカイブです。",
+    "ko": "일본 그라비아 잡지, 한국·태국·중화권 화보와 코스프레를 모은 아시아 사진집 아카이브입니다."
+  },
+  "requestLimits": [
+    {
+      "group": "everiaclub-site",
+      "permits": 2,
+      "periodMs": 1000,
+      "hosts": [
+        "everia.club"
+      ]
+    }
+  ],
+  "localization": {
+    "version": 1,
+    "defaultLocale": "en",
+    "messages": {
+      "source.name": {
+        "zh-Hans": "Everia.club",
+        "zh-Hant": "Everia.club",
+        "en": "Everia.club",
+        "ja": "Everia.club",
+        "ko": "Everia.club"
+      },
+      "source.description": {
+        "zh-Hans": "亚洲写真图集，收录日本写真杂志、韩国和泰国写真、华人写真与角色扮演。",
+        "zh-Hant": "亞洲寫真圖集，收錄日本寫真雜誌、韓國和泰國寫真、華人寫真與角色扮演。",
+        "en": "An Asian photobook archive with Japanese gravure magazines, Korean and Thai photo sets, Chinese photography and cosplay.",
+        "ja": "日本のグラビア誌、韓国・タイ・中華圏の写真集やコスプレを収録したアジアの写真集アーカイブです。",
+        "ko": "일본 그라비아 잡지, 한국·태국·중화권 화보와 코스프레를 모은 아시아 사진집 아카이브입니다."
+      },
+      "listing.latest": {
+        "zh-Hans": "最新发布",
+        "zh-Hant": "最新發佈",
+        "en": "Latest releases",
+        "ja": "新着",
+        "ko": "최신 게시물"
+      },
+      "chapter.gallery": {
+        "zh-Hans": "整册相册",
+        "zh-Hant": "整冊相簿",
+        "en": "Full gallery",
+        "ja": "全ページ",
+        "ko": "전체 화보"
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站未提供此内容或图片。",
+        "zh-Hant": "原站未提供此內容或圖片。",
+        "en": "The website does not provide this content or its images.",
+        "ja": "配信元にコンテンツまたは画像がありません。",
+        "ko": "사이트에 콘텐츠 또는 이미지가 없습니다."
+      },
+      "error.network": {
+        "zh-Hans": "原站请求未完成，请稍后重试。",
+        "zh-Hant": "原站要求未完成，請稍後再試。",
+        "en": "Could not complete the website request. Try again later.",
+        "ja": "配信元へのアクセスに失敗しました。時間をおいて再試行してください。",
+        "ko": "사이트에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."
+      },
+      "error.filter": {
+        "zh-Hans": "请检查关键词、筛选或翻页参数。",
+        "zh-Hant": "請檢查關鍵字、篩選或分頁參數。",
+        "en": "Check the keyword, filters or page before trying again.",
+        "ja": "キーワード、絞り込み条件、ページを確認してください。",
+        "ko": "검색어, 필터 또는 페이지를 확인해 주세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法读取原站内容。",
+        "zh-Hant": "暫時無法讀取原站內容。",
+        "en": "Unable to read the website content.",
+        "ja": "配信元のコンテンツを読み込めません。",
+        "ko": "사이트 콘텐츠를 읽을 수 없습니다."
+      },
+      "listing.popular": {
+        "zh-Hans": "热门",
+        "zh-Hant": "熱門",
+        "en": "Popular",
+        "ja": "人気",
+        "ko": "인기"
+      },
+      "listing.cosplay": {
+        "zh-Hans": "角色扮演",
+        "zh-Hant": "角色扮演",
+        "en": "Cosplay",
+        "ja": "コスプレ",
+        "ko": "코스프레"
+      },
+      "filter.any": {
+        "zh-Hans": "不限",
+        "zh-Hant": "不限",
+        "en": "Any",
+        "ja": "すべて",
+        "ko": "전체"
+      },
+      "filter.category": {
+        "zh-Hans": "分类",
+        "zh-Hant": "分類",
+        "en": "Category",
+        "ja": "カテゴリー",
+        "ko": "카테고리"
+      },
+      "filter.category_hint": {
+        "zh-Hans": "可以和关键词一起使用。",
+        "zh-Hant": "可以和關鍵字一起使用。",
+        "en": "Can be combined with a keyword.",
+        "ja": "キーワードと組み合わせて絞り込めます。",
+        "ko": "검색어와 함께 사용할 수 있습니다."
+      },
+      "listing.japan": {
+        "zh-Hans": "日本",
+        "zh-Hant": "日本",
+        "en": "Japan",
+        "ja": "日本",
+        "ko": "일본"
+      },
+      "listing.korea": {
+        "zh-Hans": "韩国",
+        "zh-Hant": "韓國",
+        "en": "Korea",
+        "ja": "韓国",
+        "ko": "한국"
+      },
+      "listing.thailand": {
+        "zh-Hans": "泰国",
+        "zh-Hant": "泰國",
+        "en": "Thailand",
+        "ja": "タイ",
+        "ko": "태국"
+      },
+      "listing.china": {
+        "zh-Hans": "华人写真",
+        "zh-Hant": "華人寫真",
+        "en": "Chinese photography",
+        "ja": "中華圏",
+        "ko": "중화권"
+      },
+      "listing.uncategorized": {
+        "zh-Hans": "未分类",
+        "zh-Hant": "未分類",
+        "en": "Uncategorized",
+        "ja": "未分類",
+        "ko": "미분류"
+      },
+      "filter.tags": {
+        "zh-Hans": "标签",
+        "zh-Hant": "標籤",
+        "en": "Tags",
+        "ja": "タグ",
+        "ko": "태그"
+      },
+      "filter.tags_hint": {
+        "zh-Hans": "选择要包含或排除的原站标签。",
+        "zh-Hant": "選擇要包含或排除的原站標籤。",
+        "en": "Choose website tags to include or exclude.",
+        "ja": "含めるタグ、除外するタグを選択できます。",
+        "ko": "포함하거나 제외할 사이트 태그를 선택하세요."
+      },
+      "filter.tag": {
+        "zh-Hans": "包含标签",
+        "zh-Hant": "包含標籤",
+        "en": "Include tag",
+        "ja": "含めるタグ",
+        "ko": "포함 태그"
+      },
+      "filter.exclude_tag": {
+        "zh-Hans": "排除标签",
+        "zh-Hant": "排除標籤",
+        "en": "Exclude tag",
+        "ja": "除外するタグ",
+        "ko": "제외 태그"
+      }
+    }
+  }
+}

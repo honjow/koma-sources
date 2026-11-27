@@ -88,6 +88,9 @@
 
 | 图标 | 目录 | 名称 | 备注 |
 |---|---|---|---|
+| <img src="everiaclub/icon.webp" width="24" alt=""> | everiaclub | Everia.club | 日本写真杂志、韩国和泰国写真、华人写真和角色扮演，支持整册多页合并。 |
+| <img src="fourkhd/icon.png" width="24" alt=""> | fourkhd | 4KHD | 韩国杂志与摄影机构写真、华人写真和角色扮演，读取原站相册大图。 |
+| <img src="idolgravureprincessdate/icon.ico" width="24" alt=""> | idolgravureprincessdate | Idol.gravureprincess.date | 日本偶像和声优的旧刊写真档案，可按团体及杂志标签查找。 |
 | <img src="3hentai-zh/icon.png" width="24" alt=""> | 3hentai-zh | 3Hentai | 3Hentai 的中文漫画图集，标示作者、社团、角色与题材标签，每册图集可连续阅读。 |
 | <img src="jiulingmanhua/icon.png" width="24" alt=""> | jiulingmanhua | 90漫画网 | 90漫画网收录日本、韩国、国漫、港台及欧美漫画，题材包含恋爱、校园、冒险与科幻，兼有连载及完结作品。 |
 | <img src="yiqiqimanhua/icon.png" width="24" alt=""> | yiqiqimanhua | 177漫画 | 177漫画收录中文与日文成人漫画、全彩 CG 图集，包含纯图无字画集；每篇图集整册阅读。 |
@@ -188,6 +191,8 @@
 | example-demo | 教学演示源，用 JSONPlaceholder API，非真实漫画源 |
 | gigaviewer.rs | GigaViewer GraphQL、产品目录和公开阅读协议共享模块 |
 | gigaviewer_browse.rs | GigaViewer 连载分组、题材筛选和栏目分页共享模块 |
+| wp_gallery.rs | WordPress 写真源共用的 REST 作品字段、翻页和图片提取 |
+| photo_gallery.rs | 写真文章到 Koma 单册、章节和页表的共同映射 |
 | taku_gallery.rs | 单文件参考实现，非标准源目录结构 |
 | xcomic_java_regex.rs | 单文件参考实现，非标准源目录结构 |
 

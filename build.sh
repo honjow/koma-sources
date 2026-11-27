@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # build.sh — Build all sources into .koma packages and generate index.json
-# Usage: ./build.sh [--source <name>] [--scaffold <name>]
+# Usage: ./build.sh [--source <name> ...] [--scaffold <name>]
 # Requires: cargo (with wasm32-unknown-unknown), zip, jq, koma-source-dev (in PATH or $DEV_RUNNER)
 set -euo pipefail
 
@@ -34,6 +34,9 @@ RELEASE_PACKAGE_DIR="$OUTPUT_DIR/release-packages"
 SOURCE_ENTRIES='
 cosplaytele|cosplaytele|true|0.1.4
 buondua|buondua|true|1.4.1
+everiaclub|everiaclub|true|0.1.0
+fourkhd|fourkhd|true|0.1.0
+idolgravureprincessdate|idolgravureprincessdate|true|0.1.0
 xiutaku|xiutaku|true|1.4.1
 kiutaku|kiutaku|true|1.2.0
 hentaifox-zh|hentaifox-zh|true|0.1.1
@@ -223,8 +226,8 @@ source_min_app_version() {
 }
 
 selected_source_names() {
-  if [[ -n "$ONLY_SOURCE" ]]; then
-    printf '%s\n' "$ONLY_SOURCE"
+  if [[ ${#ONLY_SOURCES[@]} -gt 0 ]]; then
+    printf '%s\n' "${ONLY_SOURCES[@]}" | awk '!seen[$0]++'
   else
     for name in $(source_names); do
       [[ "$name" == "example-demo" ]] && continue
@@ -235,8 +238,8 @@ selected_source_names() {
 
 # Compile the teaching demo as well; only production sources are distributed.
 compiled_source_names() {
-  if [[ -n "$ONLY_SOURCE" ]]; then
-    printf '%s\n' "$ONLY_SOURCE"
+  if [[ ${#ONLY_SOURCES[@]} -gt 0 ]]; then
+    selected_source_names
   else
     source_names
   fi
@@ -244,7 +247,7 @@ compiled_source_names() {
 
 REPO_URL="${KOMA_REPO_URL:-https://github.com/honjow/koma-sources}"
 
-ONLY_SOURCE=""
+ONLY_SOURCES=()
 VERSION_TAG=""
 CHECK_REGISTRY=0
 COMPILE_ONLY=0
@@ -255,7 +258,7 @@ while [[ $# -gt 0 ]]; do
     --compile-only) COMPILE_ONLY=1; shift ;;
     --package-only) PACKAGE_ONLY=1; shift ;;
     --check-registry) CHECK_REGISTRY=1; shift ;;
-    --source) ONLY_SOURCE="$2"; shift 2 ;;
+    --source) ONLY_SOURCES+=("$2"); shift 2 ;;
     --tag) VERSION_TAG="$2"; shift 2 ;;
     --scaffold) SCAFFOLD_NAME="$2"; shift 2 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
@@ -314,8 +317,12 @@ PYREG
 if [[ "$CHECK_REGISTRY" == 1 ]]; then
   exit 0
 fi
-if [[ -n "$ONLY_SOURCE" && -z "$(source_crate_dir "$ONLY_SOURCE")" ]]; then
-  log "ERROR: unknown source: $ONLY_SOURCE"; exit 1
+if [[ ${#ONLY_SOURCES[@]} -gt 0 ]]; then
+  for name in "${ONLY_SOURCES[@]}"; do
+    if [[ -z "$(source_crate_dir "$name")" ]]; then
+      log "ERROR: unknown source: $name"; exit 1
+    fi
+  done
 fi
 
 log "▸ Validating source registry..."

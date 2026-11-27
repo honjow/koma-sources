@@ -1,0 +1,133 @@
+{
+  "icon": "icon.ico",
+  "homepage": "https://idol.gravureprincess.date",
+  "minAppVersion": "0.1.0",
+  "localizedNames": {
+    "zh-Hans": "Idol.gravureprincess.date",
+    "zh-Hant": "Idol.gravureprincess.date",
+    "en": "Idol.gravureprincess.date",
+    "ja": "Idol.gravureprincess.date",
+    "ko": "Idol.gravureprincess.date"
+  },
+  "localizedDescriptions": {
+    "zh-Hans": "日本偶像与声优的写真档案，按团体与杂志刊号收录，包括《Young Champion》和《声优大奖赛》。",
+    "zh-Hant": "日本偶像與聲優的寫真檔案，按團體與雜誌刊號收錄，包括《Young Champion》和《聲優大獎賽》。",
+    "en": "A Japanese idol and voice-actor photo archive organized by groups and magazine issues, including Young Champion and Seigura.",
+    "ja": "日本のアイドルと声優のグラビアを、グループや『ヤングチャンピオン』『声優グランプリ』などの雑誌号別に収録したアーカイブです。",
+    "ko": "일본 아이돌과 성우의 화보를 그룹과 잡지 호수별로 모은 아카이브로, 영 챔피언과 성우 그랑프리 등을 수록합니다."
+  },
+  "requestLimits": [
+    {
+      "group": "idolgravureprincessdate-site",
+      "permits": 2,
+      "periodMs": 1000,
+      "hosts": [
+        "idol.gravureprincess.date"
+      ]
+    }
+  ],
+  "localization": {
+    "version": 1,
+    "defaultLocale": "ja",
+    "messages": {
+      "source.name": {
+        "zh-Hans": "Idol.gravureprincess.date",
+        "zh-Hant": "Idol.gravureprincess.date",
+        "en": "Idol.gravureprincess.date",
+        "ja": "Idol.gravureprincess.date",
+        "ko": "Idol.gravureprincess.date"
+      },
+      "source.description": {
+        "zh-Hans": "日本偶像与声优的写真档案，按团体与杂志刊号收录，包括《Young Champion》和《声优大奖赛》。",
+        "zh-Hant": "日本偶像與聲優的寫真檔案，按團體與雜誌刊號收錄，包括《Young Champion》和《聲優大獎賽》。",
+        "en": "A Japanese idol and voice-actor photo archive organized by groups and magazine issues, including Young Champion and Seigura.",
+        "ja": "日本のアイドルと声優のグラビアを、グループや『ヤングチャンピオン』『声優グランプリ』などの雑誌号別に収録したアーカイブです。",
+        "ko": "일본 아이돌과 성우의 화보를 그룹과 잡지 호수별로 모은 아카이브로, 영 챔피언과 성우 그랑프리 등을 수록합니다."
+      },
+      "listing.latest": {
+        "zh-Hans": "最新发布",
+        "zh-Hant": "最新發佈",
+        "en": "Latest releases",
+        "ja": "新着",
+        "ko": "최신 게시물"
+      },
+      "chapter.gallery": {
+        "zh-Hans": "整册相册",
+        "zh-Hant": "整冊相簿",
+        "en": "Full gallery",
+        "ja": "全ページ",
+        "ko": "전체 화보"
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站未提供此内容或图片。",
+        "zh-Hant": "原站未提供此內容或圖片。",
+        "en": "The website does not provide this content or its images.",
+        "ja": "配信元にコンテンツまたは画像がありません。",
+        "ko": "사이트에 콘텐츠 또는 이미지가 없습니다."
+      },
+      "error.network": {
+        "zh-Hans": "原站请求未完成，请稍后重试。",
+        "zh-Hant": "原站要求未完成，請稍後再試。",
+        "en": "Could not complete the website request. Try again later.",
+        "ja": "配信元へのアクセスに失敗しました。時間をおいて再試行してください。",
+        "ko": "사이트에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."
+      },
+      "error.filter": {
+        "zh-Hans": "请检查关键词、筛选或翻页参数。",
+        "zh-Hant": "請檢查關鍵字、篩選或分頁參數。",
+        "en": "Check the keyword, filters or page before trying again.",
+        "ja": "キーワード、絞り込み条件、ページを確認してください。",
+        "ko": "검색어, 필터 또는 페이지를 확인해 주세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法读取原站内容。",
+        "zh-Hant": "暫時無法讀取原站內容。",
+        "en": "Unable to read the website content.",
+        "ja": "配信元のコンテンツを読み込めません。",
+        "ko": "사이트 콘텐츠를 읽을 수 없습니다."
+      },
+      "filter.idol": {
+        "zh-Hans": "偶像团体",
+        "zh-Hant": "偶像團體",
+        "en": "Idol groups",
+        "ja": "アイドルグループ",
+        "ko": "아이돌 그룹"
+      },
+      "filter.idol_hint": {
+        "zh-Hans": "按团体的原站标签筛选。",
+        "zh-Hant": "按團體的原站標籤篩選。",
+        "en": "Filter using the website’s group labels.",
+        "ja": "配信元のグループラベルで絞り込みます。",
+        "ko": "사이트의 그룹 라벨로 필터링합니다."
+      },
+      "filter.magazine": {
+        "zh-Hans": "杂志",
+        "zh-Hant": "雜誌",
+        "en": "Magazines",
+        "ja": "雑誌",
+        "ko": "잡지"
+      },
+      "filter.magazine_hint": {
+        "zh-Hans": "选择刊物标签，可用关键词进一步查找具体刊号。",
+        "zh-Hant": "選擇刊物標籤，可用關鍵字進一步查找特定刊號。",
+        "en": "Choose magazine labels and add a keyword to find a specific issue.",
+        "ja": "雑誌ラベルを選び、キーワードで特定の号を探せます。",
+        "ko": "잡지 라벨을 고르고 검색어로 특정 호를 찾을 수 있습니다."
+      },
+      "filter.other": {
+        "zh-Hans": "其他标签",
+        "zh-Hant": "其他標籤",
+        "en": "Other labels",
+        "ja": "その他のラベル",
+        "ko": "기타 라벨"
+      },
+      "filter.other_hint": {
+        "zh-Hans": "按网站提供的人物和其他标签筛选。",
+        "zh-Hant": "按網站提供的人物和其他標籤篩選。",
+        "en": "Filter by people and other labels supplied by the website.",
+        "ja": "配信元の人物などのラベルで絞り込みます。",
+        "ko": "사이트의 인물 및 기타 라벨로 필터링합니다."
+      }
+    }
+  }
+}
