@@ -90,6 +90,7 @@
 |---|---|---|---|
 | <img src="everiaclub/icon.webp" width="24" alt=""> | everiaclub | Everia.club | 日本写真杂志、韩国和泰国写真、华人写真和角色扮演，支持整册多页合并。 |
 | <img src="misskon/icon.png" width="24" alt=""> | misskon | MissKon | 亚洲写真图集，提供浏览量榜单、分类与标签，合并原站公开相册子页。 |
+| <img src="foamgirl/icon.png" width="24" alt=""> | foamgirl | FoamGirl | 亚洲写真与角色扮演图集，支持官网分类、标签和搜索，按整册合并公开相册子页。 |
 | <img src="fourkhd/icon.png" width="24" alt=""> | fourkhd | 4KHD | 韩国杂志与摄影机构写真、华人写真和角色扮演，读取原站相册大图。 |
 | <img src="idolgravureprincessdate/icon.ico" width="24" alt=""> | idolgravureprincessdate | Idol.gravureprincess.date | 日本偶像和声优的旧刊写真档案，可按团体及杂志标签查找。 |
 | <img src="3hentai-zh/icon.png" width="24" alt=""> | 3hentai-zh | 3Hentai | 3Hentai 的中文漫画图集，标示作者、社团、角色与题材标签，每册图集可连续阅读。 |
@@ -168,6 +169,7 @@
 | <img src="sundaywebevery-ja/icon.png" width="24" alt=""> | sundaywebevery-ja | サンデーうぇぶり | 小学馆《名侦探柯南》等连载、短篇和夜 Sunday 公开话。 |
 | <img src="ganganonline-ja/icon.png" width="24" alt=""> | ganganonline-ja | ガンガンONLINE | Square Enix 官方漫画杂志，含连载、完结、Gangan pixiv 和 GA，公开话可匿名阅读。 |
 | <img src="kadocomi-ja/icon.png" width="24" alt=""> | kadocomi-ja | カドコミ | 角川多个漫画厂牌的连载与公开话，包内还原官网正文图。 |
+| <img src="magazinepocket-ja/icon.png" width="24" alt=""> | magazinepocket-ja | マガポケ | 讲谈社官方连载及平台原创，阅读限官网公开话，包内还原像素顺序。 |
 | <img src="twi4-ja/icon.png" width="24" alt=""> | twi4-ja | Twi4 | 星海社「最前線」的日文四格连载，收录《トモちゃんは女の子！》等作品。 |
 
 ## 英文原站
@@ -182,6 +184,7 @@
 | <img src="comicfury-en/icon.png" width="24" alt=""> | comicfury-en | Comic Fury (English) | 创作者自行发布的英文网漫，部分作品有作者附言。 |
 | <img src="smbc-en/icon.png" width="24" alt=""> | smbc-en | Saturday Morning Breakfast Comics | 扎克·韦纳史密斯的英文科普与生活短篇漫画，部分有红按钮彩蛋。 |
 | <img src="questionablecontent-en/icon.png" width="24" alt=""> | questionablecontent-en | Questionable Content | Jeph Jacques 自 2003 年连载的英文网漫，收录官方漫画归档，可显示作者附注。 |
+| <img src="commitstrip-en/icon.png" width="24" alt=""> | commitstrip-en | CommitStrip | 程序员日常英文短漫，支持官网英文搜索及年度归档。 |
 
 ## 俄语原站
 

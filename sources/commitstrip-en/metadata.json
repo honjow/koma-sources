@@ -1,0 +1,112 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://www.commitstrip.com/en/",
+  "minAppVersion": "0.1.0",
+  "localizedNames": {
+    "zh-Hans": "CommitStrip",
+    "zh-Hant": "CommitStrip",
+    "en": "CommitStrip",
+    "ja": "CommitStrip",
+    "ko": "CommitStrip"
+  },
+  "localizedDescriptions": {
+    "zh-Hans": "CommitStrip 的英文网漫，以程序员和网站开发公司的日常为题材。",
+    "zh-Hant": "CommitStrip 的英文網漫，以程式設計師和網站開發公司的日常為題材。",
+    "en": "English edition of CommitStrip’s webcomic about programmers and life in a web agency.",
+    "ja": "プログラマーやウェブ制作会社の日常を描く CommitStrip の英語版です。",
+    "ko": "프로그래머와 웹 제작사의 일상을 그리는 CommitStrip 영어판입니다."
+  },
+  "requestLimits": [
+    {
+      "group": "commitstrip-site",
+      "permits": 2,
+      "periodMs": 1000,
+      "hosts": [
+        "www.commitstrip.com"
+      ]
+    }
+  ],
+  "localization": {
+    "version": 1,
+    "defaultLocale": "en",
+    "messages": {
+      "source.author": {
+        "zh-Hans": "Koma 书源贡献者",
+        "zh-Hant": "Koma 書源貢獻者",
+        "en": "Koma source contributors",
+        "ja": "Koma ソース開発メンバー",
+        "ko": "Koma 소스 기여자"
+      },
+      "error.network": {
+        "zh-Hans": "网站请求未完成，请稍后再试。",
+        "zh-Hant": "網站請求未完成，請稍後再試。",
+        "en": "The website request failed. Try again shortly.",
+        "ja": "サイトに接続できませんでした。時間をおいてお試しください。",
+        "ko": "사이트 요청에 실패했습니다. 잠시 후 다시 시도하세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法读取原站内容。",
+        "zh-Hant": "暫時無法讀取原站內容。",
+        "en": "The website content could not be read.",
+        "ja": "サイトの内容を読み取れませんでした。",
+        "ko": "사이트 콘텐츠를 읽을 수 없습니다."
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站未提供这项内容。",
+        "zh-Hant": "原站未提供這項內容。",
+        "en": "This content is unavailable on the original site.",
+        "ja": "元のサイトでこの内容は公開されていません。",
+        "ko": "원본 사이트에서 이 콘텐츠를 이용할 수 없습니다."
+      },
+      "source.name": {
+        "zh-Hans": "CommitStrip",
+        "zh-Hant": "CommitStrip",
+        "en": "CommitStrip",
+        "ja": "CommitStrip",
+        "ko": "CommitStrip"
+      },
+      "source.description": {
+        "zh-Hans": "CommitStrip 的英文网漫，以程序员和网站开发公司的日常为题材。",
+        "zh-Hant": "CommitStrip 的英文網漫，以程式設計師和網站開發公司的日常為題材。",
+        "en": "English edition of CommitStrip’s webcomic about programmers and life in a web agency.",
+        "ja": "プログラマーやウェブ制作会社の日常を描く CommitStrip の英語版です。",
+        "ko": "프로그래머와 웹 제작사의 일상을 그리는 CommitStrip 영어판입니다."
+      },
+      "listing.latest": {
+        "zh-Hans": "最新短漫",
+        "zh-Hant": "最新短漫",
+        "en": "Latest strips",
+        "ja": "新着コミック",
+        "ko": "최신 만화"
+      },
+      "chapter.strip": {
+        "zh-Hans": "漫画正文",
+        "zh-Hant": "漫畫正文",
+        "en": "Comic strip",
+        "ja": "本編",
+        "ko": "만화 본편"
+      },
+      "filter.year": {
+        "zh-Hans": "归档年份",
+        "zh-Hant": "封存年份",
+        "en": "Archive year",
+        "ja": "アーカイブの年",
+        "ko": "보관 연도"
+      },
+      "filter.year_hint": {
+        "zh-Hans": "输入 2012 年或之后的年份，并清空关键词。",
+        "zh-Hant": "輸入 2012 年或之後的年份，並清空關鍵字。",
+        "en": "Enter a year from 2012 onward and clear the keyword.",
+        "ja": "2012年以降の年を入力し、キーワードを空欄にしてください。",
+        "ko": "2012년 이후 연도를 입력하고 검색어를 비워 주세요."
+      },
+      "error.filter": {
+        "zh-Hans": "请求无效。请使用有效年份或搜索关键词。",
+        "zh-Hant": "請求無效。請使用有效年份或搜尋關鍵字。",
+        "en": "Invalid request. Enter a valid year or a search keyword.",
+        "ja": "リクエストが無効です。有効な年かキーワードを入力してください。",
+        "ko": "잘못된 요청입니다. 유효한 연도 또는 검색어를 입력하세요."
+      }
+    }
+  }
+}

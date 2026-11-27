@@ -1413,6 +1413,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_commitstrip_en_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "koma_copymanga_source"
 version = "0.1.10"
 dependencies = [
@@ -1565,6 +1575,16 @@ name = "koma_fjumonkey_zh_hant_source"
 version = "0.1.6"
 dependencies = [
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_foamgirl_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
 ]
 
 [[package]]
@@ -1934,6 +1954,21 @@ version = "0.1.5"
 dependencies = [
  "koma_source_sdk",
 ]
+
+[[package]]
+name = "koma_magazinepocket_ja_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "sha2",
+ "url",
+]
+
+[[package]]
+name = "koma_magazinepocket_tiles_processor"
+version = "0.1.0"
 
 [[package]]
 name = "koma_magireco_zh_source"

@@ -1,0 +1,706 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://pocket.shonenmagazine.com/",
+  "minAppVersion": "1.5.5",
+  "localizedNames": {
+    "zh-Hans": "Magazine Pocket（讲谈社）",
+    "zh-Hant": "Magazine Pocket（講談社）",
+    "en": "Magazine Pocket",
+    "ja": "マガポケ",
+    "ko": "매거진 포켓"
+  },
+  "localizedDescriptions": {
+    "zh-Hans": "讲谈社官方漫画平台，收录《蓝色监狱》等 Magazine 连载和平台原创。可阅读官网公开话。",
+    "zh-Hant": "講談社官方漫畫平台，收錄《BLUE LOCK 藍色監獄》等 Magazine 連載和平台原創。可閱讀官網公開話。",
+    "en": "Kodansha’s official home for Magazine series such as BLUE LOCK and Magazine Pocket originals. Public episodes are available to read.",
+    "ja": "講談社の公式漫画サービス。『ブルーロック』などのマガジン作品とマガポケオリジナルを、公開話の範囲で読めます。",
+    "ko": "고단샤 공식 만화 서비스입니다. 《블루 록》 등 매거진 연재작과 매거진 포켓 오리지널의 공개 회차를 읽을 수 있습니다."
+  },
+  "requiredImageDecodes": [
+    "wasm_image_v1"
+  ],
+  "wasmBuild": {
+    "imageProcessorCrate": "koma_magazinepocket_tiles_processor"
+  },
+  "requestLimits": [
+    {
+      "group": "magazinepocket-api",
+      "permits": 5,
+      "periodMs": 1000,
+      "hosts": [
+        "api.pocket.shonenmagazine.com"
+      ]
+    }
+  ],
+  "localization": {
+    "version": 1,
+    "defaultLocale": "ja",
+    "messages": {
+      "source.author": {
+        "zh-Hans": "Koma 书源贡献者",
+        "zh-Hant": "Koma 書源貢獻者",
+        "en": "Koma source contributors",
+        "ja": "Koma ソース開発メンバー",
+        "ko": "Koma 소스 기여자"
+      },
+      "error.network": {
+        "zh-Hans": "网站请求未完成，请稍后再试。",
+        "zh-Hant": "網站請求未完成，請稍後再試。",
+        "en": "The website request failed. Try again shortly.",
+        "ja": "サイトに接続できませんでした。時間をおいてお試しください。",
+        "ko": "사이트 요청에 실패했습니다. 잠시 후 다시 시도하세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法读取原站内容。",
+        "zh-Hant": "暫時無法讀取原站內容。",
+        "en": "The website content could not be read.",
+        "ja": "サイトの内容を読み取れませんでした。",
+        "ko": "사이트 콘텐츠를 읽을 수 없습니다."
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站未提供这项内容。",
+        "zh-Hant": "原站未提供這項內容。",
+        "en": "This content is unavailable on the original site.",
+        "ja": "元のサイトでこの内容は公開されていません。",
+        "ko": "원본 사이트에서 이 콘텐츠를 이용할 수 없습니다."
+      },
+      "source.name": {
+        "zh-Hans": "Magazine Pocket（讲谈社）",
+        "zh-Hant": "Magazine Pocket（講談社）",
+        "en": "Magazine Pocket",
+        "ja": "マガポケ",
+        "ko": "매거진 포켓"
+      },
+      "source.description": {
+        "zh-Hans": "讲谈社官方漫画平台，收录《蓝色监狱》等 Magazine 连载和平台原创。可阅读官网公开话。",
+        "zh-Hant": "講談社官方漫畫平台，收錄《BLUE LOCK 藍色監獄》等 Magazine 連載和平台原創。可閱讀官網公開話。",
+        "en": "Kodansha’s official home for Magazine series such as BLUE LOCK and Magazine Pocket originals. Public episodes are available to read.",
+        "ja": "講談社の公式漫画サービス。『ブルーロック』などのマガジン作品とマガポケオリジナルを、公開話の範囲で読めます。",
+        "ko": "고단샤 공식 만화 서비스입니다. 《블루 록》 등 매거진 연재작과 매거진 포켓 오리지널의 공개 회차를 읽을 수 있습니다."
+      },
+      "listing.popular": {
+        "zh-Hans": "热门排行",
+        "zh-Hant": "熱門排行",
+        "en": "Popular ranking",
+        "ja": "人気ランキング",
+        "ko": "인기 순위"
+      },
+      "listing.latest": {
+        "zh-Hans": "最近更新",
+        "zh-Hant": "最近更新",
+        "en": "Recent releases",
+        "ja": "最近の更新",
+        "ko": "최근 업데이트"
+      },
+      "filter.category": {
+        "zh-Hans": "分类",
+        "zh-Hant": "分類",
+        "en": "Category",
+        "ja": "カテゴリー",
+        "ko": "카테고리"
+      },
+      "filter.category_hint": {
+        "zh-Hans": "关键词为空时按分类浏览。",
+        "zh-Hant": "關鍵字為空時依分類瀏覽。",
+        "en": "Clear the keyword to browse by category.",
+        "ja": "キーワードが空欄のとき、カテゴリー別に表示します。",
+        "ko": "검색어를 비우면 카테고리별로 볼 수 있습니다."
+      },
+      "setting.hide_locked": {
+        "zh-Hans": "隐藏锁定章节",
+        "zh-Hant": "隱藏鎖定章節",
+        "en": "Hide locked chapters",
+        "ja": "ロックされた話を非表示",
+        "ko": "잠긴 회차 숨기기"
+      },
+      "error.locked": {
+        "zh-Hans": "这话目前未向访客公开。",
+        "zh-Hant": "這話目前未向訪客公開。",
+        "en": "This episode is currently locked for guests.",
+        "ja": "この話は現在ゲストには公開されていません。",
+        "ko": "현재 이 회차는 비회원에게 공개되지 않습니다."
+      },
+      "error.host": {
+        "zh-Hans": "阅读正文需要支持随包图片处理器的 Koma 1.5.5 或更新版本。",
+        "zh-Hant": "閱讀正文需要支援隨包圖片處理器的 Koma 1.5.5 或更新版本。",
+        "en": "Reading requires Koma 1.5.5 or later with bundled image processor support.",
+        "ja": "本文を読むには、同梱画像処理に対応する Koma 1.5.5 以降が必要です。",
+        "ko": "본문을 읽으려면 내장 이미지 처리기를 지원하는 Koma 1.5.5 이상이 필요합니다."
+      },
+      "error.catalog": {
+        "zh-Hans": "原站目录有变化，请刷新章节列表。",
+        "zh-Hant": "原站目錄有變動，請重新整理章節清單。",
+        "en": "The site’s episode list changed. Refresh the list.",
+        "ja": "サイトの話一覧が更新されました。一覧を再読み込みしてください。",
+        "ko": "사이트 회차 목록이 변경되었습니다. 목록을 새로고침하세요."
+      },
+      "error.filter": {
+        "zh-Hans": "请求无效，请检查分类或章节地址。",
+        "zh-Hant": "請求無效，請檢查分類或章節網址。",
+        "en": "Invalid request. Check the category or episode address.",
+        "ja": "リクエストが無効です。カテゴリーか話のアドレスを確認してください。",
+        "ko": "잘못된 요청입니다. 카테고리 또는 회차 주소를 확인하세요."
+      },
+      "rank.30": {
+        "zh-Hans": "排行 · 全部",
+        "zh-Hant": "排行 · 全部",
+        "en": "Ranking · All",
+        "ja": "ランキング · すべて",
+        "ko": "순위 · 전체"
+      },
+      "rank.20": {
+        "zh-Hans": "排行 · 入门推荐",
+        "zh-Hant": "排行 · 入門推薦",
+        "en": "Ranking · Start here",
+        "ja": "ランキング · まずはコレ！",
+        "ko": "순위 · 입문 추천"
+      },
+      "rank.1": {
+        "zh-Hans": "排行 · 平台原创",
+        "zh-Hant": "排行 · 平台原創",
+        "en": "Ranking · Originals",
+        "ja": "ランキング · オリジナル",
+        "ko": "순위 · 오리지널"
+      },
+      "rank.31": {
+        "zh-Hans": "排行 · 新作",
+        "zh-Hant": "排行 · 新作",
+        "en": "Ranking · New series",
+        "ja": "ランキング · 新作",
+        "ko": "순위 · 신작"
+      },
+      "rank.32": {
+        "zh-Hans": "排行 · 女性向",
+        "zh-Hant": "排行 · 女性向",
+        "en": "Ranking · For women",
+        "ja": "ランキング · 女性",
+        "ko": "순위 · 여성향"
+      },
+      "rank.21": {
+        "zh-Hans": "排行 · 动作",
+        "zh-Hant": "排行 · 動作",
+        "en": "Ranking · Action",
+        "ja": "ランキング · アクション",
+        "ko": "순위 · 액션"
+      },
+      "rank.22": {
+        "zh-Hans": "排行 · 体育",
+        "zh-Hant": "排行 · 體育",
+        "en": "Ranking · Sports",
+        "ja": "ランキング · スポーツ",
+        "ko": "순위 · 스포츠"
+      },
+      "rank.23": {
+        "zh-Hans": "排行 · 恋爱",
+        "zh-Hant": "排行 · 戀愛",
+        "en": "Ranking · Romance",
+        "ja": "ランキング · 恋愛",
+        "ko": "순위 · 로맨스"
+      },
+      "rank.24": {
+        "zh-Hans": "排行 · 异世界",
+        "zh-Hant": "排行 · 異世界",
+        "en": "Ranking · Isekai",
+        "ja": "ランキング · 異世界",
+        "ko": "순위 · 이세계"
+      },
+      "rank.25": {
+        "zh-Hans": "排行 · 悬疑",
+        "zh-Hant": "排行 · 懸疑",
+        "en": "Ranking · Suspense",
+        "ja": "ランキング · サスペンス",
+        "ko": "순위 · 서스펜스"
+      },
+      "rank.26": {
+        "zh-Hans": "排行 · 地下社会与不良少年",
+        "zh-Hant": "排行 · 地下社會與不良少年",
+        "en": "Ranking · Underworld and delinquents",
+        "ja": "ランキング · 裏社会・ヤンキー",
+        "ko": "순위 · 암흑가·불량배"
+      },
+      "rank.27": {
+        "zh-Hans": "排行 · 剧情",
+        "zh-Hant": "排行 · 劇情",
+        "en": "Ranking · Drama",
+        "ja": "ランキング · ドラマ",
+        "ko": "순위 · 드라마"
+      },
+      "rank.28": {
+        "zh-Hans": "排行 · 奇幻",
+        "zh-Hant": "排行 · 奇幻",
+        "en": "Ranking · Fantasy",
+        "ja": "ランキング · ファンタジー",
+        "ko": "순위 · 판타지"
+      },
+      "rank.29": {
+        "zh-Hans": "排行 · 日常",
+        "zh-Hant": "排行 · 日常",
+        "en": "Ranking · Daily life",
+        "ja": "ランキング · 日常",
+        "ko": "순위 · 일상"
+      },
+      "genre.1": {
+        "zh-Hans": "恋爱与爱情喜剧",
+        "zh-Hant": "戀愛與愛情喜劇",
+        "en": "Romance and romantic comedy",
+        "ja": "恋愛・ラブコメ",
+        "ko": "로맨스·로맨틱 코미디"
+      },
+      "genre.2": {
+        "zh-Hans": "恐怖、推理与悬疑",
+        "zh-Hant": "恐怖、推理與懸疑",
+        "en": "Horror, mystery and suspense",
+        "ja": "ホラー・ミステリー・サスペンス",
+        "ko": "공포·미스터리·서스펜스"
+      },
+      "genre.3": {
+        "zh-Hans": "搞笑、喜剧与日常",
+        "zh-Hant": "搞笑、喜劇與日常",
+        "en": "Gags, comedy and daily life",
+        "ja": "ギャグ・コメディー・日常",
+        "ko": "개그·코미디·일상"
+      },
+      "genre.4": {
+        "zh-Hans": "科幻与奇幻",
+        "zh-Hant": "科幻與奇幻",
+        "en": "Science fiction and fantasy",
+        "ja": "SF・ファンタジー",
+        "ko": "SF·판타지"
+      },
+      "genre.5": {
+        "zh-Hans": "体育",
+        "zh-Hant": "體育",
+        "en": "Sports",
+        "ja": "スポーツ",
+        "ko": "스포츠"
+      },
+      "genre.6": {
+        "zh-Hans": "人情故事",
+        "zh-Hant": "人情故事",
+        "en": "Human drama",
+        "ja": "ヒューマンドラマ",
+        "ko": "휴먼 드라마"
+      },
+      "genre.7": {
+        "zh-Hans": "地下社会与不良少年",
+        "zh-Hant": "地下社會與不良少年",
+        "en": "Underworld and delinquents",
+        "ja": "裏社会・アングラ・ヤンキー",
+        "ko": "암흑가·불량배"
+      },
+      "genre.8": {
+        "zh-Hans": "动作与战斗",
+        "zh-Hant": "動作與戰鬥",
+        "en": "Action and battles",
+        "ja": "アクション・バトル",
+        "ko": "액션·배틀"
+      },
+      "genre.9": {
+        "zh-Hans": "异世界与异能",
+        "zh-Hant": "異世界與異能",
+        "en": "Isekai and special powers",
+        "ja": "異世界・異能力",
+        "ko": "이세계·이능력"
+      },
+      "genre.10": {
+        "zh-Hans": "单篇短作",
+        "zh-Hant": "單篇短作",
+        "en": "One-shots",
+        "ja": "読切",
+        "ko": "단편"
+      },
+      "genre.11": {
+        "zh-Hans": "MGP",
+        "zh-Hant": "MGP",
+        "en": "MGP",
+        "ja": "MGP",
+        "ko": "MGP"
+      },
+      "genre.25": {
+        "zh-Hans": "2023 盛夏短篇 15 连发",
+        "zh-Hant": "2023 盛夏短篇 15 連發",
+        "en": "15 summer one-shots (2023)",
+        "ja": "2023真夏の読み切り15連弾",
+        "ko": "2023 한여름 단편 15편"
+      },
+      "genre.26": {
+        "zh-Hans": "Magazine Rise",
+        "zh-Hant": "Magazine Rise",
+        "en": "Magazine Rise",
+        "ja": "マガジンライズ",
+        "ko": "매거진 라이즈"
+      },
+      "genre.28": {
+        "zh-Hans": "少女与女性向",
+        "zh-Hant": "少女與女性向",
+        "en": "Shōjo and josei",
+        "ja": "少女／女性",
+        "ko": "소녀·여성 만화"
+      },
+      "genre.29": {
+        "zh-Hans": "新人漫画大奖",
+        "zh-Hant": "新人漫畫大獎",
+        "en": "New Manga Artist Grand Prize",
+        "ja": "新人漫画大賞",
+        "ko": "신인 만화 대상"
+      },
+      "genre.43": {
+        "zh-Hans": "足球",
+        "zh-Hant": "足球",
+        "en": "Football",
+        "ja": "サッカー",
+        "ko": "축구"
+      },
+      "genre.44": {
+        "zh-Hans": "网球",
+        "zh-Hant": "網球",
+        "en": "Tennis",
+        "ja": "テニス",
+        "ko": "테니스"
+      },
+      "genre.45": {
+        "zh-Hans": "篮球",
+        "zh-Hant": "籃球",
+        "en": "Basketball",
+        "ja": "バスケ",
+        "ko": "농구"
+      },
+      "genre.46": {
+        "zh-Hans": "格斗运动",
+        "zh-Hant": "格鬥運動",
+        "en": "Combat sports",
+        "ja": "格闘技",
+        "ko": "격투기"
+      },
+      "genre.47": {
+        "zh-Hans": "棒球",
+        "zh-Hant": "棒球",
+        "en": "Baseball",
+        "ja": "野球",
+        "ko": "야구"
+      },
+      "genre.48": {
+        "zh-Hans": "女性向异世界",
+        "zh-Hant": "女性向異世界",
+        "en": "Isekai for women",
+        "ja": "女性向け異世界",
+        "ko": "여성향 이세계"
+      },
+      "genre.49": {
+        "zh-Hans": "动画改编",
+        "zh-Hant": "動畫改編",
+        "en": "Anime adaptations",
+        "ja": "アニメ化",
+        "ko": "애니메이션화"
+      },
+      "genre.50": {
+        "zh-Hans": "真人改编",
+        "zh-Hant": "真人改編",
+        "en": "Live-action adaptations",
+        "ja": "実写化",
+        "ko": "실사화"
+      },
+      "genre.51": {
+        "zh-Hans": "汽车与摩托车",
+        "zh-Hant": "汽車與機車",
+        "en": "Cars and motorcycles",
+        "ja": "車・バイク",
+        "ko": "자동차·오토바이"
+      },
+      "genre.52": {
+        "zh-Hans": "美食与烹饪",
+        "zh-Hant": "美食與烹飪",
+        "en": "Food and cooking",
+        "ja": "グルメ・料理",
+        "ko": "음식·요리"
+      },
+      "genre.53": {
+        "zh-Hans": "医疗",
+        "zh-Hant": "醫療",
+        "en": "Medicine",
+        "ja": "医療",
+        "ko": "의료"
+      },
+      "genre.54": {
+        "zh-Hans": "智斗",
+        "zh-Hant": "智鬥",
+        "en": "Battles of wits",
+        "ja": "頭脳戦",
+        "ko": "두뇌 싸움"
+      },
+      "genre.55": {
+        "zh-Hans": "生存",
+        "zh-Hant": "生存",
+        "en": "Survival",
+        "ja": "サバイバル",
+        "ko": "서바이벌"
+      },
+      "genre.56": {
+        "zh-Hans": "复仇故事",
+        "zh-Hant": "復仇故事",
+        "en": "Revenge stories",
+        "ja": "復讐劇",
+        "ko": "복수극"
+      },
+      "genre.57": {
+        "zh-Hans": "七八十年代",
+        "zh-Hant": "七八十年代",
+        "en": "1970s and 1980s",
+        "ja": "70～80年代",
+        "ko": "1970~80년대"
+      },
+      "genre.58": {
+        "zh-Hans": "九十年代",
+        "zh-Hant": "九十年代",
+        "en": "1990s",
+        "ja": "90年代",
+        "ko": "1990년대"
+      },
+      "genre.59": {
+        "zh-Hans": "金田一系列",
+        "zh-Hant": "金田一系列",
+        "en": "Kindaichi series",
+        "ja": "金田一シリーズ",
+        "ko": "긴다이치 시리즈"
+      },
+      "genre.61": {
+        "zh-Hans": "连载竞赛",
+        "zh-Hant": "連載競賽",
+        "en": "Serialization contest",
+        "ja": "連載獲得ダービー",
+        "ko": "연재권 경쟁"
+      },
+      "genre.62": {
+        "zh-Hans": "知名漫画奖",
+        "zh-Hant": "知名漫畫獎",
+        "en": "Major manga awards",
+        "ja": "有名漫画賞",
+        "ko": "유명 만화상"
+      },
+      "genre.63": {
+        "zh-Hans": "侦探与警察",
+        "zh-Hant": "偵探與警察",
+        "en": "Detectives and police",
+        "ja": "探偵・警察",
+        "ko": "탐정·경찰"
+      },
+      "genre.64": {
+        "zh-Hans": "历史与时代剧",
+        "zh-Hant": "歷史與時代劇",
+        "en": "History and period stories",
+        "ja": "歴史・時代",
+        "ko": "역사·시대극"
+      },
+      "genre.65": {
+        "zh-Hans": "婚外情与出轨",
+        "zh-Hant": "婚外情與出軌",
+        "en": "Affairs and infidelity",
+        "ja": "不倫・浮気",
+        "ko": "불륜·외도"
+      },
+      "genre.66": {
+        "zh-Hans": "狗与猫",
+        "zh-Hant": "狗與貓",
+        "en": "Dogs and cats",
+        "ja": "犬・猫",
+        "ko": "개·고양이"
+      },
+      "genre.12": {
+        "zh-Hans": "第 98 届新人漫画奖",
+        "zh-Hant": "第 98 屆新人漫畫獎",
+        "en": "New Manga Artist Award No. 98",
+        "ja": "第98回新人漫画賞",
+        "ko": "제98회 신인 만화 상"
+      },
+      "genre.13": {
+        "zh-Hans": "第 99 届新人漫画奖",
+        "zh-Hant": "第 99 屆新人漫畫獎",
+        "en": "New Manga Artist Award No. 99",
+        "ja": "第99回新人漫画賞",
+        "ko": "제99회 신인 만화 상"
+      },
+      "genre.14": {
+        "zh-Hans": "第 100 届新人漫画奖",
+        "zh-Hant": "第 100 屆新人漫畫獎",
+        "en": "New Manga Artist Award No. 100",
+        "ja": "第100回新人漫画賞",
+        "ko": "제100회 신인 만화 상"
+      },
+      "genre.15": {
+        "zh-Hans": "第 101 届新人漫画奖",
+        "zh-Hant": "第 101 屆新人漫畫獎",
+        "en": "New Manga Artist Award No. 101",
+        "ja": "第101回新人漫画賞",
+        "ko": "제101회 신인 만화 상"
+      },
+      "genre.16": {
+        "zh-Hans": "第 102 届新人漫画奖",
+        "zh-Hant": "第 102 屆新人漫畫獎",
+        "en": "New Manga Artist Award No. 102",
+        "ja": "第102回新人漫画賞",
+        "ko": "제102회 신인 만화 상"
+      },
+      "genre.17": {
+        "zh-Hans": "第 103 届新人漫画奖",
+        "zh-Hant": "第 103 屆新人漫畫獎",
+        "en": "New Manga Artist Award No. 103",
+        "ja": "第103回新人漫画賞",
+        "ko": "제103회 신인 만화 상"
+      },
+      "genre.18": {
+        "zh-Hans": "第 104 届新人漫画奖",
+        "zh-Hant": "第 104 屆新人漫畫獎",
+        "en": "New Manga Artist Award No. 104",
+        "ja": "第104回新人漫画賞",
+        "ko": "제104회 신인 만화 상"
+      },
+      "genre.19": {
+        "zh-Hans": "第 105 届新人漫画奖",
+        "zh-Hant": "第 105 屆新人漫畫獎",
+        "en": "New Manga Artist Award No. 105",
+        "ja": "第105回新人漫画賞",
+        "ko": "제105회 신인 만화 상"
+      },
+      "genre.20": {
+        "zh-Hans": "第 106 届新人漫画奖",
+        "zh-Hant": "第 106 屆新人漫畫獎",
+        "en": "New Manga Artist Award No. 106",
+        "ja": "第106回新人漫画賞",
+        "ko": "제106회 신인 만화 상"
+      },
+      "genre.21": {
+        "zh-Hans": "第 107 届新人漫画奖",
+        "zh-Hant": "第 107 屆新人漫畫獎",
+        "en": "New Manga Artist Award No. 107",
+        "ja": "第107回新人漫画賞",
+        "ko": "제107회 신인 만화 상"
+      },
+      "genre.22": {
+        "zh-Hans": "第 108 届新人漫画奖",
+        "zh-Hant": "第 108 屆新人漫畫獎",
+        "en": "New Manga Artist Award No. 108",
+        "ja": "第108回新人漫画賞",
+        "ko": "제108회 신인 만화 상"
+      },
+      "genre.23": {
+        "zh-Hans": "第 109 届新人漫画奖",
+        "zh-Hant": "第 109 屆新人漫畫獎",
+        "en": "New Manga Artist Award No. 109",
+        "ja": "第109回新人漫画賞",
+        "ko": "제109회 신인 만화 상"
+      },
+      "genre.24": {
+        "zh-Hans": "第 110 届新人漫画奖",
+        "zh-Hant": "第 110 屆新人漫畫獎",
+        "en": "New Manga Artist Award No. 110",
+        "ja": "第110回新人漫画賞",
+        "ko": "제110회 신인 만화 상"
+      },
+      "genre.27": {
+        "zh-Hans": "第 111 届新人漫画奖",
+        "zh-Hant": "第 111 屆新人漫畫獎",
+        "en": "New Manga Artist Award No. 111",
+        "ja": "第111回新人漫画賞",
+        "ko": "제111회 신인 만화 상"
+      },
+      "genre.30": {
+        "zh-Hans": "第 75 届新人漫画奖",
+        "zh-Hant": "第 75 屆新人漫畫獎",
+        "en": "New Manga Artist Award No. 75",
+        "ja": "第75回新人漫画賞",
+        "ko": "제75회 신인 만화 상"
+      },
+      "genre.31": {
+        "zh-Hans": "第 79 届新人漫画奖",
+        "zh-Hant": "第 79 屆新人漫畫獎",
+        "en": "New Manga Artist Award No. 79",
+        "ja": "第79回新人漫画賞",
+        "ko": "제79회 신인 만화 상"
+      },
+      "genre.32": {
+        "zh-Hans": "第 85 届新人漫画奖",
+        "zh-Hant": "第 85 屆新人漫畫獎",
+        "en": "New Manga Artist Award No. 85",
+        "ja": "第85回新人漫画賞",
+        "ko": "제85회 신인 만화 상"
+      },
+      "genre.33": {
+        "zh-Hans": "第 88 届新人漫画奖",
+        "zh-Hant": "第 88 屆新人漫畫獎",
+        "en": "New Manga Artist Award No. 88",
+        "ja": "第88回新人漫画賞",
+        "ko": "제88회 신인 만화 상"
+      },
+      "genre.34": {
+        "zh-Hans": "第 89 届新人漫画奖",
+        "zh-Hant": "第 89 屆新人漫畫獎",
+        "en": "New Manga Artist Award No. 89",
+        "ja": "第89回新人漫画賞",
+        "ko": "제89회 신인 만화 상"
+      },
+      "genre.35": {
+        "zh-Hans": "第 91 届新人漫画奖",
+        "zh-Hant": "第 91 屆新人漫畫獎",
+        "en": "New Manga Artist Award No. 91",
+        "ja": "第91回新人漫画賞",
+        "ko": "제91회 신인 만화 상"
+      },
+      "genre.36": {
+        "zh-Hans": "第 92 届新人漫画奖",
+        "zh-Hant": "第 92 屆新人漫畫獎",
+        "en": "New Manga Artist Award No. 92",
+        "ja": "第92回新人漫画賞",
+        "ko": "제92회 신인 만화 상"
+      },
+      "genre.37": {
+        "zh-Hans": "第 94 届新人漫画奖",
+        "zh-Hant": "第 94 屆新人漫畫獎",
+        "en": "New Manga Artist Award No. 94",
+        "ja": "第94回新人漫画賞",
+        "ko": "제94회 신인 만화 상"
+      },
+      "genre.38": {
+        "zh-Hans": "第 95 届新人漫画奖",
+        "zh-Hant": "第 95 屆新人漫畫獎",
+        "en": "New Manga Artist Award No. 95",
+        "ja": "第95回新人漫画賞",
+        "ko": "제95회 신인 만화 상"
+      },
+      "genre.39": {
+        "zh-Hans": "第 96 届新人漫画奖",
+        "zh-Hant": "第 96 屆新人漫畫獎",
+        "en": "New Manga Artist Award No. 96",
+        "ja": "第96回新人漫画賞",
+        "ko": "제96회 신인 만화 상"
+      },
+      "genre.40": {
+        "zh-Hans": "第 97 届新人漫画奖",
+        "zh-Hant": "第 97 屆新人漫畫獎",
+        "en": "New Manga Artist Award No. 97",
+        "ja": "第97回新人漫画賞",
+        "ko": "제97회 신인 만화 상"
+      },
+      "genre.41": {
+        "zh-Hans": "第 112 届新人漫画奖",
+        "zh-Hant": "第 112 屆新人漫畫獎",
+        "en": "New Manga Artist Award No. 112",
+        "ja": "第112回新人漫画賞",
+        "ko": "제112회 신인 만화 상"
+      },
+      "genre.42": {
+        "zh-Hans": "第 113 届新人漫画大奖",
+        "zh-Hant": "第 113 屆新人漫畫大獎",
+        "en": "New Manga Artist Grand Prize No. 113",
+        "ja": "第113回新人漫画大賞",
+        "ko": "제113회 신인 만화 대상"
+      },
+      "genre.60": {
+        "zh-Hans": "第 114 届新人漫画大奖",
+        "zh-Hant": "第 114 屆新人漫畫大獎",
+        "en": "New Manga Artist Grand Prize No. 114",
+        "ja": "第114回新人漫画大賞",
+        "ko": "제114회 신인 만화 대상"
+      }
+    }
+  }
+}

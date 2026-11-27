@@ -1,0 +1,168 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://foamgirl.net/",
+  "minAppVersion": "0.1.0",
+  "localizedNames": {
+    "zh-Hans": "FoamGirl",
+    "zh-Hant": "FoamGirl",
+    "en": "FoamGirl",
+    "ja": "FoamGirl",
+    "ko": "FoamGirl"
+  },
+  "localizedDescriptions": {
+    "zh-Hans": "亚洲写真与角色扮演图集，收录日本写真和中国摄影工作室作品。",
+    "zh-Hant": "亞洲寫真與角色扮演圖集，收錄日本寫真和中國攝影工作室作品。",
+    "en": "Asian photo sets and cosplay galleries, including Japanese gravure and Chinese studio shoots.",
+    "ja": "日本のグラビアや中国のスタジオ撮影など、アジアの写真集とコスプレを収録。",
+    "ko": "일본 그라비아와 중국 스튜디오 촬영을 비롯한 아시아 화보와 코스프레 사진을 모았습니다."
+  },
+  "requestLimits": [
+    {
+      "group": "foamgirl-site",
+      "permits": 3,
+      "periodMs": 1000,
+      "hosts": [
+        "foamgirl.net"
+      ]
+    }
+  ],
+  "localization": {
+    "version": 1,
+    "defaultLocale": "en",
+    "messages": {
+      "source.author": {
+        "zh-Hans": "Koma 书源贡献者",
+        "zh-Hant": "Koma 書源貢獻者",
+        "en": "Koma source contributors",
+        "ja": "Koma ソース開発メンバー",
+        "ko": "Koma 소스 기여자"
+      },
+      "error.network": {
+        "zh-Hans": "网站请求未完成，请稍后再试。",
+        "zh-Hant": "網站請求未完成，請稍後再試。",
+        "en": "The website request failed. Try again shortly.",
+        "ja": "サイトに接続できませんでした。時間をおいてお試しください。",
+        "ko": "사이트 요청에 실패했습니다. 잠시 후 다시 시도하세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法读取原站内容。",
+        "zh-Hant": "暫時無法讀取原站內容。",
+        "en": "The website content could not be read.",
+        "ja": "サイトの内容を読み取れませんでした。",
+        "ko": "사이트 콘텐츠를 읽을 수 없습니다."
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站未提供这项内容。",
+        "zh-Hant": "原站未提供這項內容。",
+        "en": "This content is unavailable on the original site.",
+        "ja": "元のサイトでこの内容は公開されていません。",
+        "ko": "원본 사이트에서 이 콘텐츠를 이용할 수 없습니다."
+      },
+      "source.name": {
+        "zh-Hans": "FoamGirl",
+        "zh-Hant": "FoamGirl",
+        "en": "FoamGirl",
+        "ja": "FoamGirl",
+        "ko": "FoamGirl"
+      },
+      "source.description": {
+        "zh-Hans": "亚洲写真与角色扮演图集，收录日本写真和中国摄影工作室作品。",
+        "zh-Hant": "亞洲寫真與角色扮演圖集，收錄日本寫真和中國攝影工作室作品。",
+        "en": "Asian photo sets and cosplay galleries, including Japanese gravure and Chinese studio shoots.",
+        "ja": "日本のグラビアや中国のスタジオ撮影など、アジアの写真集とコスプレを収録。",
+        "ko": "일본 그라비아와 중국 스튜디오 촬영을 비롯한 아시아 화보와 코스프레 사진을 모았습니다."
+      },
+      "listing.latest": {
+        "zh-Hans": "最新相册",
+        "zh-Hant": "最新相簿",
+        "en": "Latest galleries",
+        "ja": "新着写真集",
+        "ko": "최신 화보"
+      },
+      "listing.chinese": {
+        "zh-Hans": "中国写真",
+        "zh-Hant": "中國寫真",
+        "en": "Chinese photo sets",
+        "ja": "中国の写真集",
+        "ko": "중국 화보"
+      },
+      "listing.korea": {
+        "zh-Hans": "韩国写真",
+        "zh-Hant": "韓國寫真",
+        "en": "Korean photo sets",
+        "ja": "韓国の写真集",
+        "ko": "한국 화보"
+      },
+      "listing.japan": {
+        "zh-Hans": "日本写真",
+        "zh-Hant": "日本寫真",
+        "en": "Japanese photo sets",
+        "ja": "日本の写真集",
+        "ko": "일본 화보"
+      },
+      "listing.thailand": {
+        "zh-Hans": "泰国写真",
+        "zh-Hant": "泰國寫真",
+        "en": "Thai photo sets",
+        "ja": "タイの写真集",
+        "ko": "태국 화보"
+      },
+      "listing.cosplay": {
+        "zh-Hans": "角色扮演",
+        "zh-Hant": "角色扮演",
+        "en": "Cosplay",
+        "ja": "コスプレ",
+        "ko": "코스프레"
+      },
+      "chapter.gallery": {
+        "zh-Hans": "整册相册",
+        "zh-Hant": "整冊相簿",
+        "en": "Full gallery",
+        "ja": "全ページ",
+        "ko": "전체 화보"
+      },
+      "filter.any": {
+        "zh-Hans": "不限",
+        "zh-Hant": "不限",
+        "en": "Any",
+        "ja": "すべて",
+        "ko": "전체"
+      },
+      "filter.category": {
+        "zh-Hans": "分类",
+        "zh-Hant": "分類",
+        "en": "Category",
+        "ja": "カテゴリー",
+        "ko": "카테고리"
+      },
+      "filter.category_hint": {
+        "zh-Hans": "选分类时，请清空标签与关键词。",
+        "zh-Hant": "選分類時，請清空標籤與關鍵字。",
+        "en": "Clear the tag and keyword to browse a category.",
+        "ja": "カテゴリーを選ぶときはタグとキーワードを空欄にしてください。",
+        "ko": "카테고리를 선택할 때 태그와 검색어를 비워 주세요."
+      },
+      "filter.tag": {
+        "zh-Hans": "标签",
+        "zh-Hant": "標籤",
+        "en": "Tag",
+        "ja": "タグ",
+        "ko": "태그"
+      },
+      "filter.tag_hint": {
+        "zh-Hans": "输入官网标签网址中 /tag/ 后面的名称，如 cosplay。",
+        "zh-Hant": "輸入官網標籤網址中 /tag/ 後面的名稱，如 cosplay。",
+        "en": "Enter the name after /tag/ in the site’s tag URL, such as cosplay.",
+        "ja": "サイトのタグ URL の /tag/ に続く名前を入力してください（例は cosplay）。",
+        "ko": "사이트 태그 URL에서 /tag/ 다음의 이름을 입력하세요. 예를 들어 cosplay."
+      },
+      "error.filter": {
+        "zh-Hans": "请求无效。分类、标签和搜索关键词只能选一项。",
+        "zh-Hant": "請求無效。分類、標籤和搜尋關鍵字只能選一項。",
+        "en": "Invalid request. Use a category, tag, or keyword on its own.",
+        "ja": "リクエストが無効です。カテゴリー、タグ、キーワードは一つだけ指定してください。",
+        "ko": "잘못된 요청입니다. 카테고리, 태그 또는 검색어 중 하나만 사용하세요."
+      }
+    }
+  }
+}
