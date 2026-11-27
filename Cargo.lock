@@ -4816,3 +4816,26 @@ dependencies = [
  "serde_json",
  "url",
 ]
+
+[[package]]
+name = "koma_globalcomix_fr_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_namicomi_es_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_webtoons_es_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+]

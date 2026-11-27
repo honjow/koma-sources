@@ -236,6 +236,11 @@ where F: FnMut(&HttpRequest, bool) -> HttpResponse {
             "error":{"code":"unsupported","message":"DNS-preserving channel transport unavailable in this host","retryable":false}}))?);
     }
     if value.get("type").and_then(|v| v.as_str()) == Some("private_session") {
+        // Read-only local clock is independent of private account/session state.
+        // Keep all other private-session operations unsupported in this runner.
+        if let Some(clock) = crate::clock::response(&value) {
+            return Ok(serde_json::to_vec(&clock)?);
+        }
         eprintln!("[dev-runner] unsupported host feature private_session");
         return Ok(serde_json::to_vec(&serde_json::json!({"ok":false,"networkPerformed":false,"error":{"code":"host_feature_required","message":"private session unsupported","retryable":false}}))?);
     }

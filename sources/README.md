@@ -191,7 +191,10 @@
 | 图标 | 目录 | 名称 | 备注 |
 |---|---|---|---|
 | <img src="globalcomix-en/icon.ico" width="24" alt=""> | globalcomix-en | GlobalComix | 收录出版社与独立创作者的英文数字漫画，正文限原站公开的免费页。 |
+| <img src="globalcomix-fr/icon.png" width="24" alt=""> | globalcomix-fr | GlobalComix | 法语独立创作漫画，仅读匿名免费内容；NSFW。 |
 | <img src="namicomi-en/icon.png" width="24" alt=""> | namicomi-en | NamiComi | 原创漫画平台的英文目录，正文限匿名可读章节。 |
+| <img src="namicomi-es/icon.png" width="24" alt=""> | namicomi-es | NamiComi | 西语原创漫画章节，独立语言身份，匿名公开阅读。 |
+| <img src="webtoons-es/icon.png" width="24" alt=""> | webtoons-es | WEBTOON（西班牙语） | 西语 ORIGINALS 与 CANVAS，保留公开阅读和原站目录顺序。 |
 | <img src="dynasty-en/icon.png" width="24" alt=""> | dynasty-en | Dynasty Scans | 英文系列、选集、刊物及同人志，支持作者和标签筛选，含成人内容。 |
 | <img src="weebcentral-en/icon.png" width="24" alt=""> | weebcentral-en | Weeb Central | 汇集英文日漫、韩漫和华语漫画，包括《王者天下》等长篇连载。 |
 | <img src="xkcd-en/icon.webp" width="24" alt=""> | xkcd-en | xkcd | 兰德尔·门罗的英文原作，可按单本、年份或年月浏览。 |

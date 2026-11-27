@@ -291,6 +291,15 @@ REAL_HOME=$HOME bash build.sh
 
 Use `.wasm` files, NOT `.koma` zip packages.
 
+For delivery verification, extract and run the actual package's `source.wasm`.
+Use the versioned request envelope with `args`, negotiated `hostFeatures`, and
+the complete canonical `environment.localeFallbacks` chain (for example,
+`["zh-Hans", "zh"]`). The development runner supports only the read-only
+`{"type":"private_session","version":1,"op":"clock"}` local civil clock;
+all other private-session operations remain unsupported. This clock exists to
+verify weekday-based source listings, grants no account/session access, and
+must not be used as evidence of private-session or physical-device acceptance.
+
 ## Common Errors
 
 - `unexpected closing delimiter` — mismatched `{`/`}` in write_bytes JSON strings

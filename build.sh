@@ -35,6 +35,9 @@ SOURCE_ENTRIES='
 comicgardo-ja|comicgardo-ja|false|1.5.5
 comiczenon-ja|comiczenon-ja|false|1.5.5
 ichicomi-ja|ichicomi-ja|false|1.5.5
+globalcomix-fr|globalcomix-fr|true|1.5.5
+namicomi-es|namicomi-es|false|1.5.5
+webtoons-es|webtoons-es|false|1.5.5
 comicearthstar-ja|comicearthstar-ja|false|1.5.5
 magcomi-ja|magcomi-ja|false|1.5.5
 comictrail-ja|comictrail-ja|false|1.5.5
