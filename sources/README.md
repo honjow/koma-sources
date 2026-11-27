@@ -32,6 +32,8 @@
 |---|---|---|---|
 | <img src="comicgardo-ja/icon.png" width="24" alt=""> | comicgardo-ja | Comic Gardo | Overlap 官方漫画，含轻小说改编、选集及完结作品；公开话使用随包瓦片还原。 |
 | <img src="comiczenon-ja/icon.png" width="24" alt=""> | comiczenon-ja | Comic Zenon / ゼノンプラス | Coamix 官方漫画，含短篇、漫画奖与题材合集；保留锁定、下架规则。 |
+| <img src="ichicomi-ja/icon.png" width="24" alt=""> | ichicomi-ja | 一迅プラス / Ichijin Plus | 一迅社官方漫画，按编辑部及题材整理；仅原站公开话，随包瓦片还原。 |
+| <img src="comicearthstar-ja/icon.png" width="24" alt=""> | comicearthstar-ja | Comic Earth Star | Earth Star 官方漫画，含连载、完结及读切；仅原站公开话，随包瓦片还原。 |
 | <img src="comicaction-ja/icon.png" width="24" alt=""> | comicaction-ja | webアクション | 双叶社官方连载、短篇与限时活动；公开话复用 GigaViewer 随包瓦片还原，付费话保留锁定。 |
 | <img src="magcomi-ja/icon.png" width="24" alt=""> | magcomi-ja | MAGCOMI | MAG Garden 官方漫画，含连载、短篇、漫画奖与题材合集；遵循匿名公开范围。 |
 | <img src="comictrail-ja/icon.png" width="24" alt=""> | comictrail-ja | Comic Trail | 芳文社官方漫画，按连载中、完结、短篇整理；锁定话保留限制。 |

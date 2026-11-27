@@ -3,6 +3,8 @@ resolver = "2"
 members = [
   "sources/comicgardo-ja",
   "sources/comiczenon-ja",
+  "sources/ichicomi-ja",
+  "sources/comicearthstar-ja",
   "sources/magcomi-ja",
   "sources/comictrail-ja",
   "sources/meitulu",

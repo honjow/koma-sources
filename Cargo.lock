@@ -4794,3 +4794,25 @@ dependencies = [
  "serde_json",
  "url",
 ]
+
+[[package]]
+name = "koma_ichicomi_ja_source"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
+name = "koma_comicearthstar_ja_source"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]

@@ -1,0 +1,398 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://ichicomi.com",
+  "minAppVersion": "1.5.5",
+  "requiredImageDecodes": [
+    "wasm_image_v1"
+  ],
+  "wasmBuild": {
+    "imageProcessorCrate": "koma_gigaviewer_tile_processor"
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "ja",
+    "messages": {
+      "error.locked": {
+        "zh-Hans": "该章节当前未公开。",
+        "zh-Hant": "此章節目前未公開。",
+        "en": "This chapter is currently locked.",
+        "ja": "この話は現在公開されていません。",
+        "ko": "이 회차는 현재 잠겨 있습니다."
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站没有提供此内容。",
+        "zh-Hant": "原站沒有提供此內容。",
+        "en": "This content is unavailable on the website.",
+        "ja": "配信元でこのコンテンツは公開されていません。",
+        "ko": "사이트에서 이 콘텐츠를 제공하지 않습니다."
+      },
+      "error.network": {
+        "zh-Hans": "原站请求未完成，请稍后重试。",
+        "zh-Hant": "原站請求未完成，請稍後再試。",
+        "en": "Could not complete the website request. Try again later.",
+        "ja": "配信元へのリクエストに失敗しました。時間をおいて再試行してください。",
+        "ko": "사이트에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."
+      },
+      "error.host": {
+        "zh-Hans": "请更新 Koma 以阅读此章节。",
+        "zh-Hant": "請更新 Koma 以閱讀此章節。",
+        "en": "Update Koma to read this chapter.",
+        "ja": "この話を読むには Koma を更新してください。",
+        "ko": "이 회차를 읽으려면 Koma를 업데이트하세요."
+      },
+      "error.scramble": {
+        "zh-Hans": "此章节使用暂不支持的图片格式。",
+        "zh-Hant": "此章節使用暫不支援的圖片格式。",
+        "en": "This chapter uses an unsupported image format.",
+        "ja": "この話は未対応の画像形式を使用しています。",
+        "ko": "이 회차는 지원하지 않는 이미지 형식입니다."
+      },
+      "error.catalog": {
+        "zh-Hans": "原站目录已变化，请刷新后重试。",
+        "zh-Hant": "原站目錄已變更，請重新整理後再試。",
+        "en": "The catalog changed. Refresh and try again.",
+        "ja": "配信元の一覧が更新されました。再読み込みしてください。",
+        "ko": "사이트 목록이 변경되었습니다. 새로고침한 후 다시 시도하세요."
+      },
+      "error.filter": {
+        "zh-Hans": "请检查搜索或筛选条件。",
+        "zh-Hant": "請檢查搜尋或篩選條件。",
+        "en": "Check the search or filter values.",
+        "ja": "検索語や絞り込み条件を確認してください。",
+        "ko": "검색어나 필터 조건을 확인해 주세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法读取此内容。",
+        "zh-Hant": "暫時無法讀取此內容。",
+        "en": "Unable to load this content.",
+        "ja": "このコンテンツを読み込めません。",
+        "ko": "이 콘텐츠를 불러올 수 없습니다."
+      },
+      "filter.collection": {
+        "zh-Hans": "作品分类",
+        "zh-Hant": "作品分類",
+        "en": "Collection",
+        "ja": "作品分類",
+        "ko": "작품 분류"
+      },
+      "setting.hide_locked": {
+        "zh-Hans": "隐藏付费章节",
+        "zh-Hant": "隱藏付費章節",
+        "en": "Hide paid chapters",
+        "ja": "有料話を非表示",
+        "ko": "유료 회차 숨기기"
+      },
+      "setting.hide_unavailable": {
+        "zh-Hans": "隐藏已下架章节",
+        "zh-Hant": "隱藏已下架章節",
+        "en": "Hide unavailable chapters",
+        "ja": "配信終了話を非表示",
+        "ko": "공개 종료 회차 숨기기"
+      },
+      "chapter.unavailable": {
+        "zh-Hans": "已下架",
+        "zh-Hant": "已下架",
+        "en": "Unavailable",
+        "ja": "配信終了",
+        "ko": "공개 종료"
+      },
+      "chapter.volume": {
+        "zh-Hans": "单行本",
+        "zh-Hant": "單行本",
+        "en": "Volume",
+        "ja": "単行本",
+        "ko": "단행본"
+      },
+      "source.author": {
+        "zh-Hans": "Koma 书源贡献者",
+        "zh-Hant": "Koma 書源貢獻者",
+        "en": "Koma source contributors",
+        "ja": "Koma ソース開発メンバー",
+        "ko": "Koma 소스 기여자"
+      },
+      "listing.popular": {
+        "zh-Hans": "热门作品",
+        "zh-Hant": "熱門作品",
+        "en": "Popular titles",
+        "ja": "人気作品",
+        "ko": "인기 작품"
+      },
+      "listing.latest": {
+        "zh-Hans": "最近更新",
+        "zh-Hant": "最近更新",
+        "en": "Latest updates",
+        "ja": "最近の更新",
+        "ko": "최근 업데이트"
+      },
+      "source.name": {
+        "zh-Hans": "一迅Plus",
+        "zh-Hant": "一迅Plus",
+        "en": "Ichijin Plus",
+        "ja": "一迅プラス",
+        "ko": "이치진 플러스"
+      },
+      "source.description": {
+        "zh-Hans": "一迅社官方漫画站，汇集 Comic REX、comic HOWL、comic POOL、Comic 百合姬等编辑部作品，按厂牌和题材分类。阅读范围以原站公开话为准。",
+        "zh-Hant": "一迅社官方漫畫站，匯集 Comic REX、comic HOWL、comic POOL、Comic 百合姬等編輯部作品，依品牌與題材分類。閱讀範圍以原站公開話為準。",
+        "en": "Ichijinsha’s official manga site brings together Comic REX, comic HOWL, comic POOL, Comic Yuri Hime and other imprints, with collections by imprint and genre. Reading is limited to publicly available chapters.",
+        "ja": "一迅社の公式Webマンガサイト。Comic REX、comic HOWL、comic POOL、コミック百合姫などの作品を編集部・ジャンル別に掲載しています。原サイトで無料公開中の話を読めます。",
+        "ko": "Comic REX, comic HOWL, comic POOL, 코믹 유리히메 등 여러 편집부의 작품을 모은 이치진샤 공식 만화 사이트입니다. 편집부와 장르별로 작품을 찾고 사이트에서 무료로 공개한 회차를 읽을 수 있습니다."
+      },
+      "collection.all": {
+        "zh-Hans": "全部作品",
+        "zh-Hant": "全部作品",
+        "en": "All titles",
+        "ja": "すべて",
+        "ko": "전체 작품"
+      },
+      "collection.echo": {
+        "zh-Hans": "echo",
+        "zh-Hant": "echo",
+        "en": "echo",
+        "ja": "echo",
+        "ko": "echo"
+      },
+      "collection.gateau": {
+        "zh-Hans": "gateau",
+        "zh-Hant": "gateau",
+        "en": "gateau",
+        "ja": "gateau",
+        "ko": "gateau"
+      },
+      "collection.colorful_happiness": {
+        "zh-Hans": "Colorful Happiness",
+        "zh-Hant": "Colorful Happiness",
+        "en": "Colorful Happiness",
+        "ja": "カラフルハピネス",
+        "ko": "컬러풀 해피니스"
+      },
+      "collection.rex": {
+        "zh-Hans": "Comic REX",
+        "zh-Hant": "Comic REX",
+        "en": "Comic REX",
+        "ja": "Comic REX",
+        "ko": "Comic REX"
+      },
+      "collection.howl": {
+        "zh-Hans": "comic HOWL",
+        "zh-Hant": "comic HOWL",
+        "en": "comic HOWL",
+        "ja": "comic HOWL",
+        "ko": "comic HOWL"
+      },
+      "collection.pool": {
+        "zh-Hans": "comic POOL",
+        "zh-Hant": "comic POOL",
+        "en": "comic POOL",
+        "ja": "comic POOL",
+        "ko": "comic POOL"
+      },
+      "collection.yurihime": {
+        "zh-Hans": "Comic 百合姬",
+        "zh-Hant": "Comic 百合姬",
+        "en": "Comic Yuri Hime",
+        "ja": "コミック百合姫",
+        "ko": "코믹 유리히메"
+      },
+      "collection.lake": {
+        "zh-Hans": "comic LAKE",
+        "zh-Hant": "comic LAKE",
+        "en": "comic LAKE",
+        "ja": "comic LAKE",
+        "ko": "comic LAKE"
+      },
+      "collection.zerosum": {
+        "zh-Hans": "Comic ZERO-SUM",
+        "zh-Hant": "Comic ZERO-SUM",
+        "en": "Comic ZERO-SUM",
+        "ja": "Comic ZERO-SUM",
+        "ko": "Comic ZERO-SUM"
+      },
+      "collection.palette": {
+        "zh-Hans": "Manga 4-koma Palette",
+        "zh-Hant": "Manga 4-koma Palette",
+        "en": "Manga 4-koma Palette",
+        "ja": "まんが4コマぱれっと",
+        "ko": "망가 4컷 팔레트"
+      },
+      "collection.babydoll": {
+        "zh-Hans": "Baby Doll COMICS",
+        "zh-Hant": "Baby Doll COMICS",
+        "en": "Baby Doll COMICS",
+        "ja": "ベビードールCOMICS",
+        "ko": "베이비돌 COMICS"
+      },
+      "collection.ichijin_plus": {
+        "zh-Hans": "一迅Plus",
+        "zh-Hant": "一迅Plus",
+        "en": "Ichijin Plus",
+        "ja": "一迅プラス",
+        "ko": "이치진 플러스"
+      },
+      "collection.lovebites": {
+        "zh-Hans": "LOVEBITES",
+        "zh-Hant": "LOVEBITES",
+        "en": "LOVEBITES",
+        "ja": "LOVEBITES",
+        "ko": "LOVEBITES"
+      },
+      "collection.romance": {
+        "zh-Hans": "恋爱",
+        "zh-Hant": "戀愛",
+        "en": "Romance",
+        "ja": "恋愛",
+        "ko": "로맨스"
+      },
+      "collection.romcom": {
+        "zh-Hans": "恋爱喜剧",
+        "zh-Hant": "戀愛喜劇",
+        "en": "Romantic comedy",
+        "ja": "ラブコメ",
+        "ko": "러브 코미디"
+      },
+      "collection.comedy": {
+        "zh-Hans": "喜剧与搞笑",
+        "zh-Hant": "喜劇與搞笑",
+        "en": "Comedy and gags",
+        "ja": "コメディ・ギャグ",
+        "ko": "코미디·개그"
+      },
+      "collection.horror": {
+        "zh-Hans": "恐怖",
+        "zh-Hant": "恐怖",
+        "en": "Horror",
+        "ja": "ホラー",
+        "ko": "공포"
+      },
+      "collection.suspense": {
+        "zh-Hans": "悬疑",
+        "zh-Hant": "懸疑",
+        "en": "Suspense",
+        "ja": "サスペンス",
+        "ko": "서스펜스"
+      },
+      "collection.action": {
+        "zh-Hans": "动作与战斗",
+        "zh-Hant": "動作與戰鬥",
+        "en": "Action and battles",
+        "ja": "アクション・バトル",
+        "ko": "액션·배틀"
+      },
+      "collection.history": {
+        "zh-Hans": "历史与时代剧",
+        "zh-Hant": "歷史與時代劇",
+        "en": "History and period drama",
+        "ja": "歴史・時代",
+        "ko": "역사·시대극"
+      },
+      "collection.daily": {
+        "zh-Hans": "日常",
+        "zh-Hant": "日常",
+        "en": "Slice of life",
+        "ja": "日常",
+        "ko": "일상"
+      },
+      "collection.drama": {
+        "zh-Hans": "人情故事",
+        "zh-Hant": "人情故事",
+        "en": "Human drama",
+        "ja": "ヒューマンドラマ",
+        "ko": "휴먼 드라마"
+      },
+      "collection.isekai": {
+        "zh-Hans": "异世界与转生",
+        "zh-Hant": "異世界與轉生",
+        "en": "Other worlds and reincarnation",
+        "ja": "異世界・転生",
+        "ko": "이세계·전생"
+      },
+      "collection.fantasy": {
+        "zh-Hans": "奇幻",
+        "zh-Hant": "奇幻",
+        "en": "Fantasy",
+        "ja": "ファンタジー",
+        "ko": "판타지"
+      },
+      "collection.yuri": {
+        "zh-Hans": "百合",
+        "zh-Hant": "百合",
+        "en": "Yuri",
+        "ja": "百合",
+        "ko": "백합"
+      },
+      "collection.bl": {
+        "zh-Hans": "BL",
+        "zh-Hant": "BL",
+        "en": "BL",
+        "ja": "BL",
+        "ko": "BL"
+      },
+      "collection.tl": {
+        "zh-Hans": "TL",
+        "zh-Hant": "TL",
+        "en": "TL",
+        "ja": "TL",
+        "ko": "TL"
+      },
+      "collection.school": {
+        "zh-Hans": "校园与青春",
+        "zh-Hant": "校園與青春",
+        "en": "School and youth",
+        "ja": "学園・青春",
+        "ko": "학원·청춘"
+      },
+      "collection.work": {
+        "zh-Hans": "职场",
+        "zh-Hant": "職場",
+        "en": "Workplace",
+        "ja": "お仕事",
+        "ko": "직장"
+      },
+      "collection.adapted": {
+        "zh-Hans": "影视等改编作品",
+        "zh-Hant": "影視等改編作品",
+        "en": "Adapted for other media",
+        "ja": "メディア化",
+        "ko": "미디어화 작품"
+      },
+      "collection.newcomers": {
+        "zh-Hans": "新人作品与读切",
+        "zh-Hant": "新人作品與短篇",
+        "en": "New talent and one-shots",
+        "ja": "新人・読切",
+        "ko": "신인 작품·단편"
+      },
+      "collection.completed": {
+        "zh-Hans": "已完结",
+        "zh-Hant": "已完結",
+        "en": "Completed series",
+        "ja": "完結作品",
+        "ko": "완결작"
+      },
+      "collection.original": {
+        "zh-Hans": "原创作品",
+        "zh-Hant": "原創作品",
+        "en": "Original works",
+        "ja": "オリジナル",
+        "ko": "오리지널 작품"
+      }
+    }
+  },
+  "requestLimits": [
+    {
+      "group": "ichicomi-site",
+      "permits": 3,
+      "periodMs": 1000,
+      "hosts": [
+        "ichicomi.com"
+      ]
+    }
+  ],
+  "localizedNames": {
+    "zh-Hans": "一迅Plus",
+    "zh-Hant": "一迅Plus",
+    "en": "Ichijin Plus",
+    "ja": "一迅プラス",
+    "ko": "이치진 플러스"
+  }
+}

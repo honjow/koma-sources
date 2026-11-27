@@ -34,6 +34,8 @@ RELEASE_PACKAGE_DIR="$OUTPUT_DIR/release-packages"
 SOURCE_ENTRIES='
 comicgardo-ja|comicgardo-ja|false|1.5.5
 comiczenon-ja|comiczenon-ja|false|1.5.5
+ichicomi-ja|ichicomi-ja|false|1.5.5
+comicearthstar-ja|comicearthstar-ja|false|1.5.5
 magcomi-ja|magcomi-ja|false|1.5.5
 comictrail-ja|comictrail-ja|false|1.5.5
 meitulu|meitulu|true|1.5.5
