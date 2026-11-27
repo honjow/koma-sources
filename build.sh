@@ -34,6 +34,8 @@ RELEASE_PACKAGE_DIR="$OUTPUT_DIR/release-packages"
 SOURCE_ENTRIES='
 cosplaytele|cosplaytele|true|0.1.4
 buondua|buondua|true|1.4.1
+sundaywebevery-ja|sundaywebevery-ja|false|1.5.5
+kadocomi-ja|kadocomi-ja|false|1.5.5
 everiaclub|everiaclub|true|0.1.0
 fourkhd|fourkhd|true|0.1.0
 idolgravureprincessdate|idolgravureprincessdate|true|0.1.0

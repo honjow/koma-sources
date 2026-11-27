@@ -1,0 +1,136 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://comic-walker.com",
+  "minAppVersion": "1.5.5",
+  "localizedNames": {
+    "zh-Hans": "角川漫画 KadoComi",
+    "zh-Hant": "角川漫畫 KadoComi",
+    "en": "KadoComi",
+    "ja": "カドコミ",
+    "ko": "카도코미"
+  },
+  "requiredImageDecodes": [
+    "wasm_image_v1"
+  ],
+  "wasmBuild": {
+    "imageProcessorCrate": "koma_kadocomi_xor_processor"
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "ja",
+    "messages": {
+      "listing.popular": {
+        "zh-Hans": "热门作品",
+        "zh-Hant": "熱門作品",
+        "en": "Popular titles",
+        "ja": "人気作品",
+        "ko": "인기 작품"
+      },
+      "listing.latest": {
+        "zh-Hans": "最近更新",
+        "zh-Hant": "最近更新",
+        "en": "Latest updates",
+        "ja": "最近の更新",
+        "ko": "최근 업데이트"
+      },
+      "error.filter": {
+        "zh-Hans": "请求参数无效，请检查搜索或筛选条件。",
+        "zh-Hant": "請求參數無效，請檢查搜尋或篩選條件。",
+        "en": "Check the search or filter values and try again.",
+        "ja": "検索条件または絞り込み条件を確認してください。",
+        "ko": "검색어나 필터 값을 확인하고 다시 시도해 주세요."
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站未提供此内容。",
+        "zh-Hant": "原站未提供此內容。",
+        "en": "This content is unavailable on the website.",
+        "ja": "このコンテンツは公式サイトで公開されていません。",
+        "ko": "사이트에서 이 콘텐츠를 제공하지 않습니다."
+      },
+      "error.network": {
+        "zh-Hans": "暂时无法访问原站，请稍后重试。",
+        "zh-Hant": "暫時無法存取原站，請稍後再試。",
+        "en": "The website could not be reached. Try again shortly.",
+        "ja": "サイトに接続できませんでした。しばらくしてからお試しください。",
+        "ko": "사이트에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요."
+      },
+      "error.locked": {
+        "zh-Hans": "原站未开放本章阅读。",
+        "zh-Hant": "原站未開放本話閱讀。",
+        "en": "The website has locked this chapter.",
+        "ja": "この話は公式サイトで公開されていません。",
+        "ko": "사이트에서 이 회차의 열람을 제한했습니다."
+      },
+      "error.host": {
+        "zh-Hans": "请更新 Koma 以读取本章图片。",
+        "zh-Hant": "請更新 Koma 以讀取本話圖片。",
+        "en": "Update Koma to read this chapter’s images.",
+        "ja": "画像を読むには Koma を更新してください。",
+        "ko": "이미지를 읽으려면 Koma를 업데이트해 주세요."
+      },
+      "error.scramble": {
+        "zh-Hans": "原站使用了当前不支持的图片格式。",
+        "zh-Hant": "原站使用了目前不支援的圖片格式。",
+        "en": "The website returned an unsupported image format.",
+        "ja": "サイトが未対応の画像形式を返しました。",
+        "ko": "사이트에서 지원되지 않는 이미지 형식을 반환했습니다."
+      },
+      "error.catalog": {
+        "zh-Hans": "原站目录已变化，请重新加载。",
+        "zh-Hant": "原站目錄已變更，請重新載入。",
+        "en": "The website’s catalogue changed. Reload it to continue.",
+        "ja": "サイトの一覧が更新されました。再読み込みしてください。",
+        "ko": "사이트의 목록이 변경되었습니다. 다시 불러와 주세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法载入此内容。",
+        "zh-Hant": "暫時無法載入此內容。",
+        "en": "This content could not be loaded.",
+        "ja": "コンテンツを読み込めませんでした。",
+        "ko": "콘텐츠를 불러오지 못했습니다."
+      },
+      "source.description": {
+        "zh-Hans": "角川官方漫画站，收录《转生成蜘蛛又怎样！》等多个漫画厂牌的连载和免费公开章节。",
+        "zh-Hant": "角川官方漫畫網站，收錄《轉生成蜘蛛又怎樣！》等多個漫畫品牌的連載和免費公開話。",
+        "en": "KADOKAWA’s official manga site offers serials and free episodes from several labels, including So I’m a Spider, So What?",
+        "ja": "KADOKAWAの公式マンガサイト。『蜘蛛ですが、なにか？』など、複数のレーベルの連載や無料公開話を掲載しています。",
+        "ko": "가도카와 공식 만화 사이트로, 《거미입니다만, 문제라도?》 등 여러 레이블의 연재작과 무료 공개 회차를 제공합니다."
+      },
+      "filter.sort": {
+        "zh-Hans": "搜索排序",
+        "zh-Hant": "搜尋排序",
+        "en": "Search order",
+        "ja": "検索の並び順",
+        "ko": "검색 정렬"
+      },
+      "sort.popularity": {
+        "zh-Hans": "按人气排序",
+        "zh-Hant": "依人氣排序",
+        "en": "Popularity",
+        "ja": "人気順",
+        "ko": "인기순"
+      },
+      "sort.update": {
+        "zh-Hans": "按更新时间排序",
+        "zh-Hant": "依更新時間排序",
+        "en": "Recently updated",
+        "ja": "更新順",
+        "ko": "업데이트순"
+      },
+      "setting.hide_locked": {
+        "zh-Hans": "隐藏不可读章节",
+        "zh-Hant": "隱藏無法閱讀的章節",
+        "en": "Hide unavailable chapters",
+        "ja": "非公開話を非表示",
+        "ko": "열람 불가 회차 숨기기"
+      },
+      "detail.next_update": {
+        "zh-Hans": "下次更新",
+        "zh-Hant": "下次更新",
+        "en": "Next update",
+        "ja": "次回更新",
+        "ko": "다음 업데이트"
+      }
+    }
+  }
+}

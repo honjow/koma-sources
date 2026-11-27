@@ -1855,6 +1855,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_kadocomi_ja_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
+name = "koma_kadocomi_xor_processor"
+version = "0.1.0"
+
+[[package]]
 name = "koma_kanman_source"
 version = "0.1.3"
 dependencies = [
@@ -2341,6 +2355,17 @@ dependencies = [
 [[package]]
 name = "koma_source_sdk"
 version = "0.2.0"
+
+[[package]]
+name = "koma_sundaywebevery_ja_source"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
 
 [[package]]
 name = "koma_tapastic_source"

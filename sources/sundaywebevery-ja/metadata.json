@@ -1,0 +1,171 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://www.sunday-webry.com",
+  "minAppVersion": "1.5.5",
+  "localizedNames": {
+    "zh-Hans": "Sunday Webry（小学馆）",
+    "zh-Hant": "Sunday Webry（小學館）",
+    "en": "Sunday Web Every",
+    "ja": "サンデーうぇぶり",
+    "ko": "선데이 웨브리"
+  },
+  "requiredImageDecodes": [
+    "wasm_image_v1"
+  ],
+  "wasmBuild": {
+    "imageProcessorCrate": "koma_gigaviewer_tile_processor"
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "ja",
+    "messages": {
+      "listing.popular": {
+        "zh-Hans": "热门作品",
+        "zh-Hant": "熱門作品",
+        "en": "Popular titles",
+        "ja": "人気作品",
+        "ko": "인기 작품"
+      },
+      "listing.latest": {
+        "zh-Hans": "最近更新",
+        "zh-Hant": "最近更新",
+        "en": "Latest updates",
+        "ja": "最近の更新",
+        "ko": "최근 업데이트"
+      },
+      "error.filter": {
+        "zh-Hans": "请求参数无效，请检查搜索或筛选条件。",
+        "zh-Hant": "請求參數無效，請檢查搜尋或篩選條件。",
+        "en": "Check the search or filter values and try again.",
+        "ja": "検索条件または絞り込み条件を確認してください。",
+        "ko": "검색어나 필터 값을 확인하고 다시 시도해 주세요."
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站未提供此内容。",
+        "zh-Hant": "原站未提供此內容。",
+        "en": "This content is unavailable on the website.",
+        "ja": "このコンテンツは公式サイトで公開されていません。",
+        "ko": "사이트에서 이 콘텐츠를 제공하지 않습니다."
+      },
+      "error.network": {
+        "zh-Hans": "暂时无法访问原站，请稍后重试。",
+        "zh-Hant": "暫時無法存取原站，請稍後再試。",
+        "en": "The website could not be reached. Try again shortly.",
+        "ja": "サイトに接続できませんでした。しばらくしてからお試しください。",
+        "ko": "사이트에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요."
+      },
+      "error.locked": {
+        "zh-Hans": "原站未开放本章阅读。",
+        "zh-Hant": "原站未開放本話閱讀。",
+        "en": "The website has locked this chapter.",
+        "ja": "この話は公式サイトで公開されていません。",
+        "ko": "사이트에서 이 회차의 열람을 제한했습니다."
+      },
+      "error.host": {
+        "zh-Hans": "请更新 Koma 以读取本章图片。",
+        "zh-Hant": "請更新 Koma 以讀取本話圖片。",
+        "en": "Update Koma to read this chapter’s images.",
+        "ja": "画像を読むには Koma を更新してください。",
+        "ko": "이미지를 읽으려면 Koma를 업데이트해 주세요."
+      },
+      "error.scramble": {
+        "zh-Hans": "原站使用了当前不支持的图片格式。",
+        "zh-Hant": "原站使用了目前不支援的圖片格式。",
+        "en": "The website returned an unsupported image format.",
+        "ja": "サイトが未対応の画像形式を返しました。",
+        "ko": "사이트에서 지원되지 않는 이미지 형식을 반환했습니다."
+      },
+      "error.catalog": {
+        "zh-Hans": "原站目录已变化，请重新加载。",
+        "zh-Hant": "原站目錄已變更，請重新載入。",
+        "en": "The website’s catalogue changed. Reload it to continue.",
+        "ja": "サイトの一覧が更新されました。再読み込みしてください。",
+        "ko": "사이트의 목록이 변경되었습니다. 다시 불러와 주세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法载入此内容。",
+        "zh-Hant": "暫時無法載入此內容。",
+        "en": "This content could not be loaded.",
+        "ja": "コンテンツを読み込めませんでした。",
+        "ko": "콘텐츠를 불러오지 못했습니다."
+      },
+      "source.description": {
+        "zh-Hans": "小学馆官方漫画站，收录《名侦探柯南》等连载、短篇及「夜 Sunday」栏目公开章节。",
+        "zh-Hant": "小學館官方漫畫網站，收錄《名偵探柯南》等連載、短篇及「夜 Sunday」欄目公開話。",
+        "en": "Shogakukan’s official manga site publishes public chapters of series such as Detective Conan, one-shots, and the Night Sunday collection.",
+        "ja": "小学館の公式マンガサイト。『名探偵コナン』などの連載や読切、夜サンデーの公開話を掲載しています。",
+        "ko": "쇼가쿠칸 공식 만화 사이트로, 《명탐정 코난》 등의 연재작과 단편, 밤의 선데이 공개 회차를 제공합니다."
+      },
+      "listing.oneshot": {
+        "zh-Hans": "短篇作品",
+        "zh-Hant": "短篇作品",
+        "en": "One-shots",
+        "ja": "読切作品",
+        "ko": "단편 작품"
+      },
+      "listing.evening": {
+        "zh-Hans": "夜间 Sunday",
+        "zh-Hant": "夜間 Sunday",
+        "en": "Night Sunday",
+        "ja": "夜サンデー",
+        "ko": "밤의 선데이"
+      },
+      "filter.collection": {
+        "zh-Hans": "作品分类",
+        "zh-Hant": "作品分類",
+        "en": "Collection",
+        "ja": "作品区分",
+        "ko": "작품 분류"
+      },
+      "collection.serial": {
+        "zh-Hans": "连载作品",
+        "zh-Hant": "連載作品",
+        "en": "Serials",
+        "ja": "連載作品",
+        "ko": "연재작"
+      },
+      "collection.oneshot": {
+        "zh-Hans": "短篇",
+        "zh-Hant": "短篇",
+        "en": "One-shots",
+        "ja": "読切",
+        "ko": "단편"
+      },
+      "collection.evening": {
+        "zh-Hans": "夜间 Sunday",
+        "zh-Hant": "夜間 Sunday",
+        "en": "Night Sunday",
+        "ja": "夜サンデー",
+        "ko": "밤의 선데이"
+      },
+      "setting.hide_locked": {
+        "zh-Hans": "隐藏付费章节",
+        "zh-Hant": "隱藏付費章節",
+        "en": "Hide paid chapters",
+        "ja": "有料話を非表示",
+        "ko": "유료 회차 숨기기"
+      },
+      "setting.hide_unavailable": {
+        "zh-Hans": "隐藏已下架章节",
+        "zh-Hant": "隱藏已下架章節",
+        "en": "Hide unavailable chapters",
+        "ja": "配信終了話を非表示",
+        "ko": "공개 종료 회차 숨기기"
+      },
+      "chapter.unavailable": {
+        "zh-Hans": "已下架",
+        "zh-Hant": "已下架",
+        "en": "Unavailable",
+        "ja": "配信終了",
+        "ko": "공개 종료"
+      },
+      "chapter.volume": {
+        "zh-Hans": "单行本",
+        "zh-Hant": "單行本",
+        "en": "Volume",
+        "ja": "単行本",
+        "ko": "단행본"
+      }
+    }
+  }
+}

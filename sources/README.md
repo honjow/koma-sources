@@ -164,6 +164,8 @@
 | <img src="shonenjumpplus-ja/icon.png" width="24" alt=""> | shonenjumpplus-ja | 少年ジャンプ＋ | 集英社官方日文连载和短篇，正文限匿名公开话。 |
 | <img src="tonarinoyoungjump-ja/icon.png" width="24" alt=""> | tonarinoyoungjump-ja | となりのヤングジャンプ | 集英社连载、短篇和客串刊载，支持公开话及 GigaViewer 去扰。 |
 | <img src="comicdays-ja/icon.png" width="24" alt=""> | comicdays-ja | コミックDAYS | 讲谈社连载、排行、限免和杂志分话，支持公开话及 GigaViewer 去扰。 |
+| <img src="sundaywebevery-ja/icon.png" width="24" alt=""> | sundaywebevery-ja | サンデーうぇぶり | 小学馆《名侦探柯南》等连载、短篇和夜 Sunday 公开话。 |
+| <img src="kadocomi-ja/icon.png" width="24" alt=""> | kadocomi-ja | カドコミ | 角川多个漫画厂牌的连载与公开话，包内还原官网正文图。 |
 | <img src="twi4-ja/icon.png" width="24" alt=""> | twi4-ja | Twi4 | 星海社「最前線」的日文四格连载，收录《トモちゃんは女の子！》等作品。 |
 
 ## 英文原站
