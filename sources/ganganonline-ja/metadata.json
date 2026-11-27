@@ -1,0 +1,130 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://www.ganganonline.com",
+  "minAppVersion": "0.1.0",
+  "localizedNames": {
+    "zh-Hans": "Gangan Online（ガンガンONLINE）",
+    "zh-Hant": "Gangan Online（ガンガンONLINE）",
+    "en": "Gangan Online",
+    "ja": "ガンガンONLINE",
+    "ko": "간간 ONLINE"
+  },
+  "localizedDescriptions": {
+    "zh-Hans": "Square Enix 官方日文漫画杂志，收录连载、短篇，以及 Gangan pixiv 和 Gangan GA 的公开话。",
+    "zh-Hant": "Square Enix 官方日文漫畫雜誌，收錄連載、短篇，以及 Gangan pixiv 和 Gangan GA 的公開話。",
+    "en": "Square Enix’s official Japanese web manga magazine with serials, one-shots and public chapters from Gangan pixiv and Gangan GA.",
+    "ja": "スクウェア・エニックスの公式ウェブマンガ誌。連載、読み切り、ガンガンpixiv・ガンガンGAの公開話を読めます。",
+    "ko": "스퀘어 에닉스 공식 일본어 웹 만화 잡지로, 연재작과 단편 및 간간 pixiv와 간간 GA의 공개 회차를 볼 수 있습니다."
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "ja",
+    "messages": {
+      "source.name": {
+        "zh-Hans": "Gangan Online（ガンガンONLINE）",
+        "zh-Hant": "Gangan Online（ガンガンONLINE）",
+        "en": "Gangan Online",
+        "ja": "ガンガンONLINE",
+        "ko": "간간 ONLINE"
+      },
+      "source.description": {
+        "zh-Hans": "Square Enix 官方日文漫画杂志，收录连载、短篇，以及 Gangan pixiv 和 Gangan GA 的公开话。",
+        "zh-Hant": "Square Enix 官方日文漫畫雜誌，收錄連載、短篇，以及 Gangan pixiv 和 Gangan GA 的公開話。",
+        "en": "Square Enix’s official Japanese web manga magazine with serials, one-shots and public chapters from Gangan pixiv and Gangan GA.",
+        "ja": "スクウェア・エニックスの公式ウェブマンガ誌。連載、読み切り、ガンガンpixiv・ガンガンGAの公開話を読めます。",
+        "ko": "스퀘어 에닉스 공식 일본어 웹 만화 잡지로, 연재작과 단편 및 간간 pixiv와 간간 GA의 공개 회차를 볼 수 있습니다."
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站未提供此内容或图片。",
+        "zh-Hant": "原站未提供此內容或圖片。",
+        "en": "The website does not provide this content or its images.",
+        "ja": "配信元にコンテンツまたは画像がありません。",
+        "ko": "사이트에 콘텐츠 또는 이미지가 없습니다."
+      },
+      "error.network": {
+        "zh-Hans": "原站请求未完成，请稍后重试。",
+        "zh-Hant": "原站要求未完成，請稍後再試。",
+        "en": "Could not complete the website request. Try again later.",
+        "ja": "配信元へのアクセスに失敗しました。時間をおいて再試行してください。",
+        "ko": "사이트에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."
+      },
+      "error.filter": {
+        "zh-Hans": "请检查关键词、筛选或翻页参数。",
+        "zh-Hant": "請檢查關鍵字、篩選或分頁參數。",
+        "en": "Check the keyword, filters or page before trying again.",
+        "ja": "キーワード、絞り込み条件、ページを確認してください。",
+        "ko": "검색어, 필터 또는 페이지를 확인해 주세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法读取原站内容。",
+        "zh-Hant": "暫時無法讀取原站內容。",
+        "en": "Unable to read the website content.",
+        "ja": "配信元のコンテンツを読み込めません。",
+        "ko": "사이트 콘텐츠를 읽을 수 없습니다."
+      },
+      "listing.popular": {
+        "zh-Hans": "连载目录",
+        "zh-Hant": "連載目錄",
+        "en": "Series catalog",
+        "ja": "連載作品",
+        "ko": "연재 작품"
+      },
+      "listing.latest": {
+        "zh-Hans": "今日更新",
+        "zh-Hant": "今日更新",
+        "en": "Updated today",
+        "ja": "今日の更新作品",
+        "ko": "오늘 업데이트"
+      },
+      "filter.category": {
+        "zh-Hans": "分类",
+        "zh-Hant": "分類",
+        "en": "Catalog",
+        "ja": "カテゴリー",
+        "ko": "카테고리"
+      },
+      "filter.category_hint": {
+        "zh-Hans": "清空关键词后按官网分类浏览。",
+        "zh-Hant": "清空關鍵字後依官網分類瀏覽。",
+        "en": "Clear the keyword to browse a website category.",
+        "ja": "キーワードを消すとカテゴリーから探せます。",
+        "ko": "검색어를 지우면 사이트 카테고리별로 볼 수 있습니다."
+      },
+      "category.ongoing": {
+        "zh-Hans": "连载作品",
+        "zh-Hant": "連載作品",
+        "en": "Ongoing series",
+        "ja": "連載作品",
+        "ko": "연재 작품"
+      },
+      "category.finished": {
+        "zh-Hans": "已完结作品",
+        "zh-Hant": "已完結作品",
+        "en": "Completed series",
+        "ja": "連載終了作品",
+        "ko": "완결 작품"
+      },
+      "category.pixiv": {
+        "zh-Hans": "Gangan pixiv",
+        "zh-Hant": "Gangan pixiv",
+        "en": "Gangan pixiv",
+        "ja": "ガンガンpixiv",
+        "ko": "간간 pixiv"
+      },
+      "category.ga": {
+        "zh-Hans": "Gangan GA",
+        "zh-Hant": "Gangan GA",
+        "en": "Gangan GA",
+        "ja": "ガンガンGA",
+        "ko": "간간 GA"
+      },
+      "error.locked": {
+        "zh-Hans": "本话尚未公开或公开期已结束，请查看原站。",
+        "zh-Hant": "本話尚未公開或公開期已結束，請查看原站。",
+        "en": "This chapter is not publicly available. Check the publisher’s website.",
+        "ja": "この話は現在公開されていません。配信元をご確認ください。",
+        "ko": "이 회차는 현재 공개되지 않았습니다. 공식 사이트를 확인해 주세요."
+      }
+    }
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://www.questionablecontent.net",
+  "minAppVersion": "0.1.0",
+  "localizedNames": {
+    "zh-Hans": "Questionable Content",
+    "zh-Hant": "Questionable Content",
+    "en": "Questionable Content",
+    "ja": "Questionable Content",
+    "ko": "Questionable Content"
+  },
+  "localizedDescriptions": {
+    "zh-Hans": "Jeph Jacques 自 2003 年连载的英文网漫，描绘友情、恋爱与机器人。",
+    "zh-Hant": "Jeph Jacques 自 2003 年連載的英文網漫，描寫友情、戀愛與機器人。",
+    "en": "Jeph Jacques’ English webcomic about friendship, romance and robots, running since 2003.",
+    "ja": "Jeph Jacquesが2003年から連載する、友情、恋愛、ロボットを描いた英語のウェブコミックです。",
+    "ko": "Jeph Jacques가 2003년부터 연재한 우정, 사랑, 로봇을 그린 영어 웹툰입니다."
+  },
+  "requestLimits": [],
+  "localization": {
+    "version": 1,
+    "defaultLocale": "en",
+    "messages": {
+      "source.name": {
+        "zh-Hans": "Questionable Content",
+        "zh-Hant": "Questionable Content",
+        "en": "Questionable Content",
+        "ja": "Questionable Content",
+        "ko": "Questionable Content"
+      },
+      "source.description": {
+        "zh-Hans": "Jeph Jacques 自 2003 年连载的英文网漫，描绘友情、恋爱与机器人。",
+        "zh-Hant": "Jeph Jacques 自 2003 年連載的英文網漫，描寫友情、戀愛與機器人。",
+        "en": "Jeph Jacques’ English webcomic about friendship, romance and robots, running since 2003.",
+        "ja": "Jeph Jacquesが2003年から連載する、友情、恋愛、ロボットを描いた英語のウェブコミックです。",
+        "ko": "Jeph Jacques가 2003년부터 연재한 우정, 사랑, 로봇을 그린 영어 웹툰입니다."
+      },
+      "listing.popular": {
+        "zh-Hans": "漫画归档",
+        "zh-Hant": "漫畫典藏",
+        "en": "Comic archive",
+        "ja": "コミックアーカイブ",
+        "ko": "만화 아카이브"
+      },
+      "setting.showAuthorsNotes": {
+        "zh-Hans": "显示作者附注",
+        "zh-Hant": "顯示作者附註",
+        "en": "Show author’s notes",
+        "ja": "作者のコメントを表示",
+        "ko": "작가 후기 표시"
+      },
+      "setting.showAuthorsNotes_hint": {
+        "zh-Hans": "原站有附注时，显示在正文图片后。",
+        "zh-Hant": "原站有附註時，顯示於正文圖片後。",
+        "en": "Append the website’s notes after the comic when available.",
+        "ja": "配信元にコメントがある場合、コミックの後に表示します。",
+        "ko": "사이트에 후기가 있는 경우 본문 이미지 뒤에 표시합니다."
+      },
+      "notes.heading": {
+        "zh-Hans": "作者附注",
+        "zh-Hant": "作者附註",
+        "en": "Author’s notes",
+        "ja": "作者のコメント",
+        "ko": "작가 후기"
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站未提供此内容或图片。",
+        "zh-Hant": "原站未提供此內容或圖片。",
+        "en": "The website does not provide this content or its images.",
+        "ja": "配信元にコンテンツまたは画像がありません。",
+        "ko": "사이트에 콘텐츠 또는 이미지가 없습니다."
+      },
+      "error.network": {
+        "zh-Hans": "原站请求未完成，请稍后重试。",
+        "zh-Hant": "原站要求未完成，請稍後再試。",
+        "en": "Could not complete the website request. Try again later.",
+        "ja": "配信元へのアクセスに失敗しました。時間をおいて再試行してください。",
+        "ko": "사이트에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."
+      },
+      "error.filter": {
+        "zh-Hans": "请检查关键词、筛选或翻页参数。",
+        "zh-Hant": "請檢查關鍵字、篩選或分頁參數。",
+        "en": "Check the keyword, filters or page before trying again.",
+        "ja": "キーワード、絞り込み条件、ページを確認してください。",
+        "ko": "검색어, 필터 또는 페이지를 확인해 주세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法读取原站内容。",
+        "zh-Hant": "暫時無法讀取原站內容。",
+        "en": "Unable to read the website content.",
+        "ja": "配信元のコンテンツを読み込めません。",
+        "ko": "사이트 콘텐츠를 읽을 수 없습니다."
+      },
+      "error.catalog": {
+        "zh-Hans": "原站目录已变化，请重新加载。",
+        "zh-Hant": "原站目錄已變更，請重新載入。",
+        "en": "The website archive changed. Reload the chapter list.",
+        "ja": "配信元の一覧が変わりました。話一覧を読み込み直してください。",
+        "ko": "사이트의 목록이 변경되었습니다. 회차를 다시 불러오세요."
+      }
+    }
+  }
+}

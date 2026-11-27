@@ -1,0 +1,210 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://misskon.com/",
+  "minAppVersion": "0.1.0",
+  "localizedNames": {
+    "zh-Hans": "MissKon",
+    "zh-Hant": "MissKon",
+    "en": "MissKon",
+    "ja": "MissKon",
+    "ko": "MissKon"
+  },
+  "localizedDescriptions": {
+    "zh-Hans": "亚洲写真图集，收录角色扮演与摄影工作室作品，提供原站浏览量榜单和标签。",
+    "zh-Hant": "亞洲寫真圖集，收錄角色扮演與攝影工作室作品，提供原站瀏覽量榜單和標籤。",
+    "en": "Asian photo galleries with cosplay and studio sets, official view rankings and photo tags.",
+    "ja": "アジアのコスプレやスタジオ撮影の写真集を、公式の閲覧ランキングとタグで探せます。",
+    "ko": "아시아 코스프레와 스튜디오 화보를 모아 사이트 조회 순위와 태그로 볼 수 있습니다."
+  },
+  "requestLimits": [
+    {
+      "group": "misskon-site",
+      "permits": 4,
+      "periodMs": 1000,
+      "hosts": [
+        "misskon.com"
+      ]
+    }
+  ],
+  "localization": {
+    "version": 1,
+    "defaultLocale": "en",
+    "messages": {
+      "source.name": {
+        "zh-Hans": "MissKon",
+        "zh-Hant": "MissKon",
+        "en": "MissKon",
+        "ja": "MissKon",
+        "ko": "MissKon"
+      },
+      "source.description": {
+        "zh-Hans": "亚洲写真图集，收录角色扮演与摄影工作室作品，提供原站浏览量榜单和标签。",
+        "zh-Hant": "亞洲寫真圖集，收錄角色扮演與攝影工作室作品，提供原站瀏覽量榜單和標籤。",
+        "en": "Asian photo galleries with cosplay and studio sets, official view rankings and photo tags.",
+        "ja": "アジアのコスプレやスタジオ撮影の写真集を、公式の閲覧ランキングとタグで探せます。",
+        "ko": "아시아 코스프레와 스튜디오 화보를 모아 사이트 조회 순위와 태그로 볼 수 있습니다."
+      },
+      "listing.popular": {
+        "zh-Hans": "热门写真",
+        "zh-Hant": "熱門寫真",
+        "en": "Popular galleries",
+        "ja": "人気の写真集",
+        "ko": "인기 화보"
+      },
+      "listing.latest": {
+        "zh-Hans": "最新发布",
+        "zh-Hant": "最新發佈",
+        "en": "Latest galleries",
+        "ja": "新着写真集",
+        "ko": "최신 화보"
+      },
+      "listing.cosplay": {
+        "zh-Hans": "角色扮演",
+        "zh-Hant": "角色扮演",
+        "en": "Cosplay",
+        "ja": "コスプレ",
+        "ko": "코스프레"
+      },
+      "listing.jp": {
+        "zh-Hans": "日本写真",
+        "zh-Hant": "日本寫真",
+        "en": "Japanese photo sets",
+        "ja": "日本の写真集",
+        "ko": "일본 화보"
+      },
+      "chapter.gallery": {
+        "zh-Hans": "整册相册",
+        "zh-Hant": "整冊相簿",
+        "en": "Full gallery",
+        "ja": "全ページ",
+        "ko": "전체 화보"
+      },
+      "filter.any": {
+        "zh-Hans": "不限",
+        "zh-Hant": "不限",
+        "en": "Any",
+        "ja": "すべて",
+        "ko": "전체"
+      },
+      "filter.category": {
+        "zh-Hans": "分类",
+        "zh-Hant": "分類",
+        "en": "Category",
+        "ja": "カテゴリー",
+        "ko": "카테고리"
+      },
+      "filter.category_hint": {
+        "zh-Hans": "分类和标签只能选一个，请清空关键词。",
+        "zh-Hant": "分類和標籤只能選一個，請清空關鍵字。",
+        "en": "Choose one category or tag and clear the keyword.",
+        "ja": "カテゴリーまたはタグを一つ選び、キーワードを消してください。",
+        "ko": "카테고리 또는 태그 하나를 선택하고 검색어를 지워 주세요."
+      },
+      "filter.tag": {
+        "zh-Hans": "标签",
+        "zh-Hant": "標籤",
+        "en": "Tag",
+        "ja": "タグ",
+        "ko": "태그"
+      },
+      "filter.tag_hint": {
+        "zh-Hans": "按原站标签浏览，请清空分类和关键词。",
+        "zh-Hant": "依原站標籤瀏覽，請清空分類和關鍵字。",
+        "en": "Browse a website tag with the category and keyword cleared.",
+        "ja": "配信元のタグで探すにはカテゴリーとキーワードを消してください。",
+        "ko": "사이트 태그로 보려면 카테고리와 검색어를 지워 주세요."
+      },
+      "category.top3": {
+        "zh-Hans": "近 3 天榜",
+        "zh-Hant": "近 3 天榜",
+        "en": "Top 3 days",
+        "ja": "3日間の人気",
+        "ko": "최근 3일 인기"
+      },
+      "category.top7": {
+        "zh-Hans": "近 7 天榜",
+        "zh-Hant": "近 7 天榜",
+        "en": "Top 7 days",
+        "ja": "7日間の人気",
+        "ko": "최근 7일 인기"
+      },
+      "category.top30": {
+        "zh-Hans": "近 30 天榜",
+        "zh-Hant": "近 30 天榜",
+        "en": "Top 30 days",
+        "ja": "30日間の人気",
+        "ko": "최근 30일 인기"
+      },
+      "category.top60": {
+        "zh-Hans": "近 60 天榜",
+        "zh-Hant": "近 60 天榜",
+        "en": "Top 60 days",
+        "ja": "60日間の人気",
+        "ko": "최근 60일 인기"
+      },
+      "category.top_year": {
+        "zh-Hans": "年度榜",
+        "zh-Hant": "年度榜",
+        "en": "Top year",
+        "ja": "年間の人気",
+        "ko": "연간 인기"
+      },
+      "category.cosplay": {
+        "zh-Hans": "角色扮演",
+        "zh-Hant": "角色扮演",
+        "en": "Cosplay",
+        "ja": "コスプレ",
+        "ko": "코스프레"
+      },
+      "category.jp": {
+        "zh-Hans": "日本写真",
+        "zh-Hant": "日本寫真",
+        "en": "Japanese photo sets",
+        "ja": "日本の写真集",
+        "ko": "일본 화보"
+      },
+      "category.ai_generated": {
+        "zh-Hans": "AI 生成",
+        "zh-Hant": "AI 生成",
+        "en": "AI generated",
+        "ja": "AI生成",
+        "ko": "AI 생성"
+      },
+      "category.ai_enhanced": {
+        "zh-Hans": "AI 增强",
+        "zh-Hant": "AI 增強",
+        "en": "AI enhanced",
+        "ja": "AI補正",
+        "ko": "AI 보정"
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站未提供此内容或图片。",
+        "zh-Hant": "原站未提供此內容或圖片。",
+        "en": "The website does not provide this content or its images.",
+        "ja": "配信元にコンテンツまたは画像がありません。",
+        "ko": "사이트에 콘텐츠 또는 이미지가 없습니다."
+      },
+      "error.network": {
+        "zh-Hans": "原站请求未完成，请稍后重试。",
+        "zh-Hant": "原站要求未完成，請稍後再試。",
+        "en": "Could not complete the website request. Try again later.",
+        "ja": "配信元へのアクセスに失敗しました。時間をおいて再試行してください。",
+        "ko": "사이트에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."
+      },
+      "error.filter": {
+        "zh-Hans": "请检查关键词、筛选或翻页参数。",
+        "zh-Hant": "請檢查關鍵字、篩選或分頁參數。",
+        "en": "Check the keyword, filters or page before trying again.",
+        "ja": "キーワード、絞り込み条件、ページを確認してください。",
+        "ko": "검색어, 필터 또는 페이지를 확인해 주세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法读取原站内容。",
+        "zh-Hant": "暫時無法讀取原站內容。",
+        "en": "Unable to read the website content.",
+        "ja": "配信元のコンテンツを読み込めません。",
+        "ko": "사이트 콘텐츠를 읽을 수 없습니다."
+      }
+    }
+  }
+}

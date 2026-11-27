@@ -35,8 +35,10 @@ SOURCE_ENTRIES='
 cosplaytele|cosplaytele|true|0.1.4
 buondua|buondua|true|1.4.1
 sundaywebevery-ja|sundaywebevery-ja|false|1.5.5
+ganganonline-ja|ganganonline-ja|false|0.1.0
 kadocomi-ja|kadocomi-ja|false|1.5.5
 everiaclub|everiaclub|true|0.1.0
+misskon|misskon|true|0.1.0
 fourkhd|fourkhd|true|0.1.0
 idolgravureprincessdate|idolgravureprincessdate|true|0.1.0
 xiutaku|xiutaku|true|1.4.1
@@ -180,6 +182,7 @@ namicomi-en|namicomi-en|false|0.1.0
 xkcd-en|xkcd-en|false|0.1.0
 comicfury-en|comicfury-en|true|0.1.0
 smbc-en|smbc-en|false|0.1.0
+questionablecontent-en|questionablecontent-en|false|0.1.0
 acomics-ru|acomics-ru|true|0.1.0
 weebcentral-en|weebcentral-en|true|0.1.0
 shonenjumpplus-ja|shonenjumpplus-ja|false|1.5.5

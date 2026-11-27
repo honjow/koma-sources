@@ -1578,6 +1578,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_ganganonline_ja_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "koma_genshin_zh_source"
 version = "0.1.4"
 dependencies = [
@@ -2104,6 +2114,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_misskon_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "koma_mixflavor_life_zh_hant_source"
 version = "0.1.6"
 dependencies = [
@@ -2245,6 +2265,16 @@ name = "koma_protectors_zh_source"
 version = "0.1.1"
 dependencies = [
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_questionablecontent_en_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
 ]
 
 [[package]]
