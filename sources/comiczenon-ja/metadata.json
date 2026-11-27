@@ -1,0 +1,328 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://comic-zenon.com",
+  "minAppVersion": "1.5.5",
+  "requiredImageDecodes": [
+    "wasm_image_v1"
+  ],
+  "wasmBuild": {
+    "imageProcessorCrate": "koma_gigaviewer_tile_processor"
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "ja",
+    "messages": {
+      "error.locked": {
+        "zh-Hans": "该章节当前未公开。",
+        "zh-Hant": "此章節目前未公開。",
+        "en": "This chapter is currently locked.",
+        "ja": "この話は現在公開されていません。",
+        "ko": "이 회차는 현재 잠겨 있습니다."
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站没有提供此内容。",
+        "zh-Hant": "原站沒有提供此內容。",
+        "en": "This content is unavailable on the website.",
+        "ja": "配信元でこのコンテンツは公開されていません。",
+        "ko": "사이트에서 이 콘텐츠를 제공하지 않습니다."
+      },
+      "error.network": {
+        "zh-Hans": "原站请求未完成，请稍后重试。",
+        "zh-Hant": "原站請求未完成，請稍後再試。",
+        "en": "Could not complete the website request. Try again later.",
+        "ja": "配信元へのリクエストに失敗しました。時間をおいて再試行してください。",
+        "ko": "사이트에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."
+      },
+      "error.host": {
+        "zh-Hans": "请更新 Koma 以阅读此章节。",
+        "zh-Hant": "請更新 Koma 以閱讀此章節。",
+        "en": "Update Koma to read this chapter.",
+        "ja": "この話を読むには Koma を更新してください。",
+        "ko": "이 회차를 읽으려면 Koma를 업데이트하세요."
+      },
+      "error.scramble": {
+        "zh-Hans": "此章节使用暂不支持的图片格式。",
+        "zh-Hant": "此章節使用暫不支援的圖片格式。",
+        "en": "This chapter uses an unsupported image format.",
+        "ja": "この話は未対応の画像形式を使用しています。",
+        "ko": "이 회차는 지원하지 않는 이미지 형식입니다."
+      },
+      "error.catalog": {
+        "zh-Hans": "原站目录已变化，请刷新后重试。",
+        "zh-Hant": "原站目錄已變更，請重新整理後再試。",
+        "en": "The catalog changed. Refresh and try again.",
+        "ja": "配信元の一覧が更新されました。再読み込みしてください。",
+        "ko": "사이트 목록이 변경되었습니다. 새로고침한 후 다시 시도하세요."
+      },
+      "error.filter": {
+        "zh-Hans": "请检查搜索或筛选条件。",
+        "zh-Hant": "請檢查搜尋或篩選條件。",
+        "en": "Check the search or filter values.",
+        "ja": "検索語や絞り込み条件を確認してください。",
+        "ko": "검색어나 필터 조건을 확인해 주세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法读取此内容。",
+        "zh-Hant": "暫時無法讀取此內容。",
+        "en": "Unable to load this content.",
+        "ja": "このコンテンツを読み込めません。",
+        "ko": "이 콘텐츠를 불러올 수 없습니다."
+      },
+      "filter.collection": {
+        "zh-Hans": "作品分类",
+        "zh-Hant": "作品分類",
+        "en": "Collection",
+        "ja": "作品分類",
+        "ko": "작품 분류"
+      },
+      "setting.hide_locked": {
+        "zh-Hans": "隐藏付费章节",
+        "zh-Hant": "隱藏付費章節",
+        "en": "Hide paid chapters",
+        "ja": "有料話を非表示",
+        "ko": "유료 회차 숨기기"
+      },
+      "setting.hide_unavailable": {
+        "zh-Hans": "隐藏已下架章节",
+        "zh-Hant": "隱藏已下架章節",
+        "en": "Hide unavailable chapters",
+        "ja": "配信終了話を非表示",
+        "ko": "공개 종료 회차 숨기기"
+      },
+      "chapter.unavailable": {
+        "zh-Hans": "已下架",
+        "zh-Hant": "已下架",
+        "en": "Unavailable",
+        "ja": "配信終了",
+        "ko": "공개 종료"
+      },
+      "chapter.volume": {
+        "zh-Hans": "单行本",
+        "zh-Hant": "單行本",
+        "en": "Volume",
+        "ja": "単行本",
+        "ko": "단행본"
+      },
+      "source.author": {
+        "zh-Hans": "Koma 书源贡献者",
+        "zh-Hant": "Koma 書源貢獻者",
+        "en": "Koma source contributors",
+        "ja": "Koma ソース開発メンバー",
+        "ko": "Koma 소스 기여자"
+      },
+      "listing.popular": {
+        "zh-Hans": "热门作品",
+        "zh-Hant": "熱門作品",
+        "en": "Popular titles",
+        "ja": "人気作品",
+        "ko": "인기 작품"
+      },
+      "listing.latest": {
+        "zh-Hans": "最近更新",
+        "zh-Hant": "最近更新",
+        "en": "Latest updates",
+        "ja": "最近の更新",
+        "ko": "최근 업데이트"
+      },
+      "collection.serial": {
+        "zh-Hans": "连载作品（含完结）",
+        "zh-Hant": "連載作品（含完結）",
+        "en": "Series, including completed titles",
+        "ja": "連載作品（連載終了を含む）",
+        "ko": "연재작 및 완결작"
+      },
+      "collection.oneshot": {
+        "zh-Hans": "短篇作品",
+        "zh-Hant": "短篇作品",
+        "en": "One-shots",
+        "ja": "読切作品",
+        "ko": "단편"
+      },
+      "collection.awards": {
+        "zh-Hans": "漫画奖作品",
+        "zh-Hant": "漫畫獎作品",
+        "en": "Manga award entries",
+        "ja": "漫画賞",
+        "ko": "만화상 출품작"
+      },
+      "collection.underground": {
+        "zh-Hans": "地下世界与毒品",
+        "zh-Hant": "地下世界與毒品",
+        "en": "The underworld and drugs",
+        "ja": "アングラ・麻薬・ドラッグ",
+        "ko": "암흑가 및 마약"
+      },
+      "collection.horror": {
+        "zh-Hans": "怪异、恐怖与推理",
+        "zh-Hant": "怪異、恐怖與推理",
+        "en": "The supernatural, horror and mystery",
+        "ja": "怪異・ホラー・ミステリー",
+        "ko": "괴이, 공포 및 미스터리"
+      },
+      "collection.suspense": {
+        "zh-Hans": "悬疑",
+        "zh-Hant": "懸疑",
+        "en": "Suspense",
+        "ja": "サスペンス",
+        "ko": "서스펜스"
+      },
+      "collection.revenge": {
+        "zh-Hans": "霸凌与复仇",
+        "zh-Hant": "霸凌與復仇",
+        "en": "Bullying and revenge",
+        "ja": "いじめ・復讐",
+        "ko": "괴롭힘 및 복수"
+      },
+      "collection.work": {
+        "zh-Hans": "职场",
+        "zh-Hant": "職場",
+        "en": "Work",
+        "ja": "お仕事",
+        "ko": "직장"
+      },
+      "collection.medical": {
+        "zh-Hans": "医疗",
+        "zh-Hant": "醫療",
+        "en": "Medical",
+        "ja": "医療",
+        "ko": "의료"
+      },
+      "collection.sports": {
+        "zh-Hans": "体育",
+        "zh-Hant": "體育",
+        "en": "Sports",
+        "ja": "スポーツ",
+        "ko": "스포츠"
+      },
+      "collection.arts": {
+        "zh-Hans": "文艺竞技",
+        "zh-Hant": "文藝競技",
+        "en": "Arts and competition",
+        "ja": "文化系スポ根",
+        "ko": "문화·예술 경쟁"
+      },
+      "collection.food": {
+        "zh-Hans": "美食",
+        "zh-Hant": "美食",
+        "en": "Food",
+        "ja": "グルメ",
+        "ko": "음식"
+      },
+      "collection.daily": {
+        "zh-Hans": "日常",
+        "zh-Hant": "日常",
+        "en": "Everyday life",
+        "ja": "日常",
+        "ko": "일상"
+      },
+      "collection.romcom": {
+        "zh-Hans": "恋爱喜剧",
+        "zh-Hant": "戀愛喜劇",
+        "en": "Romantic comedy",
+        "ja": "ラブコメ",
+        "ko": "로맨틱 코미디"
+      },
+      "collection.battle": {
+        "zh-Hans": "战斗",
+        "zh-Hant": "戰鬥",
+        "en": "Battle",
+        "ja": "バトル",
+        "ko": "배틀"
+      },
+      "collection.fandom": {
+        "zh-Hans": "追星与应援",
+        "zh-Hant": "追星與應援",
+        "en": "Fandom",
+        "ja": "推し",
+        "ko": "덕질"
+      },
+      "collection.drama": {
+        "zh-Hans": "人情故事",
+        "zh-Hant": "人情故事",
+        "en": "Human drama",
+        "ja": "ヒューマンドラマ",
+        "ko": "휴먼 드라마"
+      },
+      "collection.isekai_men": {
+        "zh-Hans": "男性向异世界",
+        "zh-Hant": "男性向異世界",
+        "en": "Isekai for men",
+        "ja": "男性向け異世界",
+        "ko": "남성향 이세계"
+      },
+      "collection.isekai_women": {
+        "zh-Hans": "女性向异世界",
+        "zh-Hant": "女性向異世界",
+        "en": "Isekai for women",
+        "ja": "女性向け異世界",
+        "ko": "여성향 이세계"
+      },
+      "collection.history_men": {
+        "zh-Hans": "男性向历史",
+        "zh-Hant": "男性向歷史",
+        "en": "History for men",
+        "ja": "男性向け歴史",
+        "ko": "남성향 역사"
+      },
+      "collection.history_women": {
+        "zh-Hans": "女性向历史",
+        "zh-Hant": "女性向歷史",
+        "en": "History for women",
+        "ja": "女性向け歴史",
+        "ko": "여성향 역사"
+      },
+      "collection.romance_adult": {
+        "zh-Hans": "成人恋爱",
+        "zh-Hant": "成人戀愛",
+        "en": "Romance for adults",
+        "ja": "大人向け恋愛",
+        "ko": "성인 로맨스"
+      },
+      "collection.romance_youth": {
+        "zh-Hans": "青春恋爱",
+        "zh-Hant": "青春戀愛",
+        "en": "Young romance",
+        "ja": "若年向け恋愛",
+        "ko": "청춘 로맨스"
+      },
+      "listing.oneshot": {
+        "zh-Hans": "短篇作品",
+        "zh-Hant": "短篇作品",
+        "en": "One-shots",
+        "ja": "読切作品",
+        "ko": "단편"
+      },
+      "listing.awards": {
+        "zh-Hans": "漫画奖作品",
+        "zh-Hant": "漫畫獎作品",
+        "en": "Manga award entries",
+        "ja": "漫画賞",
+        "ko": "만화상 출품작"
+      },
+      "source.name": {
+        "zh-Hans": "Comic Zenon",
+        "zh-Hant": "Comic Zenon",
+        "en": "Comic Zenon",
+        "ja": "ゼノンプラス",
+        "ko": "코믹 제논"
+      },
+      "source.description": {
+        "zh-Hans": "Coamix 官方漫画站「ゼノンプラス」，刊载《终末的女武神》系列等连载、短篇与漫画奖作品。",
+        "zh-Hant": "Coamix 官方漫畫站「ゼノンプラス」，刊載《終末的女武神》系列等連載、短篇與漫畫獎作品。",
+        "en": "Coamix’s official manga site, now branded Zenon Plus, with the Record of Ragnarok series, one-shots and manga award entries.",
+        "ja": "コアミックスの公式WEBマンガサイト「ゼノンプラス」。『終末のワルキューレ』シリーズをはじめ、連載作品や読切、漫画賞の作品を掲載しています。",
+        "ko": "코아믹스 공식 웹 만화 사이트 제논 플러스로, 《종말의 발키리》 시리즈를 비롯한 연재작과 단편, 만화상 출품작을 제공합니다."
+      }
+    }
+  },
+  "requestLimits": [
+    {
+      "group": "comiczenon-site",
+      "permits": 3,
+      "periodMs": 1000,
+      "hosts": [
+        "comic-zenon.com"
+      ]
+    }
+  ]
+}

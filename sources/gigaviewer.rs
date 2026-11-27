@@ -462,6 +462,23 @@ impl Site {
     }
 
     pub(crate) fn chapters(&self, request: &[u8]) -> ChapterResult<'static, &'static str> {
+        self.chapter_catalog(request, false)
+    }
+
+    /// Opt in only when the provider defines absent status as closed (Zenon's
+    /// pinned upstream contract). Other sites retain their existing access rules.
+    pub(crate) fn chapters_with_missing_status_unavailable(
+        &self,
+        request: &[u8],
+    ) -> ChapterResult<'static, &'static str> {
+        self.chapter_catalog(request, true)
+    }
+
+    fn chapter_catalog(
+        &self,
+        request: &[u8],
+        missing_status_unavailable: bool,
+    ) -> ChapterResult<'static, &'static str> {
         let chapter_prefix = self.chapter_prefix;
         let input = port::input(request)?;
         let (work, series) = self.work(&input)?;
@@ -535,7 +552,10 @@ impl Site {
             if host::check_cancel() {
                 return Err("cancelled");
             }
-            let product = Product::read(row, self.origin, kind)?;
+            let mut product = Product::read(row, self.origin, kind)?;
+            if missing_status_unavailable && row["status"].is_null() {
+                product.access = Access::Unavailable;
+            }
             if !seen.insert(product.id) {
                 return Err("catalog_changed");
             }

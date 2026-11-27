@@ -191,6 +191,11 @@ pub(crate) fn search(site: &Site, args: &Value, collections: &[Collection]) -> R
 // crate defines only its identity, GraphQL collections and discover listings.
 macro_rules! gigaviewer_exports {
     ($name:literal) => {
+        browse::gigaviewer_exports!($name, |req| VIEWER.chapters(req));
+    };
+    // A provider may opt into a documented catalogue access policy without
+    // changing the default reader, exports or access rules of existing sites.
+    ($name:literal, $chapters:expr) => {
         use koma_source_sdk::chapters::ChapterResult;
         use port_catalog::Labels;
 
@@ -231,9 +236,7 @@ macro_rules! gigaviewer_exports {
         fn run_get_chapters(
             req: &[u8],
         ) -> ChapterResult<'static, (&'static str, alloc::string::String)> {
-            VIEWER
-                .chapters(req)
-                .map_err(|code| (code, port_catalog::failure(METADATA, req, code)))
+            ($chapters)(req).map_err(|code| (code, port_catalog::failure(METADATA, req, code)))
         }
         fn write_chapter_failure((code, message): (&str, alloc::string::String)) -> u32 {
             write_error("get_chapters", code, &message)

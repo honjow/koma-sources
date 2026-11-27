@@ -119,6 +119,12 @@ bytes using the same extension.
 3. 实现后沿同一调用链复核。删改或适配写明代码位置及依据；漏项标为
    未完成。交付验证沿用项目现行规则。
 
+GigaViewer 变体的访问规则由源入口显式选择：共享默认目录只使用原有 purchase
+字段；仅当固定上游明确把缺失 `status` 视为下架时，使用
+`chapters_with_missing_status_unavailable`。依据及现场复现边界见
+[Comic Zenon 对照](../sources/comiczenon-ja/README.md#移植前的源码对照)。
+不得把该源的缺值规则推广到其他站点，viewer 仍独立核实实际公开权限。
+
 ## Required image processors
 
 When a source must restore encoded responses or rearrange decoded pixels, use
