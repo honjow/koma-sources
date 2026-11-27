@@ -1,0 +1,203 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://www.meitulu.me/",
+  "minAppVersion": "1.5.5",
+  "localizedNames": {
+    "zh-Hans": "美图录",
+    "zh-Hant": "美圖錄",
+    "en": "Meitulu",
+    "ja": "美図録",
+    "ko": "메이투루"
+  },
+  "localizedDescriptions": {
+    "zh-Hans": "按模特、写真机构与主题整理的高清真人写真图库，收录内地、港台及日韩套图。图集按原站分页完整合并，含成人内容。",
+    "zh-Hant": "依模特兒、寫真機構與主題整理的高畫質真人寫真圖庫，收錄中國大陸、港台及日韓圖集。圖集依原站分頁完整合併，含成人內容。",
+    "en": "High-resolution photo sets from mainland China, Hong Kong, Taiwan, Japan and Korea, organized by model, studio and theme. Includes adult content; each gallery combines all its original pages.",
+    "ja": "中国本土、香港・台湾、日本・韓国の高画質写真集をモデル、撮影スタジオ、テーマ別に掲載。成人向けを含み、同じ写真集の全ページをまとめて表示します。",
+    "ko": "중국 본토와 홍콩·대만, 일본·한국의 고화질 화보를 모델, 스튜디오, 주제별로 제공합니다. 성인 콘텐츠가 포함되며, 같은 화보의 모든 페이지를 하나로 모아 보여 줍니다."
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "listing.popular": {
+        "zh-Hans": "精选图集",
+        "zh-Hant": "精選圖集",
+        "en": "Featured photo sets",
+        "ja": "おすすめ写真集",
+        "ko": "추천 화보"
+      },
+      "listing.latest": {
+        "zh-Hans": "最新发布",
+        "zh-Hant": "最新發布",
+        "en": "Latest releases",
+        "ja": "新着写真集",
+        "ko": "최신 화보"
+      },
+      "error.filter": {
+        "zh-Hans": "请求参数无效，请检查搜索或筛选条件。",
+        "zh-Hant": "請求參數無效，請檢查搜尋或篩選條件。",
+        "en": "Check the search or filter values and try again.",
+        "ja": "検索条件または絞り込み条件を確認してください。",
+        "ko": "검색어나 필터 값을 확인하고 다시 시도해 주세요."
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站未提供此内容。",
+        "zh-Hant": "原站未提供此內容。",
+        "en": "This content is unavailable on the website.",
+        "ja": "このコンテンツは公式サイトで公開されていません。",
+        "ko": "사이트에서 이 콘텐츠를 제공하지 않습니다."
+      },
+      "error.network": {
+        "zh-Hans": "暂时无法访问原站，请稍后重试。",
+        "zh-Hant": "暫時無法存取原站，請稍後再試。",
+        "en": "The website could not be reached. Try again shortly.",
+        "ja": "サイトに接続できませんでした。しばらくしてからお試しください。",
+        "ko": "사이트에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요."
+      },
+      "error.locked": {
+        "zh-Hans": "原站未开放本章阅读。",
+        "zh-Hant": "原站未開放本話閱讀。",
+        "en": "The website has locked this chapter.",
+        "ja": "この話は公式サイトで公開されていません。",
+        "ko": "사이트에서 이 회차의 열람을 제한했습니다."
+      },
+      "error.host": {
+        "zh-Hans": "请更新 Koma 以读取本章图片。",
+        "zh-Hant": "請更新 Koma 以讀取本話圖片。",
+        "en": "Update Koma to read this chapter’s images.",
+        "ja": "画像を読むには Koma を更新してください。",
+        "ko": "이미지를 읽으려면 Koma를 업데이트해 주세요."
+      },
+      "error.scramble": {
+        "zh-Hans": "原站使用了当前不支持的图片格式。",
+        "zh-Hant": "原站使用了目前不支援的圖片格式。",
+        "en": "The website returned an unsupported image format.",
+        "ja": "サイトが未対応の画像形式を返しました。",
+        "ko": "사이트에서 지원되지 않는 이미지 형식을 반환했습니다."
+      },
+      "error.catalog": {
+        "zh-Hans": "原站目录已变化，请重新加载。",
+        "zh-Hant": "原站目錄已變更，請重新載入。",
+        "en": "The website’s catalogue changed. Reload it to continue.",
+        "ja": "サイトの一覧が更新されました。再読み込みしてください。",
+        "ko": "사이트의 목록이 변경되었습니다. 다시 불러와 주세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法载入此内容。",
+        "zh-Hant": "暫時無法載入此內容。",
+        "en": "This content could not be loaded.",
+        "ja": "コンテンツを読み込めませんでした。",
+        "ko": "콘텐츠를 불러오지 못했습니다."
+      },
+      "source.author": {
+        "zh-Hans": "Koma 书源贡献者",
+        "zh-Hant": "Koma 書源貢獻者",
+        "en": "Koma source contributors",
+        "ja": "Koma ソース開発メンバー",
+        "ko": "Koma 소스 기여자"
+      },
+      "filter.category": {
+        "zh-Hans": "分类",
+        "zh-Hant": "分類",
+        "en": "Category",
+        "ja": "カテゴリ",
+        "ko": "카테고리"
+      },
+      "source.name": {
+        "zh-Hans": "美图录",
+        "zh-Hant": "美圖錄",
+        "en": "Meitulu",
+        "ja": "美図録",
+        "ko": "메이투루"
+      },
+      "source.description": {
+        "zh-Hans": "按模特、写真机构与主题整理的高清真人写真图库，收录内地、港台及日韩套图。图集按原站分页完整合并，含成人内容。",
+        "zh-Hant": "依模特兒、寫真機構與主題整理的高畫質真人寫真圖庫，收錄中國大陸、港台及日韓圖集。圖集依原站分頁完整合併，含成人內容。",
+        "en": "High-resolution photo sets from mainland China, Hong Kong, Taiwan, Japan and Korea, organized by model, studio and theme. Includes adult content; each gallery combines all its original pages.",
+        "ja": "中国本土、香港・台湾、日本・韓国の高画質写真集をモデル、撮影スタジオ、テーマ別に掲載。成人向けを含み、同じ写真集の全ページをまとめて表示します。",
+        "ko": "중국 본토와 홍콩·대만, 일본·한국의 고화질 화보를 모델, 스튜디오, 주제별로 제공합니다. 성인 콘텐츠가 포함되며, 같은 화보의 모든 페이지를 하나로 모아 보여 줍니다."
+      },
+      "filter.tag": {
+        "zh-Hans": "主题标签",
+        "zh-Hant": "主題標籤",
+        "en": "Tag",
+        "ja": "タグ",
+        "ko": "태그"
+      },
+      "filter.model": {
+        "zh-Hans": "模特代码",
+        "zh-Hant": "模特兒代碼",
+        "en": "Model code",
+        "ja": "モデルコード",
+        "ko": "모델 코드"
+      },
+      "filter.group": {
+        "zh-Hans": "写真机构代码",
+        "zh-Hant": "寫真機構代碼",
+        "en": "Studio code",
+        "ja": "撮影スタジオコード",
+        "ko": "스튜디오 코드"
+      },
+      "filter.hint": {
+        "zh-Hans": "填写原站 /t/ 后的代码；标签、模特和机构只填一项，优先于分类。搜索关键词非空时仅按关键词搜索。",
+        "zh-Hant": "填寫原站 /t/ 後的代碼；標籤、模特兒和機構只填一項，優先於分類。搜尋關鍵詞非空時僅依關鍵詞搜尋。",
+        "en": "Enter the code after /t/ on the website. Use just one tag, model or studio field; it overrides the category. A search keyword takes priority over all filters.",
+        "ja": "サイトの /t/ の後のコードを入力してください。タグ・モデル・スタジオは1項目だけ指定でき、カテゴリより優先されます。検索語を入力すると絞り込み条件は適用されません。",
+        "ko": "사이트 주소의 /t/ 뒤에 오는 코드를 입력하세요. 태그·모델·스튜디오 중 하나만 입력할 수 있으며 카테고리보다 우선합니다. 검색어를 입력하면 모든 필터보다 검색어가 우선합니다."
+      },
+      "chapter.gallery": {
+        "zh-Hans": "完整图集",
+        "zh-Hant": "完整圖集",
+        "en": "Complete gallery",
+        "ja": "写真集全体",
+        "ko": "전체 화보"
+      },
+      "option.category.": {
+        "zh-Hans": "全部",
+        "zh-Hant": "全部",
+        "en": "All",
+        "ja": "すべて",
+        "ko": "전체"
+      },
+      "option.category.xihuan": {
+        "zh-Hans": "精选",
+        "zh-Hant": "精選",
+        "en": "Featured",
+        "ja": "おすすめ",
+        "ko": "추천"
+      },
+      "option.category.guochan": {
+        "zh-Hans": "内地写真",
+        "zh-Hant": "中國大陸寫真",
+        "en": "Mainland China",
+        "ja": "中国本土",
+        "ko": "중국 본토"
+      },
+      "option.category.gangtai": {
+        "zh-Hans": "港台写真",
+        "zh-Hant": "港台寫真",
+        "en": "Hong Kong and Taiwan",
+        "ja": "香港・台湾",
+        "ko": "홍콩·대만"
+      },
+      "option.category.rihan": {
+        "zh-Hans": "日韩写真",
+        "zh-Hant": "日韓寫真",
+        "en": "Japan and Korea",
+        "ja": "日本・韓国",
+        "ko": "일본·한국"
+      }
+    }
+  },
+  "requestLimits": [
+    {
+      "group": "meitulu-site",
+      "permits": 3,
+      "periodMs": 1000,
+      "hosts": [
+        "www.meitulu.me"
+      ]
+    }
+  ]
+}

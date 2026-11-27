@@ -31,6 +31,8 @@
 | 图标 | 目录 | 名称 | 备注 |
 |---|---|---|---|
 | <img src="comicaction-ja/icon.png" width="24" alt=""> | comicaction-ja | webアクション | 双叶社官方连载、短篇与限时活动；公开话复用 GigaViewer 随包瓦片还原，付费话保留锁定。 |
+| <img src="magcomi-ja/icon.png" width="24" alt=""> | magcomi-ja | MAGCOMI | MAG Garden 官方漫画，含连载、短篇、漫画奖与题材合集；遵循匿名公开范围。 |
+| <img src="comictrail-ja/icon.png" width="24" alt=""> | comictrail-ja | Comic Trail | 芳文社官方漫画，按连载中、完结、短篇整理；锁定话保留限制。 |
 | <img src="kuragebunch-ja/icon.png" width="24" alt=""> | kuragebunch-ja | くらげバンチ | 新潮社官方连载、短篇与 KANATA；提供原站题材筛选，付费话保留锁定。 |
 | <img src="mangapill-en/icon.png" width="24" alt=""> | mangapill-en | Mangapill | 英语漫画、短篇、同人及英语原创作品；完整题材多选、类型和状态筛选，原站已停止收录韩漫。 |
 | <img src="nicovideoseiga-ja/icon.png" width="24" alt=""> | nicovideoseiga-ja | ニコニコ漫画 | 日本出版社官方连载与用户投稿；只读公开话，锁定/收费/下架话保留限制。 |
@@ -96,6 +98,7 @@
 | <img src="everiaclub/icon.webp" width="24" alt=""> | everiaclub | Everia.club | 日本写真杂志、韩国和泰国写真、华人写真和角色扮演，支持整册多页合并。 |
 | <img src="misskon/icon.png" width="24" alt=""> | misskon | MissKon | 亚洲写真图集，提供浏览量榜单、分类与标签，合并原站公开相册子页。 |
 | <img src="foamgirl/icon.png" width="24" alt=""> | foamgirl | FoamGirl | 亚洲写真与角色扮演图集，支持官网分类、标签和搜索，按整册合并公开相册子页。 |
+| <img src="meitulu/icon.png" width="24" alt=""> | meitulu | 美图录 | 真人写真，标记 NSFW；按模特、机构、标签归档，完整合并套图分页。 |
 | <img src="junmeitu/icon.png" width="24" alt=""> | junmeitu | 俊美图 | NSFW 真人写真，按模特、机构和主题归档；同套图全部分页合为一章。 |
 | <img src="jjcos/icon.png" width="24" alt=""> | jjcos | JJCOS | 角色扮演图集与日韩写真，按分类和标签浏览公开相册。 |
 | <img src="fourkhd/icon.png" width="24" alt=""> | fourkhd | 4KHD | 韩国杂志与摄影机构写真、华人写真和角色扮演，读取原站相册大图。 |

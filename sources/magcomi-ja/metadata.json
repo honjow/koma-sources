@@ -1,0 +1,321 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://magcomi.com",
+  "minAppVersion": "1.5.5",
+  "requiredImageDecodes": [
+    "wasm_image_v1"
+  ],
+  "wasmBuild": {
+    "imageProcessorCrate": "koma_gigaviewer_tile_processor"
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "ja",
+    "messages": {
+      "error.locked": {
+        "zh-Hans": "该章节当前未公开。",
+        "zh-Hant": "此章節目前未公開。",
+        "en": "This chapter is currently locked.",
+        "ja": "この話は現在公開されていません。",
+        "ko": "이 회차는 현재 잠겨 있습니다."
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站没有提供此内容。",
+        "zh-Hant": "原站沒有提供此內容。",
+        "en": "This content is unavailable on the website.",
+        "ja": "配信元でこのコンテンツは公開されていません。",
+        "ko": "사이트에서 이 콘텐츠를 제공하지 않습니다."
+      },
+      "error.network": {
+        "zh-Hans": "原站请求未完成，请稍后重试。",
+        "zh-Hant": "原站請求未完成，請稍後再試。",
+        "en": "Could not complete the website request. Try again later.",
+        "ja": "配信元へのリクエストに失敗しました。時間をおいて再試行してください。",
+        "ko": "사이트에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."
+      },
+      "error.host": {
+        "zh-Hans": "请更新 Koma 以阅读此章节。",
+        "zh-Hant": "請更新 Koma 以閱讀此章節。",
+        "en": "Update Koma to read this chapter.",
+        "ja": "この話を読むには Koma を更新してください。",
+        "ko": "이 회차를 읽으려면 Koma를 업데이트하세요."
+      },
+      "error.scramble": {
+        "zh-Hans": "此章节使用暂不支持的图片格式。",
+        "zh-Hant": "此章節使用暫不支援的圖片格式。",
+        "en": "This chapter uses an unsupported image format.",
+        "ja": "この話は未対応の画像形式を使用しています。",
+        "ko": "이 회차는 지원하지 않는 이미지 형식입니다."
+      },
+      "error.catalog": {
+        "zh-Hans": "原站目录已变化，请刷新后重试。",
+        "zh-Hant": "原站目錄已變更，請重新整理後再試。",
+        "en": "The catalog changed. Refresh and try again.",
+        "ja": "配信元の一覧が更新されました。再読み込みしてください。",
+        "ko": "사이트 목록이 변경되었습니다. 새로고침한 후 다시 시도하세요."
+      },
+      "error.filter": {
+        "zh-Hans": "请检查搜索或筛选条件。",
+        "zh-Hant": "請檢查搜尋或篩選條件。",
+        "en": "Check the search or filter values.",
+        "ja": "検索語や絞り込み条件を確認してください。",
+        "ko": "검색어나 필터 조건을 확인해 주세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法读取此内容。",
+        "zh-Hant": "暫時無法讀取此內容。",
+        "en": "Unable to load this content.",
+        "ja": "このコンテンツを読み込めません。",
+        "ko": "이 콘텐츠를 불러올 수 없습니다."
+      },
+      "filter.collection": {
+        "zh-Hans": "作品分类",
+        "zh-Hant": "作品分類",
+        "en": "Collection",
+        "ja": "作品分類",
+        "ko": "작품 분류"
+      },
+      "setting.hide_locked": {
+        "zh-Hans": "隐藏付费章节",
+        "zh-Hant": "隱藏付費章節",
+        "en": "Hide paid chapters",
+        "ja": "有料話を非表示",
+        "ko": "유료 회차 숨기기"
+      },
+      "setting.hide_unavailable": {
+        "zh-Hans": "隐藏已下架章节",
+        "zh-Hant": "隱藏已下架章節",
+        "en": "Hide unavailable chapters",
+        "ja": "配信終了話を非表示",
+        "ko": "공개 종료 회차 숨기기"
+      },
+      "chapter.unavailable": {
+        "zh-Hans": "已下架",
+        "zh-Hant": "已下架",
+        "en": "Unavailable",
+        "ja": "配信終了",
+        "ko": "공개 종료"
+      },
+      "chapter.volume": {
+        "zh-Hans": "单行本",
+        "zh-Hant": "單行本",
+        "en": "Volume",
+        "ja": "単行本",
+        "ko": "단행본"
+      },
+      "source.author": {
+        "zh-Hans": "Koma 书源贡献者",
+        "zh-Hant": "Koma 書源貢獻者",
+        "en": "Koma source contributors",
+        "ja": "Koma ソース開発メンバー",
+        "ko": "Koma 소스 기여자"
+      },
+      "listing.popular": {
+        "zh-Hans": "热门作品",
+        "zh-Hant": "熱門作品",
+        "en": "Popular titles",
+        "ja": "人気作品",
+        "ko": "인기 작품"
+      },
+      "listing.latest": {
+        "zh-Hans": "最近更新",
+        "zh-Hant": "最近更新",
+        "en": "Latest updates",
+        "ja": "最近の更新",
+        "ko": "최근 업데이트"
+      },
+      "collection.serial": {
+        "zh-Hans": "连载中",
+        "zh-Hant": "連載中",
+        "en": "Ongoing",
+        "ja": "連載中",
+        "ko": "연재 중"
+      },
+      "collection.oneshot": {
+        "zh-Hans": "短篇",
+        "zh-Hant": "短篇",
+        "en": "One-shots",
+        "ja": "読切",
+        "ko": "단편"
+      },
+      "collection.awards": {
+        "zh-Hans": "漫画奖与选集",
+        "zh-Hant": "漫畫獎與選集",
+        "en": "Manga awards and anthologies",
+        "ja": "漫画賞・アンソロジー",
+        "ko": "만화상 및 앤솔러지"
+      },
+      "collection.completed": {
+        "zh-Hans": "完结与休刊",
+        "zh-Hant": "完結與休刊",
+        "en": "Completed and on hiatus",
+        "ja": "完結・休止",
+        "ko": "완결 및 휴재"
+      },
+      "collection.fantasy": {
+        "zh-Hans": "奇幻",
+        "zh-Hant": "奇幻",
+        "en": "Fantasy",
+        "ja": "ファンタジー",
+        "ko": "판타지"
+      },
+      "collection.sf": {
+        "zh-Hans": "科幻动作",
+        "zh-Hant": "科幻動作",
+        "en": "Sci-fi action",
+        "ja": "SFアクション",
+        "ko": "SF 액션"
+      },
+      "collection.isekai_men": {
+        "zh-Hans": "男性向异世界",
+        "zh-Hant": "男性向異世界",
+        "en": "Isekai for men",
+        "ja": "男性向け「異世界」",
+        "ko": "남성향 이세계"
+      },
+      "collection.isekai_women": {
+        "zh-Hans": "女性向异世界",
+        "zh-Hant": "女性向異世界",
+        "en": "Isekai for women",
+        "ja": "女性向け「異世界」",
+        "ko": "여성향 이세계"
+      },
+      "collection.comedy": {
+        "zh-Hans": "搞笑与喜剧",
+        "zh-Hant": "搞笑與喜劇",
+        "en": "Gags and comedy",
+        "ja": "ギャグ・コメディ",
+        "ko": "개그 및 코미디"
+      },
+      "collection.food": {
+        "zh-Hans": "料理与美食",
+        "zh-Hant": "料理與美食",
+        "en": "Cooking and food",
+        "ja": "料理・グルメ",
+        "ko": "요리 및 음식"
+      },
+      "collection.romance": {
+        "zh-Hans": "恋爱",
+        "zh-Hant": "戀愛",
+        "en": "Romance",
+        "ja": "恋愛",
+        "ko": "로맨스"
+      },
+      "collection.bl": {
+        "zh-Hans": "BL",
+        "zh-Hant": "BL",
+        "en": "BL",
+        "ja": "BL",
+        "ko": "BL"
+      },
+      "collection.gl": {
+        "zh-Hans": "百合 / GL",
+        "zh-Hant": "百合 / GL",
+        "en": "Yuri / GL",
+        "ja": "百合・GL",
+        "ko": "백합 / GL"
+      },
+      "collection.history": {
+        "zh-Hans": "历史与时代剧",
+        "zh-Hant": "歷史與時代劇",
+        "en": "History and period drama",
+        "ja": "歴史・時代劇",
+        "ko": "역사 및 시대극"
+      },
+      "collection.horror": {
+        "zh-Hans": "恐怖、悬疑与推理",
+        "zh-Hant": "恐怖、懸疑與推理",
+        "en": "Horror, suspense and mystery",
+        "ja": "ホラー・サスペンス・ミステリー",
+        "ko": "공포, 서스펜스 및 미스터리"
+      },
+      "collection.daily": {
+        "zh-Hans": "随笔与日常",
+        "zh-Hant": "隨筆與日常",
+        "en": "Essays and everyday life",
+        "ja": "エッセイ・日常",
+        "ko": "에세이 및 일상"
+      },
+      "collection.drama": {
+        "zh-Hans": "人情故事",
+        "zh-Hant": "人情故事",
+        "en": "Human drama",
+        "ja": "ヒューマンドラマ",
+        "ko": "휴먼 드라마"
+      },
+      "collection.school": {
+        "zh-Hans": "校园与职场",
+        "zh-Hant": "校園與職場",
+        "en": "School and work",
+        "ja": "学園・職業",
+        "ko": "학원 및 직장"
+      },
+      "collection.nature": {
+        "zh-Hans": "自然与动物",
+        "zh-Hant": "自然與動物",
+        "en": "Nature and animals",
+        "ja": "自然・動物",
+        "ko": "자연 및 동물"
+      },
+      "collection.sports": {
+        "zh-Hans": "体育",
+        "zh-Hant": "體育",
+        "en": "Sports",
+        "ja": "スポーツ",
+        "ko": "스포츠"
+      },
+      "listing.oneshot": {
+        "zh-Hans": "短篇",
+        "zh-Hant": "短篇",
+        "en": "One-shots",
+        "ja": "読切",
+        "ko": "단편"
+      },
+      "listing.awards": {
+        "zh-Hans": "漫画奖与选集",
+        "zh-Hant": "漫畫獎與選集",
+        "en": "Manga awards and anthologies",
+        "ja": "漫画賞・アンソロジー",
+        "ko": "만화상 및 앤솔러지"
+      },
+      "listing.completed": {
+        "zh-Hans": "完结与休刊",
+        "zh-Hant": "完結與休刊",
+        "en": "Completed and on hiatus",
+        "ja": "完結・休止",
+        "ko": "완결 및 휴재"
+      },
+      "source.name": {
+        "zh-Hans": "MAGCOMI",
+        "zh-Hant": "MAGCOMI",
+        "en": "MAGCOMI",
+        "ja": "MAGCOMI",
+        "ko": "MAGCOMI"
+      },
+      "source.description": {
+        "zh-Hans": "MAG Garden 官方漫画站，刊载《轮回的花瓣》《转生贵族的异世界冒险录》等连载，以及短篇和漫画奖入选作品。",
+        "zh-Hant": "MAG Garden 官方漫畫站，刊載《輪迴的花瓣》《轉生貴族的異世界冒險錄》等連載，以及短篇和漫畫獎入選作品。",
+        "en": "Mag Garden’s official manga site, featuring series such as Reincarnation no Kaben and Chronicles of an Aristocrat Reborn in Another World, alongside one-shots and manga award selections.",
+        "ja": "マッグガーデンの公式マンガサイト。『リィンカーネーションの花弁』『転生貴族の異世界冒険録』などの連載に加え、読切や漫画賞の受賞作品を掲載しています。",
+        "ko": "매그 가든 공식 만화 사이트로, 《리인카네이션의 꽃잎》, 《전생귀족의 이세계 모험록》 등의 연재작과 단편, 만화상 수상작을 제공합니다."
+      },
+      "listing.ongoing": {
+        "zh-Hans": "连载中",
+        "zh-Hant": "連載中",
+        "en": "Ongoing",
+        "ja": "連載中",
+        "ko": "연재 중"
+      }
+    }
+  },
+  "requestLimits": [
+    {
+      "group": "magcomi-site",
+      "permits": 3,
+      "periodMs": 1000,
+      "hosts": [
+        "magcomi.com"
+      ]
+    }
+  ]
+}

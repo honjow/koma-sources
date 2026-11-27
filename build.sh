@@ -32,6 +32,9 @@ RELEASE_PACKAGE_DIR="$OUTPUT_DIR/release-packages"
 # Source registry: source name | crate directory | nsfw | minimum Koma version.
 # Keep this Bash 3 compatible for macOS /bin/bash.
 SOURCE_ENTRIES='
+magcomi-ja|magcomi-ja|false|1.5.5
+comictrail-ja|comictrail-ja|false|1.5.5
+meitulu|meitulu|true|1.5.5
 cosplaytele|cosplaytele|true|0.1.4
 buondua|buondua|true|1.4.1
 sundaywebevery-ja|sundaywebevery-ja|false|1.5.5

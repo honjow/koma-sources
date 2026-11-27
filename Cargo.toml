@@ -1,6 +1,9 @@
 [workspace]
 resolver = "2"
 members = [
+  "sources/magcomi-ja",
+  "sources/comictrail-ja",
+  "sources/meitulu",
   "image-processors/iv-cbc",
   "image-processors/hanabi-tiles",
   "image-processors/gigaviewer-tiles",
