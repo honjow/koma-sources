@@ -30,6 +30,8 @@
 
 | 图标 | 目录 | 名称 | 备注 |
 |---|---|---|---|
+| <img src="nicovideoseiga-ja/icon.png" width="24" alt=""> | nicovideoseiga-ja | ニコニコ漫画 | 日本出版社官方连载与用户投稿；只读公开话，锁定/收费/下架话保留限制。 |
+| <img src="mangataro-en/icon.png" width="24" alt=""> | mangataro-en | MangaTaro | 英语日漫、韩漫和国漫；按题材、类型、连载状态分类，正文不含小说。 |
 | <img src="jiuermanhua/icon.png" width="24" alt=""> | jiuermanhua | 92漫画 | 92漫画收录连载分话、单行本及其他分组作品，书目按少年、少女、青年等读者分类整理。 |
 | <img src="ikmmh-zh/icon.png" width="24" alt=""> | ikmmh-zh | 爱看漫 | 爱看漫的中文漫画连载，按站内分类组织；部分地区受原站访问限制。 |
 | <img src="baozimh/icon.png" width="24" alt=""> | baozimh | 包子漫画 | 收录国漫及日本、韩国、欧美漫画，按地区、题材和连载状态分类。 |
@@ -91,6 +93,7 @@
 | <img src="everiaclub/icon.webp" width="24" alt=""> | everiaclub | Everia.club | 日本写真杂志、韩国和泰国写真、华人写真和角色扮演，支持整册多页合并。 |
 | <img src="misskon/icon.png" width="24" alt=""> | misskon | MissKon | 亚洲写真图集，提供浏览量榜单、分类与标签，合并原站公开相册子页。 |
 | <img src="foamgirl/icon.png" width="24" alt=""> | foamgirl | FoamGirl | 亚洲写真与角色扮演图集，支持官网分类、标签和搜索，按整册合并公开相册子页。 |
+| <img src="junmeitu/icon.png" width="24" alt=""> | junmeitu | 俊美图 | NSFW 真人写真，按模特、机构和主题归档；同套图全部分页合为一章。 |
 | <img src="jjcos/icon.png" width="24" alt=""> | jjcos | JJCOS | 角色扮演图集与日韩写真，按分类和标签浏览公开相册。 |
 | <img src="fourkhd/icon.png" width="24" alt=""> | fourkhd | 4KHD | 韩国杂志与摄影机构写真、华人写真和角色扮演，读取原站相册大图。 |
 | <img src="idolgravureprincessdate/icon.ico" width="24" alt=""> | idolgravureprincessdate | Idol.gravureprincess.date | 日本偶像和声优的旧刊写真档案，可按团体及杂志标签查找。 |

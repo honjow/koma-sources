@@ -1,0 +1,386 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://mangataro.org/",
+  "minAppVersion": "1.5.5",
+  "localizedNames": {
+    "zh-Hans": "MangaTaro",
+    "zh-Hant": "MangaTaro",
+    "en": "MangaTaro",
+    "ja": "MangaTaro",
+    "ko": "MangaTaro"
+  },
+  "localizedDescriptions": {
+    "zh-Hans": "英语日漫、韩漫与国漫书库，收录《ONE PIECE》《Gachiakuta》等作品，按题材、漫画类型与连载状态分类。",
+    "zh-Hant": "英語日漫、韓漫與國漫書庫，收錄《ONE PIECE》《Gachiakuta》等作品，依題材、漫畫類型與連載狀態分類。",
+    "en": "English manga, manhwa and manhua, including One Piece and Gachiakuta, with catalogues organized by genre, format and publication status.",
+    "ja": "『ONE PIECE』『ガチアクタ』などの日本・韓国・中国の漫画を英語で掲載。ジャンル、作品の種類、連載状況から探せます。",
+    "ko": "One Piece와 Gachiakuta 등 일본·한국·중국 만화를 영어로 제공하며, 장르와 작품 유형, 연재 상태별로 분류합니다."
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "en",
+    "messages": {
+      "listing.popular": {
+        "zh-Hans": "热门作品",
+        "zh-Hant": "熱門作品",
+        "en": "Popular titles",
+        "ja": "人気作品",
+        "ko": "인기 작품"
+      },
+      "listing.latest": {
+        "zh-Hans": "最近更新",
+        "zh-Hant": "最近更新",
+        "en": "Latest updates",
+        "ja": "最近の更新",
+        "ko": "최근 업데이트"
+      },
+      "error.filter": {
+        "zh-Hans": "请求参数无效，请检查搜索或筛选条件。",
+        "zh-Hant": "請求參數無效，請檢查搜尋或篩選條件。",
+        "en": "Check the search or filter values and try again.",
+        "ja": "検索条件または絞り込み条件を確認してください。",
+        "ko": "검색어나 필터 값을 확인하고 다시 시도해 주세요."
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站未提供此内容。",
+        "zh-Hant": "原站未提供此內容。",
+        "en": "This content is unavailable on the website.",
+        "ja": "このコンテンツは公式サイトで公開されていません。",
+        "ko": "사이트에서 이 콘텐츠를 제공하지 않습니다."
+      },
+      "error.network": {
+        "zh-Hans": "暂时无法访问原站，请稍后重试。",
+        "zh-Hant": "暫時無法存取原站，請稍後再試。",
+        "en": "The website could not be reached. Try again shortly.",
+        "ja": "サイトに接続できませんでした。しばらくしてからお試しください。",
+        "ko": "사이트에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요."
+      },
+      "error.locked": {
+        "zh-Hans": "原站未开放本章阅读。",
+        "zh-Hant": "原站未開放本話閱讀。",
+        "en": "The website has locked this chapter.",
+        "ja": "この話は公式サイトで公開されていません。",
+        "ko": "사이트에서 이 회차의 열람을 제한했습니다."
+      },
+      "error.host": {
+        "zh-Hans": "请更新 Koma 以读取本章图片。",
+        "zh-Hant": "請更新 Koma 以讀取本話圖片。",
+        "en": "Update Koma to read this chapter’s images.",
+        "ja": "画像を読むには Koma を更新してください。",
+        "ko": "이미지를 읽으려면 Koma를 업데이트해 주세요."
+      },
+      "error.scramble": {
+        "zh-Hans": "原站使用了当前不支持的图片格式。",
+        "zh-Hant": "原站使用了目前不支援的圖片格式。",
+        "en": "The website returned an unsupported image format.",
+        "ja": "サイトが未対応の画像形式を返しました。",
+        "ko": "사이트에서 지원되지 않는 이미지 형식을 반환했습니다."
+      },
+      "error.catalog": {
+        "zh-Hans": "原站目录已变化，请重新加载。",
+        "zh-Hant": "原站目錄已變更，請重新載入。",
+        "en": "The website’s catalogue changed. Reload it to continue.",
+        "ja": "サイトの一覧が更新されました。再読み込みしてください。",
+        "ko": "사이트의 목록이 변경되었습니다. 다시 불러와 주세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法载入此内容。",
+        "zh-Hant": "暫時無法載入此內容。",
+        "en": "This content could not be loaded.",
+        "ja": "コンテンツを読み込めませんでした。",
+        "ko": "콘텐츠를 불러오지 못했습니다."
+      },
+      "source.author": {
+        "zh-Hans": "Koma 书源贡献者",
+        "zh-Hant": "Koma 書源貢獻者",
+        "en": "Koma source contributors",
+        "ja": "Koma ソース開発メンバー",
+        "ko": "Koma 소스 기여자"
+      },
+      "filter.category": {
+        "zh-Hans": "分类",
+        "zh-Hant": "分類",
+        "en": "Category",
+        "ja": "カテゴリ",
+        "ko": "카테고리"
+      },
+      "filter.sort": {
+        "zh-Hans": "排序",
+        "zh-Hant": "排序",
+        "en": "Sort order",
+        "ja": "並び順",
+        "ko": "정렬"
+      },
+      "source.name": {
+        "zh-Hans": "MangaTaro",
+        "zh-Hant": "MangaTaro",
+        "en": "MangaTaro",
+        "ja": "MangaTaro",
+        "ko": "MangaTaro"
+      },
+      "source.description": {
+        "zh-Hans": "英语日漫、韩漫与国漫书库，收录《ONE PIECE》《Gachiakuta》等作品，按题材、漫画类型与连载状态分类。",
+        "zh-Hant": "英語日漫、韓漫與國漫書庫，收錄《ONE PIECE》《Gachiakuta》等作品，依題材、漫畫類型與連載狀態分類。",
+        "en": "English manga, manhwa and manhua, including One Piece and Gachiakuta, with catalogues organized by genre, format and publication status.",
+        "ja": "『ONE PIECE』『ガチアクタ』などの日本・韓国・中国の漫画を英語で掲載。ジャンル、作品の種類、連載状況から探せます。",
+        "ko": "One Piece와 Gachiakuta 등 일본·한국·중국 만화를 영어로 제공하며, 장르와 작품 유형, 연재 상태별로 분류합니다."
+      },
+      "filter.genre": {
+        "zh-Hans": "类型题材",
+        "zh-Hant": "類型題材",
+        "en": "Genre",
+        "ja": "ジャンル",
+        "ko": "장르"
+      },
+      "filter.type": {
+        "zh-Hans": "漫画类型",
+        "zh-Hant": "漫畫類型",
+        "en": "Comic type",
+        "ja": "作品の種類",
+        "ko": "만화 유형"
+      },
+      "filter.status": {
+        "zh-Hans": "连载状态",
+        "zh-Hant": "連載狀態",
+        "en": "Publication status",
+        "ja": "連載状況",
+        "ko": "연재 상태"
+      },
+      "option.genre.": {
+        "zh-Hans": "不限",
+        "zh-Hant": "不限",
+        "en": "Any",
+        "ja": "すべて",
+        "ko": "전체"
+      },
+      "option.type.": {
+        "zh-Hans": "不限",
+        "zh-Hant": "不限",
+        "en": "Any",
+        "ja": "すべて",
+        "ko": "전체"
+      },
+      "option.status.": {
+        "zh-Hans": "不限",
+        "zh-Hant": "不限",
+        "en": "Any",
+        "ja": "すべて",
+        "ko": "전체"
+      },
+      "option.type.Manga": {
+        "zh-Hans": "日漫",
+        "zh-Hant": "日漫",
+        "en": "Manga",
+        "ja": "日本の漫画",
+        "ko": "일본 만화"
+      },
+      "option.type.Manhwa": {
+        "zh-Hans": "韩漫",
+        "zh-Hant": "韓漫",
+        "en": "Manhwa",
+        "ja": "韓国の漫画",
+        "ko": "한국 만화"
+      },
+      "option.type.Manhua": {
+        "zh-Hans": "国漫",
+        "zh-Hant": "國漫",
+        "en": "Manhua",
+        "ja": "中国の漫画",
+        "ko": "중국 만화"
+      },
+      "option.status.Ongoing": {
+        "zh-Hans": "连载中",
+        "zh-Hant": "連載中",
+        "en": "Ongoing",
+        "ja": "連載中",
+        "ko": "연재 중"
+      },
+      "option.status.Completed": {
+        "zh-Hans": "已完结",
+        "zh-Hant": "已完結",
+        "en": "Completed",
+        "ja": "完結",
+        "ko": "완결"
+      },
+      "option.genre.7": {
+        "zh-Hans": "动作",
+        "zh-Hant": "動作",
+        "en": "Action",
+        "ja": "アクション",
+        "ko": "액션"
+      },
+      "option.genre.12": {
+        "zh-Hans": "冒险",
+        "zh-Hant": "冒險",
+        "en": "Adventure",
+        "ja": "冒険",
+        "ko": "모험"
+      },
+      "option.genre.20": {
+        "zh-Hans": "喜剧",
+        "zh-Hant": "喜劇",
+        "en": "Comedy",
+        "ja": "コメディ",
+        "ko": "코미디"
+      },
+      "option.genre.8": {
+        "zh-Hans": "剧情",
+        "zh-Hant": "劇情",
+        "en": "Drama",
+        "ja": "ドラマ",
+        "ko": "드라마"
+      },
+      "option.genre.2": {
+        "zh-Hans": "奇幻",
+        "zh-Hant": "奇幻",
+        "en": "Fantasy",
+        "ja": "ファンタジー",
+        "ko": "판타지"
+      },
+      "option.genre.44": {
+        "zh-Hans": "恐怖",
+        "zh-Hant": "恐怖",
+        "en": "Horror",
+        "ja": "ホラー",
+        "ko": "공포"
+      },
+      "option.genre.3": {
+        "zh-Hans": "异世界",
+        "zh-Hant": "異世界",
+        "en": "Isekai",
+        "ja": "異世界",
+        "ko": "이세계"
+      },
+      "option.genre.4": {
+        "zh-Hans": "武术",
+        "zh-Hant": "武術",
+        "en": "Martial Arts",
+        "ja": "格闘技",
+        "ko": "무술"
+      },
+      "option.genre.24": {
+        "zh-Hans": "悬疑",
+        "zh-Hant": "懸疑",
+        "en": "Mystery",
+        "ja": "ミステリー",
+        "ko": "미스터리"
+      },
+      "option.genre.29": {
+        "zh-Hans": "恋爱",
+        "zh-Hant": "戀愛",
+        "en": "Romance",
+        "ja": "恋愛",
+        "ko": "로맨스"
+      },
+      "option.genre.73": {
+        "zh-Hans": "校园生活",
+        "zh-Hant": "校園生活",
+        "en": "School Life",
+        "ja": "学園生活",
+        "ko": "학교생활"
+      },
+      "option.genre.15": {
+        "zh-Hans": "科幻",
+        "zh-Hant": "科幻",
+        "en": "Sci-Fi",
+        "ja": "SF",
+        "ko": "SF"
+      },
+      "option.genre.47": {
+        "zh-Hans": "日常",
+        "zh-Hant": "日常",
+        "en": "Slice of Life",
+        "ja": "日常",
+        "ko": "일상"
+      },
+      "option.genre.25": {
+        "zh-Hans": "体育",
+        "zh-Hant": "體育",
+        "en": "Sports",
+        "ja": "スポーツ",
+        "ko": "스포츠"
+      },
+      "option.genre.9": {
+        "zh-Hans": "超自然",
+        "zh-Hant": "超自然",
+        "en": "Supernatural",
+        "ja": "超自然",
+        "ko": "초자연"
+      },
+      "option.sort.post_desc": {
+        "zh-Hans": "最近更新",
+        "zh-Hant": "最近更新",
+        "en": "Latest updates",
+        "ja": "更新が新しい順",
+        "ko": "최근 업데이트순"
+      },
+      "option.sort.post_asc": {
+        "zh-Hans": "最早更新",
+        "zh-Hant": "最早更新",
+        "en": "Oldest updates",
+        "ja": "更新が古い順",
+        "ko": "오래된 업데이트순"
+      },
+      "option.sort.release_desc": {
+        "zh-Hans": "最新发行",
+        "zh-Hant": "最新發行",
+        "en": "Newest releases",
+        "ja": "発売が新しい順",
+        "ko": "최근 발행순"
+      },
+      "option.sort.release_asc": {
+        "zh-Hans": "最早发行",
+        "zh-Hant": "最早發行",
+        "en": "Oldest releases",
+        "ja": "発売が古い順",
+        "ko": "오래된 발행순"
+      },
+      "option.sort.title_asc": {
+        "zh-Hans": "标题 A–Z",
+        "zh-Hant": "標題 A–Z",
+        "en": "Title A–Z",
+        "ja": "タイトル A–Z",
+        "ko": "제목 A–Z"
+      },
+      "option.sort.title_desc": {
+        "zh-Hans": "标题 Z–A",
+        "zh-Hant": "標題 Z–A",
+        "en": "Title Z–A",
+        "ja": "タイトル Z–A",
+        "ko": "제목 Z–A"
+      },
+      "option.sort.popular_desc": {
+        "zh-Hans": "人气最高",
+        "zh-Hant": "人氣最高",
+        "en": "Most popular",
+        "ja": "人気が高い順",
+        "ko": "인기 높은 순"
+      },
+      "option.sort.popular_asc": {
+        "zh-Hans": "人气最低",
+        "zh-Hant": "人氣最低",
+        "en": "Least popular",
+        "ja": "人気が低い順",
+        "ko": "인기 낮은 순"
+      },
+      "chapter.title": {
+        "zh-Hans": "第{number}话",
+        "zh-Hant": "第{number}話",
+        "en": "Chapter {number}",
+        "ja": "第{number}話",
+        "ko": "{number}화"
+      }
+    }
+  },
+  "requestLimits": [
+    {
+      "group": "mangataro-en-site",
+      "permits": 3,
+      "periodMs": 1000,
+      "hosts": [
+        "mangataro.org"
+      ]
+    }
+  ],
+  "chapterOrder": "newest_first"
+}

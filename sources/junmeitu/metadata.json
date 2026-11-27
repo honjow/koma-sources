@@ -1,0 +1,210 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://www.junmeitu.com/",
+  "minAppVersion": "1.5.5",
+  "localizedNames": {
+    "zh-Hans": "俊美图",
+    "zh-Hant": "俊美圖",
+    "en": "Junmeitu",
+    "ja": "俊美圖",
+    "ko": "준메이투"
+  },
+  "localizedDescriptions": {
+    "zh-Hans": "按模特、写真机构与主题整理的真人写真图库，也收录街拍与男士写真。套图按原站分页合并，含成人内容。",
+    "zh-Hant": "依模特兒、寫真機構與主題整理的真人寫真圖庫，也收錄街拍與男士寫真。圖集依原站分頁合併，含成人內容。",
+    "en": "Photo sets organized by model, studio and theme, alongside street photography and men’s portraits. Includes adult content; each gallery combines its original pages.",
+    "ja": "モデル、撮影スタジオ、テーマ別の写真集に加え、ストリートスナップや男性写真も掲載。成人向けを含み、同じ写真集の全ページをまとめて表示します。",
+    "ko": "모델과 스튜디오, 주제별 화보를 비롯해 거리 사진과 남성 화보를 제공합니다. 성인 콘텐츠가 포함되며, 같은 화보의 모든 페이지를 하나로 모아 보여 줍니다."
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "listing.popular": {
+        "zh-Hans": "热门作品",
+        "zh-Hant": "熱門作品",
+        "en": "Popular titles",
+        "ja": "人気作品",
+        "ko": "인기 작품"
+      },
+      "listing.latest": {
+        "zh-Hans": "最近更新",
+        "zh-Hant": "最近更新",
+        "en": "Latest updates",
+        "ja": "最近の更新",
+        "ko": "최근 업데이트"
+      },
+      "error.filter": {
+        "zh-Hans": "请求参数无效，请检查搜索或筛选条件。",
+        "zh-Hant": "請求參數無效，請檢查搜尋或篩選條件。",
+        "en": "Check the search or filter values and try again.",
+        "ja": "検索条件または絞り込み条件を確認してください。",
+        "ko": "검색어나 필터 값을 확인하고 다시 시도해 주세요."
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站未提供此内容。",
+        "zh-Hant": "原站未提供此內容。",
+        "en": "This content is unavailable on the website.",
+        "ja": "このコンテンツは公式サイトで公開されていません。",
+        "ko": "사이트에서 이 콘텐츠를 제공하지 않습니다."
+      },
+      "error.network": {
+        "zh-Hans": "暂时无法访问原站，请稍后重试。",
+        "zh-Hant": "暫時無法存取原站，請稍後再試。",
+        "en": "The website could not be reached. Try again shortly.",
+        "ja": "サイトに接続できませんでした。しばらくしてからお試しください。",
+        "ko": "사이트에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요."
+      },
+      "error.locked": {
+        "zh-Hans": "原站未开放本章阅读。",
+        "zh-Hant": "原站未開放本話閱讀。",
+        "en": "The website has locked this chapter.",
+        "ja": "この話は公式サイトで公開されていません。",
+        "ko": "사이트에서 이 회차의 열람을 제한했습니다."
+      },
+      "error.host": {
+        "zh-Hans": "请更新 Koma 以读取本章图片。",
+        "zh-Hant": "請更新 Koma 以讀取本話圖片。",
+        "en": "Update Koma to read this chapter’s images.",
+        "ja": "画像を読むには Koma を更新してください。",
+        "ko": "이미지를 읽으려면 Koma를 업데이트해 주세요."
+      },
+      "error.scramble": {
+        "zh-Hans": "原站使用了当前不支持的图片格式。",
+        "zh-Hant": "原站使用了目前不支援的圖片格式。",
+        "en": "The website returned an unsupported image format.",
+        "ja": "サイトが未対応の画像形式を返しました。",
+        "ko": "사이트에서 지원되지 않는 이미지 형식을 반환했습니다."
+      },
+      "error.catalog": {
+        "zh-Hans": "原站目录已变化，请重新加载。",
+        "zh-Hant": "原站目錄已變更，請重新載入。",
+        "en": "The website’s catalogue changed. Reload it to continue.",
+        "ja": "サイトの一覧が更新されました。再読み込みしてください。",
+        "ko": "사이트의 목록이 변경되었습니다. 다시 불러와 주세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法载入此内容。",
+        "zh-Hant": "暫時無法載入此內容。",
+        "en": "This content could not be loaded.",
+        "ja": "コンテンツを読み込めませんでした。",
+        "ko": "콘텐츠를 불러오지 못했습니다."
+      },
+      "source.author": {
+        "zh-Hans": "Koma 书源贡献者",
+        "zh-Hant": "Koma 書源貢獻者",
+        "en": "Koma source contributors",
+        "ja": "Koma ソース開発メンバー",
+        "ko": "Koma 소스 기여자"
+      },
+      "filter.category": {
+        "zh-Hans": "分类",
+        "zh-Hant": "分類",
+        "en": "Category",
+        "ja": "カテゴリ",
+        "ko": "카테고리"
+      },
+      "filter.sort": {
+        "zh-Hans": "排序",
+        "zh-Hant": "排序",
+        "en": "Sort order",
+        "ja": "並び順",
+        "ko": "정렬"
+      },
+      "source.name": {
+        "zh-Hans": "俊美图",
+        "zh-Hant": "俊美圖",
+        "en": "Junmeitu",
+        "ja": "俊美圖",
+        "ko": "준메이투"
+      },
+      "source.description": {
+        "zh-Hans": "按模特、写真机构与主题整理的真人写真图库，也收录街拍与男士写真。套图按原站分页合并，含成人内容。",
+        "zh-Hant": "依模特兒、寫真機構與主題整理的真人寫真圖庫，也收錄街拍與男士寫真。圖集依原站分頁合併，含成人內容。",
+        "en": "Photo sets organized by model, studio and theme, alongside street photography and men’s portraits. Includes adult content; each gallery combines its original pages.",
+        "ja": "モデル、撮影スタジオ、テーマ別の写真集に加え、ストリートスナップや男性写真も掲載。成人向けを含み、同じ写真集の全ページをまとめて表示します。",
+        "ko": "모델과 스튜디오, 주제별 화보를 비롯해 거리 사진과 남성 화보를 제공합니다. 성인 콘텐츠가 포함되며, 같은 화보의 모든 페이지를 하나로 모아 보여 줍니다."
+      },
+      "option.category.beauty": {
+        "zh-Hans": "女性写真",
+        "zh-Hant": "女性寫真",
+        "en": "Women’s photo sets",
+        "ja": "女性の写真集",
+        "ko": "여성 화보"
+      },
+      "option.category.handsome": {
+        "zh-Hans": "男性写真",
+        "zh-Hant": "男性寫真",
+        "en": "Men’s photo sets",
+        "ja": "男性の写真集",
+        "ko": "남성 화보"
+      },
+      "option.category.street": {
+        "zh-Hans": "街拍",
+        "zh-Hant": "街拍",
+        "en": "Street photography",
+        "ja": "ストリートスナップ",
+        "ko": "거리 사진"
+      },
+      "option.sort.index": {
+        "zh-Hans": "最新",
+        "zh-Hant": "最新",
+        "en": "Latest",
+        "ja": "新着順",
+        "ko": "최신순"
+      },
+      "option.sort.hot": {
+        "zh-Hans": "热门",
+        "zh-Hant": "熱門",
+        "en": "Popular",
+        "ja": "人気順",
+        "ko": "인기순"
+      },
+      "filter.tag": {
+        "zh-Hans": "主题标签",
+        "zh-Hant": "主題標籤",
+        "en": "Tag",
+        "ja": "タグ",
+        "ko": "태그"
+      },
+      "filter.model": {
+        "zh-Hans": "模特代码",
+        "zh-Hant": "模特兒代碼",
+        "en": "Model code",
+        "ja": "モデルコード",
+        "ko": "모델 코드"
+      },
+      "filter.group": {
+        "zh-Hans": "写真机构代码",
+        "zh-Hant": "寫真機構代碼",
+        "en": "Studio code",
+        "ja": "撮影スタジオコード",
+        "ko": "스튜디오 코드"
+      },
+      "filter.hint": {
+        "zh-Hans": "填写原站代码，三项中只填一项；使用这些筛选时请留空搜索关键词。",
+        "zh-Hant": "填寫原站代碼，三項中只填一項；使用這些篩選時請留空搜尋關鍵詞。",
+        "en": "Enter one site code across these three fields. Leave the search keyword empty to use these filters.",
+        "ja": "3項目のうち1つだけにサイトのコードを入力してください。これらで絞り込む場合は検索語を空欄にしてください。",
+        "ko": "세 항목 중 하나에만 사이트 코드를 입력하세요. 이 필터를 사용할 때는 검색어를 비워 두세요."
+      },
+      "chapter.gallery": {
+        "zh-Hans": "完整图集",
+        "zh-Hant": "完整圖集",
+        "en": "Complete gallery",
+        "ja": "写真集全体",
+        "ko": "전체 화보"
+      }
+    }
+  },
+  "requestLimits": [
+    {
+      "group": "junmeitu-site",
+      "permits": 3,
+      "periodMs": 1000,
+      "hosts": [
+        "www.junmeitu.com"
+      ]
+    }
+  ]
+}

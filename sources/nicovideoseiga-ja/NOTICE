@@ -1,0 +1,2 @@
+Original implementation based on the public Niconico Manga app API and website, inspected 2026-11-28. Reuses the repository kadocomi-xor processor; no duplicate processor is created.
+Official identity artwork and restoration are documented in ASSET_SOURCES.md. Site artwork is not relicensed by this source code license.

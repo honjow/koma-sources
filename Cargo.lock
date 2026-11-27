@@ -1905,6 +1905,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_junmeitu_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "koma_kadocomi_ja_source"
 version = "0.1.0"
 dependencies = [
@@ -2065,6 +2075,17 @@ name = "koma_mangapluscreators_en_source"
 version = "0.1.10"
 dependencies = [
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_mangataro_en_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "md-5",
+ "serde_json",
+ "url",
 ]
 
 [[package]]
@@ -2252,6 +2273,16 @@ name = "koma_nhentaixxx_zh_source"
 version = "0.1.8"
 dependencies = [
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_nicovideoseiga_ja_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
 ]
 
 [[package]]
