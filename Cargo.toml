@@ -157,5 +157,8 @@ members = [
   "sources/acomics-ru",
   "sources/weebcentral-en",
   "sources/shonenjumpplus-ja",
+  "sources/tonarinoyoungjump-ja",
+  "sources/comicdays-ja",
+  "sources/dynasty-en",
   "sources/internetarchive",
 ]

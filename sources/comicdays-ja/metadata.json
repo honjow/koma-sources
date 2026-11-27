@@ -1,0 +1,381 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://comic-days.com",
+  "minAppVersion": "1.5.5",
+  "requiredImageDecodes": [
+    "wasm_image_v1"
+  ],
+  "wasmBuild": {
+    "imageProcessorCrate": "koma_gigaviewer_tile_processor"
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "ja",
+    "messages": {
+      "error.locked": {
+        "zh-Hans": "该章节当前未公开。",
+        "zh-Hant": "此章節目前未公開。",
+        "en": "This chapter is currently locked.",
+        "ja": "この話は現在公開されていません。",
+        "ko": "이 회차는 현재 잠겨 있습니다."
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站没有提供此内容。",
+        "zh-Hant": "原站沒有提供此內容。",
+        "en": "This content is unavailable on the website.",
+        "ja": "配信元でこのコンテンツは公開されていません。",
+        "ko": "사이트에서 이 콘텐츠를 제공하지 않습니다."
+      },
+      "error.network": {
+        "zh-Hans": "原站请求未完成，请稍后重试。",
+        "zh-Hant": "原站請求未完成，請稍後再試。",
+        "en": "Could not complete the website request. Try again later.",
+        "ja": "配信元へのリクエストに失敗しました。時間をおいて再試行してください。",
+        "ko": "사이트에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."
+      },
+      "error.host": {
+        "zh-Hans": "请更新 Koma 以阅读此章节。",
+        "zh-Hant": "請更新 Koma 以閱讀此章節。",
+        "en": "Update Koma to read this chapter.",
+        "ja": "この話を読むには Koma を更新してください。",
+        "ko": "이 회차를 읽으려면 Koma를 업데이트하세요."
+      },
+      "error.scramble": {
+        "zh-Hans": "此章节使用暂不支持的图片格式。",
+        "zh-Hant": "此章節使用暫不支援的圖片格式。",
+        "en": "This chapter uses an unsupported image format.",
+        "ja": "この話は未対応の画像形式を使用しています。",
+        "ko": "이 회차는 지원하지 않는 이미지 형식입니다."
+      },
+      "error.catalog": {
+        "zh-Hans": "原站目录已变化，请刷新后重试。",
+        "zh-Hant": "原站目錄已變更，請重新整理後再試。",
+        "en": "The catalog changed. Refresh and try again.",
+        "ja": "配信元の一覧が更新されました。再読み込みしてください。",
+        "ko": "사이트 목록이 변경되었습니다. 새로고침한 후 다시 시도하세요."
+      },
+      "error.filter": {
+        "zh-Hans": "请检查搜索或筛选条件。",
+        "zh-Hant": "請檢查搜尋或篩選條件。",
+        "en": "Check the search or filter values.",
+        "ja": "検索語や絞り込み条件を確認してください。",
+        "ko": "검색어나 필터 조건을 확인해 주세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法读取此内容。",
+        "zh-Hant": "暫時無法讀取此內容。",
+        "en": "Unable to load this content.",
+        "ja": "このコンテンツを読み込めません。",
+        "ko": "이 콘텐츠를 불러올 수 없습니다."
+      },
+      "filter.collection": {
+        "zh-Hans": "作品分类",
+        "zh-Hant": "作品分類",
+        "en": "Collection",
+        "ja": "作品分類",
+        "ko": "작품 분류"
+      },
+      "setting.hide_locked": {
+        "zh-Hans": "隐藏付费章节",
+        "zh-Hant": "隱藏付費章節",
+        "en": "Hide paid chapters",
+        "ja": "有料話を非表示",
+        "ko": "유료 회차 숨기기"
+      },
+      "setting.hide_unavailable": {
+        "zh-Hans": "隐藏已下架章节",
+        "zh-Hant": "隱藏已下架章節",
+        "en": "Hide unavailable chapters",
+        "ja": "配信終了話を非表示",
+        "ko": "공개 종료 회차 숨기기"
+      },
+      "chapter.unavailable": {
+        "zh-Hans": "已下架",
+        "zh-Hant": "已下架",
+        "en": "Unavailable",
+        "ja": "配信終了",
+        "ko": "공개 종료"
+      },
+      "chapter.volume": {
+        "zh-Hans": "单行本",
+        "zh-Hant": "單行本",
+        "en": "Volume",
+        "ja": "単行本",
+        "ko": "단행본"
+      },
+      "listing.latest": {
+        "zh-Hans": "最近更新",
+        "zh-Hant": "最近更新",
+        "en": "Latest updates",
+        "ja": "最新更新",
+        "ko": "최근 업데이트"
+      },
+      "collection.action": {
+        "zh-Hans": "动作",
+        "zh-Hant": "動作",
+        "en": "Action",
+        "ja": "アクション",
+        "ko": "액션"
+      },
+      "collection.food": {
+        "zh-Hans": "美食",
+        "zh-Hant": "美食",
+        "en": "Food",
+        "ja": "グルメ",
+        "ko": "음식"
+      },
+      "collection.isekai": {
+        "zh-Hans": "异世界与转生",
+        "zh-Hant": "異世界與轉生",
+        "en": "Isekai and reincarnation",
+        "ja": "異世界・転生",
+        "ko": "이세계·환생"
+      },
+      "source.name": {
+        "zh-Hans": "Comic Days",
+        "zh-Hant": "Comic Days",
+        "en": "Comic Days",
+        "ja": "コミックDAYS",
+        "ko": "코믹 데이즈"
+      },
+      "source.description": {
+        "zh-Hans": "讲谈社漫画平台，可从免费连载、杂志分话和排行榜查找公开章节。",
+        "zh-Hant": "講談社漫畫平台，可從免費連載、雜誌分話和排行榜尋找公開章節。",
+        "en": "Kodansha’s manga service offers public chapters through free serials, individual magazine chapters, and rankings.",
+        "ja": "講談社のマンガサービス。無料連載、雑誌のバラ読み、ランキングから公開話を探せます。",
+        "ko": "고단샤의 만화 서비스입니다. 무료 연재, 잡지 회차별 보기, 순위에서 공개 회차를 찾을 수 있습니다."
+      },
+      "listing.ranking": {
+        "zh-Hans": "综合排行",
+        "zh-Hant": "綜合排行",
+        "en": "Overall ranking",
+        "ja": "総合ランキング",
+        "ko": "종합 순위"
+      },
+      "listing.serial": {
+        "zh-Hans": "连载作品",
+        "zh-Hant": "連載作品",
+        "en": "Serials",
+        "ja": "連載作品一覧",
+        "ko": "연재작"
+      },
+      "listing.free": {
+        "zh-Hans": "限时免费",
+        "zh-Hant": "限時免費",
+        "en": "Free campaigns",
+        "ja": "無料キャンペーン",
+        "ko": "무료 캠페인"
+      },
+      "listing.magazine": {
+        "zh-Hans": "杂志分话",
+        "zh-Hant": "雜誌分話",
+        "en": "Magazine chapters",
+        "ja": "雑誌バラ読み",
+        "ko": "잡지 회차별 보기"
+      },
+      "listing.oneshot": {
+        "zh-Hans": "短篇与新人排行",
+        "zh-Hant": "短篇與新人排行",
+        "en": "One-shot and newcomer ranking",
+        "ja": "読切・新人ランキング",
+        "ko": "단편·신인 순위"
+      },
+      "collection.serial": {
+        "zh-Hans": "连载作品",
+        "zh-Hant": "連載作品",
+        "en": "Serials",
+        "ja": "連載作品一覧",
+        "ko": "연재작"
+      },
+      "collection.adaptations": {
+        "zh-Hans": "影视动画改编",
+        "zh-Hant": "影視動畫改編",
+        "en": "Screen adaptations",
+        "ja": "メディア化",
+        "ko": "미디어화"
+      },
+      "collection.romance": {
+        "zh-Hans": "恋爱",
+        "zh-Hant": "戀愛",
+        "en": "Romance",
+        "ja": "恋愛",
+        "ko": "연애"
+      },
+      "collection.romcom": {
+        "zh-Hans": "恋爱喜剧",
+        "zh-Hant": "戀愛喜劇",
+        "en": "Romantic comedy",
+        "ja": "ラブコメ",
+        "ko": "로맨틱 코미디"
+      },
+      "collection.comedy": {
+        "zh-Hans": "喜剧与搞笑",
+        "zh-Hant": "喜劇與搞笑",
+        "en": "Comedy and gags",
+        "ja": "コメディ・ギャグ",
+        "ko": "코미디·개그"
+      },
+      "collection.suspense": {
+        "zh-Hans": "悬疑",
+        "zh-Hant": "懸疑",
+        "en": "Suspense",
+        "ja": "サスペンス",
+        "ko": "서스펜스"
+      },
+      "collection.historical": {
+        "zh-Hans": "历史与时代剧",
+        "zh-Hant": "歷史與時代劇",
+        "en": "History and period drama",
+        "ja": "歴史・時代",
+        "ko": "역사·시대극"
+      },
+      "collection.slice_of_life": {
+        "zh-Hans": "日常",
+        "zh-Hant": "日常",
+        "en": "Slice of life",
+        "ja": "日常",
+        "ko": "일상"
+      },
+      "collection.drama": {
+        "zh-Hans": "人生故事",
+        "zh-Hant": "人生故事",
+        "en": "Human drama",
+        "ja": "ヒューマンドラマ",
+        "ko": "휴먼 드라마"
+      },
+      "collection.family": {
+        "zh-Hans": "家庭",
+        "zh-Hant": "家庭",
+        "en": "Family",
+        "ja": "家族",
+        "ko": "가족"
+      },
+      "collection.parenting": {
+        "zh-Hans": "婚姻与育儿",
+        "zh-Hant": "婚姻與育兒",
+        "en": "Marriage and parenting",
+        "ja": "結婚・育児",
+        "ko": "결혼·육아"
+      },
+      "collection.infidelity": {
+        "zh-Hans": "出轨与不伦",
+        "zh-Hant": "出軌與不倫",
+        "en": "Infidelity",
+        "ja": "浮気・不倫",
+        "ko": "외도·불륜"
+      },
+      "collection.underworld": {
+        "zh-Hans": "不良少年与黑道",
+        "zh-Hant": "不良少年與黑道",
+        "en": "Delinquents and underworld",
+        "ja": "ヤンキー・裏社会",
+        "ko": "불량배·암흑가"
+      },
+      "collection.survival": {
+        "zh-Hans": "生存",
+        "zh-Hant": "生存",
+        "en": "Survival",
+        "ja": "サバイバル",
+        "ko": "서바이벌"
+      },
+      "collection.fanservice": {
+        "zh-Hans": "性感题材",
+        "zh-Hant": "性感題材",
+        "en": "Fan service",
+        "ja": "お色気",
+        "ko": "섹시"
+      },
+      "collection.sports": {
+        "zh-Hans": "青春与体育",
+        "zh-Hant": "青春與體育",
+        "en": "Youth and sports",
+        "ja": "青春・スポーツ",
+        "ko": "청춘·스포츠"
+      },
+      "collection.sf": {
+        "zh-Hans": "科幻",
+        "zh-Hant": "科幻",
+        "en": "Science fiction",
+        "ja": "SF",
+        "ko": "SF"
+      },
+      "collection.short": {
+        "zh-Hans": "短篇与四格",
+        "zh-Hant": "短篇與四格",
+        "en": "Shorts and four-panel comics",
+        "ja": "ショート・4コマ",
+        "ko": "단편·4컷"
+      },
+      "collection.work": {
+        "zh-Hans": "职场",
+        "zh-Hant": "職場",
+        "en": "Workplace",
+        "ja": "仕事",
+        "ko": "직장"
+      },
+      "collection.medical": {
+        "zh-Hans": "医疗",
+        "zh-Hant": "醫療",
+        "en": "Medicine",
+        "ja": "医療",
+        "ko": "의료"
+      },
+      "collection.society": {
+        "zh-Hans": "知识与社会议题",
+        "zh-Hant": "知識與社會議題",
+        "en": "Education and social issues",
+        "ja": "教養・社会問題",
+        "ko": "교양·사회문제"
+      },
+      "collection.arts": {
+        "zh-Hans": "艺术",
+        "zh-Hant": "藝術",
+        "en": "Arts",
+        "ja": "芸術",
+        "ko": "예술"
+      },
+      "collection.military": {
+        "zh-Hans": "军事与警察",
+        "zh-Hant": "軍事與警察",
+        "en": "Military and police",
+        "ja": "軍事・警察",
+        "ko": "군사·경찰"
+      },
+      "collection.essays": {
+        "zh-Hans": "真人真事与随笔",
+        "zh-Hant": "真人真事與隨筆",
+        "en": "True stories and essays",
+        "ja": "実話・エッセイ",
+        "ko": "실화·에세이"
+      },
+      "collection.animals": {
+        "zh-Hans": "动物与猫",
+        "zh-Hant": "動物與貓",
+        "en": "Animals and cats",
+        "ja": "動物・ねこ",
+        "ko": "동물·고양이"
+      },
+      "collection.bl": {
+        "zh-Hans": "BL",
+        "zh-Hant": "BL",
+        "en": "BL",
+        "ja": "BL",
+        "ko": "BL"
+      },
+      "collection.yuri": {
+        "zh-Hans": "百合",
+        "zh-Hant": "百合",
+        "en": "Yuri",
+        "ja": "百合",
+        "ko": "백합"
+      },
+      "collection.spinoff": {
+        "zh-Hans": "续作与外传",
+        "zh-Hant": "續作與外傳",
+        "en": "Sequels and spin-offs",
+        "ja": "続編・スピンオフ",
+        "ko": "후속작·스핀오프"
+      }
+    }
+  }
+}

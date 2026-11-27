@@ -178,6 +178,9 @@ smbc-en|smbc-en|false|0.1.0
 acomics-ru|acomics-ru|true|0.1.0
 weebcentral-en|weebcentral-en|true|0.1.0
 shonenjumpplus-ja|shonenjumpplus-ja|false|1.5.5
+tonarinoyoungjump-ja|tonarinoyoungjump-ja|false|1.5.5
+comicdays-ja|comicdays-ja|false|1.5.5
+dynasty-en|dynasty-en|true|0.1.0
 internetarchive|internetarchive|false|0.1.0
 '
 

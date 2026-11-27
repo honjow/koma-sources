@@ -159,6 +159,8 @@
 | <img src="navercomic-ko/icon.png" width="24" alt=""> | navercomic-ko | Naver Webtoon | Naver 韩国官方条漫，涵盖按星期连载的正式作品与两级创作者投稿。 |
 | <img src="peppercarrot/icon.png" width="24" alt=""> | peppercarrot | Pepper&Carrot | David Revoy 的多语言开放版权奇幻漫画，另有短篇和 11 个官方艺术档案。 |
 | <img src="shonenjumpplus-ja/icon.png" width="24" alt=""> | shonenjumpplus-ja | 少年ジャンプ＋ | 集英社官方日文连载和短篇，正文限匿名公开话。 |
+| <img src="tonarinoyoungjump-ja/icon.png" width="24" alt=""> | tonarinoyoungjump-ja | となりのヤングジャンプ | 集英社连载、短篇和客串刊载，支持公开话及 GigaViewer 去扰。 |
+| <img src="comicdays-ja/icon.png" width="24" alt=""> | comicdays-ja | コミックDAYS | 讲谈社连载、排行、限免和杂志分话，支持公开话及 GigaViewer 去扰。 |
 | <img src="twi4-ja/icon.png" width="24" alt=""> | twi4-ja | Twi4 | 星海社「最前線」的日文四格连载，收录《トモちゃんは女の子！》等作品。 |
 
 ## 英文原站
@@ -167,6 +169,7 @@
 |---|---|---|---|
 | <img src="globalcomix-en/icon.ico" width="24" alt=""> | globalcomix-en | GlobalComix | 收录出版社与独立创作者的英文数字漫画，正文限原站公开的免费页。 |
 | <img src="namicomi-en/icon.png" width="24" alt=""> | namicomi-en | NamiComi | 原创漫画平台的英文目录，正文限匿名可读章节。 |
+| <img src="dynasty-en/icon.png" width="24" alt=""> | dynasty-en | Dynasty Scans | 英文系列、选集、刊物及同人志，支持作者和标签筛选，含成人内容。 |
 | <img src="weebcentral-en/icon.png" width="24" alt=""> | weebcentral-en | Weeb Central | 汇集英文日漫、韩漫和华语漫画，包括《王者天下》等长篇连载。 |
 | <img src="xkcd-en/icon.webp" width="24" alt=""> | xkcd-en | xkcd | 兰德尔·门罗的英文原作，可按单本、年份或年月浏览。 |
 | <img src="comicfury-en/icon.png" width="24" alt=""> | comicfury-en | Comic Fury (English) | 创作者自行发布的英文网漫，部分作品有作者附言。 |
@@ -184,6 +187,7 @@
 |---|---|
 | example-demo | 教学演示源，用 JSONPlaceholder API，非真实漫画源 |
 | gigaviewer.rs | GigaViewer GraphQL、产品目录和公开阅读协议共享模块 |
+| gigaviewer_browse.rs | GigaViewer 连载分组、题材筛选和栏目分页共享模块 |
 | taku_gallery.rs | 单文件参考实现，非标准源目录结构 |
 | xcomic_java_regex.rs | 单文件参考实现，非标准源目录结构 |
 

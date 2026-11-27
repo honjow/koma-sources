@@ -1,0 +1,287 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://dynasty-scans.com",
+  "minAppVersion": "0.1.0",
+  "localizedNames": {
+    "zh-Hans": "Dynasty Scans",
+    "zh-Hant": "Dynasty Scans",
+    "en": "Dynasty Scans",
+    "ja": "Dynasty Scans",
+    "ko": "Dynasty Scans"
+  },
+  "localizedDescriptions": {
+    "zh-Hans": "英文漫画阅读站，收录连载、选集、杂志刊物及同人志，以百合作品为特色，含成人内容。",
+    "zh-Hant": "英文漫畫閱讀站，收錄連載、選集、雜誌刊物及同人誌，以百合作品為特色，含成人內容。",
+    "en": "An English manga reader with series, anthologies, magazine issues, and doujinshi, with a focus on yuri. Some entries are adult.",
+    "ja": "百合作品を中心に、シリーズ、アンソロジー、雑誌号、同人誌を掲載する英語のマンガサイトです。成人向け作品を含みます。",
+    "ko": "백합을 중심으로 연재작, 앤솔러지, 잡지, 동인지를 제공하는 영어 만화 사이트입니다. 성인용 작품이 포함됩니다."
+  },
+  "requestLimits": [
+    {
+      "group": "dynasty-site",
+      "permits": 1,
+      "periodMs": 1000,
+      "hosts": [
+        "dynasty-scans.com"
+      ]
+    }
+  ],
+  "localization": {
+    "version": 1,
+    "defaultLocale": "en",
+    "messages": {
+      "error.locked": {
+        "zh-Hans": "该章节需要购买或登录。",
+        "zh-Hant": "此章節需要購買或登入。",
+        "en": "This chapter requires a purchase or sign-in.",
+        "ja": "この話は購入またはログインが必要です。",
+        "ko": "이 회차는 구매 또는 로그인이 필요합니다."
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站没有提供此内容。",
+        "zh-Hant": "原站沒有提供此內容。",
+        "en": "This content is unavailable on the website.",
+        "ja": "配信元でこのコンテンツは公開されていません。",
+        "ko": "사이트에서 이 콘텐츠를 제공하지 않습니다."
+      },
+      "error.network": {
+        "zh-Hans": "原站请求未完成，请稍后重试。",
+        "zh-Hant": "原站請求未完成，請稍後再試。",
+        "en": "Could not complete the website request. Try again later.",
+        "ja": "配信元へのリクエストに失敗しました。時間をおいて再試行してください。",
+        "ko": "사이트에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."
+      },
+      "error.host": {
+        "zh-Hans": "请更新 Koma 以阅读此章节。",
+        "zh-Hant": "請更新 Koma 以閱讀此章節。",
+        "en": "Update Koma to read this chapter.",
+        "ja": "この話を読むには Koma を更新してください。",
+        "ko": "이 회차를 읽으려면 Koma를 업데이트하세요."
+      },
+      "error.scramble": {
+        "zh-Hans": "此章节使用暂不支持的图片格式。",
+        "zh-Hant": "此章節使用暫不支援的圖片格式。",
+        "en": "This chapter uses an unsupported image format.",
+        "ja": "この話は未対応の画像形式を使用しています。",
+        "ko": "이 회차는 지원하지 않는 이미지 형식입니다."
+      },
+      "error.catalog": {
+        "zh-Hans": "原站目录已变化，请刷新后重试。",
+        "zh-Hant": "原站目錄已變更，請重新整理後再試。",
+        "en": "The catalog changed. Refresh and try again.",
+        "ja": "配信元の一覧が更新されました。再読み込みしてください。",
+        "ko": "사이트 목록이 변경되었습니다. 새로고침한 후 다시 시도하세요."
+      },
+      "error.filter": {
+        "zh-Hans": "请检查搜索或筛选条件。",
+        "zh-Hant": "請檢查搜尋或篩選條件。",
+        "en": "Check the search or filter values.",
+        "ja": "検索語や絞り込み条件を確認してください。",
+        "ko": "검색어나 필터 조건을 확인해 주세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法读取此内容。",
+        "zh-Hant": "暫時無法讀取此內容。",
+        "en": "Unable to load this content.",
+        "ja": "このコンテンツを読み込めません。",
+        "ko": "이 콘텐츠를 불러올 수 없습니다."
+      },
+      "source.name": {
+        "zh-Hans": "Dynasty Scans",
+        "zh-Hant": "Dynasty Scans",
+        "en": "Dynasty Scans",
+        "ja": "Dynasty Scans",
+        "ko": "Dynasty Scans"
+      },
+      "source.description": {
+        "zh-Hans": "英文漫画阅读站，收录连载、选集、杂志刊物及同人志，以百合作品为特色，含成人内容。",
+        "zh-Hant": "英文漫畫閱讀站，收錄連載、選集、雜誌刊物及同人誌，以百合作品為特色，含成人內容。",
+        "en": "An English manga reader with series, anthologies, magazine issues, and doujinshi, with a focus on yuri. Some entries are adult.",
+        "ja": "百合作品を中心に、シリーズ、アンソロジー、雑誌号、同人誌を掲載する英語のマンガサイトです。成人向け作品を含みます。",
+        "ko": "백합을 중심으로 연재작, 앤솔러지, 잡지, 동인지를 제공하는 영어 만화 사이트입니다. 성인용 작품이 포함됩니다."
+      },
+      "listing.popular": {
+        "zh-Hans": "七日热门",
+        "zh-Hant": "七日熱門",
+        "en": "Popular this week",
+        "ja": "週間人気",
+        "ko": "주간 인기"
+      },
+      "listing.latest": {
+        "zh-Hans": "最近收录",
+        "zh-Hant": "最近收錄",
+        "en": "Recently added",
+        "ja": "最近追加",
+        "ko": "최근 추가"
+      },
+      "listing.chapters": {
+        "zh-Hans": "近期发布章节",
+        "zh-Hant": "近期發布章節",
+        "en": "Recently released chapters",
+        "ja": "最近公開された話",
+        "ko": "최근 공개 회차"
+      },
+      "listing.series": {
+        "zh-Hans": "系列",
+        "zh-Hant": "系列",
+        "en": "Series",
+        "ja": "シリーズ",
+        "ko": "시리즈"
+      },
+      "listing.anthologies": {
+        "zh-Hans": "选集",
+        "zh-Hant": "選集",
+        "en": "Anthologies",
+        "ja": "アンソロジー",
+        "ko": "앤솔러지"
+      },
+      "listing.issues": {
+        "zh-Hans": "杂志刊物",
+        "zh-Hant": "雜誌刊物",
+        "en": "Magazine issues",
+        "ja": "雑誌号",
+        "ko": "잡지"
+      },
+      "listing.doujins": {
+        "zh-Hans": "同人志",
+        "zh-Hant": "同人誌",
+        "en": "Doujinshi",
+        "ja": "同人誌",
+        "ko": "동인지"
+      },
+      "filter.sort": {
+        "zh-Hans": "排序",
+        "zh-Hant": "排序",
+        "en": "Sort",
+        "ja": "並び順",
+        "ko": "정렬"
+      },
+      "filter.type": {
+        "zh-Hans": "作品类型",
+        "zh-Hant": "作品類型",
+        "en": "Work type",
+        "ja": "作品タイプ",
+        "ko": "작품 유형"
+      },
+      "filter.tags": {
+        "zh-Hans": "标签",
+        "zh-Hant": "標籤",
+        "en": "Tags",
+        "ja": "タグ",
+        "ko": "태그"
+      },
+      "filter.author": {
+        "zh-Hans": "作者（全名，逗号分隔）",
+        "zh-Hant": "作者（全名，逗號分隔）",
+        "en": "Authors (exact names, comma-separated)",
+        "ja": "作者（完全一致、カンマ区切り）",
+        "ko": "작가 (정확한 이름, 쉼표로 구분)"
+      },
+      "filter.scanlator": {
+        "zh-Hans": "翻译组（全名，逗号分隔）",
+        "zh-Hant": "翻譯組（全名，逗號分隔）",
+        "en": "Scanlators (exact names, comma-separated)",
+        "ja": "翻訳グループ（完全一致、カンマ区切り）",
+        "ko": "번역 그룹 (정확한 이름, 쉼표로 구분)"
+      },
+      "filter.pairing": {
+        "zh-Hans": "角色配对（全名，逗号分隔）",
+        "zh-Hant": "角色配對（全名，逗號分隔）",
+        "en": "Pairings (exact names, comma-separated)",
+        "ja": "カップリング（完全一致、カンマ区切り）",
+        "ko": "커플링 (정확한 이름, 쉼표로 구분)"
+      },
+      "sort.smart": {
+        "zh-Hans": "自动",
+        "zh-Hant": "自動",
+        "en": "Smart",
+        "ja": "自動",
+        "ko": "자동"
+      },
+      "sort.match": {
+        "zh-Hans": "相关度",
+        "zh-Hant": "相關度",
+        "en": "Best match",
+        "ja": "関連度",
+        "ko": "관련성"
+      },
+      "sort.name": {
+        "zh-Hans": "标题字母顺序",
+        "zh-Hant": "標題字母順序",
+        "en": "Alphabetical",
+        "ja": "タイトル順",
+        "ko": "제목순"
+      },
+      "sort.added": {
+        "zh-Hans": "收录日期",
+        "zh-Hant": "收錄日期",
+        "en": "Date added",
+        "ja": "追加日",
+        "ko": "추가일"
+      },
+      "sort.released": {
+        "zh-Hans": "发布日期",
+        "zh-Hant": "發布日期",
+        "en": "Release date",
+        "ja": "公開日",
+        "ko": "공개일"
+      },
+      "setting.chapter_limit": {
+        "zh-Hans": "目录读取上限",
+        "zh-Hant": "目錄讀取上限",
+        "en": "Chapter catalog limit",
+        "ja": "話一覧の取得上限",
+        "ko": "회차 목록 한도"
+      },
+      "setting.chapter_limit_description": {
+        "zh-Hans": "按原站目录页数限制加载。较长的同人目录可选择读取全部。",
+        "zh-Hant": "按原站目錄頁數限制載入。較長的同人目錄可選擇讀取全部。",
+        "en": "Limits how many website catalog pages are loaded. Select all pages for longer doujinshi collections.",
+        "ja": "サイトの話一覧を取得するページ数を制限します。長い同人誌一覧は全ページを選べます。",
+        "ko": "사이트에서 불러올 목록 페이지 수를 제한합니다. 긴 동인지 목록은 모든 페이지를 선택할 수 있습니다."
+      },
+      "setting.pages_2": {
+        "zh-Hans": "2 页",
+        "zh-Hant": "2 頁",
+        "en": "2 pages",
+        "ja": "2 ページ",
+        "ko": "2페이지"
+      },
+      "setting.pages_5": {
+        "zh-Hans": "5 页",
+        "zh-Hant": "5 頁",
+        "en": "5 pages",
+        "ja": "5 ページ",
+        "ko": "5페이지"
+      },
+      "setting.pages_10": {
+        "zh-Hans": "10 页",
+        "zh-Hant": "10 頁",
+        "en": "10 pages",
+        "ja": "10 ページ",
+        "ko": "10페이지"
+      },
+      "setting.pages_all": {
+        "zh-Hans": "全部",
+        "zh-Hant": "全部",
+        "en": "All pages",
+        "ja": "全ページ",
+        "ko": "모든 페이지"
+      },
+      "chapter.single": {
+        "zh-Hans": "单章",
+        "zh-Hant": "單章",
+        "en": "Chapter",
+        "ja": "単話",
+        "ko": "단일 회차"
+      },
+      "list.update": {
+        "zh-Hans": "最近章节",
+        "zh-Hant": "最近章節",
+        "en": "Latest chapter",
+        "ja": "最新話",
+        "ko": "최신 회차"
+      }
+    }
+  }
+}

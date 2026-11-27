@@ -1,0 +1,234 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://tonarinoyj.jp",
+  "minAppVersion": "1.5.5",
+  "requiredImageDecodes": [
+    "wasm_image_v1"
+  ],
+  "wasmBuild": {
+    "imageProcessorCrate": "koma_gigaviewer_tile_processor"
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "ja",
+    "messages": {
+      "error.locked": {
+        "zh-Hans": "该章节当前未公开。",
+        "zh-Hant": "此章節目前未公開。",
+        "en": "This chapter is currently locked.",
+        "ja": "この話は現在公開されていません。",
+        "ko": "이 회차는 현재 잠겨 있습니다."
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站没有提供此内容。",
+        "zh-Hant": "原站沒有提供此內容。",
+        "en": "This content is unavailable on the website.",
+        "ja": "配信元でこのコンテンツは公開されていません。",
+        "ko": "사이트에서 이 콘텐츠를 제공하지 않습니다."
+      },
+      "error.network": {
+        "zh-Hans": "原站请求未完成，请稍后重试。",
+        "zh-Hant": "原站請求未完成，請稍後再試。",
+        "en": "Could not complete the website request. Try again later.",
+        "ja": "配信元へのリクエストに失敗しました。時間をおいて再試行してください。",
+        "ko": "사이트에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."
+      },
+      "error.host": {
+        "zh-Hans": "请更新 Koma 以阅读此章节。",
+        "zh-Hant": "請更新 Koma 以閱讀此章節。",
+        "en": "Update Koma to read this chapter.",
+        "ja": "この話を読むには Koma を更新してください。",
+        "ko": "이 회차를 읽으려면 Koma를 업데이트하세요."
+      },
+      "error.scramble": {
+        "zh-Hans": "此章节使用暂不支持的图片格式。",
+        "zh-Hant": "此章節使用暫不支援的圖片格式。",
+        "en": "This chapter uses an unsupported image format.",
+        "ja": "この話は未対応の画像形式を使用しています。",
+        "ko": "이 회차는 지원하지 않는 이미지 형식입니다."
+      },
+      "error.catalog": {
+        "zh-Hans": "原站目录已变化，请刷新后重试。",
+        "zh-Hant": "原站目錄已變更，請重新整理後再試。",
+        "en": "The catalog changed. Refresh and try again.",
+        "ja": "配信元の一覧が更新されました。再読み込みしてください。",
+        "ko": "사이트 목록이 변경되었습니다. 새로고침한 후 다시 시도하세요."
+      },
+      "error.filter": {
+        "zh-Hans": "请检查搜索或筛选条件。",
+        "zh-Hant": "請檢查搜尋或篩選條件。",
+        "en": "Check the search or filter values.",
+        "ja": "検索語や絞り込み条件を確認してください。",
+        "ko": "검색어나 필터 조건을 확인해 주세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法读取此内容。",
+        "zh-Hant": "暫時無法讀取此內容。",
+        "en": "Unable to load this content.",
+        "ja": "このコンテンツを読み込めません。",
+        "ko": "이 콘텐츠를 불러올 수 없습니다."
+      },
+      "filter.collection": {
+        "zh-Hans": "作品分类",
+        "zh-Hant": "作品分類",
+        "en": "Collection",
+        "ja": "作品分類",
+        "ko": "작품 분류"
+      },
+      "setting.hide_locked": {
+        "zh-Hans": "隐藏付费章节",
+        "zh-Hant": "隱藏付費章節",
+        "en": "Hide paid chapters",
+        "ja": "有料話を非表示",
+        "ko": "유료 회차 숨기기"
+      },
+      "setting.hide_unavailable": {
+        "zh-Hans": "隐藏已下架章节",
+        "zh-Hant": "隱藏已下架章節",
+        "en": "Hide unavailable chapters",
+        "ja": "配信終了話を非表示",
+        "ko": "공개 종료 회차 숨기기"
+      },
+      "chapter.unavailable": {
+        "zh-Hans": "已下架",
+        "zh-Hant": "已下架",
+        "en": "Unavailable",
+        "ja": "配信終了",
+        "ko": "공개 종료"
+      },
+      "chapter.volume": {
+        "zh-Hans": "单行本",
+        "zh-Hant": "單行本",
+        "en": "Volume",
+        "ja": "単行本",
+        "ko": "단행본"
+      },
+      "listing.latest": {
+        "zh-Hans": "最近更新",
+        "zh-Hant": "最近更新",
+        "en": "Latest updates",
+        "ja": "最新更新",
+        "ko": "최근 업데이트"
+      },
+      "collection.action": {
+        "zh-Hans": "动作",
+        "zh-Hant": "動作",
+        "en": "Action",
+        "ja": "アクション",
+        "ko": "액션"
+      },
+      "collection.food": {
+        "zh-Hans": "美食",
+        "zh-Hant": "美食",
+        "en": "Food",
+        "ja": "グルメ",
+        "ko": "음식"
+      },
+      "collection.isekai": {
+        "zh-Hans": "异世界",
+        "zh-Hant": "異世界",
+        "en": "Isekai",
+        "ja": "異世界",
+        "ko": "이세계"
+      },
+      "source.name": {
+        "zh-Hans": "邻座的 Young Jump",
+        "zh-Hant": "鄰座的 Young Jump",
+        "en": "Tonari no Young Jump",
+        "ja": "となりのヤングジャンプ",
+        "ko": "옆자리 영 점프"
+      },
+      "source.description": {
+        "zh-Hans": "集英社官方漫画站，提供《一拳超人》等连载、短篇和客串刊载作品的公开章节。",
+        "zh-Hant": "集英社官方漫畫站，提供《一拳超人》等連載、短篇和客串刊載作品的公開章節。",
+        "en": "Shueisha’s official manga site offers public chapters of series such as One-Punch Man, one-shots, and guest publications.",
+        "ja": "集英社の公式マンガサイト。『ワンパンマン』などの連載、読切、出張掲載の公開話を読めます。",
+        "ko": "슈에이샤 공식 만화 사이트로, 《원펀맨》 등 연재작과 단편, 출장 게재작의 공개 회차를 읽을 수 있습니다."
+      },
+      "listing.popular": {
+        "zh-Hans": "热门连载",
+        "zh-Hant": "熱門連載",
+        "en": "Popular serials",
+        "ja": "人気連載",
+        "ko": "인기 연재작"
+      },
+      "listing.oneshot": {
+        "zh-Hans": "短篇",
+        "zh-Hant": "短篇",
+        "en": "One-shots",
+        "ja": "読切",
+        "ko": "단편"
+      },
+      "listing.guest": {
+        "zh-Hans": "客串刊载",
+        "zh-Hant": "客串刊載",
+        "en": "Guest publications",
+        "ja": "出張掲載",
+        "ko": "출장 게재작"
+      },
+      "collection.serial": {
+        "zh-Hans": "连载中",
+        "zh-Hant": "連載中",
+        "en": "Ongoing serials",
+        "ja": "連載中",
+        "ko": "연재 중"
+      },
+      "collection.oneshot": {
+        "zh-Hans": "短篇",
+        "zh-Hant": "短篇",
+        "en": "One-shots",
+        "ja": "読切",
+        "ko": "단편"
+      },
+      "collection.guest": {
+        "zh-Hans": "客串刊载",
+        "zh-Hant": "客串刊載",
+        "en": "Guest publications",
+        "ja": "出張作品",
+        "ko": "출장 게재작"
+      },
+      "collection.comedy": {
+        "zh-Hans": "日常与喜剧",
+        "zh-Hant": "日常與喜劇",
+        "en": "Slice of life and comedy",
+        "ja": "日常／コメディ",
+        "ko": "일상·코미디"
+      },
+      "collection.fanservice": {
+        "zh-Hans": "性感题材",
+        "zh-Hant": "性感題材",
+        "en": "Fan service",
+        "ja": "セクシー",
+        "ko": "섹시"
+      },
+      "collection.fantasy": {
+        "zh-Hans": "奇幻",
+        "zh-Hant": "奇幻",
+        "en": "Fantasy",
+        "ja": "ファンタジー",
+        "ko": "판타지"
+      },
+      "collection.horror": {
+        "zh-Hans": "恐怖与悬疑",
+        "zh-Hant": "恐怖與懸疑",
+        "en": "Horror and mystery",
+        "ja": "ホラー／ミステリー",
+        "ko": "공포·미스터리"
+      },
+      "collection.revenge": {
+        "zh-Hans": "复仇",
+        "zh-Hant": "復仇",
+        "en": "Revenge",
+        "ja": "復讐",
+        "ko": "복수"
+      },
+      "collection.sports": {
+        "zh-Hans": "热血体育",
+        "zh-Hant": "熱血體育",
+        "en": "Competitive sports",
+        "ja": "スポ根",
+        "ko": "열혈 스포츠"
+      }
+    }
+  }
+}

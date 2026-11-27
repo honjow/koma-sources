@@ -1385,6 +1385,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_comicdays_ja_source"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "koma_comicfury_en_source"
 version = "0.1.0"
 dependencies = [
@@ -1490,6 +1501,17 @@ dependencies = [
  "base64 0.22.1",
  "dlmalloc",
  "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
+name = "koma_dynasty_en_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "percent-encoding",
  "serde_json",
  "url",
 ]
@@ -2330,6 +2352,17 @@ name = "koma_tipo_ipmini_zh_hant_source"
 version = "0.1.5"
 dependencies = [
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_tonarinoyoungjump_ja_source"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
 ]
 
 [[package]]
