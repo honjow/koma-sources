@@ -1,0 +1,76 @@
+{
+  "homepage": "https://comic.naver.com",
+  "localizedNames": {
+    "zh-Hans": "Naver Webtoon",
+    "zh-Hant": "Naver Webtoon",
+    "en": "Naver Webtoon",
+    "ja": "Naver Webtoon",
+    "ko": "네이버웹툰"
+  },
+  "chapterOrder": "newest_first",
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "1311262507446028482"
+      ],
+      "work": {
+        "pathPrefix": "/webtoon/list?titleId=",
+        "idPrefix": "naver:webtoon:"
+      },
+      "chapter": {
+        "pathPrefix": "/webtoon/detail?titleId=",
+        "pathWorkIdSeparator": "&no=",
+        "idPrefix": "",
+        "targetIdSegment": 3
+      }
+    }
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "Naver 韩国官方条漫平台，既有按星期更新的正式连载，也有创作者投稿的「最佳挑战」与「挑战漫画」。",
+        "zh-Hant": "Naver 韓國官方條漫平台，既有按星期更新的正式連載，也有創作者投稿的「最佳挑戰」與「挑戰漫畫」。",
+        "en": "Naver's official Korean webtoon platform publishes weekly serials and hosts creator submissions in Best Challenge and Challenge.",
+        "ja": "韓国 Naver 公式ウェブトゥーン。曜日別連載に加え、クリエイター投稿のベストチャレンジ・チャレンジ漫画を収録しています。",
+        "ko": "네이버의 공식 웹툰 플랫폼입니다. 요일별 정식 연재와 창작자가 직접 올리는 베스트도전, 도전만화를 볼 수 있습니다."
+      },
+      "listing.popular": {
+        "zh-Hans": "热门",
+        "zh-Hant": "熱門",
+        "en": "Popular",
+        "ja": "人気",
+        "ko": "인기 웹툰"
+      },
+      "listing.latest": {
+        "zh-Hans": "最近更新",
+        "zh-Hant": "最近更新",
+        "en": "Latest",
+        "ja": "最新更新",
+        "ko": "최근 업데이트"
+      },
+      "listing.best_challenge": {
+        "zh-Hans": "最佳挑战",
+        "zh-Hant": "最佳挑戰",
+        "en": "Best Challenge",
+        "ja": "ベストチャレンジ",
+        "ko": "베스트도전"
+      },
+      "listing.challenge": {
+        "zh-Hans": "挑战漫画",
+        "zh-Hant": "挑戰漫畫",
+        "en": "Challenge",
+        "ja": "チャレンジ漫画",
+        "ko": "도전만화"
+      },
+      "error.chapter_unavailable": {
+        "zh-Hans": "原站未提供本章图片，请在原网页查看阅读条件。",
+        "zh-Hant": "原站未提供本章圖片，請在原網頁查看閱讀條件。",
+        "en": "The site did not return images for this episode. Check the original page for access details.",
+        "ja": "この話の画像は配信されていません。元ページで閲覧条件を確認してください。",
+        "ko": "이 회차의 이미지를 불러올 수 없습니다. 원본 페이지에서 열람 조건을 확인해 주세요."
+      }
+    }
+  }
+}

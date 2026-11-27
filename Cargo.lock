@@ -1229,6 +1229,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_acomics_ru_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "koma_asmhentai_zh_source"
 version = "0.1.9"
 dependencies = [
@@ -1375,6 +1385,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_comicfury_en_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "koma_comicfury_zh_source"
 version = "0.1.12"
 dependencies = [
@@ -1518,6 +1538,17 @@ dependencies = [
 [[package]]
 name = "koma_genshin_zh_source"
 version = "0.1.4"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_gigaviewer_tile_processor"
+version = "0.1.0"
+
+[[package]]
+name = "koma_globalcomix_en_source"
+version = "0.1.0"
 dependencies = [
  "koma_source_sdk",
 ]
@@ -1695,6 +1726,16 @@ name = "koma_immark_zh_hant_source"
 version = "0.1.5"
 dependencies = [
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_internetarchive_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
 ]
 
 [[package]]
@@ -2018,6 +2059,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_namicomi_en_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
 name = "koma_namicomi_zh_hans_source"
 version = "0.1.10"
 dependencies = [
@@ -2029,6 +2077,16 @@ name = "koma_namicomi_zh_hant_source"
 version = "0.1.10"
 dependencies = [
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_navercomic_ko_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
 ]
 
 [[package]]
@@ -2078,6 +2136,16 @@ name = "koma_people2_marked_zh_hant_source"
 version = "0.1.5"
 dependencies = [
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_peppercarrot_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
 ]
 
 [[package]]
@@ -2176,6 +2244,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_shonenjumpplus_ja_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "koma_simplyhentai_zh_source"
 version = "0.1.11"
 dependencies = [
@@ -2189,6 +2267,16 @@ dependencies = [
  "aes",
  "cbc",
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_smbc_en_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
 ]
 
 [[package]]
@@ -2263,6 +2351,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_twi4_ja_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "koma_utifa_source"
 version = "0.1.2"
 dependencies = [
@@ -2298,6 +2396,16 @@ name = "koma_webtoons_zh_hant_source"
 version = "0.1.16"
 dependencies = [
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_weebcentral_en_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
 ]
 
 [[package]]
@@ -2367,6 +2475,16 @@ dependencies = [
  "dlmalloc",
  "koma_source_sdk",
  "serde_json",
+]
+
+[[package]]
+name = "koma_xkcd_en_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
 ]
 
 [[package]]

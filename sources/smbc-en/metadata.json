@@ -1,0 +1,83 @@
+{
+  "icon": "icon.png",
+  "localizedNames": {
+    "zh-Hans": "SMBC",
+    "zh-Hant": "SMBC",
+    "en": "Saturday Morning Breakfast Comics",
+    "ja": "SMBC",
+    "ko": "SMBC"
+  },
+  "homepage": "https://www.smbc-comics.com",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "en",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "扎克·韦纳史密斯创作的英文网漫，常用短篇把科学、哲学和日常生活变成笑话。有些漫画另有红按钮彩蛋。",
+        "zh-Hant": "札克·韋納史密斯創作的英文網路漫畫，常用短篇把科學、哲學與日常生活變成笑話。有些漫畫另有紅按鈕彩蛋。",
+        "en": "Zach Weinersmith’s English comic turns science, philosophy and daily life into jokes. Some strips have an extra panel behind a red button.",
+        "ja": "ザック・ワイナースミスが科学や哲学、日常を笑いに変える英語の短編漫画です。一部の回には赤いボタンで読めるおまけがあります。",
+        "ko": "잭 와이너스미스가 과학과 철학, 일상을 농담으로 풀어낸 영어 만화입니다. 일부 회차에는 빨간 버튼으로 보는 보너스 컷이 있습니다."
+      },
+      "listing.popular": {
+        "zh-Hans": "SMBC 漫画",
+        "zh-Hant": "SMBC 漫畫",
+        "en": "SMBC comics",
+        "ja": "SMBC コミック",
+        "ko": "SMBC 만화"
+      },
+      "setting.organization": {
+        "zh-Hans": "组织方式",
+        "zh-Hant": "組織方式",
+        "en": "Organization method",
+        "ja": "まとめ方",
+        "ko": "작품 구성"
+      },
+      "setting.organization.description": {
+        "zh-Hans": "每种组织方式使用独立的作品和阅读进度。",
+        "zh-Hant": "每種組織方式使用獨立的作品與閱讀進度。",
+        "en": "Each organization method keeps its own books and reading progress.",
+        "ja": "まとめ方ごとに作品と読書の進捗が個別に保存されます。",
+        "ko": "구성 방식마다 작품과 읽기 진행 상황이 따로 저장됩니다."
+      },
+      "setting.organization.single": {
+        "zh-Hans": "单本（全部漫画）",
+        "zh-Hant": "單本（所有漫畫）",
+        "en": "Single book (all comics)",
+        "ja": "1 冊にまとめる（全話）",
+        "ko": "한 권으로 모으기 (모든 만화)"
+      },
+      "setting.organization.year": {
+        "zh-Hans": "按年",
+        "zh-Hant": "依年份",
+        "en": "By year",
+        "ja": "年ごと",
+        "ko": "연도별"
+      },
+      "setting.organization.month": {
+        "zh-Hans": "按年月",
+        "zh-Hant": "依年月",
+        "en": "By year and month",
+        "ja": "年月ごと",
+        "ko": "연월별"
+      }
+    }
+  },
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "3035799230093482569"
+      ],
+      "work": {
+        "pathPrefix": "/comic/",
+        "idPrefix": "smbc:en:",
+        "idSuffix": ":SINGLE"
+      },
+      "chapter": {
+        "pathPrefix": "/comic/",
+        "idPrefix": "",
+        "targetIdSegment": 3
+      }
+    }
+  }
+}

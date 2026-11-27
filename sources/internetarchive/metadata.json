@@ -1,0 +1,66 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://archive.org",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "en",
+    "messages": {
+      "source.name": {
+        "zh-Hans": "互联网档案馆",
+        "zh-Hant": "網際網路檔案館",
+        "en": "Internet Archive",
+        "ja": "インターネット・アーカイブ",
+        "ko": "인터넷 아카이브"
+      },
+      "source.description": {
+        "zh-Hans": "互联网档案馆的公开可读扫描件，包括绘本、历史杂志、老漫画和艺术画册。",
+        "zh-Hant": "網際網路檔案館的公開可讀掃描本，包括繪本、歷史雜誌、老漫畫和藝術畫冊。",
+        "en": "Browse publicly readable scans from the Internet Archive, including illustrated books, historical magazines, vintage comics and art albums.",
+        "ja": "インターネット・アーカイブで公開されている絵本、歴史雑誌、昔のマンガ、画集のスキャンを読めます。",
+        "ko": "인터넷 아카이브의 공개 스캔 자료로 그림책, 옛 잡지와 만화, 미술 화집을 읽을 수 있습니다."
+      },
+      "listing.picture_books": {
+        "zh-Hans": "公版绘本",
+        "zh-Hant": "公版繪本",
+        "en": "Public-domain picture books",
+        "ja": "パブリックドメインの絵本",
+        "ko": "퍼블릭 도메인 그림책"
+      },
+      "listing.magazines": {
+        "zh-Hans": "历史杂志",
+        "zh-Hant": "歷史雜誌",
+        "en": "Historical magazines",
+        "ja": "歴史雑誌",
+        "ko": "옛 잡지"
+      },
+      "listing.comics": {
+        "zh-Hans": "老漫画",
+        "zh-Hant": "老漫畫",
+        "en": "Vintage comics",
+        "ja": "昔のマンガ",
+        "ko": "옛 만화"
+      },
+      "listing.art": {
+        "zh-Hans": "艺术画册",
+        "zh-Hant": "藝術畫冊",
+        "en": "Art albums",
+        "ja": "画集",
+        "ko": "미술 화집"
+      },
+      "listing.all": {
+        "zh-Hans": "全部公开图像档案",
+        "zh-Hant": "全部公開圖像檔案",
+        "en": "All public image archives",
+        "ja": "公開画像アーカイブすべて",
+        "ko": "모든 공개 이미지 아카이브"
+      },
+      "filter.collection": {
+        "zh-Hans": "档案分类",
+        "zh-Hant": "檔案分類",
+        "en": "Archive collection",
+        "ja": "アーカイブ分類",
+        "ko": "아카이브 분류"
+      }
+    }
+  }
+}

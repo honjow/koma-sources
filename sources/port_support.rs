@@ -201,7 +201,11 @@ impl Node {
     }
 
     pub(crate) fn attr(&self, name: &str) -> Result<String> {
-        let mut out = vec![0; 8 * 1024];
+        self.attr_bounded(name, 8 * 1024 - 1)
+    }
+
+    pub(crate) fn attr_bounded(&self, name: &str, max_bytes: usize) -> Result<String> {
+        let mut out = vec![0; max_bytes + 1];
         let len = host::html_attr(self.0, name.as_bytes(), &mut out).map_err(|_| "parse_error")?;
         if len >= out.len() {
             return Err("result_too_large");

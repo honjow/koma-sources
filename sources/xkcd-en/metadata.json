@@ -1,0 +1,83 @@
+{
+  "localizedNames": {
+    "zh-Hans": "xkcd",
+    "zh-Hant": "xkcd",
+    "en": "xkcd",
+    "ja": "xkcd",
+    "ko": "xkcd"
+  },
+  "homepage": "https://xkcd.com/",
+  "chapterOrder": "newest_first",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "en",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "兰德尔·门罗创作的英文网络漫画，围绕数学、语言和冷幽默。互动漫画请在官网打开。",
+        "zh-Hant": "藍道·門羅創作的英文網路漫畫，圍繞數學、語言和冷幽默。互動漫畫請在官網開啟。",
+        "en": "Randall Munroe’s original English webcomic about math, language and dry humor. Open interactive comics on the official site.",
+        "ja": "ランドール・マンローによる数学、言語、皮肉を題材とした英語のウェブ漫画です。インタラクティブ作品は公式サイトで開いてください。",
+        "ko": "랜들 먼로가 수학, 언어, 건조한 유머를 다루는 영어 웹코믹입니다. 인터랙티브 만화는 공식 사이트에서 열어 주세요."
+      },
+      "listing.popular": {
+        "zh-Hans": "xkcd 漫画",
+        "zh-Hant": "xkcd 漫畫",
+        "en": "xkcd Comics",
+        "ja": "xkcd コミック",
+        "ko": "xkcd 만화"
+      },
+      "setting.organization": {
+        "zh-Hans": "组织方式",
+        "zh-Hant": "組織方式",
+        "en": "Organization method",
+        "ja": "まとめ方",
+        "ko": "작품 구성"
+      },
+      "setting.organization.description": {
+        "zh-Hans": "按不同方式组织漫画时，各分组使用各自的作品和阅读进度。",
+        "zh-Hant": "依不同方式整理漫畫時，各分組使用各自的作品與閱讀進度。",
+        "en": "Each grouping has its own books and reading progress.",
+        "ja": "まとめ方ごとに作品と読書の進捗が個別に保存されます。",
+        "ko": "구성 방식마다 작품과 읽기 진행 상황이 따로 저장됩니다."
+      },
+      "setting.organization.single": {
+        "zh-Hans": "单本（全部漫画）",
+        "zh-Hant": "單本（所有漫畫）",
+        "en": "Single book (all comics)",
+        "ja": "1 冊にまとめる（全話）",
+        "ko": "한 권으로 모으기 (모든 만화)"
+      },
+      "setting.organization.year": {
+        "zh-Hans": "按年",
+        "zh-Hant": "依年份",
+        "en": "By year",
+        "ja": "年ごと",
+        "ko": "연도별"
+      },
+      "setting.organization.month": {
+        "zh-Hans": "按年月",
+        "zh-Hant": "依年月",
+        "en": "By year and month",
+        "ja": "年月ごと",
+        "ko": "연월별"
+      }
+    }
+  },
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "1538249443376436084"
+      ],
+      "work": {
+        "pathPrefix": "",
+        "idPrefix": "xkcd:en:"
+      },
+      "chapter": {
+        "pathPrefix": "",
+        "pathIdSegment": 0,
+        "idPrefix": "",
+        "targetIdSegment": 3
+      }
+    }
+  }
+}

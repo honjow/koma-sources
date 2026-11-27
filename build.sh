@@ -167,6 +167,18 @@ utifa|utifa|true|1.2.0
 acgn|acgn|false|1.4.0
 tapastic|tapastic|true|1.2.0
 mangapluscreators-en|mangapluscreators-en|false|0.1.1
+navercomic-ko|navercomic-ko|false|1.4.1
+twi4-ja|twi4-ja|false|1.4.1
+peppercarrot|peppercarrot|false|1.4.1
+globalcomix-en|globalcomix-en|true|0.1.0
+namicomi-en|namicomi-en|false|0.1.0
+xkcd-en|xkcd-en|false|0.1.0
+comicfury-en|comicfury-en|true|0.1.0
+smbc-en|smbc-en|false|0.1.0
+acomics-ru|acomics-ru|true|0.1.0
+weebcentral-en|weebcentral-en|true|0.1.0
+shonenjumpplus-ja|shonenjumpplus-ja|false|1.5.5
+internetarchive|internetarchive|false|0.1.0
 '
 
 SOURCE_APP_VERSION_RE='^(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$'

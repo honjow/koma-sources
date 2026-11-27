@@ -1,0 +1,47 @@
+{
+  "homepage": "https://sai-zen-sen.jp/comics/twi4/",
+  "localizedNames": {
+    "zh-Hans": "Twi4（星海社四格）",
+    "zh-Hant": "Twi4（星海社四格）",
+    "en": "Twi4",
+    "ja": "ツイ４",
+    "ko": "Twi4"
+  },
+  "chapterOrder": "newest_first",
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "493846804748918744"
+      ],
+      "work": {
+        "pathPrefix": "/comics/twi4/",
+        "pathSuffix": "/",
+        "idPrefix": "twi4:"
+      },
+      "chapter": {
+        "pathPrefix": "/comics/twi4/",
+        "idPrefix": "twi4-ch:/comics/twi4/"
+      }
+    }
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "星海社「最前線」的日文四格漫画栏目，刊载《トモちゃんは女の子！》等原创四格连载。",
+        "zh-Hant": "星海社「最前線」的日文四格漫畫專欄，刊載《トモちゃんは女の子！》等原創四格連載。",
+        "en": "Seikaisha’s Sai-zen-sen publishes Japanese four-panel serials, including Tomo-chan Is a Girl!",
+        "ja": "星海社「最前線」の4コマ漫画コーナー。『トモちゃんは女の子！』などのオリジナル作品を掲載しています。",
+        "ko": "세이카이샤 '최전선'의 일본 4컷 만화 코너로, 《토모 짱은 여자아이!》 등 오리지널 연재작을 제공합니다."
+      },
+      "listing.popular": {
+        "zh-Hans": "作品目录",
+        "zh-Hant": "作品目錄",
+        "en": "Catalog",
+        "ja": "作品一覧",
+        "ko": "작품 목록"
+      }
+    }
+  }
+}

@@ -1,0 +1,395 @@
+{
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "6815287454679474132"
+      ],
+      "work": {
+        "pathPrefix": "",
+        "idPrefix": "namicomi:en:"
+      },
+      "chapter": {
+        "pathPrefix": "",
+        "idPrefix": "",
+        "targetIdSegment": 3
+      }
+    }
+  },
+  "localizedNames": {
+    "zh-Hans": "NamiComi",
+    "zh-Hant": "NamiComi",
+    "en": "NamiComi",
+    "ja": "NamiComi",
+    "ko": "NamiComi"
+  },
+  "comments": {
+    "version": 1,
+    "scopes": [
+      "chapter"
+    ]
+  },
+  "homepage": "https://namicomi.com",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "en",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "NamiComi 是漫画创作者发表原创作品的平台，此入口收录英文版章节。正文限匿名开放内容。",
+        "zh-Hant": "NamiComi 是漫畫創作者發表原創作品的平台，此入口收錄英文版章節。正文限匿名開放內容。",
+        "en": "NamiComi hosts original creator-published comics. This English edition reads chapters the site makes available without signing in.",
+        "ja": "NamiComi は作家がオリジナル漫画を公開するプラットフォームです。この英語版ではログイン不要の話を読めます。",
+        "ko": "NamiComi는 창작자가 오리지널 만화를 공개하는 플랫폼입니다. 이 영어판에서는 로그인 없이 공개된 회차를 읽을 수 있습니다."
+      },
+      "listing.popular": {
+        "zh-Hans": "热门漫画",
+        "zh-Hant": "熱門漫畫",
+        "en": "Popular",
+        "ja": "人気作品",
+        "ko": "인기 만화"
+      },
+      "listing.latest": {
+        "zh-Hans": "最新漫画",
+        "zh-Hant": "最新漫畫",
+        "en": "Latest",
+        "ja": "新着作品",
+        "ko": "최신 만화"
+      },
+      "setting.data_saver": {
+        "zh-Hans": "节省流量",
+        "zh-Hant": "節省流量",
+        "en": "Data saver",
+        "ja": "データ節約",
+        "ko": "데이터 절약"
+      },
+      "setting.data_saver.description": {
+        "zh-Hans": "使用体积更小、压缩程度更高的章节图片。",
+        "zh-Hant": "使用檔案較小、壓縮程度較高的章節圖片。",
+        "en": "Use smaller, more compressed chapter images.",
+        "ja": "容量の小さい圧縮画像を使用します。",
+        "ko": "용량이 더 작고 압축률이 높은 회차 이미지를 사용합니다."
+      },
+      "setting.show_locked": {
+        "zh-Hans": "显示锁定章节",
+        "zh-Hant": "顯示鎖定章節",
+        "en": "Show locked chapters",
+        "ja": "ロックされた話を表示",
+        "ko": "잠긴 회차 표시"
+      },
+      "setting.show_locked.description": {
+        "zh-Hans": "在目录中显示需要登录或付费的章节。",
+        "zh-Hant": "在目錄中顯示需要登入或付費的章節。",
+        "en": "Show chapters that require signing in or payment in the chapter list.",
+        "ja": "ログインや購入が必要な話を一覧に表示します。",
+        "ko": "로그인 또는 결제가 필요한 회차를 목록에 표시합니다."
+      },
+      "setting.thumbnail_quality": {
+        "zh-Hans": "封面画质",
+        "zh-Hant": "封面畫質",
+        "en": "Cover quality",
+        "ja": "表紙の画質",
+        "ko": "표지 화질"
+      },
+      "setting.thumbnail_quality.description": {
+        "zh-Hans": "选择列表和详情中使用的封面画质。",
+        "zh-Hant": "選擇列表與詳情使用的封面畫質。",
+        "en": "Choose the image quality for covers in lists and details.",
+        "ja": "一覧と詳細に表示する表紙の画質を選びます。",
+        "ko": "목록과 상세 화면에 표시할 표지의 화질을 선택합니다."
+      },
+      "setting.thumbnail_quality.original": {
+        "zh-Hans": "原图",
+        "zh-Hant": "原圖",
+        "en": "Original",
+        "ja": "オリジナル",
+        "ko": "원본"
+      },
+      "setting.thumbnail_quality.medium": {
+        "zh-Hans": "中等",
+        "zh-Hant": "中等",
+        "en": "Medium",
+        "ja": "中",
+        "ko": "중간"
+      },
+      "setting.thumbnail_quality.low": {
+        "zh-Hans": "低",
+        "zh-Hant": "低",
+        "en": "Low",
+        "ja": "低",
+        "ko": "낮음"
+      },
+      "filter.available": {
+        "zh-Hans": "有可读章节",
+        "zh-Hant": "有可讀章節",
+        "en": "Readable chapters",
+        "ja": "読める話",
+        "ko": "읽을 수 있는 회차"
+      },
+      "filter.available.all": {
+        "zh-Hans": "全部作品",
+        "zh-Hant": "所有作品",
+        "en": "All titles",
+        "ja": "すべての作品",
+        "ko": "모든 작품"
+      },
+      "filter.available.yes": {
+        "zh-Hans": "仅有可读章节",
+        "zh-Hant": "僅有可讀章節",
+        "en": "With readable chapters",
+        "ja": "読める話がある作品のみ",
+        "ko": "읽을 수 있는 회차가 있는 작품만"
+      },
+      "filter.rating": {
+        "zh-Hans": "内容分级",
+        "zh-Hant": "內容分級",
+        "en": "Content rating",
+        "ja": "レーティング",
+        "ko": "콘텐츠 등급"
+      },
+      "filter.rating.safe": {
+        "zh-Hans": "全年龄",
+        "zh-Hant": "全年齡",
+        "en": "Safe",
+        "ja": "全年齢",
+        "ko": "전체 이용가"
+      },
+      "filter.rating.restricted": {
+        "zh-Hans": "受限",
+        "zh-Hant": "受限",
+        "en": "Restricted",
+        "ja": "年齢制限あり",
+        "ko": "이용 제한"
+      },
+      "filter.rating.mature": {
+        "zh-Hans": "成人",
+        "zh-Hant": "成人",
+        "en": "Mature",
+        "ja": "成人向け",
+        "ko": "성인용"
+      },
+      "filter.status": {
+        "zh-Hans": "连载状态",
+        "zh-Hant": "連載狀態",
+        "en": "Publication status",
+        "ja": "連載状況",
+        "ko": "연재 상태"
+      },
+      "filter.status.ongoing": {
+        "zh-Hans": "连载中",
+        "zh-Hant": "連載中",
+        "en": "Ongoing",
+        "ja": "連載中",
+        "ko": "연재 중"
+      },
+      "filter.status.completed": {
+        "zh-Hans": "已完结",
+        "zh-Hant": "已完結",
+        "en": "Completed",
+        "ja": "完結",
+        "ko": "완결"
+      },
+      "filter.status.hiatus": {
+        "zh-Hans": "暂停连载",
+        "zh-Hant": "暫停連載",
+        "en": "On hiatus",
+        "ja": "休載中",
+        "ko": "휴재 중"
+      },
+      "filter.status.cancelled": {
+        "zh-Hans": "已取消",
+        "zh-Hant": "已取消",
+        "en": "Cancelled",
+        "ja": "打ち切り",
+        "ko": "연재 중단"
+      },
+      "filter.sort": {
+        "zh-Hans": "排序",
+        "zh-Hant": "排序",
+        "en": "Sort",
+        "ja": "並べ替え",
+        "ko": "정렬"
+      },
+      "filter.included_mode": {
+        "zh-Hans": "包含标签的匹配方式",
+        "zh-Hant": "包含標籤的比對方式",
+        "en": "Match included tags",
+        "ja": "含めるタグの一致条件",
+        "ko": "포함 태그 일치 조건"
+      },
+      "filter.excluded_mode": {
+        "zh-Hans": "排除标签的匹配方式",
+        "zh-Hant": "排除標籤的比對方式",
+        "en": "Match excluded tags",
+        "ja": "除外するタグの一致条件",
+        "ko": "제외 태그 일치 조건"
+      },
+      "filter.mode.and": {
+        "zh-Hans": "符合全部",
+        "zh-Hant": "符合全部",
+        "en": "Match all",
+        "ja": "すべて一致",
+        "ko": "모두 일치"
+      },
+      "filter.mode.or": {
+        "zh-Hans": "符合任一",
+        "zh-Hant": "符合任一",
+        "en": "Match any",
+        "ja": "いずれかに一致",
+        "ko": "하나라도 일치"
+      },
+      "filter.tags.content": {
+        "zh-Hans": "内容警告",
+        "zh-Hant": "內容警告",
+        "en": "Content warnings",
+        "ja": "内容に関する注意",
+        "ko": "콘텐츠 주의 사항"
+      },
+      "filter.tags.format": {
+        "zh-Hans": "形式",
+        "zh-Hant": "形式",
+        "en": "Format",
+        "ja": "形式",
+        "ko": "형식"
+      },
+      "filter.tags.genre": {
+        "zh-Hans": "题材",
+        "zh-Hant": "題材",
+        "en": "Genre",
+        "ja": "ジャンル",
+        "ko": "장르"
+      },
+      "filter.tags.theme": {
+        "zh-Hans": "主题",
+        "zh-Hant": "主題",
+        "en": "Theme",
+        "ja": "テーマ",
+        "ko": "테마"
+      },
+      "filter.sort.title.asc": {
+        "zh-Hans": "标题（升序）",
+        "zh-Hant": "標題（遞增）",
+        "en": "Title (ascending)",
+        "ja": "タイトル（昇順）",
+        "ko": "제목 (오름차순)"
+      },
+      "filter.sort.title.desc": {
+        "zh-Hans": "标题（降序）",
+        "zh-Hant": "標題（遞減）",
+        "en": "Title (descending)",
+        "ja": "タイトル（降順）",
+        "ko": "제목 (내림차순)"
+      },
+      "filter.sort.chapterCount.asc": {
+        "zh-Hans": "章节数（升序）",
+        "zh-Hant": "章節數（遞增）",
+        "en": "Chapter count (ascending)",
+        "ja": "話数（昇順）",
+        "ko": "회차 수 (오름차순)"
+      },
+      "filter.sort.chapterCount.desc": {
+        "zh-Hans": "章节数（降序）",
+        "zh-Hant": "章節數（遞減）",
+        "en": "Chapter count (descending)",
+        "ja": "話数（降順）",
+        "ko": "회차 수 (내림차순)"
+      },
+      "filter.sort.followCount.asc": {
+        "zh-Hans": "关注数（升序）",
+        "zh-Hant": "關注數（遞增）",
+        "en": "Followers (ascending)",
+        "ja": "フォロワー数（昇順）",
+        "ko": "팔로워 수 (오름차순)"
+      },
+      "filter.sort.followCount.desc": {
+        "zh-Hans": "关注数（降序）",
+        "zh-Hant": "關注數（遞減）",
+        "en": "Followers (descending)",
+        "ja": "フォロワー数（降順）",
+        "ko": "팔로워 수 (내림차순)"
+      },
+      "filter.sort.reactions.asc": {
+        "zh-Hans": "反应数（升序）",
+        "zh-Hant": "反應數（遞增）",
+        "en": "Reactions (ascending)",
+        "ja": "リアクション数（昇順）",
+        "ko": "반응 수 (오름차순)"
+      },
+      "filter.sort.reactions.desc": {
+        "zh-Hans": "反应数（降序）",
+        "zh-Hant": "反應數（遞減）",
+        "en": "Reactions (descending)",
+        "ja": "リアクション数（降順）",
+        "ko": "반응 수 (내림차순)"
+      },
+      "filter.sort.commentCount.asc": {
+        "zh-Hans": "评论数（升序）",
+        "zh-Hant": "留言數（遞增）",
+        "en": "Comments (ascending)",
+        "ja": "コメント数（昇順）",
+        "ko": "댓글 수 (오름차순)"
+      },
+      "filter.sort.commentCount.desc": {
+        "zh-Hans": "评论数（降序）",
+        "zh-Hant": "留言數（遞減）",
+        "en": "Comments (descending)",
+        "ja": "コメント数（降順）",
+        "ko": "댓글 수 (내림차순)"
+      },
+      "filter.sort.publishedAt.asc": {
+        "zh-Hans": "发布日期（升序）",
+        "zh-Hant": "發佈日期（遞增）",
+        "en": "Publication date (ascending)",
+        "ja": "公開日（昇順）",
+        "ko": "게시일 (오름차순)"
+      },
+      "filter.sort.publishedAt.desc": {
+        "zh-Hans": "发布日期（降序）",
+        "zh-Hant": "發佈日期（遞減）",
+        "en": "Publication date (descending)",
+        "ja": "公開日（降順）",
+        "ko": "게시일 (내림차순)"
+      },
+      "filter.sort.views.asc": {
+        "zh-Hans": "浏览量（升序）",
+        "zh-Hant": "瀏覽量（遞增）",
+        "en": "Views (ascending)",
+        "ja": "閲覧数（昇順）",
+        "ko": "조회 수 (오름차순)"
+      },
+      "filter.sort.views.desc": {
+        "zh-Hans": "浏览量（降序）",
+        "zh-Hant": "瀏覽量（遞減）",
+        "en": "Views (descending)",
+        "ja": "閲覧数（降順）",
+        "ko": "조회 수 (내림차순)"
+      },
+      "filter.sort.year.asc": {
+        "zh-Hans": "年份（升序）",
+        "zh-Hant": "年份（遞增）",
+        "en": "Year (ascending)",
+        "ja": "年（昇順）",
+        "ko": "연도 (오름차순)"
+      },
+      "filter.sort.year.desc": {
+        "zh-Hans": "年份（降序）",
+        "zh-Hant": "年份（遞減）",
+        "en": "Year (descending)",
+        "ja": "年（降順）",
+        "ko": "연도 (내림차순)"
+      },
+      "filter.sort.rating.asc": {
+        "zh-Hans": "评分（升序）",
+        "zh-Hant": "評分（遞增）",
+        "en": "Rating (ascending)",
+        "ja": "評価（昇順）",
+        "ko": "평점 (오름차순)"
+      },
+      "filter.sort.rating.desc": {
+        "zh-Hans": "评分（降序）",
+        "zh-Hant": "評分（遞減）",
+        "en": "Rating (descending)",
+        "ja": "評価（降順）",
+        "ko": "평점 (내림차순)"
+      }
+    }
+  }
+}

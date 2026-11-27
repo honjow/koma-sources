@@ -1,0 +1,1 @@
+The GigaViewer baku tile geometry and transformation were adapted from the ImageInterceptor in Keiyoushi extensions-source at 90b6e6a905ca186945b21ec0b0be4ca9135b8e69, licensed under Apache 2.0. This Rust implementation uses the Koma image processor ABI.

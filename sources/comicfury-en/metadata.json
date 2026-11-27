@@ -1,0 +1,242 @@
+{
+  "icon": "icon.png",
+  "localizedNames": {
+    "zh-Hans": "Comic Fury（英文）",
+    "zh-Hant": "Comic Fury（英文）",
+    "en": "Comic Fury (English)",
+    "ja": "Comic Fury（英語）",
+    "ko": "Comic Fury (영어)"
+  },
+  "homepage": "https://comicfury.com",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "en",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "Comic Fury 由创作者自行发布作品，本源收录英文网络漫画。部分作品保留作者在原站逐页发布的附言。",
+        "zh-Hant": "Comic Fury 由創作者自行發表作品，本源收錄英文網路漫畫。部分作品保留作者在原站逐頁發表的附言。",
+        "en": "English webcomics self-published by creators on Comic Fury. Some comics include notes posted by their authors alongside the originals.",
+        "ja": "Comic Fury で作者が自ら公開する英語のウェブ漫画を収録しています。一部の作品には作者による各話の補足があります。",
+        "ko": "Comic Fury에서 창작자가 직접 공개하는 영어 웹코믹을 모았습니다. 일부 작품에는 회차별 작가의 말이 있습니다."
+      },
+      "listing.popular": {
+        "zh-Hans": "热门",
+        "zh-Hant": "熱門",
+        "en": "Popular",
+        "ja": "人気",
+        "ko": "인기"
+      },
+      "listing.latest": {
+        "zh-Hans": "最新更新",
+        "zh-Hant": "最新更新",
+        "en": "Latest updates",
+        "ja": "最近の更新",
+        "ko": "최신 업데이트"
+      },
+      "setting.notes": {
+        "zh-Hans": "显示作者附言",
+        "zh-Hant": "顯示作者附言",
+        "en": "Show author's notes",
+        "ja": "作者のコメントを表示",
+        "ko": "작가의 말 표시"
+      },
+      "setting.notes.description": {
+        "zh-Hans": "在章节末尾显示作者在原站留下的附言（如有）。",
+        "zh-Hant": "在章節末尾顯示作者在原站留下的附言（如有）。",
+        "en": "Show any author notes from the original site at the end of the chapter.",
+        "ja": "原サイトに作者のコメントがある場合、各話の末尾に表示します。",
+        "ko": "원본 사이트에 작가의 말이 있으면 회차 끝에 표시합니다."
+      },
+      "filter.tags": {
+        "zh-Hans": "标签",
+        "zh-Hant": "標籤",
+        "en": "Tags",
+        "ja": "タグ",
+        "ko": "태그"
+      },
+      "filter.sort": {
+        "zh-Hans": "排序",
+        "zh-Hant": "排序",
+        "en": "Sort by",
+        "ja": "並び順",
+        "ko": "정렬"
+      },
+      "filter.relevance": {
+        "zh-Hans": "相关度",
+        "zh-Hant": "相關度",
+        "en": "Relevance",
+        "ja": "関連度",
+        "ko": "관련도"
+      },
+      "filter.popularity": {
+        "zh-Hans": "热度",
+        "zh-Hant": "熱度",
+        "en": "Popularity",
+        "ja": "人気順",
+        "ko": "인기순"
+      },
+      "filter.updated": {
+        "zh-Hans": "最近更新",
+        "zh-Hant": "最近更新",
+        "en": "Last update",
+        "ja": "更新順",
+        "ko": "최근 업데이트"
+      },
+      "filter.lastupdate": {
+        "zh-Hans": "更新时间",
+        "zh-Hant": "更新時間",
+        "en": "Last updated",
+        "ja": "更新時期",
+        "ko": "업데이트 시기"
+      },
+      "filter.alltime": {
+        "zh-Hans": "不限",
+        "zh-Hant": "不限",
+        "en": "All time",
+        "ja": "指定なし",
+        "ko": "전체 기간"
+      },
+      "filter.week": {
+        "zh-Hans": "本周",
+        "zh-Hant": "本週",
+        "en": "This week",
+        "ja": "今週",
+        "ko": "이번 주"
+      },
+      "filter.month": {
+        "zh-Hans": "本月",
+        "zh-Hant": "本月",
+        "en": "This month",
+        "ja": "今月",
+        "ko": "이번 달"
+      },
+      "filter.year": {
+        "zh-Hans": "今年",
+        "zh-Hant": "今年",
+        "en": "This year",
+        "ja": "今年",
+        "ko": "올해"
+      },
+      "filter.completed_only": {
+        "zh-Hans": "仅已完结",
+        "zh-Hant": "只限已完結",
+        "en": "Completed only",
+        "ja": "完結作品のみ",
+        "ko": "완결작만"
+      },
+      "filter.completed": {
+        "zh-Hans": "作品已完结",
+        "zh-Hant": "作品已完結",
+        "en": "Comic completed",
+        "ja": "完結済み",
+        "ko": "완결작"
+      },
+      "filter.violence": {
+        "zh-Hans": "暴力内容",
+        "zh-Hant": "暴力內容",
+        "en": "Violence",
+        "ja": "暴力表現",
+        "ko": "폭력 표현"
+      },
+      "filter.none_minimal": {
+        "zh-Hans": "无或极少",
+        "zh-Hant": "無或極少",
+        "en": "None or minimal",
+        "ja": "なし、またはごく少量",
+        "ko": "없음 또는 매우 적음"
+      },
+      "filter.violent": {
+        "zh-Hans": "含暴力内容",
+        "zh-Hant": "含暴力內容",
+        "en": "Violent content",
+        "ja": "暴力描写あり",
+        "ko": "폭력 표현 포함"
+      },
+      "filter.gore": {
+        "zh-Hans": "含血腥画面",
+        "zh-Hant": "含血腥畫面",
+        "en": "Graphic violence",
+        "ja": "流血などの過激な描写",
+        "ko": "노골적인 폭력 표현"
+      },
+      "filter.nudity": {
+        "zh-Hans": "正面裸露",
+        "zh-Hant": "正面裸露",
+        "en": "Frontal nudity",
+        "ja": "正面からの裸体描写",
+        "ko": "정면 노출"
+      },
+      "filter.strong_language": {
+        "zh-Hans": "粗俗用语",
+        "zh-Hant": "粗俗用語",
+        "en": "Strong language",
+        "ja": "過激な言葉遣い",
+        "ko": "거친 언어"
+      },
+      "filter.none": {
+        "zh-Hans": "无",
+        "zh-Hant": "無",
+        "en": "None",
+        "ja": "なし",
+        "ko": "없음"
+      },
+      "filter.occasional": {
+        "zh-Hans": "偶尔",
+        "zh-Hant": "偶爾",
+        "en": "Occasional",
+        "ja": "時々",
+        "ko": "가끔"
+      },
+      "filter.frequent": {
+        "zh-Hans": "频繁",
+        "zh-Hant": "頻繁",
+        "en": "Frequent",
+        "ja": "頻繁",
+        "ko": "자주"
+      },
+      "filter.sexual": {
+        "zh-Hans": "性内容",
+        "zh-Hant": "性內容",
+        "en": "Sexual content",
+        "ja": "性的表現",
+        "ko": "성적 표현"
+      },
+      "filter.no_sexual": {
+        "zh-Hans": "无性内容",
+        "zh-Hant": "無性內容",
+        "en": "No sexual content",
+        "ja": "性的表現なし",
+        "ko": "성적 표현 없음"
+      },
+      "filter.situations": {
+        "zh-Hans": "含性相关情节",
+        "zh-Hant": "含性相關情節",
+        "en": "Sexual situations",
+        "ja": "性的な場面あり",
+        "ko": "성적 상황 포함"
+      },
+      "filter.strong_sexual": {
+        "zh-Hans": "含强烈性主题",
+        "zh-Hant": "含強烈性主題",
+        "en": "Strong sexual themes",
+        "ja": "強い性的テーマ",
+        "ko": "강한 성적 주제"
+      }
+    }
+  },
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "6251704791239468278"
+      ],
+      "work": {
+        "pathPrefix": "/comicprofile.php?url=",
+        "idPrefix": "/comicprofile.php?url="
+      },
+      "chapter": {
+        "pathPrefix": "/read/",
+        "idPrefix": "/read/"
+      }
+    }
+  }
+}

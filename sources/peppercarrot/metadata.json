@@ -1,0 +1,101 @@
+{
+  "homepage": "https://www.peppercarrot.com",
+  "localizedNames": {
+    "zh-Hans": "Pepper&Carrot",
+    "zh-Hant": "Pepper&Carrot",
+    "en": "Pepper&Carrot",
+    "ja": "Pepper&Carrot",
+    "ko": "Pepper&Carrot",
+    "fr": "Pepper&Carrot"
+  },
+  "chapterOrder": "newest_first",
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "279282683217001983"
+      ],
+      "work": {
+        "pathPrefix": "",
+        "idPrefix": "pepper:comics:"
+      }
+    }
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "David Revoy 创作的开放版权奇幻漫画，跟随小女巫 Pepper 和她的猫 Carrot。官网收录多语言译本、迷你短篇和作者的艺术作品档案。",
+        "zh-Hant": "David Revoy 創作的開放版權奇幻漫畫，跟隨小女巫 Pepper 和她的貓 Carrot。官網收錄多語言譯本、迷你短篇和作者的藝術作品檔案。",
+        "en": "David Revoy’s openly licensed fantasy comic follows the witch Pepper and her cat Carrot. The official site hosts translations, short comics and an art archive.",
+        "ja": "David Revoy によるオープンライセンスのファンタジー漫画。魔女ペッパーと猫キャロットの物語に加え、多言語訳・ミニ短編・アートアーカイブを収録しています。",
+        "ko": "David Revoy의 오픈 라이선스 판타지 웹코믹으로, 마녀 페퍼와 고양이 캐럿의 이야기를 다룹니다. 공식 사이트의 다국어 번역본, 미니 단편, 아트 아카이브를 제공합니다.",
+        "fr": "La BD fantastique libre de David Revoy suit la sorcière Pepper et son chat Carrot. Le site officiel rassemble les traductions, les mini-BD et les archives illustrées."
+      },
+      "listing.comics": {
+        "zh-Hans": "主线漫画",
+        "zh-Hant": "主線漫畫",
+        "en": "Comics",
+        "ja": "本編コミック",
+        "ko": "본편 만화",
+        "fr": "Bande dessinée"
+      },
+      "listing.theater": {
+        "zh-Hans": "迷你奇幻剧场",
+        "zh-Hant": "迷你奇幻劇場",
+        "en": "Mini Fantasy Theater",
+        "ja": "ミニファンタジーシアター",
+        "ko": "미니 판타지 시어터",
+        "fr": "Mini Théâtre Fantastique"
+      },
+      "listing.artworks": {
+        "zh-Hans": "官方画集与壁纸",
+        "zh-Hant": "官方畫集與桌布",
+        "en": "Artworks & Wallpapers",
+        "ja": "アートワーク・壁紙",
+        "ko": "아트워크 및 배경화면",
+        "fr": "Illustrations et fonds d’écran"
+      },
+      "setting.languages": {
+        "zh-Hans": "漫画语言",
+        "zh-Hant": "漫畫語言",
+        "en": "Comic languages",
+        "ja": "表示言語",
+        "ko": "만화 언어",
+        "fr": "Langues de la BD"
+      },
+      "setting.languages.all": {
+        "zh-Hans": "全部可用语言",
+        "zh-Hant": "所有可用語言",
+        "en": "All available languages",
+        "ja": "利用可能なすべての言語",
+        "ko": "사용 가능한 모든 언어",
+        "fr": "Toutes les langues disponibles"
+      },
+      "setting.languages.description": {
+        "zh-Hans": "仅展示官网收录的译本。",
+        "zh-Hant": "僅顯示官網收錄的譯本。",
+        "en": "Only translations listed by the official site appear.",
+        "ja": "公式サイトに掲載されている翻訳版のみ表示されます。",
+        "ko": "공식 사이트에 등록된 번역본만 표시됩니다.",
+        "fr": "Seules les traductions recensées par le site officiel sont affichées."
+      },
+      "setting.hi_res": {
+        "zh-Hans": "高清原图",
+        "zh-Hant": "高畫質原圖",
+        "en": "High-resolution images",
+        "ja": "高解像度画像",
+        "ko": "고해상도 이미지",
+        "fr": "Images en haute définition"
+      },
+      "setting.hi_res.description": {
+        "zh-Hans": "已缓存和下载的图片不会随设置改变。",
+        "zh-Hant": "已快取和下載的圖片不會隨設定變更。",
+        "en": "Images already cached or downloaded keep their existing resolution.",
+        "ja": "キャッシュ済みまたはダウンロード済みの画像には反映されません。",
+        "ko": "이미 캐시되었거나 다운로드된 이미지에는 적용되지 않습니다.",
+        "fr": "Les images déjà en cache ou téléchargées conservent leur définition."
+      }
+    }
+  }
+}

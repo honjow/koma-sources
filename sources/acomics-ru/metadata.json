@@ -1,0 +1,339 @@
+{
+  "icon": "icon.png",
+  "localizedNames": {
+    "zh-Hans": "AComics（俄语）",
+    "zh-Hant": "AComics（俄語）",
+    "en": "AComics",
+    "ja": "AComics（ロシア語）",
+    "ko": "AComics (러시아어)"
+  },
+  "homepage": "https://acomics.ru",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "en",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "AComics 是俄语独立网络漫画平台，刊登原创连载及译作。编辑推荐与新人作品各有专栏。",
+        "zh-Hant": "AComics 是俄語獨立網路漫畫平台，刊登原創連載及譯作。編輯推薦與新人作品各有專欄。",
+        "en": "AComics publishes independent webcomics in Russian, including originals and translations, with sections for staff picks and new creators.",
+        "ja": "AComics はロシア語の自主制作ウェブ漫画や翻訳作品を掲載するサイトです。編集部のおすすめや新人作品のコーナーもあります。",
+        "ko": "AComics는 러시아어 독립 웹코믹의 창작물과 번역작을 연재합니다. 편집부 추천과 신인 작가 작품을 따로 볼 수 있습니다."
+      },
+      "listing.popular": {
+        "zh-Hans": "热门",
+        "zh-Hant": "熱門",
+        "en": "Popular",
+        "ja": "人気",
+        "ko": "인기"
+      },
+      "listing.latest": {
+        "zh-Hans": "最新更新",
+        "zh-Hant": "最新更新",
+        "en": "Latest updates",
+        "ja": "最近の更新",
+        "ko": "최신 업데이트"
+      },
+      "filter.catalog": {
+        "zh-Hans": "目录",
+        "zh-Hant": "目錄",
+        "en": "Catalogue",
+        "ja": "カタログ",
+        "ko": "카탈로그"
+      },
+      "filter.comics": {
+        "zh-Hans": "主目录",
+        "zh-Hant": "主目錄",
+        "en": "Main catalogue",
+        "ja": "メインカタログ",
+        "ko": "기본 카탈로그"
+      },
+      "filter.sandbox": {
+        "zh-Hans": "新人作品",
+        "zh-Hant": "新人作品",
+        "en": "New creators",
+        "ja": "新人作品",
+        "ko": "신인 작가 작품"
+      },
+      "filter.featured": {
+        "zh-Hans": "编辑推荐",
+        "zh-Hant": "編輯推薦",
+        "en": "Staff picks",
+        "ja": "編集部のおすすめ",
+        "ko": "편집부 추천"
+      },
+      "filter.sort": {
+        "zh-Hans": "排序",
+        "zh-Hant": "排序",
+        "en": "Sort by",
+        "ja": "並び順",
+        "ko": "정렬"
+      },
+      "filter.updated": {
+        "zh-Hans": "更新时间",
+        "zh-Hant": "更新時間",
+        "en": "Last update",
+        "ja": "更新日時",
+        "ko": "업데이트 날짜"
+      },
+      "filter.subscribers": {
+        "zh-Hans": "订阅人数",
+        "zh-Hant": "訂閱人數",
+        "en": "Subscriber count",
+        "ja": "購読者数",
+        "ko": "구독자 수"
+      },
+      "filter.issue_count": {
+        "zh-Hans": "章节数量",
+        "zh-Hant": "章節數量",
+        "en": "Issue count",
+        "ja": "話数",
+        "ko": "회차 수"
+      },
+      "filter.alphabetical": {
+        "zh-Hans": "标题字母顺序",
+        "zh-Hant": "標題字母順序",
+        "en": "Title A–Z",
+        "ja": "タイトル順",
+        "ko": "제목순"
+      },
+      "filter.genres": {
+        "zh-Hans": "题材",
+        "zh-Hant": "題材",
+        "en": "Genres",
+        "ja": "ジャンル",
+        "ko": "장르"
+      },
+      "genre.animals": {
+        "zh-Hans": "动物",
+        "zh-Hant": "動物",
+        "en": "Animals",
+        "ja": "動物",
+        "ko": "동물"
+      },
+      "genre.drama": {
+        "zh-Hans": "剧情",
+        "zh-Hant": "劇情",
+        "en": "Drama",
+        "ja": "ドラマ",
+        "ko": "드라마"
+      },
+      "genre.fantasy": {
+        "zh-Hans": "奇幻",
+        "zh-Hant": "奇幻",
+        "en": "Fantasy",
+        "ja": "ファンタジー",
+        "ko": "판타지"
+      },
+      "genre.games": {
+        "zh-Hans": "游戏",
+        "zh-Hant": "遊戲",
+        "en": "Games",
+        "ja": "ゲーム",
+        "ko": "게임"
+      },
+      "genre.humor": {
+        "zh-Hans": "幽默",
+        "zh-Hant": "幽默",
+        "en": "Humor",
+        "ja": "ユーモア",
+        "ko": "유머"
+      },
+      "genre.journal": {
+        "zh-Hans": "日记",
+        "zh-Hant": "日記",
+        "en": "Journal",
+        "ja": "日記",
+        "ko": "일기"
+      },
+      "genre.paranormal": {
+        "zh-Hans": "超自然",
+        "zh-Hant": "超自然",
+        "en": "Paranormal",
+        "ja": "超常現象",
+        "ko": "초자연"
+      },
+      "genre.apocalypse": {
+        "zh-Hans": "末日",
+        "zh-Hant": "末日",
+        "en": "Apocalypse",
+        "ja": "終末",
+        "ko": "아포칼립스"
+      },
+      "genre.romance": {
+        "zh-Hans": "爱情",
+        "zh-Hant": "愛情",
+        "en": "Romance",
+        "ja": "恋愛",
+        "ko": "로맨스"
+      },
+      "genre.scifi": {
+        "zh-Hans": "科幻",
+        "zh-Hant": "科幻",
+        "en": "Science fiction",
+        "ja": "SF",
+        "ko": "SF"
+      },
+      "genre.daily": {
+        "zh-Hans": "日常",
+        "zh-Hant": "日常",
+        "en": "Slice of life",
+        "ja": "日常",
+        "ko": "일상"
+      },
+      "genre.steampunk": {
+        "zh-Hans": "蒸汽朋克",
+        "zh-Hant": "蒸汽龐克",
+        "en": "Steampunk",
+        "ja": "スチームパンク",
+        "ko": "스팀펑크"
+      },
+      "genre.superheroes": {
+        "zh-Hans": "超级英雄",
+        "zh-Hant": "超級英雄",
+        "en": "Superheroes",
+        "ja": "スーパーヒーロー",
+        "ko": "슈퍼히어로"
+      },
+      "genre.mystery": {
+        "zh-Hans": "推理",
+        "zh-Hant": "推理",
+        "en": "Mystery",
+        "ja": "ミステリー",
+        "ko": "추리"
+      },
+      "genre.historical": {
+        "zh-Hans": "历史",
+        "zh-Hant": "歷史",
+        "en": "Historical",
+        "ja": "歴史",
+        "ko": "역사"
+      },
+      "filter.ratings": {
+        "zh-Hans": "内容分级",
+        "zh-Hant": "內容分級",
+        "en": "Age ratings",
+        "ja": "年齢区分",
+        "ko": "연령 등급"
+      },
+      "rating.nr": {
+        "zh-Hans": "未分级（NR）",
+        "zh-Hant": "未分級（NR）",
+        "en": "Not rated (NR)",
+        "ja": "未区分（NR）",
+        "ko": "미분류 (NR)"
+      },
+      "rating.g": {
+        "zh-Hans": "全年龄（G）",
+        "zh-Hant": "全年齡（G）",
+        "en": "General audiences (G)",
+        "ja": "全年齢（G）",
+        "ko": "전체 관람가 (G)"
+      },
+      "rating.pg": {
+        "zh-Hans": "建议家长指导（PG）",
+        "zh-Hant": "建議家長指導（PG）",
+        "en": "Parental guidance (PG)",
+        "ja": "保護者の助言推奨（PG）",
+        "ko": "보호자 지도 권장 (PG)"
+      },
+      "rating.pg13": {
+        "zh-Hans": "未满 13 岁需家长慎选（PG-13）",
+        "zh-Hant": "未滿 13 歲需家長慎選（PG-13）",
+        "en": "Parents strongly cautioned (PG-13)",
+        "ja": "13 歳未満は保護者の注意が必要（PG-13）",
+        "ko": "13세 미만 관람 주의 (PG-13)"
+      },
+      "rating.r": {
+        "zh-Hans": "限制级（R）",
+        "zh-Hant": "限制級（R）",
+        "en": "Restricted (R)",
+        "ja": "鑑賞制限あり（R）",
+        "ko": "관람 제한 (R)"
+      },
+      "rating.nc17": {
+        "zh-Hans": "成人（NC-17）",
+        "zh-Hant": "成人（NC-17）",
+        "en": "Adults only (NC-17)",
+        "ja": "成人向け（NC-17）",
+        "ko": "성인 전용 (NC-17)"
+      },
+      "filter.type": {
+        "zh-Hans": "作品类型",
+        "zh-Hant": "作品類型",
+        "en": "Comic type",
+        "ja": "作品の種類",
+        "ko": "작품 유형"
+      },
+      "filter.original": {
+        "zh-Hans": "原创",
+        "zh-Hant": "原創",
+        "en": "Original",
+        "ja": "オリジナル",
+        "ko": "창작물"
+      },
+      "filter.translation": {
+        "zh-Hans": "译作",
+        "zh-Hant": "譯作",
+        "en": "Translation",
+        "ja": "翻訳",
+        "ko": "번역작"
+      },
+      "filter.status": {
+        "zh-Hans": "连载状态",
+        "zh-Hant": "連載狀態",
+        "en": "Publication status",
+        "ja": "連載状況",
+        "ko": "연재 상태"
+      },
+      "filter.ongoing": {
+        "zh-Hans": "连载中",
+        "zh-Hant": "連載中",
+        "en": "Ongoing",
+        "ja": "連載中",
+        "ko": "연재 중"
+      },
+      "filter.finished": {
+        "zh-Hans": "已完结",
+        "zh-Hant": "已完結",
+        "en": "Completed",
+        "ja": "完結済み",
+        "ko": "완결"
+      },
+      "filter.subscription": {
+        "zh-Hans": "订阅状态",
+        "zh-Hant": "訂閱狀態",
+        "en": "Subscription",
+        "ja": "購読状況",
+        "ko": "구독 상태"
+      },
+      "filter.subscribed": {
+        "zh-Hans": "在我的订阅中",
+        "zh-Hant": "在我的訂閱中",
+        "en": "In my feed",
+        "ja": "購読中",
+        "ko": "구독 중"
+      },
+      "filter.not_subscribed": {
+        "zh-Hans": "不在我的订阅中",
+        "zh-Hant": "不在我的訂閱中",
+        "en": "Outside my feed",
+        "ja": "未購読",
+        "ko": "미구독"
+      },
+      "filter.all": {
+        "zh-Hans": "全部",
+        "zh-Hant": "全部",
+        "en": "All",
+        "ja": "すべて",
+        "ko": "전체"
+      },
+      "filter.min_issues": {
+        "zh-Hans": "最少章节数",
+        "zh-Hant": "最少章節數",
+        "en": "Minimum issues",
+        "ja": "最小話数",
+        "ko": "최소 회차 수"
+      }
+    }
+  }
+}

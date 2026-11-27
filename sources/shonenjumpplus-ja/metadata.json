@@ -1,0 +1,94 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://shonenjumpplus.com",
+  "minAppVersion": "1.5.5",
+  "requiredImageDecodes": [
+    "wasm_image_v1"
+  ],
+  "wasmBuild": {
+    "imageProcessorCrate": "koma_gigaviewer_tile_processor"
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "ja",
+    "messages": {
+      "source.name": {
+        "zh-Hans": "少年 Jump+",
+        "zh-Hant": "少年 Jump+",
+        "en": "Shonen Jump+",
+        "ja": "少年ジャンプ＋",
+        "ko": "소년 점프+"
+      },
+      "source.description": {
+        "zh-Hans": "集英社官方漫画平台，刊登《SPY×FAMILY》等连载和短篇，可阅读目前公开的话。",
+        "zh-Hant": "集英社官方漫畫平台，刊登《SPY×FAMILY》等連載和短篇，可閱讀目前公開的話。",
+        "en": "Shueisha’s official manga service publishes serials such as SPY×FAMILY and one-shots, with selected chapters open to the public.",
+        "ja": "集英社の公式マンガサービス。『SPY×FAMILY』などの連載や読切を掲載し、公開中の話を読めます。",
+        "ko": "슈에이샤 공식 만화 서비스입니다. 《스파이 패밀리》 등 연재작과 단편의 공개 회차를 읽을 수 있습니다."
+      },
+      "listing.serial": {
+        "zh-Hans": "连载作品",
+        "zh-Hant": "連載作品",
+        "en": "Serials",
+        "ja": "連載一覧",
+        "ko": "연재작"
+      },
+      "listing.latest": {
+        "zh-Hans": "今日更新",
+        "zh-Hant": "今日更新",
+        "en": "Today’s updates",
+        "ja": "今日の更新",
+        "ko": "오늘 업데이트"
+      },
+      "listing.oneshot": {
+        "zh-Hans": "短篇作品",
+        "zh-Hant": "短篇作品",
+        "en": "One-shots",
+        "ja": "読切シリーズ",
+        "ko": "단편"
+      },
+      "listing.finished": {
+        "zh-Hans": "完结作品",
+        "zh-Hant": "完結作品",
+        "en": "Completed series",
+        "ja": "連載終了作品",
+        "ko": "완결작"
+      },
+      "filter.collection": {
+        "zh-Hans": "作品栏目",
+        "zh-Hant": "作品欄目",
+        "en": "Series collection",
+        "ja": "作品一覧",
+        "ko": "작품 분류"
+      },
+      "setting.hide_locked": {
+        "zh-Hans": "隐藏付费章节",
+        "zh-Hant": "隱藏付費章節",
+        "en": "Hide paid chapters",
+        "ja": "有料話を非表示",
+        "ko": "유료 회차 숨기기"
+      },
+      "setting.hide_unavailable": {
+        "zh-Hans": "隐藏已下架章节",
+        "zh-Hant": "隱藏已下架章節",
+        "en": "Hide unavailable chapters",
+        "ja": "配信終了話を非表示",
+        "ko": "공개 종료 회차 숨기기"
+      },
+      "chapter.unavailable": {
+        "zh-Hans": "已下架",
+        "zh-Hant": "已下架",
+        "en": "Unavailable",
+        "ja": "配信終了",
+        "ko": "공개 종료"
+      },
+      "chapter.volume": {
+        "zh-Hans": "单行本",
+        "zh-Hant": "單行本",
+        "en": "Volume",
+        "ja": "単行本",
+        "ko": "단행본"
+      }
+    }
+  }
+}

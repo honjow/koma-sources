@@ -146,16 +146,44 @@
 
 | 图标 | 目录 | 名称 | 备注 |
 |---|---|---|---|
+| <img src="internetarchive/icon.png" width="24" alt=""> | internetarchive | Internet Archive | 互联网档案馆的公开扫描件，包括绘本、历史杂志、老漫画和艺术画册。 |
 | <img src="iqiyi/icon.png" width="24" alt=""> | iqiyi | 爱奇艺叭嗒 | 爱奇艺叭嗒的漫画频道，包含恋爱、奇幻、悬疑与冒险等题材。付费章节仍需原站授权。 |
 | <img src="tongli/icon.jpg" width="24" alt=""> | tongli | 東立 | 東立电子书的漫画书库，按卷册与连载话数收录；部分内容需付费或受地区限制。 |
 | <img src="zazhimi/icon.png" width="24" alt=""> | zazhimi | 杂志迷 | 日本时尚杂志阅读来源，涵盖服饰、美妆、美发与居家生活等分类，按刊物期号收录。 |
 | <img src="cmanhua/icon.png" width="24" alt=""> | cmanhua | CManhua | CManhua 的中文连载漫画书库，包含欧美漫画；长篇作品保留原站分段编排的目录。 |
+
+## 韩文、日文及多语言原站
+
+| 图标 | 目录 | 名称 | 备注 |
+|---|---|---|---|
+| <img src="navercomic-ko/icon.png" width="24" alt=""> | navercomic-ko | Naver Webtoon | Naver 韩国官方条漫，涵盖按星期连载的正式作品与两级创作者投稿。 |
+| <img src="peppercarrot/icon.png" width="24" alt=""> | peppercarrot | Pepper&Carrot | David Revoy 的多语言开放版权奇幻漫画，另有短篇和 11 个官方艺术档案。 |
+| <img src="shonenjumpplus-ja/icon.png" width="24" alt=""> | shonenjumpplus-ja | 少年ジャンプ＋ | 集英社官方日文连载和短篇，正文限匿名公开话。 |
+| <img src="twi4-ja/icon.png" width="24" alt=""> | twi4-ja | Twi4 | 星海社「最前線」的日文四格连载，收录《トモちゃんは女の子！》等作品。 |
+
+## 英文原站
+
+| 图标 | 目录 | 名称 | 备注 |
+|---|---|---|---|
+| <img src="globalcomix-en/icon.ico" width="24" alt=""> | globalcomix-en | GlobalComix | 收录出版社与独立创作者的英文数字漫画，正文限原站公开的免费页。 |
+| <img src="namicomi-en/icon.png" width="24" alt=""> | namicomi-en | NamiComi | 原创漫画平台的英文目录，正文限匿名可读章节。 |
+| <img src="weebcentral-en/icon.png" width="24" alt=""> | weebcentral-en | Weeb Central | 汇集英文日漫、韩漫和华语漫画，包括《王者天下》等长篇连载。 |
+| <img src="xkcd-en/icon.webp" width="24" alt=""> | xkcd-en | xkcd | 兰德尔·门罗的英文原作，可按单本、年份或年月浏览。 |
+| <img src="comicfury-en/icon.png" width="24" alt=""> | comicfury-en | Comic Fury (English) | 创作者自行发布的英文网漫，部分作品有作者附言。 |
+| <img src="smbc-en/icon.png" width="24" alt=""> | smbc-en | Saturday Morning Breakfast Comics | 扎克·韦纳史密斯的英文科普与生活短篇漫画，部分有红按钮彩蛋。 |
+
+## 俄语原站
+
+| 图标 | 目录 | 名称 | 备注 |
+|---|---|---|---|
+| <img src="acomics-ru/icon.png" width="24" alt=""> | acomics-ru | AComics | 俄语独立网漫平台，刊登原创连载和译作。 |
 
 ## 非源目录（不参与构建）
 
 | 目录 | 说明 |
 |---|---|
 | example-demo | 教学演示源，用 JSONPlaceholder API，非真实漫画源 |
+| gigaviewer.rs | GigaViewer GraphQL、产品目录和公开阅读协议共享模块 |
 | taku_gallery.rs | 单文件参考实现，非标准源目录结构 |
 | xcomic_java_regex.rs | 单文件参考实现，非标准源目录结构 |
 

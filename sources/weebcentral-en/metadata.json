@@ -1,0 +1,560 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://weebcentral.com",
+  "requestLimits": [
+    {
+      "group": "weebcentral-site",
+      "hosts": [
+        "weebcentral.com"
+      ],
+      "permits": 1,
+      "periodMs": 2000,
+      "oncePerRequest": true
+    }
+  ],
+  "localization": {
+    "version": 1,
+    "defaultLocale": "en",
+    "messages": {
+      "source.name": {
+        "zh-Hans": "Weeb Central（英语）",
+        "zh-Hant": "Weeb Central（英語）",
+        "en": "Weeb Central",
+        "ja": "Weeb Central（英語）",
+        "ko": "Weeb Central (영어)"
+      },
+      "source.description": {
+        "zh-Hans": "汇集英文日漫、韩漫和华语漫画，包括《王者天下》等长篇连载。",
+        "zh-Hant": "匯集英文日漫、韓漫和華語漫畫，包括《王者天下》等長篇連載。",
+        "en": "An English catalogue of manga, manhwa and manhua, including Kingdom and other long-running series.",
+        "ja": "『キングダム』などの長期連載を含む、日本・韓国・中華圏の英語版マンガを掲載しています。",
+        "ko": "《킹덤》 같은 장기 연재작을 포함해 일본·한국·중화권 만화를 영어로 제공합니다."
+      },
+      "listing.popular": {
+        "zh-Hans": "热门",
+        "zh-Hant": "熱門",
+        "en": "Popular",
+        "ja": "人気",
+        "ko": "인기"
+      },
+      "listing.latest": {
+        "zh-Hans": "最新更新",
+        "zh-Hant": "最新更新",
+        "en": "Latest updates",
+        "ja": "最近の更新",
+        "ko": "최신 업데이트"
+      },
+      "listing.recent": {
+        "zh-Hans": "最近收录",
+        "zh-Hant": "最近收錄",
+        "en": "Recently added",
+        "ja": "新着作品",
+        "ko": "최근 등록"
+      },
+      "setting.clean": {
+        "zh-Hans": "简化标题",
+        "zh-Hant": "簡化標題",
+        "en": "Clean title",
+        "ja": "タイトルを簡略化",
+        "ko": "제목 간소화"
+      },
+      "setting.clean.description": {
+        "zh-Hans": "移除标题末尾括号内的附注。",
+        "zh-Hant": "移除標題末尾括號內的附註。",
+        "en": "Remove a trailing bracketed note from the title.",
+        "ja": "タイトル末尾にある括弧付きの補足を除きます。",
+        "ko": "제목 끝에 붙은 괄호 속 부가 정보를 제거합니다."
+      },
+      "detail.related": {
+        "zh-Hans": "相关作品",
+        "zh-Hant": "相關作品",
+        "en": "Related series",
+        "ja": "関連作品",
+        "ko": "관련 작품"
+      },
+      "detail.trackers": {
+        "zh-Hans": "追踪站点",
+        "zh-Hant": "追蹤網站",
+        "en": "Trackers",
+        "ja": "作品データベース",
+        "ko": "작품 데이터베이스"
+      },
+      "detail.alternate": {
+        "zh-Hans": "别名",
+        "zh-Hant": "別名",
+        "en": "Alternate titles",
+        "ja": "別名",
+        "ko": "다른 제목"
+      },
+      "filter.sort": {
+        "zh-Hans": "排序方式",
+        "zh-Hant": "排序方式",
+        "en": "Sort by",
+        "ja": "並べ替え",
+        "ko": "정렬 기준"
+      },
+      "filter.order": {
+        "zh-Hans": "排序方向",
+        "zh-Hant": "排序方向",
+        "en": "Sort order",
+        "ja": "並び順",
+        "ko": "정렬 순서"
+      },
+      "filter.official": {
+        "zh-Hans": "官方译本",
+        "zh-Hant": "官方譯本",
+        "en": "Official translation",
+        "ja": "公式翻訳",
+        "ko": "공식 번역"
+      },
+      "filter.anime": {
+        "zh-Hans": "动画改编",
+        "zh-Hant": "動畫改編",
+        "en": "Anime adaptation",
+        "ja": "アニメ化",
+        "ko": "애니메이션화"
+      },
+      "filter.adult": {
+        "zh-Hans": "成人内容",
+        "zh-Hant": "成人內容",
+        "en": "Adult content",
+        "ja": "成人向け",
+        "ko": "성인 콘텐츠"
+      },
+      "filter.author": {
+        "zh-Hans": "作者（区分大小写）",
+        "zh-Hant": "作者（區分大小寫）",
+        "en": "Author (case-sensitive)",
+        "ja": "作者（大文字と小文字を区別）",
+        "ko": "작가 (대소문자 구분)"
+      },
+      "filter.included_status": {
+        "zh-Hans": "连载状态",
+        "zh-Hant": "連載狀態",
+        "en": "Series status",
+        "ja": "連載状況",
+        "ko": "연재 상태"
+      },
+      "filter.included_type": {
+        "zh-Hans": "作品类型",
+        "zh-Hant": "作品類型",
+        "en": "Series type",
+        "ja": "作品の種類",
+        "ko": "작품 유형"
+      },
+      "filter.tags": {
+        "zh-Hans": "题材标签",
+        "zh-Hant": "題材標籤",
+        "en": "Tags",
+        "ja": "ジャンル",
+        "ko": "장르"
+      },
+      "option.sort.default": {
+        "zh-Hans": "默认排序",
+        "zh-Hant": "預設排序",
+        "en": "Default sort",
+        "ja": "標準の並び順",
+        "ko": "기본 정렬"
+      },
+      "option.sort.0": {
+        "zh-Hans": "最相关",
+        "zh-Hant": "最相關",
+        "en": "Best match",
+        "ja": "関連度",
+        "ko": "관련도"
+      },
+      "option.sort.1": {
+        "zh-Hans": "字母顺序",
+        "zh-Hant": "字母順序",
+        "en": "Alphabetical",
+        "ja": "名前順",
+        "ko": "이름순"
+      },
+      "option.sort.2": {
+        "zh-Hans": "人气",
+        "zh-Hant": "人氣",
+        "en": "Popularity",
+        "ja": "人気順",
+        "ko": "인기순"
+      },
+      "option.sort.3": {
+        "zh-Hans": "订阅数",
+        "zh-Hant": "訂閱數",
+        "en": "Subscribers",
+        "ja": "登録者数",
+        "ko": "구독자 수"
+      },
+      "option.sort.4": {
+        "zh-Hans": "最近收录",
+        "zh-Hant": "最近收錄",
+        "en": "Recently added",
+        "ja": "追加日",
+        "ko": "등록일"
+      },
+      "option.sort.5": {
+        "zh-Hans": "最新更新",
+        "zh-Hant": "最新更新",
+        "en": "Latest updates",
+        "ja": "更新日",
+        "ko": "업데이트일"
+      },
+      "option.order.0": {
+        "zh-Hans": "降序",
+        "zh-Hant": "降冪",
+        "en": "Descending",
+        "ja": "降順",
+        "ko": "내림차순"
+      },
+      "option.order.1": {
+        "zh-Hans": "升序",
+        "zh-Hant": "升冪",
+        "en": "Ascending",
+        "ja": "昇順",
+        "ko": "오름차순"
+      },
+      "option.flag.0": {
+        "zh-Hans": "不限",
+        "zh-Hant": "不限",
+        "en": "Any",
+        "ja": "指定なし",
+        "ko": "전체"
+      },
+      "option.flag.1": {
+        "zh-Hans": "是",
+        "zh-Hant": "是",
+        "en": "Yes",
+        "ja": "はい",
+        "ko": "예"
+      },
+      "option.flag.2": {
+        "zh-Hans": "否",
+        "zh-Hant": "否",
+        "en": "No",
+        "ja": "いいえ",
+        "ko": "아니요"
+      },
+      "option.status.0": {
+        "zh-Hans": "连载中",
+        "zh-Hant": "連載中",
+        "en": "Ongoing",
+        "ja": "連載中",
+        "ko": "연재 중"
+      },
+      "option.status.1": {
+        "zh-Hans": "已完结",
+        "zh-Hant": "已完結",
+        "en": "Complete",
+        "ja": "完結",
+        "ko": "완결"
+      },
+      "option.status.2": {
+        "zh-Hans": "暂停连载",
+        "zh-Hant": "暫停連載",
+        "en": "On hiatus",
+        "ja": "休載中",
+        "ko": "휴재"
+      },
+      "option.status.3": {
+        "zh-Hans": "已取消",
+        "zh-Hant": "已取消",
+        "en": "Canceled",
+        "ja": "打ち切り",
+        "ko": "연재 중단"
+      },
+      "option.type.0": {
+        "zh-Hans": "日漫",
+        "zh-Hant": "日漫",
+        "en": "Manga",
+        "ja": "日本のマンガ",
+        "ko": "일본 만화"
+      },
+      "option.type.1": {
+        "zh-Hans": "韩漫",
+        "zh-Hant": "韓漫",
+        "en": "Manhwa",
+        "ja": "韓国のマンガ",
+        "ko": "한국 만화"
+      },
+      "option.type.2": {
+        "zh-Hans": "华语漫画",
+        "zh-Hant": "華語漫畫",
+        "en": "Manhua",
+        "ja": "中華圏のマンガ",
+        "ko": "중화권 만화"
+      },
+      "option.type.3": {
+        "zh-Hans": "英语原创漫画",
+        "zh-Hant": "英語原創漫畫",
+        "en": "Original English-language manga",
+        "ja": "英語オリジナルマンガ",
+        "ko": "영어 창작 만화"
+      },
+      "option.tag.0": {
+        "zh-Hans": "动作",
+        "zh-Hant": "動作",
+        "en": "Action",
+        "ja": "アクション",
+        "ko": "액션"
+      },
+      "option.tag.1": {
+        "zh-Hans": "成人",
+        "zh-Hant": "成人",
+        "en": "Adult",
+        "ja": "成人向け",
+        "ko": "성인"
+      },
+      "option.tag.2": {
+        "zh-Hans": "冒险",
+        "zh-Hant": "冒險",
+        "en": "Adventure",
+        "ja": "冒険",
+        "ko": "모험"
+      },
+      "option.tag.3": {
+        "zh-Hans": "喜剧",
+        "zh-Hant": "喜劇",
+        "en": "Comedy",
+        "ja": "コメディ",
+        "ko": "코미디"
+      },
+      "option.tag.4": {
+        "zh-Hans": "同人志",
+        "zh-Hant": "同人誌",
+        "en": "Doujinshi",
+        "ja": "同人誌",
+        "ko": "동인지"
+      },
+      "option.tag.5": {
+        "zh-Hans": "剧情",
+        "zh-Hant": "劇情",
+        "en": "Drama",
+        "ja": "ドラマ",
+        "ko": "드라마"
+      },
+      "option.tag.6": {
+        "zh-Hans": "擦边喜剧",
+        "zh-Hant": "擦邊喜劇",
+        "en": "Ecchi",
+        "ja": "お色気",
+        "ko": "선정적 코미디"
+      },
+      "option.tag.7": {
+        "zh-Hans": "奇幻",
+        "zh-Hant": "奇幻",
+        "en": "Fantasy",
+        "ja": "ファンタジー",
+        "ko": "판타지"
+      },
+      "option.tag.8": {
+        "zh-Hans": "性别转换",
+        "zh-Hant": "性別轉換",
+        "en": "Gender bender",
+        "ja": "性別変化",
+        "ko": "성별 전환"
+      },
+      "option.tag.9": {
+        "zh-Hans": "后宫",
+        "zh-Hant": "後宮",
+        "en": "Harem",
+        "ja": "ハーレム",
+        "ko": "하렘"
+      },
+      "option.tag.10": {
+        "zh-Hans": "色情漫画",
+        "zh-Hant": "色情漫畫",
+        "en": "Hentai",
+        "ja": "成人マンガ",
+        "ko": "성인 만화"
+      },
+      "option.tag.11": {
+        "zh-Hans": "历史",
+        "zh-Hant": "歷史",
+        "en": "Historical",
+        "ja": "歴史",
+        "ko": "역사"
+      },
+      "option.tag.12": {
+        "zh-Hans": "恐怖",
+        "zh-Hant": "恐怖",
+        "en": "Horror",
+        "ja": "ホラー",
+        "ko": "공포"
+      },
+      "option.tag.13": {
+        "zh-Hans": "异世界",
+        "zh-Hant": "異世界",
+        "en": "Isekai",
+        "ja": "異世界",
+        "ko": "이세계"
+      },
+      "option.tag.14": {
+        "zh-Hans": "女性向",
+        "zh-Hant": "女性向",
+        "en": "Josei",
+        "ja": "女性向け",
+        "ko": "여성향"
+      },
+      "option.tag.15": {
+        "zh-Hans": "萝莉控",
+        "zh-Hant": "蘿莉控",
+        "en": "Lolicon",
+        "ja": "ロリコン",
+        "ko": "로리콘"
+      },
+      "option.tag.16": {
+        "zh-Hans": "武术",
+        "zh-Hant": "武術",
+        "en": "Martial arts",
+        "ja": "武術",
+        "ko": "무술"
+      },
+      "option.tag.17": {
+        "zh-Hans": "成熟向",
+        "zh-Hant": "成熟向",
+        "en": "Mature",
+        "ja": "大人向け",
+        "ko": "성숙한 주제"
+      },
+      "option.tag.18": {
+        "zh-Hans": "机甲",
+        "zh-Hant": "機甲",
+        "en": "Mecha",
+        "ja": "メカ",
+        "ko": "메카"
+      },
+      "option.tag.19": {
+        "zh-Hans": "悬疑",
+        "zh-Hant": "懸疑",
+        "en": "Mystery",
+        "ja": "ミステリー",
+        "ko": "미스터리"
+      },
+      "option.tag.20": {
+        "zh-Hans": "心理",
+        "zh-Hant": "心理",
+        "en": "Psychological",
+        "ja": "心理",
+        "ko": "심리"
+      },
+      "option.tag.21": {
+        "zh-Hans": "恋爱",
+        "zh-Hant": "戀愛",
+        "en": "Romance",
+        "ja": "恋愛",
+        "ko": "로맨스"
+      },
+      "option.tag.22": {
+        "zh-Hans": "校园",
+        "zh-Hant": "校園",
+        "en": "School life",
+        "ja": "学園",
+        "ko": "학원물"
+      },
+      "option.tag.23": {
+        "zh-Hans": "科幻",
+        "zh-Hant": "科幻",
+        "en": "Sci-fi",
+        "ja": "SF",
+        "ko": "SF"
+      },
+      "option.tag.24": {
+        "zh-Hans": "青年向",
+        "zh-Hant": "青年向",
+        "en": "Seinen",
+        "ja": "青年向け",
+        "ko": "청년 만화"
+      },
+      "option.tag.25": {
+        "zh-Hans": "正太控",
+        "zh-Hant": "正太控",
+        "en": "Shotacon",
+        "ja": "ショタコン",
+        "ko": "쇼타콘"
+      },
+      "option.tag.26": {
+        "zh-Hans": "少女向",
+        "zh-Hant": "少女向",
+        "en": "Shoujo",
+        "ja": "少女向け",
+        "ko": "순정 만화"
+      },
+      "option.tag.27": {
+        "zh-Hans": "少女爱情",
+        "zh-Hant": "少女愛情",
+        "en": "Shoujo ai",
+        "ja": "ガールズラブ",
+        "ko": "걸즈 러브"
+      },
+      "option.tag.28": {
+        "zh-Hans": "少年向",
+        "zh-Hant": "少年向",
+        "en": "Shounen",
+        "ja": "少年向け",
+        "ko": "소년 만화"
+      },
+      "option.tag.29": {
+        "zh-Hans": "少年爱情",
+        "zh-Hant": "少年愛情",
+        "en": "Shounen ai",
+        "ja": "ボーイズラブ",
+        "ko": "보이즈 러브"
+      },
+      "option.tag.30": {
+        "zh-Hans": "日常",
+        "zh-Hant": "日常",
+        "en": "Slice of life",
+        "ja": "日常",
+        "ko": "일상"
+      },
+      "option.tag.31": {
+        "zh-Hans": "情色",
+        "zh-Hant": "情色",
+        "en": "Smut",
+        "ja": "官能",
+        "ko": "에로티카"
+      },
+      "option.tag.32": {
+        "zh-Hans": "运动",
+        "zh-Hant": "運動",
+        "en": "Sports",
+        "ja": "スポーツ",
+        "ko": "스포츠"
+      },
+      "option.tag.33": {
+        "zh-Hans": "超自然",
+        "zh-Hant": "超自然",
+        "en": "Supernatural",
+        "ja": "超常現象",
+        "ko": "초자연"
+      },
+      "option.tag.34": {
+        "zh-Hans": "悲剧",
+        "zh-Hant": "悲劇",
+        "en": "Tragedy",
+        "ja": "悲劇",
+        "ko": "비극"
+      },
+      "option.tag.35": {
+        "zh-Hans": "耽美",
+        "zh-Hant": "耽美",
+        "en": "Yaoi",
+        "ja": "やおい",
+        "ko": "야오이"
+      },
+      "option.tag.36": {
+        "zh-Hans": "百合",
+        "zh-Hant": "百合",
+        "en": "Yuri",
+        "ja": "百合",
+        "ko": "백합"
+      },
+      "option.tag.37": {
+        "zh-Hans": "其他",
+        "zh-Hant": "其他",
+        "en": "Other",
+        "ja": "その他",
+        "ko": "기타"
+      }
+    }
+  }
+}
