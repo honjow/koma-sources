@@ -1,0 +1,781 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://olympusxyz.com",
+  "nsfw": false,
+  "contentRating": "safe",
+  "minAppVersion": "1.5.5",
+  "localizedNames": {
+    "zh-Hans": "Olympus Scanlation",
+    "zh-Hant": "Olympus Scanlation",
+    "en": "Olympus Scanlation",
+    "ja": "Olympus Scanlation",
+    "ko": "Olympus Scanlation"
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "en",
+    "messages": {
+      "listing.popular": {
+        "zh-Hans": "热门",
+        "zh-Hant": "熱門",
+        "en": "Popular",
+        "ja": "人気",
+        "ko": "인기"
+      },
+      "listing.latest": {
+        "zh-Hans": "最新更新",
+        "zh-Hant": "最新更新",
+        "en": "Latest updates",
+        "ja": "最近の更新",
+        "ko": "최신 업데이트"
+      },
+      "error.invalid_request": {
+        "zh-Hans": "请求参数无效。",
+        "zh-Hant": "請求參數無效。",
+        "en": "The request is invalid.",
+        "ja": "リクエストが正しくありません。",
+        "ko": "요청이 올바르지 않습니다."
+      },
+      "error.forbidden": {
+        "zh-Hans": "原站拒绝了请求，请检查原网页。",
+        "zh-Hant": "原站拒絕了請求，請檢查原網頁。",
+        "en": "The site refused this request. Check the original page.",
+        "ja": "サイトがリクエストを拒否しました。元のページをご確認ください。",
+        "ko": "사이트에서 요청을 거부했습니다. 원본 페이지를 확인해 주세요."
+      },
+      "error.not_found": {
+        "zh-Hans": "原站未提供此内容。",
+        "zh-Hant": "原站未提供此內容。",
+        "en": "This content was not found on the site.",
+        "ja": "サイトにこのコンテンツがありません。",
+        "ko": "사이트에서 콘텐츠를 찾을 수 없습니다."
+      },
+      "error.rate_limit": {
+        "zh-Hans": "请求过于频繁，请稍后重试。",
+        "zh-Hant": "請求過於頻繁，請稍後重試。",
+        "en": "Too many requests. Try again later.",
+        "ja": "リクエストが多すぎます。しばらくしてからお試しください。",
+        "ko": "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."
+      },
+      "error.network_error": {
+        "zh-Hans": "原站请求未完成，请稍后重试。",
+        "zh-Hant": "原站請求未完成，請稍後重試。",
+        "en": "The site request failed. Try again later.",
+        "ja": "サイトへの接続に失敗しました。しばらくしてからお試しください。",
+        "ko": "사이트에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."
+      },
+      "error.parse_error": {
+        "zh-Hans": "原站页面结构发生变化，暂时无法读取。",
+        "zh-Hant": "原站頁面結構發生變化，暫時無法讀取。",
+        "en": "The site layout has changed and cannot be read at present.",
+        "ja": "サイトの構造が変わったため、現在読み込めません。",
+        "ko": "사이트 구조가 변경되어 현재 읽을 수 없습니다."
+      },
+      "error.chapter_unavailable": {
+        "zh-Hans": "原站未提供本话图片。",
+        "zh-Hant": "原站未提供本話圖片。",
+        "en": "No images are available for this chapter.",
+        "ja": "この話の画像がありません。",
+        "ko": "이 회차의 이미지가 없습니다."
+      },
+      "error.chapter_locked": {
+        "zh-Hans": "原站要求先确认内容提示，请打开原网页查看。",
+        "zh-Hant": "原站要求先確認內容提示，請開啟原網頁查看。",
+        "en": "The site requires a content-warning confirmation. Open the original page to review it.",
+        "ja": "サイトで内容の警告への確認が必要です。元のページをご確認ください。",
+        "ko": "사이트의 콘텐츠 경고 확인이 필요합니다. 원본 페이지를 열어 확인해 주세요."
+      },
+      "error.auth_required": {
+        "zh-Hans": "请先在原站登录。",
+        "zh-Hant": "請先在原站登入。",
+        "en": "Sign in on the original site first.",
+        "ja": "先に元のサイトでログインしてください。",
+        "ko": "먼저 원본 사이트에 로그인해 주세요."
+      },
+      "error.cancelled": {
+        "zh-Hans": "请求已取消。",
+        "zh-Hant": "請求已取消。",
+        "en": "The request was cancelled.",
+        "ja": "リクエストをキャンセルしました。",
+        "ko": "요청이 취소되었습니다."
+      },
+      "error.result_too_large": {
+        "zh-Hans": "原站返回的内容过大，无法完整载入。",
+        "zh-Hant": "原站傳回的內容過大，無法完整載入。",
+        "en": "The site response is too large to load in full.",
+        "ja": "応答が大きすぎるため、全体を読み込めません。",
+        "ko": "사이트 응답이 너무 커서 전체를 불러올 수 없습니다."
+      },
+      "error.internal_error": {
+        "zh-Hans": "处理失败，请重试。",
+        "zh-Hant": "處理失敗，請重試。",
+        "en": "Processing failed. Please try again.",
+        "ja": "処理に失敗しました。もう一度お試しください。",
+        "ko": "처리하지 못했습니다. 다시 시도해 주세요."
+      },
+      "error.unsupported": {
+        "zh-Hans": "此书源不提供该功能。",
+        "zh-Hant": "此書源不提供該功能。",
+        "en": "This source does not provide this feature.",
+        "ja": "このソースでは利用できない機能です。",
+        "ko": "이 소스에서 제공하지 않는 기능입니다."
+      },
+      "error.unavailable": {
+        "zh-Hans": "暂时无法获取此内容。",
+        "zh-Hant": "暫時無法取得此內容。",
+        "en": "This content is temporarily unavailable.",
+        "ja": "現在このコンテンツを取得できません。",
+        "ko": "현재 이 콘텐츠를 불러올 수 없습니다."
+      },
+      "source.name": {
+        "zh-Hans": "Olympus Scanlation",
+        "zh-Hant": "Olympus Scanlation",
+        "en": "Olympus Scanlation",
+        "ja": "Olympus Scanlation",
+        "ko": "Olympus Scanlation"
+      },
+      "source.description": {
+        "zh-Hans": "Olympus Scanlation 的西班牙语漫画，收录《El Blinker genio de la academia mágica》等奇幻连载，可按原站题材与连载状态选读；不含文字小说。",
+        "zh-Hant": "Olympus Scanlation 的西班牙語漫畫，收錄《El Blinker genio de la academia mágica》等奇幻連載，可按原站題材與連載狀態選讀；不含文字小說。",
+        "en": "Spanish-language comics from Olympus Scanlation, including the fantasy serial El Blinker genio de la academia mágica, with the site’s genre and publication-status catalog. Prose novels are excluded.",
+        "ja": "Olympus Scanlationのスペイン語漫画。ファンタジー連載『El Blinker genio de la academia mágica』などを掲載し、原サイトのジャンルや連載状況から探せます。文字だけの小説は含めません。",
+        "ko": "Olympus Scanlation의 스페인어 만화로, 판타지 연재작 El Blinker genio de la academia mágica 등을 원본 사이트의 장르와 연재 상태별로 볼 수 있습니다. 글로만 된 소설은 제외합니다."
+      },
+      "filter.order": {
+        "zh-Hans": "排序",
+        "zh-Hant": "排序",
+        "en": "Order",
+        "ja": "並び順",
+        "ko": "정렬"
+      },
+      "filter.popular": {
+        "zh-Hans": "热门",
+        "zh-Hant": "熱門",
+        "en": "Popular",
+        "ja": "人気順",
+        "ko": "인기순"
+      },
+      "filter.latest": {
+        "zh-Hans": "最新更新",
+        "zh-Hant": "最新更新",
+        "en": "Latest updates",
+        "ja": "更新順",
+        "ko": "최근 업데이트"
+      },
+      "filter.title": {
+        "zh-Hans": "标题",
+        "zh-Hant": "標題",
+        "en": "Title",
+        "ja": "タイトル",
+        "ko": "제목"
+      },
+      "chapter.range": {
+        "zh-Hans": "日期归档",
+        "zh-Hant": "日期歸檔",
+        "en": "Date archive",
+        "ja": "日付別アーカイブ",
+        "ko": "날짜별 보관함"
+      },
+      "error.server_error": {
+        "zh-Hans": "暂时无法提供此内容。",
+        "zh-Hant": "暫時無法提供此內容。",
+        "en": "This content is unavailable.",
+        "ja": "このコンテンツは利用できません。",
+        "ko": "이 콘텐츠를 이용할 수 없습니다."
+      },
+      "error.http_error": {
+        "zh-Hans": "暂时无法提供此内容。",
+        "zh-Hant": "暫時無法提供此內容。",
+        "en": "This content is unavailable.",
+        "ja": "このコンテンツは利用できません。",
+        "ko": "이 콘텐츠를 이용할 수 없습니다."
+      },
+      "error.challenge_required": {
+        "zh-Hans": "暂时无法提供此内容。",
+        "zh-Hant": "暫時無法提供此內容。",
+        "en": "This content is unavailable.",
+        "ja": "このコンテンツは利用できません。",
+        "ko": "이 콘텐츠를 이용할 수 없습니다."
+      },
+      "filter.status": {
+        "zh-Hans": "连载状态",
+        "zh-Hant": "連載狀態",
+        "en": "Publication status",
+        "ja": "連載状況",
+        "ko": "연재 상태"
+      },
+      "filter.genre": {
+        "zh-Hans": "题材",
+        "zh-Hant": "題材",
+        "en": "Genre",
+        "ja": "ジャンル",
+        "ko": "장르"
+      },
+      "filter.status.1": {
+        "zh-Hans": "连载中",
+        "zh-Hant": "連載中",
+        "en": "Ongoing",
+        "ja": "連載中",
+        "ko": "연재 중"
+      },
+      "filter.status.3": {
+        "zh-Hans": "作者休刊中",
+        "zh-Hant": "作者休刊中",
+        "en": "On hiatus",
+        "ja": "作者休載中",
+        "ko": "작가 휴재 중"
+      },
+      "filter.status.4": {
+        "zh-Hans": "已完结",
+        "zh-Hant": "已完結",
+        "en": "Completed",
+        "ja": "完結",
+        "ko": "완결"
+      },
+      "filter.status.5": {
+        "zh-Hans": "作者已终止连载",
+        "zh-Hant": "作者已終止連載",
+        "en": "Cancelled by author",
+        "ja": "作者により打ち切り",
+        "ko": "작가가 연재 종료"
+      },
+      "filter.status.7": {
+        "zh-Hans": "汉化组已弃坑",
+        "zh-Hant": "翻譯組已棄坑",
+        "en": "Dropped by scanlator",
+        "ja": "翻訳グループが更新終了",
+        "ko": "번역 팀이 중단"
+      },
+      "filter.genres.1": {
+        "zh-Hans": "动作",
+        "zh-Hant": "動作",
+        "en": "Action",
+        "ja": "アクション",
+        "ko": "액션"
+      },
+      "filter.genres.3": {
+        "zh-Hans": "末日",
+        "zh-Hant": "末日",
+        "en": "Apocalyptic",
+        "ja": "終末",
+        "ko": "아포칼립스"
+      },
+      "filter.genres.4": {
+        "zh-Hans": "武术",
+        "zh-Hant": "武術",
+        "en": "Martial arts",
+        "ja": "武術",
+        "ko": "무술"
+      },
+      "filter.genres.5": {
+        "zh-Hans": "冒险",
+        "zh-Hant": "冒險",
+        "en": "Adventure",
+        "ja": "冒険",
+        "ko": "모험"
+      },
+      "filter.genres.6": {
+        "zh-Hans": "科幻",
+        "zh-Hant": "科幻",
+        "en": "Science fiction",
+        "ja": "SF",
+        "ko": "SF"
+      },
+      "filter.genres.7": {
+        "zh-Hans": "喜剧",
+        "zh-Hant": "喜劇",
+        "en": "Comedy",
+        "ja": "コメディ",
+        "ko": "코미디"
+      },
+      "filter.genres.8": {
+        "zh-Hans": "犯罪",
+        "zh-Hant": "犯罪",
+        "en": "Crime",
+        "ja": "犯罪",
+        "ko": "범죄"
+      },
+      "filter.genres.9": {
+        "zh-Hans": "修仙",
+        "zh-Hant": "修仙",
+        "en": "Cultivation",
+        "ja": "修仙",
+        "ko": "수선"
+      },
+      "filter.genres.10": {
+        "zh-Hans": "体育",
+        "zh-Hant": "體育",
+        "en": "Sports",
+        "ja": "スポーツ",
+        "ko": "스포츠"
+      },
+      "filter.genres.12": {
+        "zh-Hans": "轻度情色",
+        "zh-Hant": "輕度情色",
+        "en": "Ecchi",
+        "ja": "お色気",
+        "ko": "에치"
+      },
+      "filter.genres.13": {
+        "zh-Hans": "家庭",
+        "zh-Hant": "家庭",
+        "en": "Family",
+        "ja": "家族",
+        "ko": "가족"
+      },
+      "filter.genres.14": {
+        "zh-Hans": "奇幻",
+        "zh-Hant": "奇幻",
+        "en": "Fantasy",
+        "ja": "ファンタジー",
+        "ko": "판타지"
+      },
+      "filter.genres.15": {
+        "zh-Hans": "战争",
+        "zh-Hant": "戰爭",
+        "en": "War",
+        "ja": "戦争",
+        "ko": "전쟁"
+      },
+      "filter.genres.16": {
+        "zh-Hans": "后宫",
+        "zh-Hant": "後宮",
+        "en": "Harem",
+        "ja": "ハーレム",
+        "ko": "하렘"
+      },
+      "filter.genres.17": {
+        "zh-Hans": "历史",
+        "zh-Hant": "歷史",
+        "en": "Historical",
+        "ja": "歴史",
+        "ko": "역사"
+      },
+      "filter.genres.18": {
+        "zh-Hans": "游戏",
+        "zh-Hant": "遊戲",
+        "en": "Games",
+        "ja": "ゲーム",
+        "ko": "게임"
+      },
+      "filter.genres.19": {
+        "zh-Hans": "魔法",
+        "zh-Hant": "魔法",
+        "en": "Magic",
+        "ja": "魔法",
+        "ko": "마법"
+      },
+      "filter.genres.20": {
+        "zh-Hans": "悬疑推理",
+        "zh-Hant": "懸疑推理",
+        "en": "Mystery",
+        "ja": "ミステリー",
+        "ko": "미스터리"
+      },
+      "filter.genres.21": {
+        "zh-Hans": "武林",
+        "zh-Hant": "武林",
+        "en": "Murim",
+        "ja": "武林",
+        "ko": "무림"
+      },
+      "filter.genres.22": {
+        "zh-Hans": "心理",
+        "zh-Hant": "心理",
+        "en": "Psychological",
+        "ja": "心理",
+        "ko": "심리"
+      },
+      "filter.genres.23": {
+        "zh-Hans": "虚拟现实",
+        "zh-Hant": "虛擬實境",
+        "en": "Virtual reality",
+        "ja": "仮想現実",
+        "ko": "가상 현실"
+      },
+      "filter.genres.24": {
+        "zh-Hans": "日常",
+        "zh-Hant": "日常",
+        "en": "Slice of life",
+        "ja": "日常",
+        "ko": "일상"
+      },
+      "filter.genres.25": {
+        "zh-Hans": "转生",
+        "zh-Hant": "轉生",
+        "en": "Reincarnation",
+        "ja": "転生",
+        "ko": "환생"
+      },
+      "filter.genres.26": {
+        "zh-Hans": "爱情",
+        "zh-Hant": "愛情",
+        "en": "Romance",
+        "ja": "恋愛",
+        "ko": "로맨스"
+      },
+      "filter.genres.27": {
+        "zh-Hans": "青年漫画",
+        "zh-Hant": "青年漫畫",
+        "en": "Seinen",
+        "ja": "青年漫画",
+        "ko": "청년 만화"
+      },
+      "filter.genres.28": {
+        "zh-Hans": "少年漫画",
+        "zh-Hant": "少年漫畫",
+        "en": "Shonen",
+        "ja": "少年漫画",
+        "ko": "소년 만화"
+      },
+      "filter.genres.29": {
+        "zh-Hans": "少女漫画",
+        "zh-Hant": "少女漫畫",
+        "en": "Shojo",
+        "ja": "少女漫画",
+        "ko": "소녀 만화"
+      },
+      "filter.genres.30": {
+        "zh-Hans": "系统",
+        "zh-Hant": "系統",
+        "en": "System",
+        "ja": "システム",
+        "ko": "시스템"
+      },
+      "filter.genres.31": {
+        "zh-Hans": "超自然",
+        "zh-Hant": "超自然",
+        "en": "Supernatural",
+        "ja": "超常現象",
+        "ko": "초자연"
+      },
+      "filter.genres.32": {
+        "zh-Hans": "热血运动",
+        "zh-Hant": "熱血運動",
+        "en": "Sports drama",
+        "ja": "スポ根",
+        "ko": "스포츠 드라마"
+      },
+      "filter.genres.33": {
+        "zh-Hans": "超能力",
+        "zh-Hant": "超能力",
+        "en": "Superpowers",
+        "ja": "超能力",
+        "ko": "초능력"
+      },
+      "filter.genres.34": {
+        "zh-Hans": "生存",
+        "zh-Hant": "生存",
+        "en": "Survival",
+        "ja": "サバイバル",
+        "ko": "생존"
+      },
+      "filter.genres.35": {
+        "zh-Hans": "惊悚",
+        "zh-Hant": "驚悚",
+        "en": "Suspense",
+        "ja": "サスペンス",
+        "ko": "서스펜스"
+      },
+      "filter.genres.36": {
+        "zh-Hans": "恐怖",
+        "zh-Hant": "恐怖",
+        "en": "Horror",
+        "ja": "ホラー",
+        "ko": "공포"
+      },
+      "filter.genres.37": {
+        "zh-Hans": "悲剧",
+        "zh-Hant": "悲劇",
+        "en": "Tragedy",
+        "ja": "悲劇",
+        "ko": "비극"
+      },
+      "filter.genres.38": {
+        "zh-Hans": "校园",
+        "zh-Hant": "校園",
+        "en": "School life",
+        "ja": "学園",
+        "ko": "학원"
+      },
+      "filter.genres.39": {
+        "zh-Hans": "15岁以上",
+        "zh-Hant": "15歲以上",
+        "en": "Ages 15+",
+        "ja": "15歳以上",
+        "ko": "15세 이상"
+      },
+      "filter.genres.40": {
+        "zh-Hans": "回归者",
+        "zh-Hant": "回歸者",
+        "en": "Returner",
+        "ja": "帰還者",
+        "ko": "귀환자"
+      },
+      "filter.genres.41": {
+        "zh-Hans": "医疗",
+        "zh-Hant": "醫療",
+        "en": "Medical",
+        "ja": "医療",
+        "ko": "의료"
+      },
+      "filter.genres.42": {
+        "zh-Hans": "异世界",
+        "zh-Hant": "異世界",
+        "en": "Isekai",
+        "ja": "異世界",
+        "ko": "이세계"
+      },
+      "filter.genres.43": {
+        "zh-Hans": "剧情",
+        "zh-Hant": "劇情",
+        "en": "Drama",
+        "ja": "ドラマ",
+        "ko": "드라마"
+      },
+      "filter.genres.44": {
+        "zh-Hans": "恶魔",
+        "zh-Hant": "惡魔",
+        "en": "Demons",
+        "ja": "悪魔",
+        "ko": "악마"
+      },
+      "filter.genres.47": {
+        "zh-Hans": "加密货币",
+        "zh-Hant": "加密貨幣",
+        "en": "Cryptocurrency",
+        "ja": "暗号資産",
+        "ko": "암호화폐"
+      },
+      "filter.genres.48": {
+        "zh-Hans": "复仇",
+        "zh-Hant": "復仇",
+        "en": "Revenge",
+        "ja": "復讐",
+        "ko": "복수"
+      },
+      "filter.genres.49": {
+        "zh-Hans": "黑帮",
+        "zh-Hant": "黑幫",
+        "en": "Mafia",
+        "ja": "マフィア",
+        "ko": "마피아"
+      },
+      "filter.genres.50": {
+        "zh-Hans": "分析",
+        "zh-Hant": "分析",
+        "en": "Analysis",
+        "ja": "分析",
+        "ko": "분석"
+      },
+      "filter.genres.51": {
+        "zh-Hans": "星座",
+        "zh-Hant": "星座",
+        "en": "Constellations",
+        "ja": "星座",
+        "ko": "성좌"
+      },
+      "filter.genres.52": {
+        "zh-Hans": "系统面板",
+        "zh-Hant": "系統面板",
+        "en": "System screens",
+        "ja": "ステータス画面",
+        "ko": "시스템 창"
+      },
+      "filter.genres.53": {
+        "zh-Hans": "作家",
+        "zh-Hant": "作家",
+        "en": "Writer",
+        "ja": "作家",
+        "ko": "작가"
+      },
+      "filter.genres.54": {
+        "zh-Hans": "Meian",
+        "zh-Hant": "Meian",
+        "en": "Meian",
+        "ja": "Meian",
+        "ko": "Meian"
+      },
+      "filter.genres.55": {
+        "zh-Hans": "恐怖惊悚",
+        "zh-Hant": "恐怖驚悚",
+        "en": "Horror",
+        "ja": "ホラー",
+        "ko": "공포"
+      },
+      "filter.genres.56": {
+        "zh-Hans": "超自然现象",
+        "zh-Hant": "超自然現象",
+        "en": "Supernatural",
+        "ja": "超常現象",
+        "ko": "초자연"
+      },
+      "filter.genres.57": {
+        "zh-Hans": "百合",
+        "zh-Hant": "百合",
+        "en": "Girls' love",
+        "ja": "ガールズラブ",
+        "ko": "걸즈 러브"
+      },
+      "filter.genres.58": {
+        "zh-Hans": "可能含后宫",
+        "zh-Hant": "可能含後宮",
+        "en": "Possible harem",
+        "ja": "ハーレムの可能性あり",
+        "ko": "하렘 요소 가능"
+      },
+      "filter.genres.59": {
+        "zh-Hans": "怪物",
+        "zh-Hant": "怪物",
+        "en": "Monsters",
+        "ja": "怪物",
+        "ko": "괴물"
+      },
+      "filter.genres.60": {
+        "zh-Hans": "猛兽",
+        "zh-Hant": "猛獸",
+        "en": "Beasts",
+        "ja": "獣",
+        "ko": "야수"
+      },
+      "filter.genres.61": {
+        "zh-Hans": "进化",
+        "zh-Hant": "進化",
+        "en": "Evolution",
+        "ja": "進化",
+        "ko": "진화"
+      },
+      "filter.genres.62": {
+        "zh-Hans": "丧尸",
+        "zh-Hant": "喪屍",
+        "en": "Zombies",
+        "ja": "ゾンビ",
+        "ko": "좀비"
+      },
+      "filter.genres.63": {
+        "zh-Hans": "人工智能",
+        "zh-Hant": "人工智慧",
+        "en": "AI",
+        "ja": "AI",
+        "ko": "AI"
+      },
+      "filter.genres.64": {
+        "zh-Hans": "Waifu",
+        "zh-Hant": "Waifu",
+        "en": "Waifu",
+        "ja": "推しヒロイン",
+        "ko": "와이푸"
+      },
+      "filter.genres.65": {
+        "zh-Hans": "旅人",
+        "zh-Hant": "旅人",
+        "en": "Traveller",
+        "ja": "旅人",
+        "ko": "여행자"
+      },
+      "filter.genres.66": {
+        "zh-Hans": "强壮的主角",
+        "zh-Hant": "強壯的主角",
+        "en": "Muscular protagonist",
+        "ja": "筋肉質の主人公",
+        "ko": "근육질 주인공"
+      },
+      "filter.genres.67": {
+        "zh-Hans": "死灵法师",
+        "zh-Hant": "死靈法師",
+        "en": "Necromancer",
+        "ja": "死霊術師",
+        "ko": "네크로맨서"
+      },
+      "filter.genres.68": {
+        "zh-Hans": "反英雄",
+        "zh-Hant": "反英雄",
+        "en": "Antihero",
+        "ja": "アンチヒーロー",
+        "ko": "안티히어로"
+      },
+      "filter.genres.69": {
+        "zh-Hans": "反派",
+        "zh-Hant": "反派",
+        "en": "Villain",
+        "ja": "悪役",
+        "ko": "악역"
+      },
+      "filter.genres.70": {
+        "zh-Hans": "超能力",
+        "zh-Hant": "超能力",
+        "en": "Superpowers",
+        "ja": "超能力",
+        "ko": "초능력"
+      },
+      "filter.genres.71": {
+        "zh-Hans": "穿越",
+        "zh-Hant": "穿越",
+        "en": "Transmigration",
+        "ja": "転移",
+        "ko": "빙의·전이"
+      },
+      "filter.genres.72": {
+        "zh-Hans": "直播",
+        "zh-Hant": "直播",
+        "en": "Streaming",
+        "ja": "配信",
+        "ko": "스트리밍"
+      },
+      "filter.genres.73": {
+        "zh-Hans": "弓箭手",
+        "zh-Hant": "弓箭手",
+        "en": "Archer",
+        "ja": "弓使い",
+        "ko": "궁수"
+      },
+      "filter.any": {
+        "zh-Hans": "不限",
+        "zh-Hant": "不限",
+        "en": "Any",
+        "ja": "指定なし",
+        "ko": "전체"
+      }
+    }
+  },
+  "presentation": {
+    "version": 1,
+    "texts": {
+      "name": {
+        "zh-Hans": "Olympus Scanlation",
+        "zh-Hant": "Olympus Scanlation",
+        "en": "Olympus Scanlation",
+        "ja": "Olympus Scanlation",
+        "ko": "Olympus Scanlation"
+      },
+      "description": {
+        "zh-Hans": "Olympus Scanlation 的西班牙语漫画，收录《El Blinker genio de la academia mágica》等奇幻连载，可按原站题材与连载状态选读；不含文字小说。",
+        "zh-Hant": "Olympus Scanlation 的西班牙語漫畫，收錄《El Blinker genio de la academia mágica》等奇幻連載，可按原站題材與連載狀態選讀；不含文字小說。",
+        "en": "Spanish-language comics from Olympus Scanlation, including the fantasy serial El Blinker genio de la academia mágica, with the site’s genre and publication-status catalog. Prose novels are excluded.",
+        "ja": "Olympus Scanlationのスペイン語漫画。ファンタジー連載『El Blinker genio de la academia mágica』などを掲載し、原サイトのジャンルや連載状況から探せます。文字だけの小説は含めません。",
+        "ko": "Olympus Scanlation의 스페인어 만화로, 판타지 연재작 El Blinker genio de la academia mágica 등을 원본 사이트의 장르와 연재 상태별로 볼 수 있습니다. 글로만 된 소설은 제외합니다."
+      }
+    }
+  },
+  "requestLimits": [
+    {
+      "group": "olympusscanlation-site",
+      "permits": 3,
+      "periodMs": 1000,
+      "hosts": [
+        "olympusxyz.com"
+      ]
+    }
+  ],
+  "assetProvenance": {
+    "icon": {
+      "url": "https://olympusxyz.com/olympus-logo-180.webp",
+      "originalSize": [
+        180,
+        180
+      ],
+      "originalSha256": "4ec252fe45dde3ab8930b249532ef0d3f8d5c6338d9abb9246685d2501af4a8f",
+      "processing": "Original official artwork saved as RGBA PNG at native resolution; no upscaling, redrawing, shadow or mask."
+    }
+  }
+}
