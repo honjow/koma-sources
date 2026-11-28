@@ -100,7 +100,7 @@ bikamanhua|bikamanhua|false|1.4.1
 yiqiqimanhua|yiqiqimanhua|true|1.4.1
 manhuamanga|manhuamanga|true|1.4.1
 bakamh|bakamh|true|1.6.1
-eighteenmanhua|eighteenmanhua|true|1.4.1
+eighteenmanhua|eighteenmanhua|true|1.6.1
 creativecomic|creativecomic|false|1.5.5
 kanman|kanman|false|1.4.1
 tibiucomics|tibiucomics|true|1.4.1

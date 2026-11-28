@@ -1,6 +1,12 @@
 {
   "homepage": "https://18mh.org",
   "chapterOrder": "newest_first",
+  "websitePolicy": {
+    "renderedDocumentFallback": {
+      "readySelector": "nav#mainNav, main #mangachapters, #chapcontent > div > img"
+    },
+    "webFetchBridge": true
+  },
   "localizedNames": { "zh-Hans": "18漫画", "zh-Hant": "18漫畫", "en": "18Manhua" },
   "identity": { "mihon": { "sourceIds": ["5706270060628375954"],
     "work": { "pathPrefix": "", "idPrefix": "" },

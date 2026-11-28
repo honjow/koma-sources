@@ -103,7 +103,18 @@ fn cover(raw: &str) -> Result<Value> {
     };
     Ok(json!({"kind":"url","url":url.as_str()}))
 }
-fn filters() -> Result<Value> {
+fn filters(input: &Value) -> Result<Value> {
+    let deferred = input["hostFeatures"]
+        .as_array()
+        .is_some_and(|features| features.iter().any(|f| f == "source_filter_fetching_v1"));
+    let mut category =
+        json!({"id":"genre","name":"分类","type":"select","scope":"listing","default":""});
+    if deferred && input["args"]["fetchFilterData"] != true {
+        // The catalogue owns initial verification. Optional genre metadata loads
+        // when requested so an unguarded schema GET cannot consume that flow.
+        return Ok(json!({"filters":[category],"supportsFilterFetching":true}));
+    }
+
     let doc = page_doc(&format!("{BASE}/hots/page/1"))?;
     let mut options = alloc::vec![json!({"label":"全部","value":""})];
     for node in doc.all("main a[href^='/manga-genre/']")? {
@@ -114,9 +125,8 @@ fn filters() -> Result<Value> {
             options.push(json!({"label":label.trim_start_matches('#'),"value":href}));
         }
     }
-    Ok(
-        json!({"filters":[{"id":"genre","name":"分类","type":"select","scope":"listing","default":"","options":options}]}),
-    )
+    category["options"] = json!(options);
+    Ok(json!({"filters":[category],"supportsFilterFetching":deferred}))
 }
 fn list(args: &Value, request: &[u8], search: bool) -> Result<Value> {
     let page = request_page_number(request);
@@ -285,7 +295,7 @@ fn dispatch(operation: &str, request: &[u8]) -> Result<Value> {
             {"id":"popular","name":"热门","supportsPaging":true,"supportsFilters":true},
             {"id":"latest","name":"最近更新","supportsPaging":true,"supportsFilters":false}
         ]})),
-        "get_filters" => filters(),
+        "get_filters" => filters(&input),
         "get_manga_list" => list(args, request, false),
         "search" => list(args, request, true),
         "get_manga" => {
