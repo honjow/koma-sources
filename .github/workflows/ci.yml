@@ -23,8 +23,6 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust
@@ -81,20 +79,22 @@ jobs:
             dist/release-packages/*
             dist/release-icons/*
           if-no-files-found: error
-      - name: Publish complete release atomically
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+  publish:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: source-library-${{ github.sha }}
+          path: dist
+      - name: Publish or resume the matching source release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: sources-${{ github.sha }}
-        run: |
-          set -euo pipefail
-          if gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft' > /tmp/source-release-state; then
-            if [[ "$(cat /tmp/source-release-state)" != true ]]; then
-              echo "This revision is already published; keeping its assets unchanged."
-              exit 0
-            fi
-          else
-            gh release create "$RELEASE_TAG" --draft --target "$GITHUB_SHA" --title "Source library ${GITHUB_SHA:0:8}" --notes "Automatic source library. index.json lists installable packages; catalogue.json records every production source and its availability status. Build success does not certify all provider content."
-          fi
-          gh release upload "$RELEASE_TAG" dist/index.json dist/repo.json dist/catalogue.json dist/release-packages/* dist/release-icons/* --clobber
-          gh release edit "$RELEASE_TAG" --draft=false --latest
+        run: python3 scripts/publish-source-library.py --dist dist --branch master
