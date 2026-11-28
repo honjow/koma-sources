@@ -827,7 +827,17 @@ export_source!();
 
 // Keiyoushi ComicFury.siteLang: only the Brazilian Portuguese query uses "pt".
 // Keep content language/identity as pt-BR; all existing adapters retain LANG.
+#[allow(unexpected_cfgs)]
 fn site_lang() -> &'static str {
+    #[cfg(feature = "comicfury_variants")]
+    {
+        if EXPORT_NAME == "comicfury_other" {
+            return "other";
+        }
+        if EXPORT_NAME == "comicfury_notext" {
+            return "notext";
+        }
+    }
     if LANG == "pt-BR" {
         "pt"
     } else {
