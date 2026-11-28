@@ -4889,3 +4889,24 @@ version = "0.1.0"
 dependencies = [
  "koma_source_sdk",
 ]
+
+[[package]]
+name = "koma_namicomi_fr_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_namicomi_ja_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_namicomi_de_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
