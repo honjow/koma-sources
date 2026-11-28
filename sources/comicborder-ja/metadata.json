@@ -1,0 +1,189 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://comicborder.com",
+  "minAppVersion": "1.5.5",
+  "requiredImageDecodes": [
+    "wasm_image_v1"
+  ],
+  "wasmBuild": {
+    "imageProcessorCrate": "koma_gigaviewer_tile_processor"
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "ja",
+    "messages": {
+      "error.locked": {
+        "zh-Hans": "该章节当前未公开。",
+        "zh-Hant": "此章節目前未公開。",
+        "en": "This chapter is currently locked.",
+        "ja": "この話は現在公開されていません。",
+        "ko": "이 회차는 현재 잠겨 있습니다."
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站没有提供此内容。",
+        "zh-Hant": "原站沒有提供此內容。",
+        "en": "This content is unavailable on the website.",
+        "ja": "配信元でこのコンテンツは公開されていません。",
+        "ko": "사이트에서 이 콘텐츠를 제공하지 않습니다."
+      },
+      "error.network": {
+        "zh-Hans": "原站请求未完成，请稍后重试。",
+        "zh-Hant": "原站請求未完成，請稍後再試。",
+        "en": "Could not complete the website request. Try again later.",
+        "ja": "配信元へのリクエストに失敗しました。時間をおいて再試行してください。",
+        "ko": "사이트에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."
+      },
+      "error.host": {
+        "zh-Hans": "请更新 Koma 以阅读此章节。",
+        "zh-Hant": "請更新 Koma 以閱讀此章節。",
+        "en": "Update Koma to read this chapter.",
+        "ja": "この話を読むには Koma を更新してください。",
+        "ko": "이 회차를 읽으려면 Koma를 업데이트하세요."
+      },
+      "error.scramble": {
+        "zh-Hans": "此章节使用暂不支持的图片格式。",
+        "zh-Hant": "此章節使用暫不支援的圖片格式。",
+        "en": "This chapter uses an unsupported image format.",
+        "ja": "この話は未対応の画像形式を使用しています。",
+        "ko": "이 회차는 지원하지 않는 이미지 형식입니다."
+      },
+      "error.catalog": {
+        "zh-Hans": "原站目录已变化，请刷新后重试。",
+        "zh-Hant": "原站目錄已變更，請重新整理後再試。",
+        "en": "The catalog changed. Refresh and try again.",
+        "ja": "配信元の一覧が更新されました。再読み込みしてください。",
+        "ko": "사이트 목록이 변경되었습니다. 새로고침한 후 다시 시도하세요."
+      },
+      "error.filter": {
+        "zh-Hans": "请检查搜索或筛选条件。",
+        "zh-Hant": "請檢查搜尋或篩選條件。",
+        "en": "Check the search or filter values.",
+        "ja": "検索語や絞り込み条件を確認してください。",
+        "ko": "검색어나 필터 조건을 확인해 주세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法读取此内容。",
+        "zh-Hant": "暫時無法讀取此內容。",
+        "en": "Unable to load this content.",
+        "ja": "このコンテンツを読み込めません。",
+        "ko": "이 콘텐츠를 불러올 수 없습니다."
+      },
+      "setting.hide_locked": {
+        "zh-Hans": "隐藏付费章节",
+        "zh-Hant": "隱藏付費章節",
+        "en": "Hide paid chapters",
+        "ja": "有料話を非表示",
+        "ko": "유료 회차 숨기기"
+      },
+      "setting.hide_unavailable": {
+        "zh-Hans": "隐藏已下架章节",
+        "zh-Hant": "隱藏已下架章節",
+        "en": "Hide unavailable chapters",
+        "ja": "配信終了話を非表示",
+        "ko": "공개 종료 회차 숨기기"
+      },
+      "chapter.unavailable": {
+        "zh-Hans": "已下架",
+        "zh-Hant": "已下架",
+        "en": "Unavailable",
+        "ja": "配信終了",
+        "ko": "공개 종료"
+      },
+      "chapter.volume": {
+        "zh-Hans": "单行本",
+        "zh-Hant": "單行本",
+        "en": "Volume",
+        "ja": "単行本",
+        "ko": "단행본"
+      },
+      "source.author": {
+        "zh-Hans": "Koma 书源贡献者",
+        "zh-Hant": "Koma 書源貢獻者",
+        "en": "Koma source contributors",
+        "ja": "Koma ソース開発メンバー",
+        "ko": "Koma 소스 기여자"
+      },
+      "listing.popular": {
+        "zh-Hans": "作品一览",
+        "zh-Hant": "作品一覽",
+        "en": "Titles",
+        "ja": "作品一覧",
+        "ko": "작품 목록"
+      },
+      "source.name": {
+        "zh-Hans": "コミックボーダー",
+        "zh-Hant": "コミックボーダー",
+        "en": "コミックボーダー",
+        "ja": "コミックボーダー",
+        "ko": "コミックボーダー"
+      },
+      "source.description": {
+        "zh-Hans": "リイド社（LEED）旗下的官方漫画站，刊载《皮肉屋魔神と死にたがりの少女 シン・悪魔の辞典》《カムヤライド》等作品，每周五更新。作品按官网首页顺序展示，可阅读当前免费公开章节。",
+        "zh-Hant": "リイド社（LEED）旗下的官方漫畫站，刊載《皮肉屋魔神と死にたがりの少女 シン・悪魔の辞典》《カムヤライド》等作品，每週五更新。作品依官網首頁順序展示，可閱讀目前免費公開章節。",
+        "en": "LEED Publishing’s official manga site features 皮肉屋魔神と死にたがりの少女 シン・悪魔の辞典 and カムヤライド, with Friday updates. Titles follow the website’s homepage order; chapters are readable while offered free.",
+        "ja": "リイド社の公式マンガサイト。『皮肉屋魔神と死にたがりの少女 シン・悪魔の辞典』『カムヤライド』などを掲載し、毎週金曜更新。作品は公式トップページの掲載順で並び、無料公開中の話を読めます。",
+        "ko": "리이드사의 공식 만화 사이트로, 《皮肉屋魔神と死にたがりの少女 シン・悪魔の辞典》와 《カムヤライド》 등을 연재하며 매주 금요일에 업데이트됩니다. 작품은 공식 홈페이지 순서로 표시되며 무료 공개 중인 회차를 읽을 수 있습니다."
+      }
+    }
+  },
+  "requestLimits": [
+    {
+      "group": "comicborder-site",
+      "permits": 3,
+      "periodMs": 1000,
+      "hosts": [
+        "comicborder.com"
+      ]
+    }
+  ],
+  "localizedNames": {
+    "zh-Hans": "コミックボーダー",
+    "zh-Hant": "コミックボーダー",
+    "en": "コミックボーダー",
+    "ja": "コミックボーダー",
+    "ko": "コミックボーダー"
+  },
+  "presentation": {
+    "version": 1,
+    "defaultLocale": "ja",
+    "texts": {
+      "name": {
+        "zh-Hans": "コミックボーダー",
+        "zh-Hant": "コミックボーダー",
+        "en": "コミックボーダー",
+        "ja": "コミックボーダー",
+        "ko": "コミックボーダー"
+      },
+      "description": {
+        "zh-Hans": "リイド社（LEED）旗下的官方漫画站，刊载《皮肉屋魔神と死にたがりの少女 シン・悪魔の辞典》《カムヤライド》等作品，每周五更新。作品按官网首页顺序展示，可阅读当前免费公开章节。",
+        "zh-Hant": "リイド社（LEED）旗下的官方漫畫站，刊載《皮肉屋魔神と死にたがりの少女 シン・悪魔の辞典》《カムヤライド》等作品，每週五更新。作品依官網首頁順序展示，可閱讀目前免費公開章節。",
+        "en": "LEED Publishing’s official manga site features 皮肉屋魔神と死にたがりの少女 シン・悪魔の辞典 and カムヤライド, with Friday updates. Titles follow the website’s homepage order; chapters are readable while offered free.",
+        "ja": "リイド社の公式マンガサイト。『皮肉屋魔神と死にたがりの少女 シン・悪魔の辞典』『カムヤライド』などを掲載し、毎週金曜更新。作品は公式トップページの掲載順で並び、無料公開中の話を読めます。",
+        "ko": "리이드사의 공식 만화 사이트로, 《皮肉屋魔神と死にたがりの少女 シン・悪魔の辞典》와 《カムヤライド》 등을 연재하며 매주 금요일에 업데이트됩니다. 작품은 공식 홈페이지 순서로 표시되며 무료 공개 중인 회차를 읽을 수 있습니다."
+      },
+      "author": {
+        "zh-Hans": "Koma 书源贡献者",
+        "zh-Hant": "Koma 書源貢獻者",
+        "en": "Koma source contributors",
+        "ja": "Koma ソース開発メンバー",
+        "ko": "Koma 소스 기여자"
+      }
+    }
+  },
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "1077630719925082256"
+      ],
+      "work": {
+        "pathPrefix": "",
+        "idPrefix": "comicborder:"
+      },
+      "chapter": {
+        "pathPrefix": "",
+        "idPrefix": "",
+        "targetIdSegment": 3
+      }
+    }
+  }
+}

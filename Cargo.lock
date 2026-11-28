@@ -4943,3 +4943,35 @@ dependencies = [
  "serde_json",
  "url",
 ]
+[[package]]
+name = "koma_comicborder_ja_source"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
+name = "koma_comicseasons_ja_source"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
+name = "koma_comicyours_ja_source"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]

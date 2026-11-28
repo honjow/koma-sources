@@ -1,0 +1,469 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://comic-seasons.com",
+  "minAppVersion": "1.5.5",
+  "requiredImageDecodes": [
+    "wasm_image_v1"
+  ],
+  "wasmBuild": {
+    "imageProcessorCrate": "koma_gigaviewer_tile_processor"
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "ja",
+    "messages": {
+      "error.locked": {
+        "zh-Hans": "该章节当前未公开。",
+        "zh-Hant": "此章節目前未公開。",
+        "en": "This chapter is currently locked.",
+        "ja": "この話は現在公開されていません。",
+        "ko": "이 회차는 현재 잠겨 있습니다."
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站没有提供此内容。",
+        "zh-Hant": "原站沒有提供此內容。",
+        "en": "This content is unavailable on the website.",
+        "ja": "配信元でこのコンテンツは公開されていません。",
+        "ko": "사이트에서 이 콘텐츠를 제공하지 않습니다."
+      },
+      "error.network": {
+        "zh-Hans": "原站请求未完成，请稍后重试。",
+        "zh-Hant": "原站請求未完成，請稍後再試。",
+        "en": "Could not complete the website request. Try again later.",
+        "ja": "配信元へのリクエストに失敗しました。時間をおいて再試行してください。",
+        "ko": "사이트에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."
+      },
+      "error.host": {
+        "zh-Hans": "请更新 Koma 以阅读此章节。",
+        "zh-Hant": "請更新 Koma 以閱讀此章節。",
+        "en": "Update Koma to read this chapter.",
+        "ja": "この話を読むには Koma を更新してください。",
+        "ko": "이 회차를 읽으려면 Koma를 업데이트하세요."
+      },
+      "error.scramble": {
+        "zh-Hans": "此章节使用暂不支持的图片格式。",
+        "zh-Hant": "此章節使用暫不支援的圖片格式。",
+        "en": "This chapter uses an unsupported image format.",
+        "ja": "この話は未対応の画像形式を使用しています。",
+        "ko": "이 회차는 지원하지 않는 이미지 형식입니다."
+      },
+      "error.catalog": {
+        "zh-Hans": "原站目录已变化，请刷新后重试。",
+        "zh-Hant": "原站目錄已變更，請重新整理後再試。",
+        "en": "The catalog changed. Refresh and try again.",
+        "ja": "配信元の一覧が更新されました。再読み込みしてください。",
+        "ko": "사이트 목록이 변경되었습니다. 새로고침한 후 다시 시도하세요."
+      },
+      "error.filter": {
+        "zh-Hans": "请检查搜索或筛选条件。",
+        "zh-Hant": "請檢查搜尋或篩選條件。",
+        "en": "Check the search or filter values.",
+        "ja": "検索語や絞り込み条件を確認してください。",
+        "ko": "검색어나 필터 조건을 확인해 주세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法读取此内容。",
+        "zh-Hant": "暫時無法讀取此內容。",
+        "en": "Unable to load this content.",
+        "ja": "このコンテンツを読み込めません。",
+        "ko": "이 콘텐츠를 불러올 수 없습니다."
+      },
+      "filter.collection": {
+        "zh-Hans": "作品分类",
+        "zh-Hant": "作品分類",
+        "en": "Collection",
+        "ja": "作品分類",
+        "ko": "작품 분류"
+      },
+      "setting.hide_locked": {
+        "zh-Hans": "隐藏付费章节",
+        "zh-Hant": "隱藏付費章節",
+        "en": "Hide paid chapters",
+        "ja": "有料話を非表示",
+        "ko": "유료 회차 숨기기"
+      },
+      "setting.hide_unavailable": {
+        "zh-Hans": "隐藏已下架章节",
+        "zh-Hant": "隱藏已下架章節",
+        "en": "Hide unavailable chapters",
+        "ja": "配信終了話を非表示",
+        "ko": "공개 종료 회차 숨기기"
+      },
+      "chapter.unavailable": {
+        "zh-Hans": "已下架",
+        "zh-Hant": "已下架",
+        "en": "Unavailable",
+        "ja": "配信終了",
+        "ko": "공개 종료"
+      },
+      "chapter.volume": {
+        "zh-Hans": "单行本",
+        "zh-Hant": "單行本",
+        "en": "Volume",
+        "ja": "単行本",
+        "ko": "단행본"
+      },
+      "source.author": {
+        "zh-Hans": "Koma 书源贡献者",
+        "zh-Hant": "Koma 書源貢獻者",
+        "en": "Koma source contributors",
+        "ja": "Koma ソース開発メンバー",
+        "ko": "Koma 소스 기여자"
+      },
+      "listing.popular": {
+        "zh-Hans": "热门作品",
+        "zh-Hant": "熱門作品",
+        "en": "Popular titles",
+        "ja": "人気作品",
+        "ko": "인기 작품"
+      },
+      "listing.latest": {
+        "zh-Hans": "最近更新",
+        "zh-Hant": "最近更新",
+        "en": "Latest updates",
+        "ja": "最近の更新",
+        "ko": "최근 업데이트"
+      },
+      "source.name": {
+        "zh-Hans": "Seasons",
+        "zh-Hant": "Seasons",
+        "en": "Seasons",
+        "ja": "Seasons",
+        "ko": "Seasons"
+      },
+      "source.description": {
+        "zh-Hans": "文藝春秋旗下的恋爱漫画站，刊载《悪役令嬢のお嫁さま》《ぼくは青くて透明で》等作品，也提供原著小说试读。每周五更新，阅读范围以原站免费公开章节为准。",
+        "zh-Hant": "文藝春秋旗下的戀愛漫畫站，刊載《悪役令嬢のお嫁さま》《ぼくは青くて透明で》等作品，也提供原著小說試讀。每週五更新，閱讀範圍以原站免費公開章節為準。",
+        "en": "Bungeishunju’s romance manga site features titles such as 悪役令嬢のお嫁さま and ぼくは青くて透明で, alongside previews of original novels. It updates on Fridays; reading follows the site’s free chapter availability.",
+        "ja": "文藝春秋の恋愛マンガサイト。『悪役令嬢のお嫁さま』『ぼくは青くて透明で』などを掲載し、原作小説の試し読みも配信。毎週金曜更新で、原サイトの無料公開中の話を読めます。",
+        "ko": "문예춘추의 로맨스 만화 사이트로, 《悪役令嬢のお嫁さま》와 《ぼくは青くて透明で》 등을 연재하며 원작 소설 미리보기도 제공합니다. 매주 금요일에 업데이트되며 무료 공개 중인 회차를 읽을 수 있습니다."
+      },
+      "collection.all": {
+        "zh-Hans": "全部作品",
+        "zh-Hant": "全部作品",
+        "en": "All titles",
+        "ja": "作品一覧",
+        "ko": "전체 작품"
+      },
+      "collection.novels": {
+        "zh-Hans": "原著小说试读",
+        "zh-Hant": "原著小說試讀",
+        "en": "Original novel previews",
+        "ja": "原作小説試し読み",
+        "ko": "원작 소설 미리보기"
+      },
+      "collection.tag_2550912964583261787": {
+        "zh-Hans": "宠爱",
+        "zh-Hant": "寵愛",
+        "en": "Devoted love",
+        "ja": "溺愛系",
+        "ko": "지극한 사랑"
+      },
+      "collection.tag_2550912964583261798": {
+        "zh-Hans": "逆袭",
+        "zh-Hant": "逆襲",
+        "en": "Turning the tables",
+        "ja": "逆転系",
+        "ko": "인생 역전"
+      },
+      "collection.tag_2550912964583261807": {
+        "zh-Hans": "日常",
+        "zh-Hant": "日常",
+        "en": "Slice of life",
+        "ja": "日常系",
+        "ko": "일상"
+      },
+      "collection.tag_2550912964583261815": {
+        "zh-Hans": "奇幻",
+        "zh-Hant": "奇幻",
+        "en": "Fantasy",
+        "ja": "ファンタジー",
+        "ko": "판타지"
+      },
+      "collection.tag_2550912964583261826": {
+        "zh-Hans": "BL",
+        "zh-Hant": "BL",
+        "en": "BL",
+        "ja": "BL",
+        "ko": "BL"
+      },
+      "collection.tag_2550912964583261831": {
+        "zh-Hans": "一口气读完",
+        "zh-Hant": "一口氣讀完",
+        "en": "Binge reads",
+        "ja": "イッキヨミ",
+        "ko": "몰아보기"
+      },
+      "collection.tag_2550912964583261841": {
+        "zh-Hans": "每周更新",
+        "zh-Hant": "每週更新",
+        "en": "Weekly updates",
+        "ja": "毎週更新",
+        "ko": "매주 업데이트"
+      },
+      "collection.tag_2550912964583261851": {
+        "zh-Hans": "已完结",
+        "zh-Hant": "已完結",
+        "en": "Completed",
+        "ja": "完結",
+        "ko": "완결"
+      },
+      "collection.tag_2550912964583261853": {
+        "zh-Hans": "影视等改编作品",
+        "zh-Hant": "影視等改編作品",
+        "en": "Adapted for other media",
+        "ja": "メディア化",
+        "ko": "미디어화 작품"
+      },
+      "collection.tag_2550912964583261855": {
+        "zh-Hans": "小说等漫画改编",
+        "zh-Hant": "小說等漫畫改編",
+        "en": "Manga adaptations",
+        "ja": "コミカライズ",
+        "ko": "코믹스화"
+      },
+      "collection.tag_2550912964583261858": {
+        "zh-Hans": "获奖作品",
+        "zh-Hant": "得獎作品",
+        "en": "Award winners",
+        "ja": "受賞作",
+        "ko": "수상작"
+      },
+      "collection.tag_2550912964583261866": {
+        "zh-Hans": "话题作品",
+        "zh-Hant": "話題作品",
+        "en": "Trending titles",
+        "ja": "話題作",
+        "ko": "화제작"
+      },
+      "collection.tag_2550912964583261867": {
+        "zh-Hans": "短篇",
+        "zh-Hant": "短篇",
+        "en": "One-shots",
+        "ja": "読み切り",
+        "ko": "단편"
+      },
+      "collection.tag_2550912964583261871": {
+        "zh-Hans": "一心一意",
+        "zh-Hant": "一心一意",
+        "en": "Steadfast love",
+        "ja": "一途",
+        "ko": "한결같은 사랑"
+      },
+      "collection.tag_2550912964583261881": {
+        "zh-Hans": "病娇",
+        "zh-Hant": "病嬌",
+        "en": "Yandere",
+        "ja": "ヤンデレ",
+        "ko": "얀데레"
+      },
+      "collection.tag_2550912964583261887": {
+        "zh-Hans": "单恋",
+        "zh-Hant": "單戀",
+        "en": "Unrequited love",
+        "ja": "片想い",
+        "ko": "짝사랑"
+      },
+      "collection.tag_2550912964583261894": {
+        "zh-Hans": "两情相悦",
+        "zh-Hant": "兩情相悅",
+        "en": "Mutual love",
+        "ja": "両想い",
+        "ko": "서로 사랑하는 사이"
+      },
+      "collection.tag_2550912964583261897": {
+        "zh-Hans": "爱恨纠葛",
+        "zh-Hant": "愛恨糾葛",
+        "en": "Tangled relationships",
+        "ja": "ドロドロ",
+        "ko": "얽히고설킨 관계"
+      },
+      "collection.tag_2550912964583261906": {
+        "zh-Hans": "严肃剧情",
+        "zh-Hant": "嚴肅劇情",
+        "en": "Serious drama",
+        "ja": "シリアス",
+        "ko": "진지한 이야기"
+      },
+      "collection.tag_2550912964583261912": {
+        "zh-Hans": "复仇",
+        "zh-Hant": "復仇",
+        "en": "Revenge",
+        "ja": "復讐",
+        "ko": "복수"
+      },
+      "collection.tag_2550912964583261921": {
+        "zh-Hans": "婚外情",
+        "zh-Hant": "婚外情",
+        "en": "Extramarital affairs",
+        "ja": "不倫",
+        "ko": "불륜"
+      },
+      "collection.tag_2550912964583261922": {
+        "zh-Hans": "劈腿",
+        "zh-Hant": "劈腿",
+        "en": "Cheating",
+        "ja": "浮気",
+        "ko": "바람"
+      },
+      "collection.tag_2550912964583261931": {
+        "zh-Hans": "精神虐待",
+        "zh-Hant": "精神虐待",
+        "en": "Emotional abuse",
+        "ja": "モラハラ",
+        "ko": "정서적 학대"
+      },
+      "collection.tag_2550912964583261933": {
+        "zh-Hans": "灰姑娘式恋爱",
+        "zh-Hant": "灰姑娘式戀愛",
+        "en": "Cinderella romance",
+        "ja": "シンデレラ",
+        "ko": "신데렐라 로맨스"
+      },
+      "collection.tag_2550912964583261939": {
+        "zh-Hans": "高条件恋人",
+        "zh-Hant": "高條件戀人",
+        "en": "High-achieving love interests",
+        "ja": "ハイスペ",
+        "ko": "능력 있는 연인"
+      },
+      "collection.tag_2550912964583261946": {
+        "zh-Hans": "前男友",
+        "zh-Hant": "前男友",
+        "en": "Ex-boyfriends",
+        "ja": "元カレ",
+        "ko": "전 남자친구"
+      },
+      "collection.tag_2550912964583261948": {
+        "zh-Hans": "帅哥",
+        "zh-Hant": "帥哥",
+        "en": "Handsome men",
+        "ja": "イケメン",
+        "ko": "미남"
+      },
+      "collection.tag_2550912964583261952": {
+        "zh-Hans": "假扮关系",
+        "zh-Hant": "假扮關係",
+        "en": "Pretend relationships",
+        "ja": "偽装",
+        "ko": "위장 관계"
+      },
+      "collection.tag_2550912964583261957": {
+        "zh-Hans": "婚姻",
+        "zh-Hant": "婚姻",
+        "en": "Marriage",
+        "ja": "結婚",
+        "ko": "결혼"
+      },
+      "collection.tag_2550912964583261964": {
+        "zh-Hans": "和风",
+        "zh-Hant": "和風",
+        "en": "Japanese settings",
+        "ja": "和風",
+        "ko": "일본풍"
+      },
+      "collection.tag_2550912964583261965": {
+        "zh-Hans": "重逢",
+        "zh-Hant": "重逢",
+        "en": "Reunions",
+        "ja": "再会",
+        "ko": "재회"
+      },
+      "collection.tag_2550912964583261966": {
+        "zh-Hans": "反差魅力",
+        "zh-Hant": "反差魅力",
+        "en": "Unexpected sides",
+        "ja": "ギャップ",
+        "ko": "반전 매력"
+      },
+      "collection.tag_2550912964583261973": {
+        "zh-Hans": "反派千金",
+        "zh-Hant": "反派千金",
+        "en": "Villainesses",
+        "ja": "悪役令嬢",
+        "ko": "악역 영애"
+      },
+      "collection.tag_2550912964583261978": {
+        "zh-Hans": "时间循环",
+        "zh-Hant": "時間循環",
+        "en": "Time loops",
+        "ja": "ループ",
+        "ko": "타임 루프"
+      },
+      "collection.tag_2550912964583261986": {
+        "zh-Hans": "毛茸茸伙伴",
+        "zh-Hant": "毛茸茸夥伴",
+        "en": "Fluffy companions",
+        "ja": "モフモフ",
+        "ko": "복슬복슬한 친구들"
+      },
+      "collection.tag_2550912964583261995": {
+        "zh-Hans": "家庭",
+        "zh-Hant": "家庭",
+        "en": "Family",
+        "ja": "家族",
+        "ko": "가족"
+      }
+    }
+  },
+  "requestLimits": [
+    {
+      "group": "comicseasons-site",
+      "permits": 3,
+      "periodMs": 1000,
+      "hosts": [
+        "comic-seasons.com"
+      ]
+    }
+  ],
+  "localizedNames": {
+    "zh-Hans": "Seasons",
+    "zh-Hant": "Seasons",
+    "en": "Seasons",
+    "ja": "Seasons",
+    "ko": "Seasons"
+  },
+  "presentation": {
+    "version": 1,
+    "defaultLocale": "ja",
+    "texts": {
+      "name": {
+        "zh-Hans": "Seasons",
+        "zh-Hant": "Seasons",
+        "en": "Seasons",
+        "ja": "Seasons",
+        "ko": "Seasons"
+      },
+      "description": {
+        "zh-Hans": "文藝春秋旗下的恋爱漫画站，刊载《悪役令嬢のお嫁さま》《ぼくは青くて透明で》等作品，也提供原著小说试读。每周五更新，阅读范围以原站免费公开章节为准。",
+        "zh-Hant": "文藝春秋旗下的戀愛漫畫站，刊載《悪役令嬢のお嫁さま》《ぼくは青くて透明で》等作品，也提供原著小說試讀。每週五更新，閱讀範圍以原站免費公開章節為準。",
+        "en": "Bungeishunju’s romance manga site features titles such as 悪役令嬢のお嫁さま and ぼくは青くて透明で, alongside previews of original novels. It updates on Fridays; reading follows the site’s free chapter availability.",
+        "ja": "文藝春秋の恋愛マンガサイト。『悪役令嬢のお嫁さま』『ぼくは青くて透明で』などを掲載し、原作小説の試し読みも配信。毎週金曜更新で、原サイトの無料公開中の話を読めます。",
+        "ko": "문예춘추의 로맨스 만화 사이트로, 《悪役令嬢のお嫁さま》와 《ぼくは青くて透明で》 등을 연재하며 원작 소설 미리보기도 제공합니다. 매주 금요일에 업데이트되며 무료 공개 중인 회차를 읽을 수 있습니다."
+      },
+      "author": {
+        "zh-Hans": "Koma 书源贡献者",
+        "zh-Hant": "Koma 書源貢獻者",
+        "en": "Koma source contributors",
+        "ja": "Koma ソース開発メンバー",
+        "ko": "Koma 소스 기여자"
+      }
+    }
+  },
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "5198063407173750376"
+      ],
+      "work": {
+        "pathPrefix": "",
+        "idPrefix": "comicseasons:"
+      },
+      "chapter": {
+        "pathPrefix": "",
+        "idPrefix": "",
+        "targetIdSegment": 3
+      }
+    }
+  }
+}
