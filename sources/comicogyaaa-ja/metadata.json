@@ -1,0 +1,259 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://comic-ogyaaa.com",
+  "minAppVersion": "1.5.5",
+  "requiredImageDecodes": [
+    "wasm_image_v1"
+  ],
+  "wasmBuild": {
+    "imageProcessorCrate": "koma_gigaviewer_tile_processor"
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "ja",
+    "messages": {
+      "error.locked": {
+        "zh-Hans": "该章节当前未公开。",
+        "zh-Hant": "此章節目前未公開。",
+        "en": "This chapter is currently locked.",
+        "ja": "この話は現在公開されていません。",
+        "ko": "이 회차는 현재 잠겨 있습니다."
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站没有提供此内容。",
+        "zh-Hant": "原站沒有提供此內容。",
+        "en": "This content is unavailable on the website.",
+        "ja": "配信元でこのコンテンツは公開されていません。",
+        "ko": "사이트에서 이 콘텐츠를 제공하지 않습니다."
+      },
+      "error.network": {
+        "zh-Hans": "原站请求未完成，请稍后重试。",
+        "zh-Hant": "原站請求未完成，請稍後再試。",
+        "en": "Could not complete the website request. Try again later.",
+        "ja": "配信元へのリクエストに失敗しました。時間をおいて再試行してください。",
+        "ko": "사이트에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."
+      },
+      "error.host": {
+        "zh-Hans": "请更新 Koma 以阅读此章节。",
+        "zh-Hant": "請更新 Koma 以閱讀此章節。",
+        "en": "Update Koma to read this chapter.",
+        "ja": "この話を読むには Koma を更新してください。",
+        "ko": "이 회차를 읽으려면 Koma를 업데이트하세요."
+      },
+      "error.scramble": {
+        "zh-Hans": "此章节使用暂不支持的图片格式。",
+        "zh-Hant": "此章節使用暫不支援的圖片格式。",
+        "en": "This chapter uses an unsupported image format.",
+        "ja": "この話は未対応の画像形式を使用しています。",
+        "ko": "이 회차는 지원하지 않는 이미지 형식입니다."
+      },
+      "error.catalog": {
+        "zh-Hans": "原站目录已变化，请刷新后重试。",
+        "zh-Hant": "原站目錄已變更，請重新整理後再試。",
+        "en": "The catalog changed. Refresh and try again.",
+        "ja": "配信元の一覧が更新されました。再読み込みしてください。",
+        "ko": "사이트 목록이 변경되었습니다. 새로고침한 후 다시 시도하세요."
+      },
+      "error.filter": {
+        "zh-Hans": "请检查搜索或筛选条件。",
+        "zh-Hant": "請檢查搜尋或篩選條件。",
+        "en": "Check the search or filter values.",
+        "ja": "検索語や絞り込み条件を確認してください。",
+        "ko": "검색어나 필터 조건을 확인해 주세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法读取此内容。",
+        "zh-Hant": "暫時無法讀取此內容。",
+        "en": "Unable to load this content.",
+        "ja": "このコンテンツを読み込めません。",
+        "ko": "이 콘텐츠를 불러올 수 없습니다."
+      },
+      "filter.collection": {
+        "zh-Hans": "作品分类",
+        "zh-Hant": "作品分類",
+        "en": "Collection",
+        "ja": "作品分類",
+        "ko": "작품 분류"
+      },
+      "setting.hide_locked": {
+        "zh-Hans": "隐藏付费章节",
+        "zh-Hant": "隱藏付費章節",
+        "en": "Hide paid chapters",
+        "ja": "有料話を非表示",
+        "ko": "유료 회차 숨기기"
+      },
+      "setting.hide_unavailable": {
+        "zh-Hans": "隐藏已下架章节",
+        "zh-Hant": "隱藏已下架章節",
+        "en": "Hide unavailable chapters",
+        "ja": "配信終了話を非表示",
+        "ko": "공개 종료 회차 숨기기"
+      },
+      "chapter.unavailable": {
+        "zh-Hans": "已下架",
+        "zh-Hant": "已下架",
+        "en": "Unavailable",
+        "ja": "配信終了",
+        "ko": "공개 종료"
+      },
+      "chapter.volume": {
+        "zh-Hans": "单行本",
+        "zh-Hant": "單行本",
+        "en": "Volume",
+        "ja": "単行本",
+        "ko": "단행본"
+      },
+      "source.author": {
+        "zh-Hans": "Koma 书源贡献者",
+        "zh-Hant": "Koma 書源貢獻者",
+        "en": "Koma source contributors",
+        "ja": "Koma ソース開発メンバー",
+        "ko": "Koma 소스 기여자"
+      },
+      "listing.popular": {
+        "zh-Hans": "热门作品",
+        "zh-Hant": "熱門作品",
+        "en": "Popular titles",
+        "ja": "人気作品",
+        "ko": "인기 작품"
+      },
+      "listing.latest": {
+        "zh-Hans": "最近更新",
+        "zh-Hant": "最近更新",
+        "en": "Latest updates",
+        "ja": "最近の更新",
+        "ko": "최근 업데이트"
+      },
+      "source.name": {
+        "zh-Hans": "COMIC OGYAAA!!",
+        "zh-Hant": "COMIC OGYAAA!!",
+        "en": "COMIC OGYAAA!!",
+        "ja": "COMIC OGYAAA!!",
+        "ko": "COMIC OGYAAA!!"
+      },
+      "source.description": {
+        "zh-Hans": "集英社集团旗下ホーム社（Home-sha）的官方漫画站，刊载《邦画プレゼン女子高生 邦キチ！ 映子さん》等作品，既有搞笑和日常，也有奇幻、恋爱喜剧与悬疑。可阅读原站免费公开的章节。",
+        "zh-Hant": "集英社集團旗下ホーム社（Home-sha）的官方漫畫站，刊載《邦画プレゼン女子高生 邦キチ！ 映子さん》等作品，涵蓋搞笑、日常、奇幻、戀愛喜劇與懸疑。可閱讀原站免費公開的章節。",
+        "en": "The official manga site of Home-sha, a Shueisha Group publisher, features titles such as 邦キチ！ 映子さん alongside comedy, slice-of-life, fantasy, romantic comedy and suspense. Reading is limited to chapters the site makes available for free.",
+        "ja": "集英社グループのホーム社が運営する公式Webマンガサイト。『邦画プレゼン女子高生 邦キチ！ 映子さん』をはじめ、ギャグや日常系、ファンタジー、ラブコメ、サスペンスなどを掲載。無料公開中の話を読めます。",
+        "ko": "《邦画プレゼン女子高生 邦キチ！ 映子さん》 등을 연재하는 슈에이샤 그룹의 홈샤(Home-sha)가 운영하는 공식 만화 사이트입니다. 개그와 일상물부터 판타지, 로맨틱 코미디, 서스펜스까지 다루며 무료로 공개된 회차를 읽을 수 있습니다."
+      },
+      "collection.all": {
+        "zh-Hans": "全部作品",
+        "zh-Hant": "全部作品",
+        "en": "All titles",
+        "ja": "作品一覧",
+        "ko": "전체 작품"
+      },
+      "collection.daily": {
+        "zh-Hans": "日常",
+        "zh-Hant": "日常",
+        "en": "Slice of life",
+        "ja": "日常系",
+        "ko": "일상"
+      },
+      "collection.fantasy": {
+        "zh-Hans": "奇幻",
+        "zh-Hant": "奇幻",
+        "en": "Fantasy",
+        "ja": "ファンタジー",
+        "ko": "판타지"
+      },
+      "collection.romcom": {
+        "zh-Hans": "恋爱喜剧",
+        "zh-Hant": "戀愛喜劇",
+        "en": "Romantic comedy",
+        "ja": "ラブコメ",
+        "ko": "로맨틱 코미디"
+      },
+      "collection.comedy": {
+        "zh-Hans": "搞笑",
+        "zh-Hant": "搞笑",
+        "en": "Comedy",
+        "ja": "ギャグ",
+        "ko": "개그"
+      },
+      "collection.drama": {
+        "zh-Hans": "人情故事",
+        "zh-Hant": "人情故事",
+        "en": "Human drama",
+        "ja": "ヒューマンドラマ",
+        "ko": "휴먼 드라마"
+      },
+      "collection.action": {
+        "zh-Hans": "动作",
+        "zh-Hant": "動作",
+        "en": "Action",
+        "ja": "アクション",
+        "ko": "액션"
+      },
+      "collection.horror_suspense": {
+        "zh-Hans": "恐怖与悬疑",
+        "zh-Hant": "恐怖與懸疑",
+        "en": "Horror and suspense",
+        "ja": "ホラー・サスペンス",
+        "ko": "공포·서스펜스"
+      }
+    }
+  },
+  "requestLimits": [
+    {
+      "group": "comicogyaaa-site",
+      "permits": 3,
+      "periodMs": 1000,
+      "hosts": [
+        "comic-ogyaaa.com"
+      ]
+    }
+  ],
+  "localizedNames": {
+    "zh-Hans": "COMIC OGYAAA!!",
+    "zh-Hant": "COMIC OGYAAA!!",
+    "en": "COMIC OGYAAA!!",
+    "ja": "COMIC OGYAAA!!",
+    "ko": "COMIC OGYAAA!!"
+  },
+  "presentation": {
+    "version": 1,
+    "defaultLocale": "ja",
+    "texts": {
+      "name": {
+        "zh-Hans": "COMIC OGYAAA!!",
+        "zh-Hant": "COMIC OGYAAA!!",
+        "en": "COMIC OGYAAA!!",
+        "ja": "COMIC OGYAAA!!",
+        "ko": "COMIC OGYAAA!!"
+      },
+      "description": {
+        "zh-Hans": "集英社集团旗下ホーム社（Home-sha）的官方漫画站，刊载《邦画プレゼン女子高生 邦キチ！ 映子さん》等作品，既有搞笑和日常，也有奇幻、恋爱喜剧与悬疑。可阅读原站免费公开的章节。",
+        "zh-Hant": "集英社集團旗下ホーム社（Home-sha）的官方漫畫站，刊載《邦画プレゼン女子高生 邦キチ！ 映子さん》等作品，涵蓋搞笑、日常、奇幻、戀愛喜劇與懸疑。可閱讀原站免費公開的章節。",
+        "en": "The official manga site of Home-sha, a Shueisha Group publisher, features titles such as 邦キチ！ 映子さん alongside comedy, slice-of-life, fantasy, romantic comedy and suspense. Reading is limited to chapters the site makes available for free.",
+        "ja": "集英社グループのホーム社が運営する公式Webマンガサイト。『邦画プレゼン女子高生 邦キチ！ 映子さん』をはじめ、ギャグや日常系、ファンタジー、ラブコメ、サスペンスなどを掲載。無料公開中の話を読めます。",
+        "ko": "《邦画プレゼン女子高生 邦キチ！ 映子さん》 등을 연재하는 슈에이샤 그룹의 홈샤(Home-sha)가 운영하는 공식 만화 사이트입니다. 개그와 일상물부터 판타지, 로맨틱 코미디, 서스펜스까지 다루며 무료로 공개된 회차를 읽을 수 있습니다."
+      },
+      "author": {
+        "zh-Hans": "Koma 书源贡献者",
+        "zh-Hant": "Koma 書源貢獻者",
+        "en": "Koma source contributors",
+        "ja": "Koma ソース開発メンバー",
+        "ko": "Koma 소스 기여자"
+      }
+    }
+  },
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "3754263546482783493"
+      ],
+      "work": {
+        "pathPrefix": "",
+        "idPrefix": "comicogyaaa:"
+      },
+      "chapter": {
+        "pathPrefix": "",
+        "idPrefix": "",
+        "targetIdSegment": 3
+      }
+    }
+  }
+}
