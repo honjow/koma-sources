@@ -32,6 +32,9 @@ RELEASE_PACKAGE_DIR="$OUTPUT_DIR/release-packages"
 # Source registry: source name | crate directory | nsfw | minimum Koma version.
 # Keep this Bash 3 compatible for macOS /bin/bash.
 SOURCE_ENTRIES='
+globalcomix-ar|globalcomix-ar|true|1.5.5
+globalcomix-pl|globalcomix-pl|true|1.5.5
+globalcomix-vi|globalcomix-vi|true|1.5.5
 globalcomix-ru|globalcomix-ru|true|1.5.5
 globalcomix-de|globalcomix-de|true|1.5.5
 globalcomix-id|globalcomix-id|true|1.5.5
