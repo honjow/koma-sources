@@ -1,0 +1,3 @@
+Public catalogue and reading behavior adapted from Keiyoushi extensions-source, Apache License 2.0, revision 90b6e6a905ca186945b21ec0b0be4ca9135b8e69, src/all/comicfury. The icon is the official Comic Fury Apple touch icon. See ASSET_SOURCES.md.
+
+Wave 27 French adapter and shared implementation adapted from the accepted Koma comicfury-en source. Existing English and Chinese source files are unchanged.
