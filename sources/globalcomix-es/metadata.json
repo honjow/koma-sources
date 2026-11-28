@@ -1,0 +1,208 @@
+{
+  "localizedNames": {
+    "zh-Hans": "GlobalComix",
+    "zh-Hant": "GlobalComix",
+    "en": "GlobalComix",
+    "ja": "GlobalComix",
+    "ko": "GlobalComix"
+  },
+  "comments": {
+    "version": 1,
+    "scopes": [
+      "chapter"
+    ]
+  },
+  "homepage": "https://globalcomix.com",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "en",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "GlobalComix 西班牙语漫画分区，收录《DBS: BLACK F》等创作者发行作品。提供原站无需登录即可阅读的免费章节，订阅或购买内容仍受原站权限限制。",
+        "zh-Hant": "GlobalComix 西班牙語漫畫分區，收錄《DBS: BLACK F》等創作者發行作品。提供原站免登入即可閱讀的免費章節，訂閱或購買內容仍受原站權限限制。",
+        "en": "GlobalComix’s Spanish catalogue includes creator releases such as DBS: BLACK F. Read chapters offered free without signing in; subscription and purchase restrictions still apply.",
+        "ja": "『DBS: BLACK F』など、クリエイターが発表するスペイン語漫画を集めた GlobalComix のカタログ。ログイン不要の無料公開話を読めます。定額制や購入が必要な話は対象外です。",
+        "ko": "《DBS: BLACK F》 등 창작자가 공개한 스페인어 만화를 모은 GlobalComix 카탈로그입니다. 로그인 없이 무료로 공개된 회차를 읽을 수 있으며 구독·구매가 필요한 회차는 원본 사이트의 이용 제한을 따릅니다."
+      },
+      "listing.popular": {
+        "zh-Hans": "热门漫画",
+        "zh-Hant": "熱門漫畫",
+        "en": "Popular",
+        "ja": "人気作品",
+        "ko": "인기 만화"
+      },
+      "listing.latest": {
+        "zh-Hans": "最新漫画",
+        "zh-Hant": "最新漫畫",
+        "en": "Latest",
+        "ja": "新着作品",
+        "ko": "최신 만화"
+      },
+      "setting.data_saver": {
+        "zh-Hans": "节省流量",
+        "zh-Hant": "節省流量",
+        "en": "Data saver",
+        "ja": "データ節約",
+        "ko": "데이터 절약"
+      },
+      "setting.data_saver.description": {
+        "zh-Hans": "使用体积更小、压缩程度更高的章节图片。",
+        "zh-Hant": "使用檔案較小、壓縮程度較高的章節圖片。",
+        "en": "Use smaller, more compressed chapter images.",
+        "ja": "容量の小さい圧縮画像を使用します。",
+        "ko": "용량이 더 작고 압축률이 높은 회차 이미지를 사용합니다."
+      },
+      "setting.show_locked": {
+        "zh-Hans": "显示锁定章节",
+        "zh-Hant": "顯示鎖定章節",
+        "en": "Show locked chapters",
+        "ja": "ロックされた話を表示",
+        "ko": "잠긴 회차 표시"
+      },
+      "setting.show_locked.description": {
+        "zh-Hans": "在目录中显示需要高级会员资格的章节。",
+        "zh-Hant": "在目錄中顯示需要進階會員資格的章節。",
+        "en": "Show chapters that require a premium membership in the chapter list.",
+        "ja": "プレミアム会員限定の話を一覧に表示します。",
+        "ko": "프리미엄 멤버십이 필요한 회차를 목록에 표시합니다."
+      },
+      "error.locked": {
+        "zh-Hans": "该章节当前未公开。",
+        "zh-Hant": "此章節目前未公開。",
+        "en": "This chapter is currently locked.",
+        "ja": "この話は現在公開されていません。",
+        "ko": "이 회차는 현재 잠겨 있습니다."
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站没有提供此内容。",
+        "zh-Hant": "原站沒有提供此內容。",
+        "en": "This content is unavailable on the website.",
+        "ja": "配信元でこのコンテンツは公開されていません。",
+        "ko": "사이트에서 이 콘텐츠를 제공하지 않습니다."
+      },
+      "error.network": {
+        "zh-Hans": "原站请求未完成，请稍后重试。",
+        "zh-Hant": "原站請求未完成，請稍後再試。",
+        "en": "Could not complete the website request. Try again later.",
+        "ja": "配信元へのリクエストに失敗しました。時間をおいて再試行してください。",
+        "ko": "사이트에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."
+      },
+      "error.host": {
+        "zh-Hans": "请更新 Koma 以阅读此章节。",
+        "zh-Hant": "請更新 Koma 以閱讀此章節。",
+        "en": "Update Koma to read this chapter.",
+        "ja": "この話を読むには Koma を更新してください。",
+        "ko": "이 회차를 읽으려면 Koma를 업데이트하세요."
+      },
+      "error.scramble": {
+        "zh-Hans": "此章节使用暂不支持的图片格式。",
+        "zh-Hant": "此章節使用暫不支援的圖片格式。",
+        "en": "This chapter uses an unsupported image format.",
+        "ja": "この話は未対応の画像形式を使用しています。",
+        "ko": "이 회차는 지원하지 않는 이미지 형식입니다."
+      },
+      "error.catalog": {
+        "zh-Hans": "原站目录已变化，请刷新后重试。",
+        "zh-Hant": "原站目錄已變更，請重新整理後再試。",
+        "en": "The catalog changed. Refresh and try again.",
+        "ja": "配信元の一覧が更新されました。再読み込みしてください。",
+        "ko": "사이트 목록이 변경되었습니다. 새로고침한 후 다시 시도하세요."
+      },
+      "error.filter": {
+        "zh-Hans": "请检查搜索或筛选条件。",
+        "zh-Hant": "請檢查搜尋或篩選條件。",
+        "en": "Check the search or filter values.",
+        "ja": "検索語や絞り込み条件を確認してください。",
+        "ko": "검색어나 필터 조건을 확인해 주세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法读取此内容。",
+        "zh-Hant": "暫時無法讀取此內容。",
+        "en": "Unable to load this content.",
+        "ja": "このコンテンツを読み込めません。",
+        "ko": "이 콘텐츠를 불러올 수 없습니다."
+      },
+      "error.auth": {
+        "zh-Hans": "原站要求登录或付费后才能阅读此内容。",
+        "zh-Hant": "原站要求登入或付費後才能閱讀此內容。",
+        "en": "The website requires signing in or payment for this content.",
+        "ja": "このコンテンツを読むには、サイトへのログインまたは購入が必要です。",
+        "ko": "이 콘텐츠를 읽으려면 사이트 로그인 또는 결제가 필요합니다."
+      },
+      "error.cancelled": {
+        "zh-Hans": "已取消。",
+        "zh-Hant": "已取消。",
+        "en": "Cancelled.",
+        "ja": "キャンセルしました。",
+        "ko": "취소했습니다."
+      },
+      "error.unsupported": {
+        "zh-Hans": "此书源不提供该功能。",
+        "zh-Hant": "此書源不提供此功能。",
+        "en": "This source does not provide this feature.",
+        "ja": "このソースではこの機能を利用できません。",
+        "ko": "이 소스는 해당 기능을 제공하지 않습니다."
+      },
+      "source.name": {
+        "zh-Hans": "GlobalComix",
+        "zh-Hant": "GlobalComix",
+        "en": "GlobalComix",
+        "ja": "GlobalComix",
+        "ko": "GlobalComix"
+      },
+      "source.author": {
+        "zh-Hans": "Koma 书源贡献者",
+        "zh-Hant": "Koma 書源貢獻者",
+        "en": "Koma source contributors",
+        "ja": "Koma ソース開発メンバー",
+        "ko": "Koma 소스 기여자"
+      }
+    }
+  },
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "4898409906840499301"
+      ],
+      "work": {
+        "pathPrefix": "",
+        "idPrefix": "gc:es:"
+      },
+      "chapter": {
+        "pathPrefix": "",
+        "idPrefix": "",
+        "targetIdSegment": 4
+      },
+      "samePageOrder": true
+    }
+  },
+  "icon": "icon.png",
+  "minAppVersion": "1.5.5",
+  "presentation": {
+    "version": 1,
+    "defaultLocale": "en",
+    "texts": {
+      "name": {
+        "zh-Hans": "GlobalComix",
+        "zh-Hant": "GlobalComix",
+        "en": "GlobalComix",
+        "ja": "GlobalComix",
+        "ko": "GlobalComix"
+      },
+      "description": {
+        "zh-Hans": "GlobalComix 西班牙语漫画分区，收录《DBS: BLACK F》等创作者发行作品。提供原站无需登录即可阅读的免费章节，订阅或购买内容仍受原站权限限制。",
+        "zh-Hant": "GlobalComix 西班牙語漫畫分區，收錄《DBS: BLACK F》等創作者發行作品。提供原站免登入即可閱讀的免費章節，訂閱或購買內容仍受原站權限限制。",
+        "en": "GlobalComix’s Spanish catalogue includes creator releases such as DBS: BLACK F. Read chapters offered free without signing in; subscription and purchase restrictions still apply.",
+        "ja": "『DBS: BLACK F』など、クリエイターが発表するスペイン語漫画を集めた GlobalComix のカタログ。ログイン不要の無料公開話を読めます。定額制や購入が必要な話は対象外です。",
+        "ko": "《DBS: BLACK F》 등 창작자가 공개한 스페인어 만화를 모은 GlobalComix 카탈로그입니다. 로그인 없이 무료로 공개된 회차를 읽을 수 있으며 구독·구매가 필요한 회차는 원본 사이트의 이용 제한을 따릅니다."
+      },
+      "author": {
+        "zh-Hans": "Koma 书源贡献者",
+        "zh-Hant": "Koma 書源貢獻者",
+        "en": "Koma source contributors",
+        "ja": "Koma ソース開発メンバー",
+        "ko": "Koma 소스 기여자"
+      }
+    }
+  }
+}

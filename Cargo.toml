@@ -1,6 +1,9 @@
 [workspace]
 resolver = "2"
 members = [
+  "sources/globalcomix-es",
+  "sources/globalcomix-it",
+  "sources/globalcomix-pt",
   "sources/namicomi-ru",
   "sources/namicomi-id",
   "sources/namicomi-ar",
