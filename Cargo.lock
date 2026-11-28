@@ -1858,6 +1858,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "koma_ftvhunter_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
 name = "koma_ganganonline_ja_source"
 version = "0.1.0"
 dependencies = [
@@ -2248,6 +2258,16 @@ dependencies = [
 
 [[package]]
 name = "koma_jjcos_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
+name = "koma_joymiihub_source"
 version = "0.1.0"
 dependencies = [
  "dlmalloc",
@@ -2657,6 +2677,16 @@ name = "koma_mycomic_source"
 version = "0.1.36"
 dependencies = [
  "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_nakedpics_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
 ]
 
 [[package]]

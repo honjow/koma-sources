@@ -128,6 +128,9 @@ femjoyhunter|femjoyhunter|true|1.5.5
 playmatehunter|playmatehunter|true|1.5.5
 xarthunter|xarthunter|true|1.5.5
 elitebabes|elitebabes|true|1.5.5
+ftvhunter|ftvhunter|true|1.5.5
+joymiihub|joymiihub|true|1.5.5
+nakedpics|nakedpics|true|1.5.5
 eighteenmanhua|eighteenmanhua|true|1.6.1
 creativecomic|creativecomic|false|1.5.5
 kanman|kanman|false|1.4.1

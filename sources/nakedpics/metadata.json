@@ -1,0 +1,289 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://hotnakedwomen.com",
+  "nsfw": true,
+  "contentRating": "nsfw",
+  "minAppVersion": "1.5.5",
+  "localizedNames": {
+    "zh-Hans": "NakedPics",
+    "zh-Hant": "NakedPics",
+    "en": "NakedPics",
+    "ja": "NakedPics",
+    "ko": "NakedPics"
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "en",
+    "messages": {
+      "listing.popular": {
+        "zh-Hans": "热门图集",
+        "zh-Hant": "熱門圖集",
+        "en": "Popular galleries",
+        "ja": "人気の写真集",
+        "ko": "인기 화보"
+      },
+      "listing.latest": {
+        "zh-Hans": "最新图集",
+        "zh-Hant": "最新圖集",
+        "en": "Latest galleries",
+        "ja": "新着写真集",
+        "ko": "최신 화보"
+      },
+      "listing.cosplay": {
+        "zh-Hans": "Cosplay 图集",
+        "zh-Hant": "Cosplay 圖集",
+        "en": "Cosplay galleries",
+        "ja": "コスプレ写真集",
+        "ko": "코스프레 화보"
+      },
+      "chapter.gallery": {
+        "zh-Hans": "完整图集",
+        "zh-Hant": "完整圖集",
+        "en": "Full gallery",
+        "ja": "写真集全体",
+        "ko": "전체 화보"
+      },
+      "filter.order": {
+        "zh-Hans": "排序",
+        "zh-Hant": "排序",
+        "en": "Order",
+        "ja": "並び順",
+        "ko": "정렬"
+      },
+      "filter.any_order": {
+        "zh-Hans": "不限排序",
+        "zh-Hant": "不限排序",
+        "en": "Any order",
+        "ja": "指定なし",
+        "ko": "지정 없음"
+      },
+      "filter.popular": {
+        "zh-Hans": "人气",
+        "zh-Hant": "人氣",
+        "en": "Popular",
+        "ja": "人気順",
+        "ko": "인기순"
+      },
+      "filter.newest": {
+        "zh-Hans": "最新",
+        "zh-Hant": "最新",
+        "en": "Newest",
+        "ja": "新着順",
+        "ko": "최신순"
+      },
+      "filter.quality": {
+        "zh-Hans": "画质",
+        "zh-Hant": "畫質",
+        "en": "Quality",
+        "ja": "画質",
+        "ko": "화질"
+      },
+      "filter.all_quality": {
+        "zh-Hans": "全部画质",
+        "zh-Hant": "全部畫質",
+        "en": "All quality",
+        "ja": "すべての画質",
+        "ko": "모든 화질"
+      },
+      "filter.hd": {
+        "zh-Hans": "高清",
+        "zh-Hant": "高畫質",
+        "en": "HD",
+        "ja": "高画質",
+        "ko": "고화질"
+      },
+      "filter.tags": {
+        "zh-Hans": "标签",
+        "zh-Hant": "標籤",
+        "en": "Tags",
+        "ja": "タグ",
+        "ko": "태그"
+      },
+      "filter.search_note": {
+        "zh-Hans": "有关键词时忽略筛选条件。",
+        "zh-Hant": "有關鍵字時忽略篩選條件。",
+        "en": "Filters are ignored when searching with keywords.",
+        "ja": "キーワード検索では絞り込み条件は使われません。",
+        "ko": "검색어가 있으면 필터를 적용하지 않습니다."
+      },
+      "filter.category": {
+        "zh-Hans": "分类",
+        "zh-Hant": "分類",
+        "en": "Category",
+        "ja": "カテゴリ",
+        "ko": "분류"
+      },
+      "filter.any": {
+        "zh-Hans": "不限",
+        "zh-Hant": "不限",
+        "en": "Any",
+        "ja": "指定なし",
+        "ko": "전체"
+      },
+      "filter.ero_cosplay": {
+        "zh-Hans": "成人 Cosplay",
+        "zh-Hant": "成人 Cosplay",
+        "en": "Adult cosplay",
+        "ja": "成人向けコスプレ",
+        "ko": "성인 코스프레"
+      },
+      "filter.nude": {
+        "zh-Hans": "人体写真",
+        "zh-Hant": "人體寫真",
+        "en": "Nude photography",
+        "ja": "ヌード写真",
+        "ko": "누드 사진"
+      },
+      "filter.sexy_set": {
+        "zh-Hans": "性感写真",
+        "zh-Hant": "性感寫真",
+        "en": "Glamour sets",
+        "ja": "グラビア",
+        "ko": "글래머 화보"
+      },
+      "filter.tag": {
+        "zh-Hans": "标签（单个）",
+        "zh-Hant": "標籤（單個）",
+        "en": "Tag (one)",
+        "ja": "タグ（1つ）",
+        "ko": "태그 (1개)"
+      },
+      "error.invalid_request": {
+        "zh-Hans": "请求参数无效。",
+        "zh-Hant": "請求參數無效。",
+        "en": "The request is invalid.",
+        "ja": "リクエストが正しくありません。",
+        "ko": "요청이 올바르지 않습니다."
+      },
+      "error.unavailable": {
+        "zh-Hans": "暂时无法读取此内容。",
+        "zh-Hant": "暫時無法讀取此內容。",
+        "en": "This content is temporarily unavailable.",
+        "ja": "現在このコンテンツを読み込めません。",
+        "ko": "현재 이 콘텐츠를 읽을 수 없습니다."
+      },
+      "error.chapter_unavailable": {
+        "zh-Hans": "原站未提供可读取的图集图片。",
+        "zh-Hant": "原站未提供可讀取的圖集圖片。",
+        "en": "No readable gallery images are available.",
+        "ja": "読み取れる写真集の画像がありません。",
+        "ko": "읽을 수 있는 화보 이미지가 없습니다."
+      },
+      "error.parse_error": {
+        "zh-Hans": "原站页面格式发生变化，暂时无法读取。",
+        "zh-Hant": "原站頁面格式發生變化，暫時無法讀取。",
+        "en": "The site layout has changed and cannot be read at present.",
+        "ja": "サイトの構造が変わったため、現在読み込めません。",
+        "ko": "사이트 구조가 변경되어 현재 읽을 수 없습니다."
+      },
+      "error.network_error": {
+        "zh-Hans": "连接原站失败，请稍后重试。",
+        "zh-Hant": "連線原站失敗，請稍後重試。",
+        "en": "Could not connect to the site. Try again later.",
+        "ja": "サイトへの接続に失敗しました。しばらくしてからお試しください。",
+        "ko": "사이트에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."
+      },
+      "error.unsupported": {
+        "zh-Hans": "此书源不提供该功能。",
+        "zh-Hant": "此書源不提供該功能。",
+        "en": "This source does not provide this feature.",
+        "ja": "このソースでは利用できない機能です。",
+        "ko": "이 소스에서 제공하지 않는 기능입니다."
+      },
+      "error.result_too_large": {
+        "zh-Hans": "返回内容过大，无法完整载入。",
+        "zh-Hant": "傳回內容過大，無法完整載入。",
+        "en": "The response is too large to load in full.",
+        "ja": "応答が大きすぎるため、全体を読み込めません。",
+        "ko": "응답이 너무 커서 전체를 불러올 수 없습니다."
+      },
+      "source.description": {
+        "zh-Hans": "NakedPics 通过模特、摄影品牌与主题目录串联写真图集，包括 All Over 30 的 Isadora 与 Femjoy 的 Laria F。每套图集保留原站全部正文照片，不混入推荐缩略图或视频。",
+        "zh-Hant": "NakedPics 透過模特兒、攝影品牌與主題目錄串聯寫真圖集，包括 All Over 30 的 Isadora 與 Femjoy 的 Laria F。每套圖集保留原站全部正文照片，不混入推薦縮圖或影片。",
+        "en": "NakedPics connects photo galleries through model, studio and theme directories, including All Over 30’s Isadora and Femjoy’s Laria F. Each gallery retains all original photos without recommendation thumbnails or videos.",
+        "ja": "NakedPicsはモデル、撮影ブランド、テーマから写真集をたどれるサイトで、All Over 30のIsadoraやFemjoyのLaria Fなどを掲載しています。各写真集の全写真を収録し、おすすめのサムネイルや動画は含めません。",
+        "ko": "NakedPics는 모델, 스튜디오, 주제별 목록으로 화보를 연결하며 All Over 30의 Isadora와 Femjoy의 Laria F 등을 제공합니다. 각 화보의 사진 전체를 유지하고 추천 썸네일이나 동영상은 포함하지 않습니다."
+      },
+      "source.name": {
+        "zh-Hans": "NakedPics",
+        "zh-Hant": "NakedPics",
+        "en": "NakedPics",
+        "ja": "NakedPics",
+        "ko": "NakedPics"
+      },
+      "filter.any_category": {
+        "zh-Hans": "全部分类",
+        "zh-Hant": "所有分類",
+        "en": "Any category",
+        "ja": "すべてのカテゴリ",
+        "ko": "전체 분류"
+      },
+      "detail.photos": {
+        "zh-Hans": "照片",
+        "zh-Hant": "照片",
+        "en": "Photos",
+        "ja": "写真",
+        "ko": "사진"
+      },
+      "detail.models": {
+        "zh-Hans": "模特",
+        "zh-Hant": "模特兒",
+        "en": "Models",
+        "ja": "モデル",
+        "ko": "모델"
+      },
+      "detail.channel": {
+        "zh-Hans": "摄影品牌",
+        "zh-Hant": "攝影品牌",
+        "en": "Studio",
+        "ja": "撮影ブランド",
+        "ko": "스튜디오"
+      }
+    }
+  },
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "6711216111994206341"
+      ],
+      "work": {
+        "pathPrefix": "/",
+        "idPrefix": "/"
+      },
+      "chapter": {
+        "pathPrefix": "/",
+        "idPrefix": "/"
+      },
+      "samePageOrder": true
+    }
+  },
+  "presentation": {
+    "version": 1,
+    "texts": {
+      "name": {
+        "zh-Hans": "NakedPics",
+        "zh-Hant": "NakedPics",
+        "en": "NakedPics",
+        "ja": "NakedPics",
+        "ko": "NakedPics"
+      },
+      "description": {
+        "zh-Hans": "NakedPics 通过模特、摄影品牌与主题目录串联写真图集，包括 All Over 30 的 Isadora 与 Femjoy 的 Laria F。每套图集保留原站全部正文照片，不混入推荐缩略图或视频。",
+        "zh-Hant": "NakedPics 透過模特兒、攝影品牌與主題目錄串聯寫真圖集，包括 All Over 30 的 Isadora 與 Femjoy 的 Laria F。每套圖集保留原站全部正文照片，不混入推薦縮圖或影片。",
+        "en": "NakedPics connects photo galleries through model, studio and theme directories, including All Over 30’s Isadora and Femjoy’s Laria F. Each gallery retains all original photos without recommendation thumbnails or videos.",
+        "ja": "NakedPicsはモデル、撮影ブランド、テーマから写真集をたどれるサイトで、All Over 30のIsadoraやFemjoyのLaria Fなどを掲載しています。各写真集の全写真を収録し、おすすめのサムネイルや動画は含めません。",
+        "ko": "NakedPics는 모델, 스튜디오, 주제별 목록으로 화보를 연결하며 All Over 30의 Isadora와 Femjoy의 Laria F 등을 제공합니다. 각 화보의 사진 전체를 유지하고 추천 썸네일이나 동영상은 포함하지 않습니다."
+      }
+    }
+  },
+  "requestLimits": [
+    {
+      "group": "nakedpics-site",
+      "permits": 3,
+      "periodMs": 1000,
+      "hosts": [
+        "hotnakedwomen.com"
+      ]
+    }
+  ]
+}
