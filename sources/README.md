@@ -194,6 +194,9 @@
 | <img src="globalcomix-fr/icon.png" width="24" alt=""> | globalcomix-fr | GlobalComix | 法语独立创作漫画，仅读匿名免费内容；NSFW。 |
 | <img src="namicomi-en/icon.png" width="24" alt=""> | namicomi-en | NamiComi | 原创漫画平台的英文目录，正文限匿名可读章节。 |
 | <img src="namicomi-es/icon.png" width="24" alt=""> | namicomi-es | NamiComi | 西语原创漫画章节，独立语言身份，匿名公开阅读。 |
+| <img src="webtoons-id/icon.png" width="24" alt=""> | webtoons-id | WEBTOON（印尼语） | 印尼语 ORIGINALS 与 CANVAS，原站公开章节。 |
+| <img src="webtoons-th/icon.png" width="24" alt=""> | webtoons-th | WEBTOON（泰语） | 泰语 ORIGINALS 与 CANVAS，原站公开章节。 |
+| <img src="namicomi-it/icon.png" width="24" alt=""> | namicomi-it | NamiComi | 意大利语章节，独立语言身份，匿名公开阅读。 |
 | <img src="webtoons-fr/icon.png" width="24" alt=""> | webtoons-fr | WEBTOON（法语） | 法语 ORIGINALS 与 CANVAS，原站公开章节。 |
 | <img src="webtoons-de/icon.png" width="24" alt=""> | webtoons-de | WEBTOON（德语） | 德语 ORIGINALS 与 CANVAS，原站公开章节。 |
 | <img src="namicomi-pt-br/icon.png" width="24" alt=""> | namicomi-pt-br | NamiComi | 巴西葡萄牙语章节，独立语言身份，匿名公开阅读。 |

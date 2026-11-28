@@ -4864,3 +4864,28 @@ version = "0.1.0"
 dependencies = [
  "koma_source_sdk",
 ]
+
+[[package]]
+name = "koma_webtoons_id_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+]
+
+[[package]]
+name = "koma_webtoons_th_source"
+version = "0.1.0"
+dependencies = [
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+]
+
+[[package]]
+name = "koma_namicomi_it_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]

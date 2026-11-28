@@ -1,0 +1,571 @@
+{
+  "localizedNames": {
+    "zh-Hans": "WEBTOON（泰语）",
+    "zh-Hant": "WEBTOON（泰語）",
+    "en": "WEBTOON (Thai)",
+    "ja": "WEBTOON（タイ語）",
+    "ko": "WEBTOON (태국어)"
+  },
+  "comments": {
+    "version": 1,
+    "scopes": [
+      "chapter"
+    ]
+  },
+  "homepage": "https://www.webtoons.com/th/",
+  "chapterOrder": "newest_first",
+  "localization": {
+    "version": 1,
+    "defaultLocale": "en",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "WEBTOON 泰语分区，收录《Siamese Creepy Story》等官方连载及 CANVAS 创作者漫画。阅读限原站匿名公开章节。",
+        "zh-Hant": "WEBTOON 泰語分區，收錄《Siamese Creepy Story》等官方連載及 CANVAS 創作者漫畫。閱讀限原站免登入公開章節。",
+        "en": "WEBTOON’s Thai catalogue brings together Originals such as Siamese Creepy Story and creator-published CANVAS comics. Reading is limited to chapters available without signing in.",
+        "ja": "『Siamese Creepy Story』などの公式連載と、作家が投稿する CANVAS 作品を掲載する WEBTOON のタイ語版。ログイン不要の公開話を読めます。",
+        "ko": "《Siamese Creepy Story》 등 공식 연재작과 창작자의 CANVAS 만화를 제공하는 WEBTOON 태국어판입니다. 로그인 없이 공개된 회차만 읽을 수 있습니다."
+      },
+      "error.locked": {
+        "zh-Hans": "该章节当前未公开。",
+        "zh-Hant": "此章節目前未公開。",
+        "en": "This chapter is currently locked.",
+        "ja": "この話は現在公開されていません。",
+        "ko": "이 회차는 현재 잠겨 있습니다."
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站没有提供此内容。",
+        "zh-Hant": "原站沒有提供此內容。",
+        "en": "This content is unavailable on the website.",
+        "ja": "配信元でこのコンテンツは公開されていません。",
+        "ko": "사이트에서 이 콘텐츠를 제공하지 않습니다."
+      },
+      "error.network": {
+        "zh-Hans": "原站请求未完成，请稍后重试。",
+        "zh-Hant": "原站請求未完成，請稍後再試。",
+        "en": "Could not complete the website request. Try again later.",
+        "ja": "配信元へのリクエストに失敗しました。時間をおいて再試行してください。",
+        "ko": "사이트에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."
+      },
+      "error.host": {
+        "zh-Hans": "请更新 Koma 以阅读此章节。",
+        "zh-Hant": "請更新 Koma 以閱讀此章節。",
+        "en": "Update Koma to read this chapter.",
+        "ja": "この話を読むには Koma を更新してください。",
+        "ko": "이 회차를 읽으려면 Koma를 업데이트하세요."
+      },
+      "error.scramble": {
+        "zh-Hans": "此章节使用暂不支持的图片格式。",
+        "zh-Hant": "此章節使用暫不支援的圖片格式。",
+        "en": "This chapter uses an unsupported image format.",
+        "ja": "この話は未対応の画像形式を使用しています。",
+        "ko": "이 회차는 지원하지 않는 이미지 형식입니다."
+      },
+      "error.catalog": {
+        "zh-Hans": "原站目录已变化，请刷新后重试。",
+        "zh-Hant": "原站目錄已變更，請重新整理後再試。",
+        "en": "The catalog changed. Refresh and try again.",
+        "ja": "配信元の一覧が更新されました。再読み込みしてください。",
+        "ko": "사이트 목록이 변경되었습니다. 새로고침한 후 다시 시도하세요."
+      },
+      "error.filter": {
+        "zh-Hans": "请检查搜索或筛选条件。",
+        "zh-Hant": "請檢查搜尋或篩選條件。",
+        "en": "Check the search or filter values.",
+        "ja": "検索語や絞り込み条件を確認してください。",
+        "ko": "검색어나 필터 조건을 확인해 주세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法读取此内容。",
+        "zh-Hant": "暫時無法讀取此內容。",
+        "en": "Unable to load this content.",
+        "ja": "このコンテンツを読み込めません。",
+        "ko": "이 콘텐츠를 불러올 수 없습니다."
+      },
+      "error.auth": {
+        "zh-Hans": "原站要求登录或付费后才能阅读此内容。",
+        "zh-Hant": "原站要求登入或付費後才能閱讀此內容。",
+        "en": "The website requires signing in or payment for this content.",
+        "ja": "このコンテンツを読むには、サイトへのログインまたは購入が必要です。",
+        "ko": "이 콘텐츠를 읽으려면 사이트 로그인 또는 결제가 필요합니다."
+      },
+      "error.cancelled": {
+        "zh-Hans": "已取消。",
+        "zh-Hant": "已取消。",
+        "en": "Cancelled.",
+        "ja": "キャンセルしました。",
+        "ko": "취소했습니다."
+      },
+      "error.unsupported": {
+        "zh-Hans": "此书源不提供该功能。",
+        "zh-Hant": "此書源不提供此功能。",
+        "en": "This source does not provide this feature.",
+        "ja": "このソースではこの機能を利用できません。",
+        "ko": "이 소스는 해당 기능을 제공하지 않습니다."
+      },
+      "source.name": {
+        "zh-Hans": "WEBTOON（泰语）",
+        "zh-Hant": "WEBTOON（泰語）",
+        "en": "WEBTOON (Thai)",
+        "ja": "WEBTOON（タイ語）",
+        "ko": "WEBTOON (태국어)"
+      },
+      "source.author": {
+        "zh-Hans": "Koma 书源贡献者",
+        "zh-Hant": "Koma 書源貢獻者",
+        "en": "Koma source contributors",
+        "ja": "Koma ソース開発メンバー",
+        "ko": "Koma 소스 기여자"
+      },
+      "listing.popular": {
+        "zh-Hans": "热门",
+        "zh-Hant": "熱門",
+        "en": "Popular",
+        "ja": "人気作品",
+        "ko": "인기 작품"
+      },
+      "listing.latest": {
+        "zh-Hans": "今日更新",
+        "zh-Hant": "今日更新",
+        "en": "Today’s updates",
+        "ja": "本日の更新",
+        "ko": "오늘 업데이트"
+      },
+      "filter.type": {
+        "zh-Hans": "作品类型",
+        "zh-Hant": "作品類型",
+        "en": "Type",
+        "ja": "作品の種類",
+        "ko": "작품 유형"
+      },
+      "option.type.all": {
+        "zh-Hans": "全部",
+        "zh-Hant": "全部",
+        "en": "All",
+        "ja": "すべて",
+        "ko": "전체"
+      },
+      "option.type.originals": {
+        "zh-Hans": "官方连载",
+        "zh-Hant": "官方連載",
+        "en": "Originals",
+        "ja": "オリジナル作品",
+        "ko": "오리지널"
+      },
+      "option.type.canvas": {
+        "zh-Hans": "创作者投稿",
+        "zh-Hant": "創作者投稿",
+        "en": "CANVAS",
+        "ja": "CANVAS 投稿作品",
+        "ko": "CANVAS"
+      },
+      "setting.quality": {
+        "zh-Hans": "最高画质",
+        "zh-Hant": "最高畫質",
+        "en": "Maximum image quality",
+        "ja": "最高画質",
+        "ko": "최고 화질"
+      },
+      "setting.quality.description": {
+        "zh-Hans": "移除 q90 压缩参数，对之后加载的图片生效。",
+        "zh-Hant": "移除 q90 壓縮參數，對之後載入的圖片生效。",
+        "en": "Remove the q90 compression parameter for images loaded afterwards.",
+        "ja": "以降に読み込む画像の q90 圧縮指定を外します。",
+        "ko": "이후 불러오는 이미지에서 q90 압축 매개변수를 제거합니다."
+      },
+      "setting.numbering": {
+        "zh-Hans": "使用连续章节编号",
+        "zh-Hant": "使用連續章節編號",
+        "en": "Use sequential chapter numbers",
+        "ja": "通し番号を使用",
+        "ko": "연속 회차 번호 사용"
+      },
+      "setting.numbering.description": {
+        "zh-Hans": "按原站目录顺序编号，保留章节标题和排列。",
+        "zh-Hant": "依原站目錄順序編號，保留章節標題與排列。",
+        "en": "Number chapters by catalogue position, preserving their titles and order.",
+        "ja": "話のタイトルと並び順を保ち、一覧の順に番号を付けます。",
+        "ko": "회차 제목과 순서를 유지하며 목록 순서대로 번호를 매깁니다."
+      },
+      "setting.notes": {
+        "zh-Hans": "作者备注",
+        "zh-Hant": "作者備註",
+        "en": "Author’s notes",
+        "ja": "作者のコメント",
+        "ko": "작가의 말"
+      },
+      "setting.notes.description": {
+        "zh-Hans": "在章末显示原站作者备注。",
+        "zh-Hant": "在章末顯示原站作者備註。",
+        "en": "Show the author’s notes from the website after the chapter.",
+        "ja": "話の最後にサイトの作者コメントを表示します。",
+        "ko": "회차 끝에 사이트의 작가의 말을 표시합니다."
+      },
+      "notes.heading": {
+        "zh-Hans": "作者备注 · ",
+        "zh-Hant": "作者備註 · ",
+        "en": "Author’s notes · ",
+        "ja": "作者のコメント · ",
+        "ko": "작가의 말 · "
+      },
+      "filter.day": {
+        "zh-Hans": "更新日（官方连载）",
+        "zh-Hant": "更新日（官方連載）",
+        "en": "Update day (Originals)",
+        "ja": "更新日（オリジナル）",
+        "ko": "업데이트 요일 (오리지널)"
+      },
+      "filter.genre": {
+        "zh-Hans": "题材",
+        "zh-Hant": "題材",
+        "en": "Genre",
+        "ja": "ジャンル",
+        "ko": "장르"
+      },
+      "filter.sort": {
+        "zh-Hans": "排序",
+        "zh-Hant": "排序",
+        "en": "Sort",
+        "ja": "並べ替え",
+        "ko": "정렬"
+      },
+      "option.any": {
+        "zh-Hans": "不限",
+        "zh-Hant": "不限",
+        "en": "Any",
+        "ja": "指定なし",
+        "ko": "전체"
+      },
+      "option.sort.MANA": {
+        "zh-Hans": "人气",
+        "zh-Hant": "人氣",
+        "en": "Popularity",
+        "ja": "人気順",
+        "ko": "인기순"
+      },
+      "option.sort.LIKEIT": {
+        "zh-Hans": "点赞数",
+        "zh-Hant": "按讚數",
+        "en": "Likes",
+        "ja": "いいね順",
+        "ko": "좋아요순"
+      },
+      "option.sort.UPDATE": {
+        "zh-Hans": "更新日期",
+        "zh-Hant": "更新日期",
+        "en": "Date updated",
+        "ja": "更新日順",
+        "ko": "업데이트순"
+      },
+      "filter.hint": {
+        "zh-Hans": "关键词搜索仅应用作品类型；空词筛选中，更新日优先于题材。",
+        "zh-Hant": "關鍵詞搜尋僅套用作品類型；空詞篩選中，更新日優先於題材。",
+        "en": "Text search uses Type only. Without a keyword, update day takes priority over genre.",
+        "ja": "キーワード検索では作品の種類のみを適用します。検索語がない場合、更新日がジャンルより優先されます。",
+        "ko": "검색어가 있으면 작품 유형만 적용합니다. 검색어가 없으면 업데이트 요일이 장르보다 우선합니다."
+      },
+      "option.day.monday": {
+        "zh-Hans": "周一",
+        "zh-Hant": "週一",
+        "en": "Monday",
+        "ja": "月曜日",
+        "ko": "월요일"
+      },
+      "option.day.tuesday": {
+        "zh-Hans": "周二",
+        "zh-Hant": "週二",
+        "en": "Tuesday",
+        "ja": "火曜日",
+        "ko": "화요일"
+      },
+      "option.day.wednesday": {
+        "zh-Hans": "周三",
+        "zh-Hant": "週三",
+        "en": "Wednesday",
+        "ja": "水曜日",
+        "ko": "수요일"
+      },
+      "option.day.thursday": {
+        "zh-Hans": "周四",
+        "zh-Hant": "週四",
+        "en": "Thursday",
+        "ja": "木曜日",
+        "ko": "목요일"
+      },
+      "option.day.friday": {
+        "zh-Hans": "周五",
+        "zh-Hant": "週五",
+        "en": "Friday",
+        "ja": "金曜日",
+        "ko": "금요일"
+      },
+      "option.day.saturday": {
+        "zh-Hans": "周六",
+        "zh-Hant": "週六",
+        "en": "Saturday",
+        "ja": "土曜日",
+        "ko": "토요일"
+      },
+      "option.day.sunday": {
+        "zh-Hans": "周日",
+        "zh-Hant": "週日",
+        "en": "Sunday",
+        "ja": "日曜日",
+        "ko": "일요일"
+      },
+      "option.day.complete": {
+        "zh-Hans": "已完结",
+        "zh-Hant": "已完結",
+        "en": "Completed",
+        "ja": "完結作品",
+        "ko": "완결작"
+      },
+      "option.genre.drama": {
+        "zh-Hans": "剧情",
+        "zh-Hant": "劇情",
+        "en": "Drama",
+        "ja": "ドラマ",
+        "ko": "드라마"
+      },
+      "option.genre.fantasy": {
+        "zh-Hans": "奇幻",
+        "zh-Hant": "奇幻",
+        "en": "Fantasy",
+        "ja": "ファンタジー",
+        "ko": "판타지"
+      },
+      "option.genre.comedy": {
+        "zh-Hans": "喜剧",
+        "zh-Hant": "喜劇",
+        "en": "Comedy",
+        "ja": "コメディ",
+        "ko": "코미디"
+      },
+      "option.genre.action": {
+        "zh-Hans": "动作",
+        "zh-Hant": "動作",
+        "en": "Action",
+        "ja": "アクション",
+        "ko": "액션"
+      },
+      "option.genre.slice_of_life": {
+        "zh-Hans": "日常",
+        "zh-Hant": "日常",
+        "en": "Slice of life",
+        "ja": "日常",
+        "ko": "일상"
+      },
+      "option.genre.romance": {
+        "zh-Hans": "恋爱",
+        "zh-Hant": "戀愛",
+        "en": "Romance",
+        "ja": "恋愛",
+        "ko": "로맨스"
+      },
+      "option.genre.supernatural": {
+        "zh-Hans": "超自然",
+        "zh-Hant": "超自然",
+        "en": "Supernatural",
+        "ja": "超常現象",
+        "ko": "초자연"
+      },
+      "option.genre.heartwarming": {
+        "zh-Hans": "暖心",
+        "zh-Hant": "暖心",
+        "en": "Heartwarming",
+        "ja": "心温まる物語",
+        "ko": "힐링"
+      },
+      "option.genre.thriller": {
+        "zh-Hans": "惊悚",
+        "zh-Hant": "驚悚",
+        "en": "Thriller",
+        "ja": "スリラー",
+        "ko": "스릴러"
+      },
+      "option.genre.sports": {
+        "zh-Hans": "体育",
+        "zh-Hant": "體育",
+        "en": "Sports",
+        "ja": "スポーツ",
+        "ko": "스포츠"
+      },
+      "option.genre.horror": {
+        "zh-Hans": "恐怖",
+        "zh-Hant": "恐怖",
+        "en": "Horror",
+        "ja": "ホラー",
+        "ko": "공포"
+      },
+      "option.genre.sf": {
+        "zh-Hans": "科幻",
+        "zh-Hant": "科幻",
+        "en": "Science fiction",
+        "ja": "SF",
+        "ko": "SF"
+      },
+      "option.genre.super_hero": {
+        "zh-Hans": "超级英雄",
+        "zh-Hant": "超級英雄",
+        "en": "Superheroes",
+        "ja": "スーパーヒーロー",
+        "ko": "슈퍼히어로"
+      },
+      "option.genre.tiptoon": {
+        "zh-Hans": "知识与资讯",
+        "zh-Hant": "知識與資訊",
+        "en": "Informative",
+        "ja": "情報・知識",
+        "ko": "정보·지식"
+      },
+      "option.genre.historical": {
+        "zh-Hans": "历史",
+        "zh-Hant": "歷史",
+        "en": "Historical",
+        "ja": "歴史",
+        "ko": "역사"
+      },
+      "option.genre.short_story": {
+        "zh-Hans": "短篇",
+        "zh-Hant": "短篇",
+        "en": "Short stories",
+        "ja": "短編",
+        "ko": "단편"
+      },
+      "option.genre.post_apocalyptic": {
+        "zh-Hans": "末日后",
+        "zh-Hant": "末日後",
+        "en": "Post-apocalyptic",
+        "ja": "終末後の世界",
+        "ko": "포스트 아포칼립스"
+      },
+      "option.genre.zombies": {
+        "zh-Hans": "丧尸",
+        "zh-Hant": "喪屍",
+        "en": "Zombies",
+        "ja": "ゾンビ",
+        "ko": "좀비"
+      },
+      "option.genre.school": {
+        "zh-Hans": "校园",
+        "zh-Hant": "校園",
+        "en": "School",
+        "ja": "学園",
+        "ko": "학원"
+      },
+      "option.genre.animals": {
+        "zh-Hans": "动物",
+        "zh-Hant": "動物",
+        "en": "Animals",
+        "ja": "動物",
+        "ko": "동물"
+      },
+      "option.genre.crime_mystery": {
+        "zh-Hans": "犯罪与推理",
+        "zh-Hant": "犯罪與推理",
+        "en": "Crime and mystery",
+        "ja": "犯罪・ミステリー",
+        "ko": "범죄·미스터리"
+      },
+      "option.genre.inspirational": {
+        "zh-Hans": "励志",
+        "zh-Hant": "勵志",
+        "en": "Inspirational",
+        "ja": "希望・感動",
+        "ko": "감동·희망"
+      },
+      "option.genre.all_ages": {
+        "zh-Hans": "全年龄",
+        "zh-Hant": "全年齡",
+        "en": "All ages",
+        "ja": "全年齢",
+        "ko": "전체 이용가"
+      },
+      "option.genre.romantic_fantasy": {
+        "zh-Hans": "浪漫奇幻",
+        "zh-Hant": "浪漫奇幻",
+        "en": "Romantic fantasy",
+        "ja": "ロマンスファンタジー",
+        "ko": "로맨스 판타지"
+      },
+      "option.genre.bl_gl": {
+        "zh-Hans": "LGBTQ+",
+        "zh-Hant": "LGBTQ+",
+        "en": "LGBTQ+",
+        "ja": "LGBTQ+",
+        "ko": "LGBTQ+"
+      },
+      "option.canvas_only": {
+        "zh-Hans": "（仅 CANVAS）",
+        "zh-Hant": "（僅 CANVAS）",
+        "en": " (CANVAS only)",
+        "ja": "（CANVAS のみ）",
+        "ko": " (CANVAS 전용)"
+      },
+      "option.originals_only": {
+        "zh-Hans": "（仅 ORIGINALS）",
+        "zh-Hant": "（僅 ORIGINALS）",
+        "en": " (ORIGINALS only)",
+        "ja": "（ORIGINALS のみ）",
+        "ko": " (ORIGINALS 전용)"
+      },
+      "option.genre.local": {
+        "zh-Hans": "本地创作",
+        "zh-Hant": "本地創作",
+        "en": "Local creators",
+        "ja": "現地作家の作品",
+        "ko": "현지 창작물"
+      },
+      "option.genre.web_novel": {
+        "zh-Hans": "网络小说",
+        "zh-Hant": "網路小說",
+        "en": "Web novels",
+        "ja": "ウェブ小説",
+        "ko": "웹소설"
+      }
+    }
+  },
+  "icon": "icon.png",
+  "minAppVersion": "1.5.5",
+  "presentation": {
+    "version": 1,
+    "defaultLocale": "en",
+    "texts": {
+      "name": {
+        "zh-Hans": "WEBTOON（泰语）",
+        "zh-Hant": "WEBTOON（泰語）",
+        "en": "WEBTOON (Thai)",
+        "ja": "WEBTOON（タイ語）",
+        "ko": "WEBTOON (태국어)"
+      },
+      "description": {
+        "zh-Hans": "WEBTOON 泰语分区，收录《Siamese Creepy Story》等官方连载及 CANVAS 创作者漫画。阅读限原站匿名公开章节。",
+        "zh-Hant": "WEBTOON 泰語分區，收錄《Siamese Creepy Story》等官方連載及 CANVAS 創作者漫畫。閱讀限原站免登入公開章節。",
+        "en": "WEBTOON’s Thai catalogue brings together Originals such as Siamese Creepy Story and creator-published CANVAS comics. Reading is limited to chapters available without signing in.",
+        "ja": "『Siamese Creepy Story』などの公式連載と、作家が投稿する CANVAS 作品を掲載する WEBTOON のタイ語版。ログイン不要の公開話を読めます。",
+        "ko": "《Siamese Creepy Story》 등 공식 연재작과 창작자의 CANVAS 만화를 제공하는 WEBTOON 태국어판입니다. 로그인 없이 공개된 회차만 읽을 수 있습니다."
+      },
+      "author": {
+        "zh-Hans": "Koma 书源贡献者",
+        "zh-Hant": "Koma 書源貢獻者",
+        "en": "Koma source contributors",
+        "ja": "Koma ソース開発メンバー",
+        "ko": "Koma 소스 기여자"
+      }
+    }
+  },
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "3330861233813615504"
+      ],
+      "work": {
+        "pathPrefix": "",
+        "idPrefix": "manga:webtoons:th:"
+      },
+      "chapter": {
+        "pathPrefix": "",
+        "idPrefix": "chapter:webtoons:th:"
+      }
+    }
+  }
+}
