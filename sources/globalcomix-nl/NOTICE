@@ -1,0 +1,4 @@
+Modified adaptation of Keiyoushi GlobalComix, Apache-2.0, revision e8c7f53b7994da527c78d54f36bcc7c6d7c4f9bf.
+Upstream src/all/globalcomix: GlobalComix.kt, GlobalComixConstants.kt, dto/*.kt and build.gradle.kts.
+This independent language adapter reuses the existing Wave 23 Koma GlobalComix shared implementation without changes to parsing, access, chronology or comments.
+GlobalComix and its official logo remain the property of their respective owner. The source license does not grant trademark rights.

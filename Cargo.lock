@@ -5083,3 +5083,24 @@ version = "0.1.0"
 dependencies = [
  "koma_source_sdk",
 ]
+
+[[package]]
+name = "koma_globalcomix_nl_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_globalcomix_th_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_globalcomix_tr_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
