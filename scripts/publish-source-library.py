@@ -8,7 +8,7 @@ import os
 import re
 import time
 from pathlib import Path
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode, urlsplit
 from urllib.request import Request, urlopen
 
@@ -29,7 +29,7 @@ class GitHub:
         self.token = token
         self.last_write = float("-inf")
 
-    def request(self, method, path, *, payload=None, upload=None):
+    def request(self, method, path, *, payload=None, upload=None, allow_404=False):
         url = self.base + path if path.startswith("/") else path
         headers = {
             "Accept": "application/vnd.github+json",
@@ -52,6 +52,8 @@ class GitHub:
                 with urlopen(Request(url, data=body, headers=headers, method=method), timeout=120) as response:
                     return json.load(response) if response.status != 204 else None
             except HTTPError as exc:
+                if allow_404 and exc.code == 404:
+                    return None
                 detail = exc.read().decode(errors="replace")
                 retry_after = exc.headers.get("Retry-After")
                 remaining = exc.headers.get("X-RateLimit-Remaining")
@@ -60,8 +62,14 @@ class GitHub:
                         bool(retry_after) or remaining == "0" or "secondary rate limit" in detail.lower()
                     )
                 )
-                if not limited or attempt == MAX_THROTTLE_RETRIES:
+                transient = exc.code in (500, 502, 503, 504)
+                if not (limited or transient) or attempt == MAX_THROTTLE_RETRIES:
                     raise RuntimeError(f"{method} {url}: HTTP {exc.code}: {detail}") from None
+                if transient and not limited:
+                    wait = min(15 * (attempt + 1), 60)
+                    print(f"GitHub transient error (HTTP {exc.code}); waiting {wait:.0f}s before retrying.", flush=True)
+                    time.sleep(wait)
+                    continue
                 delays = [1 if retry_after else 60 * 2**attempt]
                 if retry_after:
                     delays.append(int(retry_after))
@@ -72,13 +80,19 @@ class GitHub:
                     raise RuntimeError(f"GitHub requested a {wait:.0f}s wait; rerun only the publish job later.")
                 print(f"GitHub rate limit (HTTP {exc.code}); waiting {wait:.0f}s before retrying.", flush=True)
                 time.sleep(wait)
+            except (URLError, TimeoutError) as exc:
+                if attempt == MAX_THROTTLE_RETRIES:
+                    raise RuntimeError(f"{method} {url}: {exc}") from None
+                wait = min(15 * (attempt + 1), 60)
+                print(f"GitHub connection error ({exc}); waiting {wait:.0f}s before retrying.", flush=True)
+                time.sleep(wait)
 
-    def paginate(self, path):
+    def paginate(self, path, per_page=100):
         page = 1
         while True:
-            items = self.request("GET", f"{path}?per_page=100&page={page}")
+            items = self.request("GET", f"{path}?per_page={per_page}&page={page}")
             yield from items
-            if len(items) < 100:
+            if len(items) < per_page:
                 break
             page += 1
 
@@ -119,8 +133,11 @@ def publish(api, sha, branch, expected):
     if not still_current():
         print(f"Skipping superseded revision {sha}.")
         return
-    # Listing authenticated releases also finds unpublished drafts.
-    release = next((item for item in api.paginate("/releases") if item["tag_name"] == tag), None)
+    # Direct tag lookup avoids slow/504 full /releases scans when already published;
+    # fall back to small-page /releases scan (per_page=10) to resume unpublished drafts.
+    release = api.request("GET", f"/releases/tags/{quote(tag, safe='')}", allow_404=True)
+    if not release:
+        release = next((item for item in api.paginate("/releases", per_page=10) if item["tag_name"] == tag), None)
     if release and not release["draft"]:
         print("This revision is already published; keeping its assets unchanged.")
         return
