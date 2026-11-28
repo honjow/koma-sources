@@ -121,6 +121,9 @@ bikamanhua|bikamanhua|false|1.4.1
 yiqiqimanhua|yiqiqimanhua|true|1.4.1
 manhuamanga|manhuamanga|true|1.4.1
 bakamh|bakamh|true|1.6.1
+mitaku|mitaku|true|1.5.5
+metarthunter|metarthunter|true|1.5.5
+femjoyhunter|femjoyhunter|true|1.5.5
 eighteenmanhua|eighteenmanhua|true|1.6.1
 creativecomic|creativecomic|false|1.5.5
 kanman|kanman|false|1.4.1
