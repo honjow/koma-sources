@@ -83,7 +83,7 @@ jobs:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 30
     permissions:
       contents: write
     steps:
@@ -94,7 +94,7 @@ jobs:
         with:
           name: source-library-${{ github.sha }}
           path: dist
-      - name: Publish or resume the matching source release
+      - name: Upload changed assets and promote verified library
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 scripts/publish-source-library.py --dist dist --branch master

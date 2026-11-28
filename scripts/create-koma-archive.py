@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Write a reproducible .koma ZIP for unchanged member bytes.
+"""Write a reproducible source package or delivery ZIP for unchanged bytes.
 
 Keep build.sh's explicit manifest/WASM/icon order. Fix container metadata only;
 changed compiler output or compression implementations can still change hashes.
@@ -13,9 +13,17 @@ import zipfile
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("archive", type=Path)
-    parser.add_argument("members", nargs=3)
+    parser.add_argument("--delivery", action="store_true")
+    parser.add_argument("members", nargs="+")
     args = parser.parse_args()
-    if args.members[:2] != ["manifest.json", "source.wasm"] or len(set(args.members)) != 3:
+    if len(set(args.members)) != len(args.members):
+        parser.error("archive members must be unique")
+    if args.delivery:
+        attribution = {"LICENSE", "LICENSE-APACHE-2.0", "NOTICE", "NOTICE.md"}
+        if (len(args.members) < 2 or not args.members[0].endswith(".koma")
+                or not set(args.members[1:]).issubset(attribution)):
+            parser.error("expected one source package and its attribution files")
+    elif len(args.members) != 3 or args.members[:2] != ["manifest.json", "source.wasm"]:
         parser.error("expected manifest.json, source.wasm and the validated root icon")
     members = [Path(name) for name in args.members]
     for name, path in zip(args.members, members):

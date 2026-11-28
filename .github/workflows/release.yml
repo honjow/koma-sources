@@ -61,4 +61,6 @@ jobs:
             dist/release-packages/*-delivery.zip
             dist/release-icons/*
             target/release/koma-source-dev
+          # Tagged snapshots must not replace the verified subscription directory.
+          make_latest: false
           generate_release_notes: true

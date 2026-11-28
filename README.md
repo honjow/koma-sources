@@ -15,7 +15,7 @@ https://github.com/honjow/koma-sources/releases/latest/download/index.json
 3. **管理订阅**：在“订阅地址”页可编辑、复制或移除已添加的地址；订阅提供项目主页时，也可从对应菜单打开。
 4. **本地导入**：也可以在 [最新发行版](https://github.com/honjow/koma-sources/releases/latest) 下载单个 .koma 文件，在 Koma 的书源管理右上角四点菜单中选择“本地导入”，通过文件选择器导入。
 
-书源更新会通过 GitHub Actions 自动发布至[最新发行版](https://github.com/honjow/koma-sources/releases/latest)。
+书源更新会通过 GitHub Actions 增量发布至[最新发行版](https://github.com/honjow/koma-sources/releases/latest)。订阅请使用上面的固定地址，让 App 读取最新完成的发行。
 
 [index.json](https://github.com/honjow/koma-sources/releases/latest/download/index.json) 是 Koma 可安装源列表；[catalogue.json](https://github.com/honjow/koma-sources/releases/latest/download/catalogue.json) 是完整生产源目录。包和图标与索引位于同一发行目录，条目中的 pkg、icon 使用相对路径。
 

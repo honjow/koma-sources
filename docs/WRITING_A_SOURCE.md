@@ -787,6 +787,14 @@ When writing Chinese text to JSON output, use `append_json_escaped` — it handl
 
 Output: `dist/sources/<name>/<name>-<version>.koma` (zip with `manifest.json`, `source.wasm`, and exactly one required package-owned root icon). The generated manifest carries `author`, `description`, and `contentRating` from `SOURCE_INFO`; its `minAppVersion` comes from that source's `SOURCE_ENTRIES` row. Keep these source-level fields accurate because Koma preserves them in the installed source details. `minAppVersion` must use canonical `MAJOR.MINOR.PATCH` text, for example `0.1.0`.
 
+### 正式书源库增量发布
+
+主分支构建仍生成完整目录、书源包、图标和版权交付包。交付 ZIP 的文件时间和权限固定，内容相同的重建结果可以直接复用。旧版 App 从索引同目录解析相对路径，因此正式订阅继续使用 `releases/latest/download/index.json`。
+
+发布在 `source-library-a` 和 `source-library-b` 两个固定发行目录间轮换。只更新当前未被选为 latest 的目录，匹配 GitHub 已存附件的大小和 SHA-256 时直接复用，沿用 GitHub CLI 的有界并发上传。两目录第一次使用各自补齐基础附件。索引仍使用相对路径；同名文件内容发生变化时用带摘要的文件名，保留当前索引引用的旧文件，使用户已缓存的索引仍可下载。
+
+发布先核对书源包、图标及旧索引所需的附件，再上传并核对新索引。确认主分支版本及现有 latest 未变后才切换。发布中断可以重跑发布任务，继续复用已经写入且校验一致的附件。附件接近 GitHub 上限时，只在备用目录清理当前和新索引均未引用的历史附件。已发行的历史 `sources-<commit>` 标签及手动发行快照保留独立用途。
+
 ### 发布时保留已发布稳定包
 
 依赖尚未正式发布宿主的候选在源 `metadata.json` 中声明 `distribution.available: false` 和具体原因。它仍保留在候选 `catalogue.json`；不可通过降低最低版本发布候选，也不应因此删除已有稳定版本的安装入口。

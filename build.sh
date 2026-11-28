@@ -548,8 +548,8 @@ build_source() {
   done
   if [[ "${#license_entries[@]}" -gt 0 ]]; then
     delivery_file="$OUTPUT_DIR/sources/$name/${name}-${src_version}-delivery.zip"
-    (cd "$OUTPUT_DIR/sources/$name" && zip -q "$delivery_file" \
-      "${name}-${src_version}.koma" "${license_entries[@]}") || return 1
+    (cd "$OUTPUT_DIR/sources/$name" && python3 "$SCRIPT_DIR/scripts/create-koma-archive.py" \
+      --delivery "$delivery_file" "${name}-${src_version}.koma" "${license_entries[@]}") || return 1
     if [[ -n "$VERSION_TAG" ]]; then
       mkdir -p "$RELEASE_PACKAGE_DIR" || return 1
       cp "$delivery_file" "$RELEASE_PACKAGE_DIR/$(basename "$delivery_file")" || return 1
