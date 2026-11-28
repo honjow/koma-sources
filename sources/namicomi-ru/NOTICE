@@ -1,0 +1,1 @@
+Independent Russian adaptation of the accepted Koma NamiComi contract and Keiyoushi NamiComi.kt, Apache-2.0, fixed revision c09b174459c037c62292e4e7a929a0cd59430bc4. Language identity, API partition, localized fallback and settings are isolated. Existing sources and tools remain unchanged. Official brand artwork belongs to NamiComi; see ASSET_SOURCES.md.
