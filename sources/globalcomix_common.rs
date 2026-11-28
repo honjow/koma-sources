@@ -1,4 +1,4 @@
-// Shared exclusively by Wave 23; published GlobalComix sources remain independent.
+// Shared by Wave 23/24 adapters; other published GlobalComix sources remain independent.
 // Public contract: Keiyoushi GlobalComix.kt and DTOs, Apache-2.0, revision
 // e8c7f53b7994da527c78d54f36bcc7c6d7c4f9bf. No authentication/mirror/JS processing.
 use koma_source_sdk::{
