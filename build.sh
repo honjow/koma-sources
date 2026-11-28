@@ -124,6 +124,9 @@ bakamh|bakamh|true|1.6.1
 mitaku|mitaku|true|1.5.5
 metarthunter|metarthunter|true|1.5.5
 femjoyhunter|femjoyhunter|true|1.5.5
+playmatehunter|playmatehunter|true|1.5.5
+xarthunter|xarthunter|true|1.5.5
+elitebabes|elitebabes|true|1.5.5
 eighteenmanhua|eighteenmanhua|true|1.6.1
 creativecomic|creativecomic|false|1.5.5
 kanman|kanman|false|1.4.1
