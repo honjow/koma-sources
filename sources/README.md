@@ -123,6 +123,7 @@
 | <img src="manhuamanga/icon.png" width="24" alt=""> | manhuamanga | 漫画manga | 漫画manga（mh03.com）的中文漫画书库，收录《一人之下》等分话连载，并按题材整理连载及完结作品。 |
 | <img src="manwamanhua/icon.png" width="24" alt=""> | manwamanhua | 漫蛙漫画 | 漫蛙收录韩漫、日漫、国漫与台漫，设有一般向、BL、GL 及 TL 等作品分类。 |
 | <img src="ikanmh/icon.png" width="24" alt=""> | ikanmh | 漫小肆韩漫 | 漫小肆韩漫的漫画书库，地区分类包含韩国、日本与台湾，作品依题材及连载进度整理。 |
+| <img src="miwumh/icon.png" width="24" alt=""> | miwumh | 迷雾漫画 | 收录中文翻译的韩漫，设有 BL、GL、全年龄及英文栏目。登录后可查看连载和完结作品。 |
 | <img src="mikagogo/icon.png" width="24" alt=""> | mikagogo | 米卡插画 | 米卡插画收录插画、画师图集、画册、壁纸与 COSPLAY 相册。此入口阅读公开图集，会员或积分下载的高清文件由原站提供。 |
 | <img src="relamanhua/icon.png" width="24" alt=""> | relamanhua | 热辣漫画 | 热辣漫画收录恋爱、冒险、奇幻、校园等题材。普通浏览为免费作品，搜索亦可能列出付费作品，其锁定预览不等于完整正文。 |
 | <img src="roumanwu/icon.png" width="24" alt=""> | roumanwu | 肉漫屋 | 肉漫屋收录韩国漫画，包含剧情、现代奇幻等分类，兼有连载与完结作品。 |

@@ -1,0 +1,26 @@
+{
+  "homepage": "https://miwumh.com/",
+  "localizedNames": {
+    "zh-Hans": "迷雾漫画",
+    "zh-Hant": "迷霧漫畫",
+    "en": "MIWU Manga"
+  },
+  "chapterOrder": "newest_first",
+  "authentication": { "kind": "web", "loginUrl": "https://miwumh.com/user-settings/?tab=account-settings" },
+  "websitePolicy": { "webFetchBridge": true },
+  "requestLimits": [
+    { "group": "miwumh-images", "hosts": ["t1.bakamh.de"], "permits": 2, "periodMs": 1000, "oncePerRequest": true }
+  ],
+  "comments": { "version": 1, "scopes": ["manga", "chapter"] },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "zh-Hans",
+    "messages": {
+      "source.description": {
+        "zh-Hans": "迷雾漫画收录中文翻译的韩国条漫，另设 BL、GL、全年龄和英文专区。登录后可查看作品，部分作品的后记和番外也单独列章。",
+        "zh-Hant": "迷霧漫畫收錄中文翻譯的韓國條漫，另設 BL、GL、全年齡和英文專區。登入後可查看作品，部分作品的後記和番外也單獨列章。",
+        "en": "MIWU Manga hosts Chinese-translated Korean webcomics, with BL, GL, all-ages, and English sections. Sign-in is required to view the catalogue, which also lists afterwords and side stories for some series."
+      }
+    }
+  }
+}
