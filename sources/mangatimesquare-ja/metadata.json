@@ -1,0 +1,238 @@
+{
+  "icon": "icon.png",
+  "homepage": "https://mangatime-square.com",
+  "minAppVersion": "1.5.5",
+  "requiredImageDecodes": [
+    "wasm_image_v1"
+  ],
+  "wasmBuild": {
+    "imageProcessorCrate": "koma_gigaviewer_tile_processor"
+  },
+  "localization": {
+    "version": 1,
+    "defaultLocale": "ja",
+    "messages": {
+      "error.locked": {
+        "zh-Hans": "该章节当前未公开。",
+        "zh-Hant": "此章節目前未公開。",
+        "en": "This chapter is currently locked.",
+        "ja": "この話は現在公開されていません。",
+        "ko": "이 회차는 현재 잠겨 있습니다."
+      },
+      "error.unavailable": {
+        "zh-Hans": "原站没有提供此内容。",
+        "zh-Hant": "原站沒有提供此內容。",
+        "en": "This content is unavailable on the website.",
+        "ja": "配信元でこのコンテンツは公開されていません。",
+        "ko": "사이트에서 이 콘텐츠를 제공하지 않습니다."
+      },
+      "error.network": {
+        "zh-Hans": "原站请求未完成，请稍后重试。",
+        "zh-Hant": "原站請求未完成，請稍後再試。",
+        "en": "Could not complete the website request. Try again later.",
+        "ja": "配信元へのリクエストに失敗しました。時間をおいて再試行してください。",
+        "ko": "사이트에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요."
+      },
+      "error.host": {
+        "zh-Hans": "请更新 Koma 以阅读此章节。",
+        "zh-Hant": "請更新 Koma 以閱讀此章節。",
+        "en": "Update Koma to read this chapter.",
+        "ja": "この話を読むには Koma を更新してください。",
+        "ko": "이 회차를 읽으려면 Koma를 업데이트하세요."
+      },
+      "error.scramble": {
+        "zh-Hans": "此章节使用暂不支持的图片格式。",
+        "zh-Hant": "此章節使用暫不支援的圖片格式。",
+        "en": "This chapter uses an unsupported image format.",
+        "ja": "この話は未対応の画像形式を使用しています。",
+        "ko": "이 회차는 지원하지 않는 이미지 형식입니다."
+      },
+      "error.catalog": {
+        "zh-Hans": "原站目录已变化，请刷新后重试。",
+        "zh-Hant": "原站目錄已變更，請重新整理後再試。",
+        "en": "The catalog changed. Refresh and try again.",
+        "ja": "配信元の一覧が更新されました。再読み込みしてください。",
+        "ko": "사이트 목록이 변경되었습니다. 새로고침한 후 다시 시도하세요."
+      },
+      "error.filter": {
+        "zh-Hans": "请检查搜索或筛选条件。",
+        "zh-Hant": "請檢查搜尋或篩選條件。",
+        "en": "Check the search or filter values.",
+        "ja": "検索語や絞り込み条件を確認してください。",
+        "ko": "검색어나 필터 조건을 확인해 주세요."
+      },
+      "error.generic": {
+        "zh-Hans": "暂时无法读取此内容。",
+        "zh-Hant": "暫時無法讀取此內容。",
+        "en": "Unable to load this content.",
+        "ja": "このコンテンツを読み込めません。",
+        "ko": "이 콘텐츠를 불러올 수 없습니다."
+      },
+      "filter.collection": {
+        "zh-Hans": "作品分类",
+        "zh-Hant": "作品分類",
+        "en": "Collection",
+        "ja": "作品分類",
+        "ko": "작품 분류"
+      },
+      "setting.hide_locked": {
+        "zh-Hans": "隐藏付费章节",
+        "zh-Hant": "隱藏付費章節",
+        "en": "Hide paid chapters",
+        "ja": "有料話を非表示",
+        "ko": "유료 회차 숨기기"
+      },
+      "setting.hide_unavailable": {
+        "zh-Hans": "隐藏已下架章节",
+        "zh-Hant": "隱藏已下架章節",
+        "en": "Hide unavailable chapters",
+        "ja": "配信終了話を非表示",
+        "ko": "공개 종료 회차 숨기기"
+      },
+      "chapter.unavailable": {
+        "zh-Hans": "已下架",
+        "zh-Hant": "已下架",
+        "en": "Unavailable",
+        "ja": "配信終了",
+        "ko": "공개 종료"
+      },
+      "chapter.volume": {
+        "zh-Hans": "单行本",
+        "zh-Hant": "單行本",
+        "en": "Volume",
+        "ja": "単行本",
+        "ko": "단행본"
+      },
+      "source.author": {
+        "zh-Hans": "Koma 书源贡献者",
+        "zh-Hant": "Koma 書源貢獻者",
+        "en": "Koma source contributors",
+        "ja": "Koma ソース開発メンバー",
+        "ko": "Koma 소스 기여자"
+      },
+      "listing.popular": {
+        "zh-Hans": "热门作品",
+        "zh-Hant": "熱門作品",
+        "en": "Popular titles",
+        "ja": "人気作品",
+        "ko": "인기 작품"
+      },
+      "listing.latest": {
+        "zh-Hans": "最近更新",
+        "zh-Hant": "最近更新",
+        "en": "Latest updates",
+        "ja": "最近の更新",
+        "ko": "최근 업데이트"
+      },
+      "source.name": {
+        "zh-Hans": "まんがタイムスクエア",
+        "zh-Hant": "まんがタイムスクエア",
+        "en": "Manga Time Square",
+        "ja": "まんがタイムスクエア",
+        "ko": "망가 타임 스퀘어"
+      },
+      "source.description": {
+        "zh-Hans": "芳文社官方漫画站，汇集《まんがタイム》《まんがホーム》《まんがタイムオリジナル》三刊连载，并设 Extra 栏目。可阅读《夜の缶詰》等作品在原站免费公开的章节。",
+        "zh-Hant": "芳文社官方漫畫站，匯集《まんがタイム》《まんがホーム》《まんがタイムオリジナル》三刊連載，並設 Extra 欄目。可閱讀《夜の缶詰》等作品在原站免費公開的章節。",
+        "en": "Houbunsha’s official site brings together serials from Manga Time, Manga Home and Manga Time Original, plus an Extra section. Read chapters of titles such as 夜の缶詰 while they are available free on the site.",
+        "ja": "芳文社の公式マンガサイト。まんがタイム・まんがホーム・まんがタイムオリジナルの連載とExtraを掲載。『夜の缶詰』など、原サイトで無料公開中の話を読めます。",
+        "ko": "호분샤의 공식 만화 사이트로, 망가 타임·망가 홈·망가 타임 오리지널의 연재작과 Extra 코너를 모았습니다. 《夜の缶詰》 등 원래 사이트에서 무료로 공개한 회차를 읽을 수 있습니다."
+      },
+      "collection.all": {
+        "zh-Hans": "全部作品",
+        "zh-Hant": "全部作品",
+        "en": "All titles",
+        "ja": "作品一覧",
+        "ko": "전체 작품"
+      },
+      "collection.mangatime": {
+        "zh-Hans": "Manga Time（まんがタイム）",
+        "zh-Hant": "Manga Time（まんがタイム）",
+        "en": "Manga Time",
+        "ja": "まんがタイム",
+        "ko": "망가 타임"
+      },
+      "collection.mangahome": {
+        "zh-Hans": "Manga Home（まんがホーム）",
+        "zh-Hant": "Manga Home（まんがホーム）",
+        "en": "Manga Home",
+        "ja": "まんがホーム",
+        "ko": "망가 홈"
+      },
+      "collection.original": {
+        "zh-Hans": "Manga Time Original",
+        "zh-Hant": "Manga Time Original",
+        "en": "Manga Time Original",
+        "ja": "まんがタイムオリジナル",
+        "ko": "망가 타임 오리지널"
+      },
+      "collection.extra": {
+        "zh-Hans": "特别内容（Extra）",
+        "zh-Hant": "特別內容（Extra）",
+        "en": "Extra",
+        "ja": "Extra",
+        "ko": "특별 콘텐츠 (Extra)"
+      }
+    }
+  },
+  "requestLimits": [
+    {
+      "group": "mangatimesquare-site",
+      "permits": 3,
+      "periodMs": 1000,
+      "hosts": [
+        "mangatime-square.com"
+      ]
+    }
+  ],
+  "localizedNames": {
+    "zh-Hans": "まんがタイムスクエア",
+    "zh-Hant": "まんがタイムスクエア",
+    "en": "Manga Time Square",
+    "ja": "まんがタイムスクエア",
+    "ko": "망가 타임 스퀘어"
+  },
+  "presentation": {
+    "version": 1,
+    "defaultLocale": "ja",
+    "texts": {
+      "name": {
+        "zh-Hans": "まんがタイムスクエア",
+        "zh-Hant": "まんがタイムスクエア",
+        "en": "Manga Time Square",
+        "ja": "まんがタイムスクエア",
+        "ko": "망가 타임 스퀘어"
+      },
+      "description": {
+        "zh-Hans": "芳文社官方漫画站，汇集《まんがタイム》《まんがホーム》《まんがタイムオリジナル》三刊连载，并设 Extra 栏目。可阅读《夜の缶詰》等作品在原站免费公开的章节。",
+        "zh-Hant": "芳文社官方漫畫站，匯集《まんがタイム》《まんがホーム》《まんがタイムオリジナル》三刊連載，並設 Extra 欄目。可閱讀《夜の缶詰》等作品在原站免費公開的章節。",
+        "en": "Houbunsha’s official site brings together serials from Manga Time, Manga Home and Manga Time Original, plus an Extra section. Read chapters of titles such as 夜の缶詰 while they are available free on the site.",
+        "ja": "芳文社の公式マンガサイト。まんがタイム・まんがホーム・まんがタイムオリジナルの連載とExtraを掲載。『夜の缶詰』など、原サイトで無料公開中の話を読めます。",
+        "ko": "호분샤의 공식 만화 사이트로, 망가 타임·망가 홈·망가 타임 오리지널의 연재작과 Extra 코너를 모았습니다. 《夜の缶詰》 등 원래 사이트에서 무료로 공개한 회차를 읽을 수 있습니다."
+      },
+      "author": {
+        "zh-Hans": "Koma 书源贡献者",
+        "zh-Hant": "Koma 書源貢獻者",
+        "en": "Koma source contributors",
+        "ja": "Koma ソース開発メンバー",
+        "ko": "Koma 소스 기여자"
+      }
+    }
+  },
+  "identity": {
+    "mihon": {
+      "sourceIds": [
+        "5972758064357912813"
+      ],
+      "work": {
+        "pathPrefix": "",
+        "idPrefix": "mangatimesquare:"
+      },
+      "chapter": {
+        "pathPrefix": "",
+        "idPrefix": "",
+        "targetIdSegment": 3
+      }
+    }
+  }
+}

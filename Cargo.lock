@@ -4975,3 +4975,27 @@ dependencies = [
  "serde_json",
  "url",
 ]
+[[package]]
+name = "koma_mangatimesquare_ja_source"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "dlmalloc",
+ "koma_source_sdk",
+ "serde_json",
+ "url",
+]
+
+[[package]]
+name = "koma_namicomi_ko_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
+
+[[package]]
+name = "koma_namicomi_pl_source"
+version = "0.1.0"
+dependencies = [
+ "koma_source_sdk",
+]
