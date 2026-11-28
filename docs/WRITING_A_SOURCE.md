@@ -489,6 +489,12 @@ when the host advertises `chapter_reading_order_v1`.
 
 **Important**: Page images use nested `image.url`, not a flat `url` field.
 
+#### 页表与图片预载
+
+`get_pages` 返回完整、有序的页身份和图片描述。原站的章节接口一次就返回整章图片地址时，直接使用这些地址。需要逐页请求 HTML 或接口才能得出图片地址时，页表只读取提供页数和定位信息的目录文档，将各页解析留到已有的 `get_image_request`。
+
+书源不得在进入阅读器前逐页请求整章来收集图片地址。每次 `get_image_request` 只处理宿主指定的那一页，阅读器按用户设置的页数和网络条件安排预载，下载队列沿用同一逐页解析入口。单页请求失败只影响该页，由宿主负责重试。验收分页源时，用长图集确认入场请求数不会随总页数增长，再阅读首、中、末页核对顺序和完整性。
+
 ### get_image_request
 
 ```json

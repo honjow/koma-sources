@@ -3,6 +3,7 @@ extern crate alloc;
 use alloc::{collections::BTreeSet, format, string::ToString, vec, vec::Vec};
 use koma_source_sdk::source::SourceCapabilities;
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use url::Url;
 #[path = "../../photo_gallery.rs"]
 #[allow(dead_code)]
@@ -18,6 +19,7 @@ use port_catalog::Labels;
 #[global_allocator]
 static ALLOCATOR: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
 const SITE: &str = "https://www.junmeitu.com/";
+const MAX_GALLERY_PARTS: usize = 1000;
 const LANGUAGE: &str = "zh-Hans";
 const METADATA: &[u8] = include_bytes!("../metadata.json");
 const SOURCE_INFO:koma_source_sdk::source::SourceInfo=info("com.junmeitu.koma","俊美图","按模特、写真机构与主题整理的真人写真图库，也收录街拍与男士写真。套图按原站分页合并，含成人内容。");
@@ -250,7 +252,7 @@ fn total(d: &Node, root: &Url) -> Result<usize> {
     for a in d.all(".pages a")? {
         let t = a.text()?;
         if let Ok(n) = t.parse::<usize>() {
-            if n == 0 || n > 1000 {
+            if n == 0 || n > MAX_GALLERY_PARTS {
                 return Err("result_too_large");
             };
             let u = site(&a.attr("href")?)?;
@@ -277,65 +279,108 @@ fn part_url(root: &Url, n: usize) -> Result<Url> {
     let base = root.path().strip_suffix(".html").ok_or("parse_error")?;
     site(&format!("{base}-{n}.html"))
 }
+fn check_part_number(document: &Node, part: usize) -> Result<()> {
+    let current = document.require(".pages span")?.text()?;
+    if current.parse::<usize>().ok() != Some(part) {
+        return Err("catalog_changed");
+    }
+    Ok(())
+}
+
+fn full_images(document: &Node) -> Result<Vec<Url>> {
+    let mut urls = Vec::new();
+    let mut seen = BTreeSet::new();
+    for node in document.require(".pictures, .news-body")?.all("img")? {
+        let url = image(&node, true).ok_or("parse_error")?;
+        if !seen.insert(url.as_str().to_string()) {
+            return Err("catalog_changed");
+        }
+        urls.push(url);
+    }
+    if urls.is_empty() {
+        return Err("chapter_unavailable");
+    }
+    Ok(urls)
+}
+
+fn title_identity(title: &str) -> alloc::string::String {
+    format!("{:x}", Sha256::digest(title.as_bytes()))
+}
+
 fn get_pages(raw: &str) -> Result<Value> {
     let root = album(raw)?;
     let first = document(&root)?;
     let expected = total(&first, &root)?;
     let title = first.require("h1.title, h1.news-title")?.text()?;
-    let mut seen = BTreeSet::new();
-    let mut urls = Vec::new();
-    for part in 1..=expected {
-        let current;
-        let d = if part == 1 {
-            &first
-        } else {
-            current = document(&part_url(&root, part)?)?;
-            &current
-        };
-        let current_title = d.require("h1.title, h1.news-title")?.text()?;
-        // The real site appends the current HTML page number to its title.
-        // Accept only that exact suffix, never an unrelated redirected gallery.
-        let expected_title = if part == 1 {
-            title.clone()
-        } else {
-            format!("{title} ({part})")
-        };
-        if total(d, &root)? != expected || current_title != expected_title {
-            return Err("catalog_changed");
-        }
-        if expected > 1 && d.require(".pages span")?.text()?.parse::<usize>().ok() != Some(part) {
-            return Err("catalog_changed");
-        }
-        let container = d.require(".pictures, .news-body")?;
-        let mut count = 0;
-        for n in container.all("img")? {
-            let u = image(&n, true).ok_or("parse_error")?;
-            if !seen.insert(u.as_str().to_string()) {
-                return Err("catalog_changed");
-            };
-            urls.push(u);
-            count += 1;
-        }
-        if count == 0 {
-            return Err("chapter_unavailable");
-        }
+    let mut urls = full_images(&first)?;
+    if expected == 1 {
+        return pages(raw, urls);
     }
-    // Every advertised HTML page is accounted for. Never report success after a
-    // missing middle page, a repeated redirect, or a recommendation thumbnail.
-    let mut out = pages(raw, urls)?;
-    if let Some(list) = out["pages"].as_array_mut() {
-        for page in list {
-            page["image"]["headers"] = json!({"Referer":SITE});
-        }
+    check_part_number(&first, 1)?;
+    // Paginated albums use one original per document. A single news article
+    // may contain multiple originals and is handled in the branch above.
+    if urls.len() != 1 {
+        return Err("catalog_changed");
     }
-    Ok(out)
+    let count_hint = expected.to_string();
+    let title = title_identity(&title);
+    for part in 2..=expected {
+        let mut url = part_url(&root, part)?;
+        // These hints bind lazy pages to the directory just read. The image
+        // resolver strips them before requesting the original HTML route.
+        url.query_pairs_mut().append_pair("koma_pages", &count_hint)
+            .append_pair("koma_title", &title);
+        urls.push(url);
+    }
+    pages(raw, urls)
 }
+
+fn resolve_paged_image(raw: &str, page_id: &str) -> Result<Url> {
+    let identity = page_id.strip_prefix("chapter:").ok_or("invalid_request")?;
+    let (key, part) = identity.rsplit_once(':').ok_or("invalid_request")?;
+    let part = part.parse::<usize>().map_err(|_| "invalid_request")?;
+    let root = album(key)?;
+    let mut url = https(SITE, raw)?;
+    let (total_parts, title) = {
+        let mut query = url.query_pairs();
+        let (count_key, count) = query.next().ok_or("invalid_request")?;
+        let (title_key, title) = query.next().ok_or("invalid_request")?;
+        let count = count.parse::<usize>().map_err(|_| "invalid_request")?;
+        if count_key != "koma_pages" || title_key != "koma_title" || query.next().is_some()
+            || title.len() != 64 || !title.bytes().all(|b| b.is_ascii_hexdigit())
+            || part < 2 || part > count || count > MAX_GALLERY_PARTS
+        {
+            return Err("invalid_request");
+        }
+        (count, title.into_owned())
+    };
+    url.set_query(None);
+    if url != part_url(&root, part)? {
+        return Err("invalid_request");
+    }
+    let page = document(&url)?;
+    check_part_number(&page, part)?;
+    let title_text = page.require("h1.title, h1.news-title")?.text()?;
+    let suffix = format!(" ({part})");
+    let original_title = title_text.strip_suffix(&suffix).ok_or("catalog_changed")?;
+    if total(&page, &root)? != total_parts || title_identity(original_title) != title {
+        return Err("catalog_changed");
+    }
+    let mut images = full_images(&page)?;
+    if images.len() != 1 {
+        return Err("catalog_changed");
+    }
+    images.pop().ok_or("chapter_unavailable")
+}
+
 fn run_get_image_request(r: &[u8]) -> u32 {
     let v = port::input(r).and_then(|v| {
-        let u = v["args"]["url"]
-            .as_str()
-            .and_then(|s| media(s, false))
-            .ok_or("invalid_request")?;
+        let args = &v["args"];
+        let raw = args["url"].as_str().ok_or("invalid_request")?;
+        let u = match media(raw, false) {
+            Some(url) => url,
+            None => resolve_paged_image(raw, args["pageId"].as_str().ok_or("invalid_request")?)?,
+        };
         Ok(json!({"imageRequest":{"url":u.as_str(),"headers":{"Referer":SITE}}}))
     });
     port_catalog::write_localized(METADATA, r, "get_image_request", v)

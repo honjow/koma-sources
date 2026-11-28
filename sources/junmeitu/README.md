@@ -11,8 +11,8 @@
 | 热门、最新、分类 | `/{category}/hot-{page}.html`、`index-{page}.html`；美女、帅哥、街拍。 | `get_manga_list → browse`；`args.page.cursor` 为1起页码，`.pages` 的下一页决定结束，禁止用右栏推荐当列表。 |
 | 搜索、筛选 | 上游 `search/{keyword}-{page}.html`，tag/model/xzjg 三类归档；搜索优先。现网搜索表单为 `/search/?q=`。 | `search → browse` 用原表单 query 和 page；支持分类、排序与 tag/model/group 代码。三项代码互斥，关键词存在时忽略归档筛选，提示五语说明；标签可填原站代码或规范 `/tags/*.html` URL，转分类分页路径。 |
 | 详情与单章 | `.title/.news-title`、`.pictures/.news-body`、`.relation_tags`。 | `detail` 返回完整正文封面、原站标签与写真标记；`photo_gallery::run_get_chapters` 生成单个完整图集章节。 |
-| 全分页 | 原 `.pages a` 有所有分页边界（含末页），`.pages span` 标识当前页。上游可能转 AJAX 懒取图片。 | `get_pages` 连续抓取完整 HTML 1..N，逐页核对同套地址、相同标题（第二页起精确匹配原站 `(页码)` 后缀）、末页数、当前页和非空正文；只解析 `.pictures/.news-body`。失败必须报错，不返回半套。 |
-| 全尺寸图 | `i.wujituku.com/jmt/...`、街拍及 `s.wujituku.com` 原图。 | `media(full=true)` 拒绝 `thumb_*`、`/re/` 派生图及 statics；目录封面可用缩略图，正文绝不混入。图片请求附官网 Referer。重复正文页视为目录变化，不掩盖漏页。 |
+| 全分页 | 原 `.pages a` 有所有分页边界（含末页），`.pages span` 标识当前页。上游可能转 AJAX 懒取图片。 | `get_pages` 只读取原站第一页，按真实末页数发布完整目录，首图直接取原图。其余页面经现有 `get_image_request` 按需请求原站分页，逐页核对同套地址、原始标题、末页数、当前页和唯一正文原图。请求描述中的目录校验参数在实际发请求前移除。单页失败由该页报告和重试。 |
+| 全尺寸图 | `i.wujituku.com/jmt/...`、街拍及 `s.wujituku.com` 原图。 | `media(full=true)` 拒绝 `thumb_*`、`/re/` 派生图及 statics；目录封面可用缩略图，正文绝不混入。图片请求附官网 Referer。每个分页保留独立页身份，解析失败不掩盖漏页。 |
 | 登录、设置、首页 | 公开 GET，不接账号或下载统计。 | 五语栏目/筛选/错误；settings 为空；不把热门包装成独立首页。 |
 
 整套分页完整性、正文容器边界和全尺寸图筛选属于本源兼容约定。不得为减少请求截断长图集，或以成功首图掩盖中间页失败；变化需原站实测依据或用户明确允许。最多 1000 页，超过预算明确返回错误。
