@@ -50,6 +50,12 @@ def asset_name(value):
         raise ValueError(f"Invalid flat release asset name: {value!r}")
     return value
 
+class UploadRetry(RuntimeError):
+    def __init__(self, message, delay):
+        super().__init__(message)
+        self.delay = delay
+
+
 
 class GitHub:
     def __init__(self, base_url, repo, token):
@@ -127,14 +133,22 @@ class GitHub:
         return {asset["name"]: asset for asset in self.paginate(f"/releases/{release['id']}/assets")}
 
     def upload(self, release, paths):
-        if paths:
-            # The same bounded (five concurrent) uploader the original CI used.
-            # If it fails, the next run will retain every successfully stored
-            # file, and remove an incomplete placeholder only in this slot.
-            subprocess.run(
-                ["gh", "release", "upload", release["tag_name"], *map(str, paths), "--repo", self.repo],
-                check=True,
-            )
+        if not paths:
+            return
+        # Use the CLI's bounded uploader. Ordinary incremental updates make
+        # one call and never wait. A cold slot can hit GitHub's write limits.
+        result = subprocess.run(
+            ["gh", "release", "upload", release["tag_name"], *map(str, paths), "--repo", self.repo],
+            text=True, capture_output=True,
+        )
+        if result.returncode == 0:
+            return
+        message = " ".join((result.stderr or result.stdout).split())[:500]
+        if re.search(r"secondary rate limit|API rate limit exceeded|HTTP 429", message, re.I):
+            raise UploadRetry(message, 180)
+        if re.search(r"HTTP 50[0234]|unexpected EOF|connection reset|timed? out", message, re.I):
+            raise UploadRetry(message, 15)
+        raise RuntimeError(f"GitHub upload exited with {result.returncode}: {message}")
 
     def remove(self, asset):
         self.request("DELETE", f"/releases/assets/{asset['id']}", allow_404=True)
@@ -231,19 +245,32 @@ def write_documents(dist, directory, index, files, names):
 
 
 def upload_missing(api, release, existing, wanted, staging):
-    inputs = []
-    for name, file in wanted.items():
-        asset = existing.get(name)
-        if matches(asset, file):
-            continue
-        if asset:
-            api.remove(asset)
-        path = staging / name
-        if file.path != path:
-            shutil.copyfile(file.path, path)
-        inputs.append(path)
-    api.upload(release, inputs)
-    print(f"{len(inputs)} uploaded, {len(wanted) - len(inputs)} reused.", flush=True)
+    reused = sum(matches(existing.get(name), file) for name, file in wanted.items())
+    for attempt in range(4):
+        inputs = []
+        for name, file in wanted.items():
+            asset = existing.get(name)
+            if matches(asset, file):
+                continue
+            if asset:
+                api.remove(asset)
+            path = staging / name
+            if file.path != path:
+                shutil.copyfile(file.path, path)
+            inputs.append(path)
+        try:
+            api.upload(release, inputs)
+            break
+        except UploadRetry as error:
+            if attempt == 3:
+                raise
+            wait = error.delay * 2**attempt
+            print(f"{error} Waiting {wait}s before continuing the same slot.", flush=True)
+            time.sleep(wait)
+            # A failed batch can still have written hundreds of valid files.
+            # Query their digests before retrying, and leave the active slot alone.
+            existing = api.assets(release)
+    print(f"{len(wanted) - reused} uploaded, {reused} reused.", flush=True)
 
 
 def verify(assets, wanted):
@@ -268,9 +295,7 @@ def publish(api, sha, branch, dist):
         return
     tag = TAGS[1] if active and active["tag_name"] == TAGS[0] else TAGS[0]
     files = source_assets(dist)
-    index = records(dist / "index.json")
-    release = api.slot(tag, sha)
-    existing = api.assets(release)
+    active_assets = api.assets(active) if active else {}
 
     with tempfile.TemporaryDirectory(prefix="koma-source-release-") as temp:
         root = Path(temp)
@@ -280,7 +305,19 @@ def publish(api, sha, branch, dist):
         files_dir.mkdir()
         docs_dir = root / "documents"
         docs_dir.mkdir()
-        previous, by_source = previous_paths(api, active, api.assets(active) if active else {}, previous_dir)
+        previous, by_source = previous_paths(api, active, active_assets, previous_dir)
+        if active and active["tag_name"] in TAGS:
+            index = records(dist / "index.json")
+            names = choose_names(files, previous, active_assets, by_source, index)
+            docs = write_documents(dist, docs_dir, index, files, names)
+            if (all(matches(active_assets.get(names[name]), file) for name, file in files.items())
+                    and all(matches(active_assets.get(name), file) for name, file in docs.items())):
+                print(f"No changes to the {len(files)} source assets or the public index. Nothing to upload.")
+                return
+
+        release = api.slot(tag, sha)
+        existing = api.assets(release)
+        index = records(dist / "index.json")
         names = choose_names(files, previous, existing, by_source, index)
         docs = write_documents(dist, docs_dir, index, files, names)
         wanted = {names[name]: value for name, value in files.items()}
