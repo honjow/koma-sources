@@ -195,7 +195,7 @@ fn browse(input: &Value, search: bool) -> Result<Value> {
         params
             .append_pair("query", query)
             .append_pair("page", &format!("{page}"))
-            .append_pair("language", LANG)
+            .append_pair("language", site_lang())
             .append_pair("tags", &tags.replace(", ", ","))
             .append_pair("completed", completed);
         for (id, _, values, default) in FILTERS {
@@ -824,3 +824,13 @@ pub extern "C" fn koma_source_get_chapters(req_ptr: u32, req_len: u32) -> u32 {
     }
 }
 export_source!();
+
+// Keiyoushi ComicFury.siteLang: only the Brazilian Portuguese query uses "pt".
+// Keep content language/identity as pt-BR; all existing adapters retain LANG.
+fn site_lang() -> &'static str {
+    if LANG == "pt-BR" {
+        "pt"
+    } else {
+        LANG
+    }
+}

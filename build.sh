@@ -236,6 +236,9 @@ comicfury-en|comicfury-en|true|0.1.0
 comicfury-es|comicfury-es|true|1.5.5
 comicfury-fr|comicfury-fr|true|1.5.5
 comicfury-ja|comicfury-ja|true|1.5.5
+comicfury-pt-br|comicfury-pt-br|true|1.5.5
+comicfury-de|comicfury-de|true|1.5.5
+comicfury-it|comicfury-it|true|1.5.5
 smbc-en|smbc-en|false|0.1.0
 questionablecontent-en|questionablecontent-en|false|0.1.0
 commitstrip-en|commitstrip-en|false|0.1.0
